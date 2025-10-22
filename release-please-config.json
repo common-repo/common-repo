@@ -1,0 +1,16 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "rust",
+      "package-name": "rust-project",
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "versioning": "default",
+      "extra-files": [
+        "Cargo.toml"
+      ]
+    }
+  },
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
