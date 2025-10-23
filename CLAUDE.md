@@ -91,13 +91,16 @@ pre-commit install --hook-type commit-msg
 
 1. **CI Pipeline** (`.github/workflows/ci.yml`)
    - Triggers on push/PR to `main`
-   - Runs: tests, formatting checks, clippy, release build
-   - Uses caching for cargo registry/index/build artifacts
+   - **Lint job**: Runs pre-commit checks on all files (rustfmt, clippy, conventional commits validation, etc.)
+   - **Test job**: Runs all tests with caching for cargo registry/index/build artifacts
+   - **Rustfmt job**: Checks code formatting
+   - **Clippy job**: Runs linting checks
+   - **Build job**: Creates release binary
 
 2. **Release Pipeline** (`.github/workflows/release.yml`)
    - Uses Release Please for semantic versioning
    - Automatically creates releases based on conventional commits
-   - Builds and uploads release binaries to GitHub Releases
+   - Builds and uploads `common-repo` binary to GitHub Releases
    - Only runs on pushes to `main`
 
 3. **Commit Linting** (`.github/workflows/commitlint.yml`)
@@ -117,7 +120,9 @@ Configuration files:
 
 ## Important Notes for Development
 
+- **Lint job is required**: The CI pipeline includes a dedicated Lint job that runs pre-commit on all files. This job must pass for PRs to be merged.
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
 - The release workflow requires `GITHUB_TOKEN` permissions for `contents: write` and `pull-requests: write`.
+- Binary name is `common-repo` (matches the package name in Cargo.toml).
