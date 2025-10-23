@@ -1,4 +1,4 @@
-# rust-project
+# common-repo
 
 A Rust project with modern development tooling and automation.
 
@@ -21,7 +21,7 @@ A Rust project with modern development tooling and automation.
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd rust-project
+cd common-repo
 
 # Build the project
 cargo build
