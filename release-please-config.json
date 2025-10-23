@@ -2,7 +2,7 @@
   "packages": {
     ".": {
       "release-type": "rust",
-      "package-name": "rust-project",
+      "package-name": "common-repo",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
