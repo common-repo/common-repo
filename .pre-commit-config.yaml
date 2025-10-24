@@ -13,12 +13,13 @@ repos:
         description: Lint Rust code with clippy
         args: ['--all-targets', '--all-features', '--', '-D', 'warnings']
 
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.6.0
-    hooks:
-      - id: conventional-pre-commit
-        stages: [commit-msg]
-        args: []
+  # This breaks claude-sandbox 'cause it tries to commit at startup
+  # - repo: https://github.com/compilerla/conventional-pre-commit
+  #   rev: v3.6.0
+  #   hooks:
+  #     - id: conventional-pre-commit
+  #       stages: [commit-msg]
+  #       args: []
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
