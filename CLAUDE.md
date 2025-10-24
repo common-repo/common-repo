@@ -87,7 +87,7 @@ pre-commit install --hook-type commit-msg
 
 ## CI/CD Architecture
 
-### Three GitHub Actions Workflows
+### GitHub Actions Workflows
 
 1. **CI Pipeline** (`.github/workflows/ci.yml`)
    - Triggers on push/PR to `main`
@@ -97,26 +97,9 @@ pre-commit install --hook-type commit-msg
    - **Clippy job**: Runs linting checks
    - **Build job**: Creates release binary
 
-2. **Release Pipeline** (`.github/workflows/release.yml`)
-   - Uses Release Please for semantic versioning
-   - Automatically creates releases based on conventional commits
-   - Builds and uploads `common-repo` binary to GitHub Releases
-   - Only runs on pushes to `main`
-
-3. **Commit Linting** (`.github/workflows/commitlint.yml`)
+2. **Commit Linting** (`.github/workflows/commitlint.yml`)
    - Validates commit messages in PRs
    - Enforces conventional commit format
-
-### Version Management
-
-Semantic versioning is automated via Release Please:
-- `feat:` commits → minor version bump (0.1.0 → 0.2.0)
-- `fix:` commits → patch version bump (0.1.0 → 0.1.1)
-- `feat!:` or `BREAKING CHANGE:` → major version bump (0.1.0 → 1.0.0)
-
-Configuration files:
-- `release-please-config.json` - Release Please settings
-- `.release-please-manifest.json` - Current version tracking
 
 ## Important Notes for Development
 
@@ -124,5 +107,4 @@ Configuration files:
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
-- The release workflow requires `GITHUB_TOKEN` permissions for `contents: write` and `pull-requests: write`.
 - Binary name is `common-repo` (matches the package name in Cargo.toml).
