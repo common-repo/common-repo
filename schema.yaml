@@ -1,20 +1,23 @@
 ######################
 # CommonRepo v2 schema
 #
-# Operations are defined as a list of operators that can be applied in any
-# order and multiple times.
+# Operations are defined as a list of operators that are applied in
+# deterministic order based on their declaration sequence.
 #
 # Each operator works on an in-memory filesystem representing the composite
 # result of all previous operators. For consumers, the first operator is
-# typically 'repo:' which pulls in files from a remote repository. For
-# producers, inheritance can be achieved by using 'repo:' to pull in a
-# parent/ancestor repository, then applying further operators to add or
-# mutate files from the current repository.
+# typically 'repo:' which pulls in files from an inherited repository. For
+# producers, inheritance can be achieved by using 'repo:' to pull in an
+# inherited repository (parent or ancestor), then applying further operators
+# to add or mutate files from the current repository.
 
 #########
 # Core Operators
 
-# repo: Pull files from a remote repository into the in-memory filesystem
+# repo: Pull files from an inherited repository into the in-memory filesystem
+# The 'with:' parameter is optional syntactic sugar - operations listed in 'with:'
+# are applied to this specific repo's files in its intermediate filesystem before
+# compositing with other repos.
 - repo:
     url: https://github.com/shakefu/commonrepo
     ref: v1.1.0
@@ -60,6 +63,7 @@
 # Fragment Merge Operators
 #
 # Deterministically merge content fragments into structured files.
+# A "fragment" is a partial file that gets merged into a complete destination file.
 
 # yaml: Merge YAML fragments (source, dest, path, append)
 - yaml:
