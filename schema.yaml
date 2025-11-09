@@ -1,0 +1,103 @@
+######################
+# CommonRepo v2 schema
+#
+# Operations are defined as a list of operators that can be applied in any
+# order and multiple times.
+#
+# Each operator works on an in-memory filesystem representing the composite
+# result of all previous operators. For consumers, the first operator is
+# typically 'repo:' which pulls in files from a remote repository. For
+# producers, inheritance can be achieved by using 'repo:' to pull in a
+# parent/ancestor repository, then applying further operators to add or
+# mutate files from the current repository.
+
+#########
+# Core Operators
+
+# repo: Pull files from a remote repository into the in-memory filesystem
+- repo:
+    url: https://github.com/shakefu/commonrepo
+    ref: v1.1.0
+    with:
+      - include: [.*]
+      - exclude: [.gitignore]
+      - rename: [{".*\\.md": "docs/%[1]s"}]
+
+# include: Add files from current repository based on glob patterns
+- include:
+    - "**/*"
+    - .*/**/*
+    - .gitignore
+
+# exclude: Remove files from composite in-memory filesystem based on glob patterns
+- exclude:
+    - .github/workflows/template_*
+    - "**/*.md"
+
+# template: Mark files as templates to be processed with template variables
+- template:
+    - "templates/**"
+
+# rename: Transform file paths using regex patterns with %[N]s placeholders
+- rename:
+    - "badname/(.*)": "goodname/%[1]s"
+    - "^files/(.*)": "%[1]s"
+    - "parent/([^/]+)/dir/(.*)": "%[1]s/%[2]s"
+    - "(.*\\.md)": "docs/%[1]s"
+
+# tools: Declare required tools with version constraints
+- tools:
+    - pre-commit: "*"
+    - rustc: ">=1.70"
+    - python: "^3.9"
+    - node: "~18.0"
+
+# template-vars: Template variables for file processing
+- template-vars:
+    project: ${PROJECT_NAME:-myprojectname}
+
+#########
+# Fragment Merge Operators
+#
+# Deterministically merge content fragments into structured files.
+
+# yaml: Merge YAML fragments (source, dest, path, append)
+- yaml:
+    source: fragment.yml
+    dest: config.yml
+    path: metadata.labels
+    append: true
+
+# json: Merge JSON fragments (source, dest, path, append, position)
+- json:
+    source: fragment.json
+    dest: package.json
+    path: dependencies
+    append: true
+    position: end
+
+# toml: Merge TOML fragments (source, dest, path, append, preserve-comments)
+- toml:
+    source: fragment.toml
+    dest: Cargo.toml
+    path: dependencies
+    append: true
+    preserve-comments: true
+
+# ini: Merge INI fragments (source, dest, section, append, allow-duplicates)
+- ini:
+    source: fragment.ini
+    dest: config.ini
+    section: database
+    append: true
+    allow-duplicates: false
+
+# markdown: Merge markdown fragments (source, dest, section, append, level, position, create-section)
+- markdown:
+    source: fragment.md
+    dest: README.md
+    section: "## Installation"
+    append: true
+    level: 2
+    position: end
+    create-section: true
