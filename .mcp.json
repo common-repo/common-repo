@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "Context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "codanna": {
+      "type": "sse",
+      "url": "http://127.0.0.1:8080/mcp/sse"
+    }
+  }
+}
