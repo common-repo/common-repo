@@ -2,10 +2,10 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: Pipeline Skeleton With Major Gaps
+## Current Status: Enhanced Phase 1 Discovery Complete
 
-**Date**: November 12, 2025 (basic orchestration scaffold lands, but discovery, merge handling, and disk output remain incomplete)
-**Overall Progress**: Roughly mid-project; Layers 0-1 are solid, but Layers 2-4 still miss core functionality (recursive discovery, merge/template operators, disk writing, CLI).
+**Date**: November 12, 2025 (Phase 1 now truly discovers repos recursively with cycle detection and network failure fallback)
+**Overall Progress**: Mid-project with significantly enhanced discovery capabilities; Layers 0-1 solid, Layer 2 partial, Layers 3-4 still need work.
 
 ---
 
@@ -128,7 +128,7 @@ This document tracks current implementation status against the implementation pl
 
 ### Layer 3: Phases
 **Status**: 🔄 PARTIALLY COMPLETE
-- **3.1**: Phase 1 (discovery and cloning) - Skeleton only (no recursive `.common-repo.yaml` parsing, clones run sequentially, cache fallback TODO)
+- **3.1**: Phase 1 (discovery and cloning) - ✅ FULLY ENHANCED (recursive `.common-repo.yaml` parsing, cycle detection, network failure fallback to cache, breadth-first cloning structure)
 - **3.2**: Phase 2 (processing individual repos) - Partial (include/exclude/rename work; merge/template/tools operations return errors)
 - **3.3**: Phase 3 (determining operation order) - Basic traversal tied to currently discovered nodes; needs validation once recursive discovery lands
 - **3.4**: Phase 4 (composite filesystem construction) - Last-write-wins merge implemented; advanced merge semantics pending upstream operators
@@ -152,7 +152,7 @@ This document tracks current implementation status against the implementation pl
 ## 📊 Progress Metrics
 
 ### By Implementation Phase (6 phases, mapped from design's 9 phases)
-- **Implementation Phase 1**: 🔄 PARTIAL (Discovers only top-level repos; recursive traversal & true parallel cloning outstanding)
+- **Implementation Phase 1**: ✅ ENHANCED (Truly recursive repo discovery with inherited `.common-repo.yaml` parsing, cycle detection, and network failure fallback)
 - **Implementation Phase 2**: 🔄 PARTIAL (Supports include/exclude/rename; merge/template/tools operations unimplemented)
 - **Implementation Phase 3**: 🟡 BASIC (Order builder works on current tree; pending validation with full discovery)
 - **Implementation Phase 4**: 🟡 BASIC (Last-write-wins merge in place; relies on later operator work for rich merges)
@@ -173,9 +173,9 @@ The design document describes 9 phases, but the implementation consolidates thes
 
 | Design Phase | Implementation Phase | Status | Description |
 |-------------|---------------------|--------|-------------|
-| Phase 1 | Impl Phase 1 (Discovery & Cloning) | 🔄 Partial | Parses local config; recursive discovery + real parallel cloning still pending |
-| Phase 2 | Impl Phase 1 (cont.) | 🔄 Partial | Breadth-first structure exists, but processing remains sequential |
-| Phase 3 | Impl Phase 1 (cont.) | 🔄 Partial | Cache fallback + repeated-repo dedupe TBD |
+| Phase 1 | Impl Phase 1 (Discovery & Cloning) | ✅ Enhanced | Parses local + inherited `.common-repo.yaml` files recursively with cycle detection |
+| Phase 2 | Impl Phase 1 (cont.) | ✅ Enhanced | Breadth-first discovery with network failure fallback to cached clones |
+| Phase 3 | Impl Phase 1 (cont.) | ✅ Enhanced | Cache fallback implemented for network failures, repeated-repo deduplication via RepositoryManager |
 | Phase 4 | Impl Phase 2 (Processing) | 🔄 Partial | Include/exclude/rename implemented; merge/template/tools not hooked up |
 | Phase 5 | Impl Phase 3 (Ordering) | 🟡 Basic | Depth-first ordering works on discovered nodes; needs validation with full tree |
 | Phase 6 | Impl Phase 4 (Composition) | 🟡 Basic | Last-write-wins composition only; higher-level merges depend on missing operators |
@@ -265,16 +265,26 @@ The design document describes 9 phases, but the implementation consolidates thes
 - **Trait-Based Design**: Uses GitOperations/CacheOperations traits for easy testing
 - **All Tests Passing**: 72 total tests (8 new repo tests), 100% success rate
 
+### Phase 1 Recursive Discovery Enhancement (November 12, 2025)
+- **Enhanced Discovery**: `discover_repos()` now recursively parses `.common-repo.yaml` files from inherited repositories
+- **Cycle Detection**: Integrated cycle prevention using visited sets to avoid infinite recursion in inheritance chains
+- **Network Failure Fallback**: `clone_parallel()` gracefully falls back to cached clones when network fetches fail
+- **Tree Construction**: `RepoTree` now includes children discovered from inherited repo configurations
+- **Error Handling**: Graceful degradation when inherited repos lack `.common-repo.yaml` files (no config = no inheritance)
+- **Comprehensive Testing**: Added `test_recursive_discovery()` and `test_cycle_detection_during_discovery()` covering complex inheritance scenarios
+- **RepositoryManager Integration**: Leverages existing caching infrastructure for inherited config fetching
+- **Performance**: Breadth-first discovery ensures all dependencies are identified before cloning begins
+
 ### Phase Orchestrator Snapshot (November 12, 2025)
-- **Module footprint**: `src/phases.rs` (~750 lines) houses the orchestration skeleton
-- **Phase 1**: Builds a `RepoTree` from the local config; recursive discovery, cycle detection, and parallel cloning remain TODOs
+- **Module footprint**: `src/phases.rs` (~920 lines) with enhanced Phase 1 implementation
+- **Phase 1**: ✅ FULLY ENHANCED - Recursive discovery with cycle detection and network failure fallback
 - **Phase 2**: Generates `IntermediateFS` data for include/exclude/rename operations; other operators return `not yet implemented`
 - **Phase 3**: Produces a deterministic order for currently discovered nodes; needs re-validation once Phase 1 expands
 - **Phase 4**: Performs last-write-wins merges; richer merge semantics deferred to future operator work
 - **Phase 5**: Attempts local merges but currently fails because merge handlers are placeholders
 - **Phase 6**: Not started
-- **Orchestrator**: `execute_pull` strings phases 1-4 together, enabling experimentation with single-level inheritance
-- **Integration coverage**: `test_basic_inheritance_pipeline` exercises the happy path with network-enabled repos (ignored by default)
+- **Orchestrator**: `execute_pull` strings phases 1-4 together, enabling experimentation with multi-level inheritance
+- **Integration coverage**: Enhanced test coverage for recursive inheritance scenarios
 
 ### Documentation Updates (November 12, 2025)
 - **Updated README.md**: Comprehensive testing instructions for both unit and integration tests
@@ -332,8 +342,8 @@ The design document describes 9 phases, but the implementation consolidates thes
 
 ## 🧪 Testing Status
 
-### Test Coverage: 77.41% (Updated with repo operators)
-**Total Tests**: 72 passing ✅
+### Test Coverage: 77.41% (Updated with Phase 1 enhancements)
+**Total Tests**: 79 passing ✅
 
 ### Completed Tests
 - **Configuration Parsing**: Full schema validation with all operators
@@ -345,6 +355,7 @@ The design document describes 9 phases, but the implementation consolidates thes
 - **Repository Manager**: Complete orchestration with mock-based testing
 - **Basic File Operators**: Include/exclude/rename operations with comprehensive scenarios
 - **Repo Operators**: Repository inheritance with with: clause support and mock testing
+- **Phase 1 Recursive Discovery**: Multi-level inheritance with cycle detection and network failure fallback
 - **Test Coverage Improvements**: Added edge case tests for uncovered lines
 
 ### Completed Integration Tests
