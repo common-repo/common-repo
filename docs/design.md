@@ -167,13 +167,16 @@ This ensures:
 2. Preserve file permissions where applicable
 3. Create directories as needed
 
-### Phase 7: Cache Update
+### Caching Strategy
 
 **Goal**: Speed up future runs.
 
-1. For each repo that was fetched (not loaded from cache):
-   - Save the shallow clone to `~/.common-repo/cache/{url}/{ref}/`
+Caching happens automatically during Phase 1 (Discovery and Cloning):
+
+1. For each repo that needs to be fetched (not already cached):
+   - Clone shallow to `~/.common-repo/cache/{url}/{ref}/`
 2. Future runs with the same ref will use the cache (instant loading vs. network clone)
+3. Cache is managed transparently by the RepositoryManager
 
 ## Operator Implementation Details
 
