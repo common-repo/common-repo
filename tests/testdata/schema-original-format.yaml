@@ -1,0 +1,30 @@
+######################
+# CommonRepo v2 schema - Original Format Only
+#
+# This schema uses only the original/compact format syntax throughout.
+# Tests that the parser correctly handles the compact format path.
+
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: main
+    with:
+      - include: [".*"]
+      - exclude: [".gitignore", "target/**"]
+      - rename: [{"old_(.*)": "new_%[1]s"}]
+      - tools: [{rustc: ">=1.70"}, {cargo: "*"}]
+
+- include: ["src/**", "tests/**", "*.rs"]
+- exclude: ["**/*.swp", "**/*.tmp"]
+- template: ["templates/**", "*.template"]
+- rename:
+    - "badname/(.*)": "goodname/%[1]s"
+    - "^files/(.*)": "%[1]s"
+    - "parent/([^/]+)/dir/(.*)": "%[1]s/%[2]s"
+- tools:
+    - pre-commit: "*"
+    - python: "^3.9"
+    - node: "~18.0"
+- template-vars:
+    project: ${PROJECT_NAME:-myproject}
+    version: 1.0.0
+    author: test-author

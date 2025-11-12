@@ -1,0 +1,93 @@
+######################
+# CommonRepo v2 schema - Test Data
+#
+# This is a test schema file that points to this project's own repository.
+# It's used for integration testing of schema parsing and later for full
+# end-to-end testing of parsing to cloning.
+#
+# This schema demonstrates a realistic use case where a project inherits
+# from its own repository (useful for testing and development).
+
+#########
+# Core Operators
+
+# repo: Pull files from this project's repository
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: main
+    with:
+      - include: [.*]
+      - exclude: [.gitignore, target/**]
+
+# include: Add files from current repository based on glob patterns
+- include:
+    - "**/*"
+    - .*/**/*
+    - .gitignore
+
+# exclude: Remove files from composite in-memory filesystem based on glob patterns
+- exclude:
+    - .github/workflows/template_*
+    - "**/*.md"
+
+# template: Mark files as templates to be processed with template variables
+- template:
+    - "templates/**"
+
+# rename: Transform file paths using regex patterns with %[N]s placeholders
+- rename:
+    - "badname/(.*)": "goodname/%[1]s"
+    - "^files/(.*)": "%[1]s"
+
+# tools: Declare required tools with version constraints
+- tools:
+    - pre-commit: "*"
+    - rustc: ">=1.70"
+
+# template-vars: Template variables for file processing
+- template-vars:
+    project: ${PROJECT_NAME:-common-repo}
+
+#########
+# Fragment Merge Operators
+
+# yaml: Merge YAML fragments
+- yaml:
+    source: fragment.yml
+    dest: config.yml
+    path: metadata.labels
+    append: true
+
+# json: Merge JSON fragments
+- json:
+    source: fragment.json
+    dest: package.json
+    path: dependencies
+    append: true
+    position: end
+
+# toml: Merge TOML fragments
+- toml:
+    source: fragment.toml
+    dest: Cargo.toml
+    path: dependencies
+    append: true
+    preserve-comments: true
+
+# ini: Merge INI fragments
+- ini:
+    source: fragment.ini
+    dest: config.ini
+    section: database
+    append: true
+    allow-duplicates: false
+
+# markdown: Merge markdown fragments
+- markdown:
+    source: fragment.md
+    dest: README.md
+    section: "## Installation"
+    append: true
+    level: 2
+    position: end
+    create-section: true
