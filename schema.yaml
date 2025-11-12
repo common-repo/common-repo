@@ -26,9 +26,12 @@
 # The 'with:' parameter is optional syntactic sugar - operations listed in 'with:'
 # are applied to this specific repo's files in its intermediate filesystem before
 # compositing with other repos.
+# The 'path:' parameter is optional - specifies a sub-path within the repository
+# to use as the effective root. Only files under this path will be loaded.
 - repo:
     url: https://github.com/shakefu/commonrepo
     ref: v1.1.0
+    path: python/uv  # Optional: only load files under python/uv/ directory
     with:
       - include: [.*]
       - exclude: [.gitignore]

@@ -800,6 +800,7 @@ pub mod phase2 {
                 repo: RepoOp {
                     url: "https://github.com/parent/repo.git".to_string(),
                     r#ref: "main".to_string(),
+                    path: None,
                     with: vec![Operation::Include {
                         include: crate::config::IncludeOp {
                             patterns: vec!["*.md".to_string()],
@@ -884,6 +885,7 @@ pub mod phase2 {
                 repo: RepoOp {
                     url: "https://github.com/repo-a.git".to_string(),
                     r#ref: "main".to_string(),
+                    path: None,
                     with: vec![],
                 },
             }];
