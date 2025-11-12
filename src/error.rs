@@ -16,6 +16,13 @@ pub enum Error {
         message: String,
     },
 
+    #[error("Git command failed for {url}: {command} - {stderr}")]
+    GitCommand {
+        command: String,
+        url: String,
+        stderr: String,
+    },
+
     #[error("Cache operation error: {message}")]
     Cache { message: String },
 
@@ -37,6 +44,15 @@ pub enum Error {
 
     #[error("Path operation error: {message}")]
     Path { message: String },
+
+    #[error("Tool validation error: {tool} - {message}")]
+    ToolValidation { tool: String, message: String },
+
+    #[error("Template processing error: {message}")]
+    Template { message: String },
+
+    #[error("Network operation error: {url} - {message}")]
+    Network { url: String, message: String },
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
