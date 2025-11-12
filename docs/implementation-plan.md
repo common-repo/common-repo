@@ -97,7 +97,29 @@ These are the fundamental building blocks that everything else depends on.
 
 ---
 
-#### 1.2 Path Operations
+#### 1.2 Repository Manager
+**Purpose**: High-level orchestration of git clone/cache/load operations
+
+**Components**:
+- `repository::RepositoryManager` - Main interface for fetching repositories
+- `repository::GitOperations` trait - Abstraction for git operations (mockable)
+- `repository::CacheOperations` trait - Abstraction for cache operations (mockable)
+- `RepositoryManager::fetch_repository()` - Smart fetch (uses cache if available)
+- `RepositoryManager::fetch_repository_fresh()` - Force fresh clone (bypass cache)
+- `RepositoryManager::is_cached()` - Check if repository is already cached
+- `RepositoryManager::list_repository_tags()` - List available tags from remote
+
+**Why here**: Provides clean abstraction for operators to fetch repositories without worrying about caching details. Enables easy testing with mocks.
+
+**Dependencies**:
+- External: None (orchestrates existing components)
+- Internal: Layer 1.1 (Git Operations), Layer 1.3 (Repository Cache)
+
+**Testing**: Unit tests with mock git/cache operations, full coverage of cache hit/miss scenarios
+
+---
+
+#### 1.3 Path Operations
 **Purpose**: Handle path transformations and glob matching
 
 **Components**:
