@@ -258,17 +258,13 @@ pub fn parse_original_format(yaml_content: &str) -> Result<Schema> {
 /// Convert a YAML mapping to an Operation (handles original format)
 fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operation> {
     let mut iter = map.into_iter();
-    let (key, value) = iter
-        .next()
-        .ok_or_else(|| Error::ConfigParse {
-            message: "Empty operation mapping".to_string(),
-        })?;
+    let (key, value) = iter.next().ok_or_else(|| Error::ConfigParse {
+        message: "Empty operation mapping".to_string(),
+    })?;
 
-    let op_type = key
-        .as_str()
-        .ok_or_else(|| Error::ConfigParse {
-            message: "Operation key must be string".to_string(),
-        })?;
+    let op_type = key.as_str().ok_or_else(|| Error::ConfigParse {
+        message: "Operation key must be string".to_string(),
+    })?;
 
     match op_type {
         "repo" => {
@@ -319,9 +315,11 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                         }
                         with_ops
                     }
-                    _ => return Err(Error::ConfigParse {
-                        message: "With clause must be a sequence".to_string(),
-                    }),
+                    _ => {
+                        return Err(Error::ConfigParse {
+                            message: "With clause must be a sequence".to_string(),
+                        })
+                    }
                 }
             } else {
                 Vec::new()
@@ -370,10 +368,8 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                         .into_iter()
                         .map(|map| {
                             let mut iter = map.into_iter();
-                            let (from, to) = iter.next().ok_or_else(|| {
-                                Error::ConfigParse {
-                                    message: "Empty rename mapping".to_string(),
-                                }
+                            let (from, to) = iter.next().ok_or_else(|| Error::ConfigParse {
+                                message: "Empty rename mapping".to_string(),
                             })?;
                             Ok(RenameMapping { from, to })
                         })
@@ -401,11 +397,10 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                         .into_iter()
                         .map(|map| {
                             let mut iter = map.into_iter();
-                            let (name, version) = iter.next().ok_or_else(|| {
-                                Error::ConfigParse {
+                            let (name, version) =
+                                iter.next().ok_or_else(|| Error::ConfigParse {
                                     message: "Empty tool specification".to_string(),
-                                }
-                            })?;
+                                })?;
                             Ok(Tool { name, version })
                         })
                         .collect::<Result<Vec<_>>>()?;

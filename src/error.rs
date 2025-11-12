@@ -51,6 +51,9 @@ pub enum Error {
     #[error("Template processing error: {message}")]
     Template { message: String },
 
+    #[error("Merge operation error: {operation} - {message}")]
+    Merge { operation: String, message: String },
+
     #[error("Network operation error: {url} - {message}")]
     Network { url: String, message: String },
 

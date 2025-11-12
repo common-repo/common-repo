@@ -497,14 +497,13 @@ pub mod phase2 {
             return Ok(Some(CacheKey::new(&node.url, &node.ref_)));
         }
 
-        let serialized_ops = serde_yaml::to_string(&node.operations).map_err(|err| {
-            Error::Serialization {
+        let serialized_ops =
+            serde_yaml::to_string(&node.operations).map_err(|err| Error::Serialization {
                 message: format!(
                     "Failed to serialize operations for cache key ({}@{}): {}",
                     node.url, node.ref_, err
-                )
-            }
-        })?;
+                ),
+            })?;
 
         let mut hasher = DefaultHasher::new();
         serialized_ops.hash(&mut hasher);
@@ -535,15 +534,19 @@ pub mod phase2 {
                 Ok(())
             }
             // TODO: Implement other operators when they're available
-            Operation::Template { template: _ } => Err(Error::NotImplemented {
-                feature: "Template operations".to_string(),
-            }),
-            Operation::TemplateVars { template_vars: _ } => Err(Error::NotImplemented {
-                feature: "TemplateVars operations".to_string(),
-            }),
+            Operation::Template { template } => {
+                use crate::operators::template;
+                template::mark(template, fs)
+            }
+            Operation::TemplateVars { template_vars: _ } => {
+                // TODO: Collect template variables for later processing
+                // For now, skip this operation
+                Ok(())
+            }
             Operation::Tools { tools: _ } => Err(Error::NotImplemented {
                 feature: "Tools operations".to_string(),
             }),
+            // Merge operations are handled in Phase 5, not Phase 2
             Operation::Yaml { yaml: _ } => Err(Error::NotImplemented {
                 feature: "YAML merge operations".to_string(),
             }),
@@ -1357,7 +1360,7 @@ pub mod phase4 {
                     message: format!(
                         "Missing intermediate filesystem for repository: {}",
                         repo_key
-                    )
+                    ),
                 });
             }
         }
@@ -1469,14 +1472,11 @@ pub mod phase5 {
             let file_path = entry.path();
 
             // Get relative path from working directory
-            let relative_path = file_path.strip_prefix(working_dir).map_err(|_| {
-                Error::Path {
-                    message: format!(
-                        "Failed to make path relative: {}",
-                        file_path.display()
-                    )
-                }
-            })?;
+            let relative_path = file_path
+                .strip_prefix(working_dir)
+                .map_err(|_| Error::Path {
+                    message: format!("Failed to make path relative: {}", file_path.display()),
+                })?;
 
             // Skip common-repo config file and hidden files/directories
             let path_str = relative_path.to_string_lossy();
@@ -1488,14 +1488,8 @@ pub mod phase5 {
             }
 
             // Read file content
-            let content = std::fs::read(file_path).map_err(|e| {
-                Error::Filesystem {
-                    message: format!(
-                        "Failed to read local file {}: {}",
-                        file_path.display(),
-                        e
-                    )
-                }
+            let content = std::fs::read(file_path).map_err(|e| Error::Filesystem {
+                message: format!("Failed to read local file {}: {}", file_path.display(), e),
             })?;
 
             // Add to filesystem with relative path
@@ -1568,19 +1562,355 @@ pub mod phase5 {
     }
 
     /// Apply a YAML merge operation to the filesystem
-    fn apply_yaml_merge_operation(_fs: &mut MemoryFS, _yaml_op: &YamlMergeOp) -> Result<()> {
-        // TODO: Implement YAML merge operations
-        Err(Error::NotImplemented {
-            feature: "YAML merge operations".to_string(),
-        })
+    fn apply_yaml_merge_operation(fs: &mut MemoryFS, yaml_op: &YamlMergeOp) -> Result<()> {
+        use serde_yaml::{Mapping, Value};
+
+        // Read source fragment
+        let source_content = fs.get_file(&yaml_op.source).ok_or_else(|| Error::Merge {
+            operation: "YAML merge".to_string(),
+            message: format!("Source file '{}' not found", yaml_op.source),
+        })?;
+
+        let source_yaml: Value =
+            serde_yaml::from_slice(&source_content.content).map_err(|e| Error::Merge {
+                operation: "YAML merge".to_string(),
+                message: format!("Failed to parse source YAML '{}': {}", yaml_op.source, e),
+            })?;
+
+        // Read destination file (or create empty if it doesn't exist)
+        let dest_content = if let Some(file) = fs.get_file(&yaml_op.dest) {
+            file.content.clone()
+        } else {
+            Vec::new()
+        };
+
+        let mut dest_yaml: Value = if dest_content.is_empty() {
+            Value::Mapping(Mapping::new())
+        } else {
+            serde_yaml::from_slice(&dest_content).map_err(|e| Error::Merge {
+                operation: "YAML merge".to_string(),
+                message: format!("Failed to parse destination YAML '{}': {}", yaml_op.dest, e),
+            })?
+        };
+
+        // Perform the merge
+        merge_yaml_at_path(&mut dest_yaml, &source_yaml, &yaml_op.path, yaml_op.append)?;
+
+        // Write back the merged result
+        let merged_content = serde_yaml::to_string(&dest_yaml).map_err(|e| Error::Merge {
+            operation: "YAML merge".to_string(),
+            message: format!("Failed to serialize merged YAML: {}", e),
+        })?;
+
+        fs.add_file_string(&yaml_op.dest, &merged_content)?;
+
+        Ok(())
+    }
+
+    /// Merge YAML values at a specific path
+    fn merge_yaml_at_path(
+        dest: &mut serde_yaml::Value,
+        source: &serde_yaml::Value,
+        path: &str,
+        append: bool,
+    ) -> Result<()> {
+        use serde_yaml::{Mapping, Value};
+
+        if path.is_empty() {
+            // Merge at root level
+            merge_yaml_values(dest, source, append);
+            return Ok(());
+        }
+
+        // Navigate to the path in the destination
+        let path_parts: Vec<&str> = path.split('.').collect();
+
+        // Start with the root
+        let mut current_path: Vec<String> = Vec::new();
+        let mut current_ref = dest;
+
+        for (i, part) in path_parts.iter().enumerate() {
+            let is_last = i == path_parts.len() - 1;
+            current_path.push(part.to_string());
+
+            match current_ref {
+                Value::Mapping(map) => {
+                    let key = Value::String(part.to_string());
+                    if is_last {
+                        // This is where we merge
+                        if append {
+                            if let Some(existing) = map.get_mut(&key) {
+                                merge_yaml_values(existing, source, true);
+                            } else {
+                                map.insert(key, source.clone());
+                            }
+                        } else {
+                            map.insert(key, source.clone());
+                        }
+                        return Ok(());
+                    } else {
+                        // Navigate deeper
+                        if !map.contains_key(&key) {
+                            map.insert(key.clone(), Value::Mapping(Mapping::new()));
+                        }
+                        current_ref = map.get_mut(&key).unwrap();
+                    }
+                }
+                Value::Sequence(seq) => {
+                    if let Ok(index) = part.parse::<usize>() {
+                        if is_last {
+                            // Merge into sequence at index
+                            if index >= seq.len() {
+                                // Extend sequence if needed
+                                seq.resize(index + 1, Value::Null);
+                            }
+                            merge_yaml_values(&mut seq[index], source, append);
+                            return Ok(());
+                        } else {
+                            // Navigate into sequence element
+                            if index >= seq.len() {
+                                seq.resize(index + 1, Value::Null);
+                            }
+                            current_ref = &mut seq[index];
+                        }
+                    } else {
+                        return Err(Error::Merge {
+                            operation: "YAML merge".to_string(),
+                            message: format!("Invalid array index '{}' in path '{}'", part, path),
+                        });
+                    }
+                }
+                _ => {
+                    return Err(Error::Merge {
+                        operation: "YAML merge".to_string(),
+                        message: format!(
+                            "Cannot navigate into non-container at path segment '{}' in '{}'",
+                            part, path
+                        ),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Merge two YAML values
+    fn merge_yaml_values(dest: &mut serde_yaml::Value, source: &serde_yaml::Value, append: bool) {
+        use serde_yaml::Value;
+
+        match (&*dest, source) {
+            (Value::Mapping(_), Value::Mapping(source_map)) => {
+                if append {
+                    // Merge mappings - get mutable access to dest_map
+                    if let Value::Mapping(dest_map) = dest {
+                        for (key, value) in source_map {
+                            if dest_map.contains_key(key) {
+                                // Recursively merge existing values
+                                merge_yaml_values(dest_map.get_mut(key).unwrap(), value, true);
+                            } else {
+                                dest_map.insert(key.clone(), value.clone());
+                            }
+                        }
+                    }
+                } else {
+                    // Replace entire mapping
+                    *dest = source.clone();
+                }
+            }
+            (Value::Sequence(_), Value::Sequence(_)) => {
+                if append {
+                    // Append sequences
+                    if let (Value::Sequence(dest_seq), Value::Sequence(source_seq)) =
+                        (&mut *dest, source)
+                    {
+                        dest_seq.extend(source_seq.clone());
+                    }
+                } else {
+                    // Replace sequence
+                    *dest = source.clone();
+                }
+            }
+            _ => {
+                // For other types, replace
+                *dest = source.clone();
+            }
+        }
     }
 
     /// Apply a JSON merge operation to the filesystem
-    fn apply_json_merge_operation(_fs: &mut MemoryFS, _json_op: &JsonMergeOp) -> Result<()> {
-        // TODO: Implement JSON merge operations
-        Err(Error::NotImplemented {
-            feature: "JSON merge operations".to_string(),
-        })
+    fn apply_json_merge_operation(fs: &mut MemoryFS, json_op: &JsonMergeOp) -> Result<()> {
+        use serde_json::{Map, Value};
+
+        // Read source fragment
+        let source_content = fs.get_file(&json_op.source).ok_or_else(|| Error::Merge {
+            operation: "JSON merge".to_string(),
+            message: format!("Source file '{}' not found", json_op.source),
+        })?;
+
+        let source_json: Value =
+            serde_json::from_slice(&source_content.content).map_err(|e| Error::Merge {
+                operation: "JSON merge".to_string(),
+                message: format!("Failed to parse source JSON '{}': {}", json_op.source, e),
+            })?;
+
+        // Read destination file (or create empty if it doesn't exist)
+        let dest_content = if let Some(file) = fs.get_file(&json_op.dest) {
+            file.content.clone()
+        } else {
+            Vec::new()
+        };
+
+        let mut dest_json: Value = if dest_content.is_empty() {
+            Value::Object(Map::new())
+        } else {
+            serde_json::from_slice(&dest_content).map_err(|e| Error::Merge {
+                operation: "JSON merge".to_string(),
+                message: format!("Failed to parse destination JSON '{}': {}", json_op.dest, e),
+            })?
+        };
+
+        // Perform the merge
+        merge_json_at_path(&mut dest_json, &source_json, &json_op.path, json_op.append)?;
+
+        // Write back the merged result
+        let merged_content =
+            serde_json::to_string_pretty(&dest_json).map_err(|e| Error::Merge {
+                operation: "JSON merge".to_string(),
+                message: format!("Failed to serialize merged JSON: {}", e),
+            })?;
+
+        fs.add_file_string(&json_op.dest, &merged_content)?;
+
+        Ok(())
+    }
+
+    /// Merge JSON values at a specific path
+    fn merge_json_at_path(
+        dest: &mut serde_json::Value,
+        source: &serde_json::Value,
+        path: &str,
+        append: bool,
+    ) -> Result<()> {
+        use serde_json::Value;
+
+        if path.is_empty() {
+            // Merge at root level
+            merge_json_values(dest, source, append);
+            return Ok(());
+        }
+
+        // Navigate to the path in the destination
+        let path_parts: Vec<&str> = path.split('.').collect();
+
+        // Start with the root
+        let mut current_ref = dest;
+
+        for (i, part) in path_parts.iter().enumerate() {
+            let is_last = i == path_parts.len() - 1;
+
+            match current_ref {
+                Value::Object(map) => {
+                    let key = part.to_string();
+                    if is_last {
+                        // This is where we merge
+                        if append {
+                            if let Some(existing) = map.get_mut(&key) {
+                                merge_json_values(existing, source, true);
+                            } else {
+                                map.insert(key, source.clone());
+                            }
+                        } else {
+                            map.insert(key, source.clone());
+                        }
+                        return Ok(());
+                    } else {
+                        // Navigate deeper
+                        if !map.contains_key(&key) {
+                            map.insert(key.clone(), Value::Object(serde_json::Map::new()));
+                        }
+                        current_ref = map.get_mut(&key).unwrap();
+                    }
+                }
+                Value::Array(arr) => {
+                    if let Ok(index) = part.parse::<usize>() {
+                        if is_last {
+                            // Merge into array at index
+                            if index >= arr.len() {
+                                // Extend array if needed
+                                arr.resize(index + 1, Value::Null);
+                            }
+                            merge_json_values(&mut arr[index], source, append);
+                            return Ok(());
+                        } else {
+                            // Navigate into array element
+                            if index >= arr.len() {
+                                arr.resize(index + 1, Value::Null);
+                            }
+                            current_ref = &mut arr[index];
+                        }
+                    } else {
+                        return Err(Error::Merge {
+                            operation: "JSON merge".to_string(),
+                            message: format!("Invalid array index '{}' in path '{}'", part, path),
+                        });
+                    }
+                }
+                _ => {
+                    return Err(Error::Merge {
+                        operation: "JSON merge".to_string(),
+                        message: format!(
+                            "Cannot navigate into non-container at path segment '{}' in '{}'",
+                            part, path
+                        ),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Merge two JSON values
+    fn merge_json_values(dest: &mut serde_json::Value, source: &serde_json::Value, append: bool) {
+        use serde_json::Value;
+
+        match (&*dest, source) {
+            (Value::Object(_), Value::Object(source_map)) => {
+                if append {
+                    // Merge objects - get mutable access to dest_map
+                    if let Value::Object(dest_map) = dest {
+                        for (key, value) in source_map {
+                            if dest_map.contains_key(key) {
+                                // Recursively merge existing values
+                                merge_json_values(dest_map.get_mut(key).unwrap(), value, true);
+                            } else {
+                                dest_map.insert(key.clone(), value.clone());
+                            }
+                        }
+                    }
+                } else {
+                    // Replace entire object
+                    *dest = source.clone();
+                }
+            }
+            (Value::Array(_), Value::Array(_)) => {
+                if append {
+                    // Append arrays
+                    if let (Value::Array(dest_arr), Value::Array(source_arr)) = (&mut *dest, source)
+                    {
+                        dest_arr.extend(source_arr.clone());
+                    }
+                } else {
+                    // Replace array
+                    *dest = source.clone();
+                }
+            }
+            _ => {
+                // For other types, replace
+                *dest = source.clone();
+            }
+        }
     }
 
     /// Apply a TOML merge operation to the filesystem
