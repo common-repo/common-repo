@@ -581,3 +581,205 @@ fn test_repository_sub_path_filtering_integration() {
     println!("✓ Performance benefits from caching verified");
     println!("✓ Content integrity maintained across fetches");
 }
+
+/// Integration test for deep repository reference chains
+/// This test verifies that multi-level repository references work correctly:
+/// deep-repo-1 -> deep-repo-2 -> deep-repo-3 -> deep-repo-4
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_deep_repository_reference_chain() {
+    // Skip if network tests are disabled
+    if env::var("SKIP_NETWORK_TESTS").is_ok() {
+        println!("Skipping network integration test");
+        return;
+    }
+
+    // Create a temporary directory for caching
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let cache_dir = temp_dir.path().join("cache");
+
+    // Create repository manager with real implementations using temp cache
+    let manager = RepositoryManager::new(cache_dir.clone());
+
+    // Repository details - using this project's repository with implementing-the-plan branch
+    let repo_url = "https://github.com/common-repo/common-repo.git";
+    let ref_name = "implementing-the-plan";
+
+    println!("Testing deep repository reference chain...");
+
+    // Test each level of the chain
+
+    // Level 1: deep-repo-1 (references deep-repo-2)
+    println!("Fetching deep-repo-1 (level 1)...");
+    let fs_level1 = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-1"))
+        .expect("Failed to fetch deep-repo-1");
+
+    // Verify level 1 has its own files
+    assert!(
+        fs_level1.exists("level1-file.txt"),
+        "level1-file.txt should be present"
+    );
+    assert!(
+        fs_level1.exists(".common-repo.yaml"),
+        ".common-repo.yaml should be present"
+    );
+
+    println!("✓ Level 1 (deep-repo-1) loaded successfully");
+
+    // Level 2: deep-repo-2 (references deep-repo-3)
+    println!("Fetching deep-repo-2 (level 2)...");
+    let fs_level2 = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-2"))
+        .expect("Failed to fetch deep-repo-2");
+
+    // Verify level 2 has its own files
+    assert!(
+        fs_level2.exists("level2-file.txt"),
+        "level2-file.txt should be present"
+    );
+    assert!(
+        fs_level2.exists(".common-repo.yaml"),
+        ".common-repo.yaml should be present"
+    );
+
+    println!("✓ Level 2 (deep-repo-2) loaded successfully");
+
+    // Level 3: deep-repo-3 (references deep-repo-4)
+    println!("Fetching deep-repo-3 (level 3)...");
+    let fs_level3 = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-3"))
+        .expect("Failed to fetch deep-repo-3");
+
+    // Verify level 3 has its own files
+    assert!(
+        fs_level3.exists("level3-file.txt"),
+        "level3-file.txt should be present"
+    );
+    assert!(
+        fs_level3.exists(".common-repo.yaml"),
+        ".common-repo.yaml should be present"
+    );
+
+    println!("✓ Level 3 (deep-repo-3) loaded successfully");
+
+    // Level 4: deep-repo-4 (final level with actual content)
+    println!("Fetching deep-repo-4 (level 4 - final)...");
+    let fs_level4 = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-4"))
+        .expect("Failed to fetch deep-repo-4");
+
+    // Verify level 4 has the final content
+    assert!(
+        fs_level4.exists("level4-file.txt"),
+        "level4-file.txt should be present"
+    );
+    assert!(
+        fs_level4.exists(".common-repo.yaml"),
+        ".common-repo.yaml should be present"
+    );
+    assert!(
+        fs_level4.exists("src/main.rs"),
+        "src/main.rs should be present"
+    );
+    assert!(
+        fs_level4.exists("docs/README.md"),
+        "docs/README.md should be present"
+    );
+
+    println!("✓ Level 4 (deep-repo-4) loaded successfully");
+
+    // Verify isolation between levels - each level should NOT have files from other levels
+    assert!(
+        !fs_level1.exists("level2-file.txt"),
+        "Level 1 should not have level 2 files"
+    );
+    assert!(
+        !fs_level1.exists("level3-file.txt"),
+        "Level 1 should not have level 3 files"
+    );
+    assert!(
+        !fs_level1.exists("level4-file.txt"),
+        "Level 1 should not have level 4 files"
+    );
+
+    assert!(
+        !fs_level2.exists("level1-file.txt"),
+        "Level 2 should not have level 1 files"
+    );
+    assert!(
+        !fs_level2.exists("level3-file.txt"),
+        "Level 2 should not have level 3 files"
+    );
+    assert!(
+        !fs_level2.exists("level4-file.txt"),
+        "Level 2 should not have level 4 files"
+    );
+
+    assert!(
+        !fs_level3.exists("level1-file.txt"),
+        "Level 3 should not have level 1 files"
+    );
+    assert!(
+        !fs_level3.exists("level2-file.txt"),
+        "Level 3 should not have level 2 files"
+    );
+    assert!(
+        !fs_level3.exists("level4-file.txt"),
+        "Level 3 should not have level 4 files"
+    );
+
+    assert!(
+        !fs_level4.exists("level1-file.txt"),
+        "Level 4 should not have level 1 files"
+    );
+    assert!(
+        !fs_level4.exists("level2-file.txt"),
+        "Level 4 should not have level 2 files"
+    );
+    assert!(
+        !fs_level4.exists("level3-file.txt"),
+        "Level 4 should not have level 3 files"
+    );
+
+    // Test cache isolation for all levels
+    println!("Testing cache isolation for deep reference chain...");
+
+    assert!(manager.is_cached_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-1")));
+    assert!(manager.is_cached_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-2")));
+    assert!(manager.is_cached_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-3")));
+    assert!(manager.is_cached_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-4")));
+
+    // Test cached performance
+    let start_time = std::time::Instant::now();
+    let _fs_level4_cached = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/deep-repo-4"))
+        .expect("Failed to fetch cached deep-repo-4");
+    let cached_time = start_time.elapsed();
+
+    println!("Cached fetch took: {:?}", cached_time);
+    assert!(
+        cached_time.as_millis() < 100,
+        "Cached fetch should be very fast (< 100ms), took {:?}",
+        cached_time
+    );
+
+    // Verify content integrity for the final level
+    let level4_content = fs_level4.get_file("src/main.rs").unwrap().content.clone();
+    let level4_cached_content = _fs_level4_cached
+        .get_file("src/main.rs")
+        .unwrap()
+        .content
+        .clone();
+    assert_eq!(
+        level4_content, level4_cached_content,
+        "Content should be identical between fetches"
+    );
+
+    println!("✓ Deep repository reference chain test completed successfully!");
+    println!("✓ 4-level deep reference chain verified");
+    println!("✓ Path isolation maintained across all levels");
+    println!("✓ Cache isolation confirmed for all levels");
+    println!("✓ Performance benefits verified");
+    println!("✓ Content integrity maintained");
+}

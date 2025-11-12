@@ -1,0 +1,9 @@
+# Deep repository chain - Level 3
+# References level 4 in the chain (the final level with actual content)
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: implementing-the-plan
+    path: tests/testdata/deep-repo-4
+    with:
+      - include: ["**/*"]
+      - exclude: [".git/**"]
