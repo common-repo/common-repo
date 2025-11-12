@@ -138,6 +138,7 @@ pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result
                         modified_time: metadata
                             .modified()
                             .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                        is_template: false,
                     };
 
                     fs.add_file(remapped_path, file)?;
@@ -166,6 +167,7 @@ pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result
                         modified_time: metadata
                             .modified()
                             .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                        is_template: false,
                     };
 
                     fs.add_file(relative_path, file)?;
