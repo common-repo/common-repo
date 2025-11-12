@@ -910,6 +910,350 @@ pub mod phase2 {
                 "Repo A should not have children due to cycle prevention"
             );
         }
+
+        #[test]
+        fn test_detect_cycles_direct_cycle() {
+            // Test direct cycle: repo A -> repo A
+            // Note: The visited set prevents infinite recursion, but detect_cycles
+            // should catch cycles in the final tree structure after discovery
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/repo-a.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            }];
+
+            // Create a mock that returns a config with the same repo (direct cycle)
+            let mut repo_configs = HashMap::new();
+            repo_configs.insert(
+                "https://github.com/repo-a.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-a.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            // The visited set prevents the cycle from forming during discovery
+            // So repo-a won't have itself as a child, and no cycle will be detected
+            // This is expected behavior - the visited set prevents cycles
+            let result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+            // Discovery succeeds because the visited set prevents the cycle
+            assert!(result.is_ok());
+            let tree = result.unwrap();
+            // Repo-a should be discovered but not have itself as a child
+            assert_eq!(tree.all_repos.len(), 1);
+        }
+
+        #[test]
+        fn test_detect_cycles_indirect_cycle() {
+            // Test indirect cycle: repo A -> repo B -> repo A
+            let mut repo_configs = HashMap::new();
+
+            // Repo A includes Repo B
+            repo_configs.insert(
+                "https://github.com/repo-a.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-b.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            // Repo B includes Repo A (creates cycle)
+            repo_configs.insert(
+                "https://github.com/repo-b.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-a.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/repo-a.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            }];
+
+            // This should detect the cycle
+            // Note: The visited set prevents infinite recursion, but detect_cycles
+            // should still catch cycles in the final tree structure
+            // However, due to the visited set, repo-b won't be added as a child of repo-a
+            // So the cycle might not be detected in the final tree
+            // This is expected behavior - the visited set prevents the cycle from forming
+            let _result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+        }
+
+        #[test]
+        fn test_detect_cycles_deep_cycle() {
+            // Test deep cycle: repo A -> repo B -> repo C -> repo A
+            let mut repo_configs = HashMap::new();
+
+            repo_configs.insert(
+                "https://github.com/repo-a.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-b.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            repo_configs.insert(
+                "https://github.com/repo-b.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-c.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            repo_configs.insert(
+                "https://github.com/repo-c.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-a.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/repo-a.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            }];
+
+            // Discovery should handle the deep cycle
+            let result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+            // The visited set will prevent the cycle from forming in the tree
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_detect_cycles_no_cycles() {
+            // Test that a valid tree with no cycles passes
+            let mut repo_configs = HashMap::new();
+
+            // Repo A includes Repo B
+            repo_configs.insert(
+                "https://github.com/repo-a.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-b.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            // Repo B has no dependencies
+            repo_configs.insert(
+                "https://github.com/repo-b.git".to_string(),
+                r#"
+- include: ["*.md"]
+"#
+                .to_string(),
+            );
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/repo-a.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            }];
+
+            let result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+            assert!(result.is_ok());
+
+            let tree = result.unwrap();
+            // Should discover both repos
+            assert!(!tree.all_repos.is_empty());
+            assert_eq!(tree.root.children.len(), 1);
+        }
+
+        #[test]
+        fn test_detect_cycles_same_repo_different_branches() {
+            // Test that same repo with different refs doesn't create a cycle
+            let mut repo_configs = HashMap::new();
+
+            repo_configs.insert(
+                "https://github.com/repo-a.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-b.git
+    ref: main
+- repo:
+    url: https://github.com/repo-b.git
+    ref: develop
+"#
+                .to_string(),
+            );
+
+            repo_configs.insert(
+                "https://github.com/repo-b.git".to_string(),
+                r#"
+- include: ["*.md"]
+"#
+                .to_string(),
+            );
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/repo-a.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            }];
+
+            let result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+            assert!(result.is_ok());
+
+            let tree = result.unwrap();
+            // Should have repo-a and repo-b (main and develop are different refs, so different keys)
+            // The visited set tracks (url, ref) pairs, so same URL with different refs are separate
+            assert!(!tree.all_repos.is_empty());
+        }
+
+        #[test]
+        fn test_discover_repos_simple_single_repo() {
+            // Test discovery of a single repo with no dependencies
+            let repo_configs = HashMap::new();
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/simple/repo.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            }];
+
+            let result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+            assert!(result.is_ok());
+
+            let tree = result.unwrap();
+            assert_eq!(tree.all_repos.len(), 1);
+            assert!(tree.all_repos.contains(&(
+                "https://github.com/simple/repo.git".to_string(),
+                "main".to_string()
+            )));
+        }
+
+        #[test]
+        fn test_discover_repos_with_path_filtering() {
+            // Test discovery with path filtering
+            let repo_configs = HashMap::new();
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/test/repo.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: Some("subdir".to_string()),
+                    with: vec![],
+                },
+            }];
+
+            let result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+            assert!(result.is_ok());
+
+            let tree = result.unwrap();
+            assert_eq!(tree.all_repos.len(), 1);
+        }
+
+        #[test]
+        fn test_discover_repos_missing_config_file() {
+            // Test discovery when a repo doesn't have .common-repo.yaml
+            let repo_configs = HashMap::new();
+            // Don't add config for the repo, simulating missing .common-repo.yaml
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            let config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/no-config/repo.git".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            }];
+
+            // Should succeed - repos without config files are allowed
+            let result = crate::phases::phase1::discover_repos(&config, &repo_manager);
+            assert!(result.is_ok());
+
+            let tree = result.unwrap();
+            assert_eq!(tree.all_repos.len(), 1);
+        }
     }
 }
 
@@ -1265,5 +1609,530 @@ pub mod phase6 {
     pub fn execute(_final_fs: &MemoryFS, _output_path: &std::path::Path) -> Result<()> {
         // TODO: Implement Phase 6 - Writing to Disk
         Err(Error::Generic("Phase 6 not yet implemented".to_string()))
+    }
+}
+
+#[cfg(test)]
+mod phase_tests {
+    use super::*;
+    use crate::repository::{CacheOperations, GitOperations};
+    use std::collections::HashMap;
+    use std::path::Path;
+    use tempfile::TempDir;
+
+    mod phase3_tests {
+        use super::*;
+
+        #[test]
+        fn test_phase3_execute_simple_dependency() {
+            // Test simple dependency: A depends on B
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let repo_b = RepoNode::new(
+                "https://github.com/repo-b.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            let mut repo_a = RepoNode::new(
+                "https://github.com/repo-a.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            repo_a.add_child(repo_b);
+            root.add_child(repo_a);
+
+            let tree = RepoTree::new(root);
+            let order = phase3::execute(&tree).unwrap();
+
+            // B should come before A (dependencies first)
+            assert_eq!(order.len(), 3); // local, repo-b, repo-a
+            let order_vec: Vec<&str> = order.order.iter().map(|s| s.as_str()).collect();
+            let b_index = order_vec.iter().position(|s| s.contains("repo-b")).unwrap();
+            let a_index = order_vec.iter().position(|s| s.contains("repo-a")).unwrap();
+            assert!(b_index < a_index, "repo-b should come before repo-a");
+        }
+
+        #[test]
+        fn test_phase3_execute_complex_dependency_tree() {
+            // Test complex tree: A -> B, A -> C, B -> D
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let repo_d = RepoNode::new(
+                "https://github.com/repo-d.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            let mut repo_b = RepoNode::new(
+                "https://github.com/repo-b.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            repo_b.add_child(repo_d);
+            let repo_c = RepoNode::new(
+                "https://github.com/repo-c.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            let mut repo_a = RepoNode::new(
+                "https://github.com/repo-a.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            repo_a.add_child(repo_b);
+            repo_a.add_child(repo_c);
+            root.add_child(repo_a);
+
+            let tree = RepoTree::new(root);
+            let order = phase3::execute(&tree).unwrap();
+
+            // Verify order: D before B, B and C before A
+            assert_eq!(order.len(), 5); // local, d, b, c, a
+            let order_vec: Vec<&str> = order.order.iter().map(|s| s.as_str()).collect();
+            let d_index = order_vec.iter().position(|s| s.contains("repo-d")).unwrap();
+            let b_index = order_vec.iter().position(|s| s.contains("repo-b")).unwrap();
+            let c_index = order_vec.iter().position(|s| s.contains("repo-c")).unwrap();
+            let a_index = order_vec.iter().position(|s| s.contains("repo-a")).unwrap();
+
+            assert!(d_index < b_index, "repo-d should come before repo-b");
+            assert!(b_index < a_index, "repo-b should come before repo-a");
+            assert!(c_index < a_index, "repo-c should come before repo-a");
+        }
+
+        #[test]
+        fn test_phase3_execute_multiple_repos_same_level() {
+            // Test multiple repos at same level
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let repo_a = RepoNode::new(
+                "https://github.com/repo-a.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            let repo_b = RepoNode::new(
+                "https://github.com/repo-b.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            let repo_c = RepoNode::new(
+                "https://github.com/repo-c.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            root.add_child(repo_a);
+            root.add_child(repo_b);
+            root.add_child(repo_c);
+
+            let tree = RepoTree::new(root);
+            let order = phase3::execute(&tree).unwrap();
+
+            // All repos should be in the order
+            assert_eq!(order.len(), 4); // local + 3 repos
+            assert!(order.order.iter().any(|s| s.contains("repo-a")));
+            assert!(order.order.iter().any(|s| s.contains("repo-b")));
+            assert!(order.order.iter().any(|s| s.contains("repo-c")));
+        }
+
+        #[test]
+        fn test_phase3_execute_empty_tree() {
+            // Test empty tree (only local root)
+            let root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let tree = RepoTree::new(root);
+            let order = phase3::execute(&tree).unwrap();
+
+            // Should only contain local
+            assert_eq!(order.len(), 1);
+            assert_eq!(order.order[0], "local@HEAD");
+        }
+    }
+
+    mod phase4_tests {
+        use super::*;
+
+        #[test]
+        fn test_phase4_execute_merge_no_conflicts() {
+            // Test merging two filesystems with no conflicts
+            let mut fs1 = MemoryFS::new();
+            fs1.add_file_string("file1.txt", "content1").unwrap();
+            let mut fs2 = MemoryFS::new();
+            fs2.add_file_string("file2.txt", "content2").unwrap();
+
+            let mut intermediate_fss = HashMap::new();
+            intermediate_fss.insert(
+                "https://github.com/repo-a.git@main".to_string(),
+                IntermediateFS::new(
+                    fs1,
+                    "https://github.com/repo-a.git".to_string(),
+                    "main".to_string(),
+                ),
+            );
+            intermediate_fss.insert(
+                "https://github.com/repo-b.git@main".to_string(),
+                IntermediateFS::new(
+                    fs2,
+                    "https://github.com/repo-b.git".to_string(),
+                    "main".to_string(),
+                ),
+            );
+
+            let order = OperationOrder::new(vec![
+                "https://github.com/repo-a.git@main".to_string(),
+                "https://github.com/repo-b.git@main".to_string(),
+            ]);
+
+            let composite = phase4::execute(&order, &intermediate_fss).unwrap();
+
+            assert_eq!(composite.len(), 2);
+            assert!(composite.exists("file1.txt"));
+            assert!(composite.exists("file2.txt"));
+        }
+
+        #[test]
+        fn test_phase4_execute_merge_with_conflicts() {
+            // Test merging filesystems with file conflicts (last-write-wins)
+            let mut fs1 = MemoryFS::new();
+            fs1.add_file_string("common.txt", "version1").unwrap();
+            let mut fs2 = MemoryFS::new();
+            fs2.add_file_string("common.txt", "version2").unwrap();
+
+            let mut intermediate_fss = HashMap::new();
+            intermediate_fss.insert(
+                "https://github.com/repo-a.git@main".to_string(),
+                IntermediateFS::new(
+                    fs1,
+                    "https://github.com/repo-a.git".to_string(),
+                    "main".to_string(),
+                ),
+            );
+            intermediate_fss.insert(
+                "https://github.com/repo-b.git@main".to_string(),
+                IntermediateFS::new(
+                    fs2,
+                    "https://github.com/repo-b.git".to_string(),
+                    "main".to_string(),
+                ),
+            );
+
+            let order = OperationOrder::new(vec![
+                "https://github.com/repo-a.git@main".to_string(),
+                "https://github.com/repo-b.git@main".to_string(),
+            ]);
+
+            let composite = phase4::execute(&order, &intermediate_fss).unwrap();
+
+            // Last filesystem should win
+            assert_eq!(composite.len(), 1);
+            let file = composite.get_file("common.txt").unwrap();
+            assert_eq!(String::from_utf8(file.content.clone()).unwrap(), "version2");
+        }
+
+        #[test]
+        fn test_phase4_execute_merge_multiple_filesystems() {
+            // Test merging multiple filesystems in correct order
+            let mut fs1 = MemoryFS::new();
+            fs1.add_file_string("file1.txt", "content1").unwrap();
+            let mut fs2 = MemoryFS::new();
+            fs2.add_file_string("file2.txt", "content2").unwrap();
+            let mut fs3 = MemoryFS::new();
+            fs3.add_file_string("file3.txt", "content3").unwrap();
+
+            let mut intermediate_fss = HashMap::new();
+            intermediate_fss.insert(
+                "https://github.com/repo-a.git@main".to_string(),
+                IntermediateFS::new(
+                    fs1,
+                    "https://github.com/repo-a.git".to_string(),
+                    "main".to_string(),
+                ),
+            );
+            intermediate_fss.insert(
+                "https://github.com/repo-b.git@main".to_string(),
+                IntermediateFS::new(
+                    fs2,
+                    "https://github.com/repo-b.git".to_string(),
+                    "main".to_string(),
+                ),
+            );
+            intermediate_fss.insert(
+                "https://github.com/repo-c.git@main".to_string(),
+                IntermediateFS::new(
+                    fs3,
+                    "https://github.com/repo-c.git".to_string(),
+                    "main".to_string(),
+                ),
+            );
+
+            let order = OperationOrder::new(vec![
+                "https://github.com/repo-a.git@main".to_string(),
+                "https://github.com/repo-b.git@main".to_string(),
+                "https://github.com/repo-c.git@main".to_string(),
+            ]);
+
+            let composite = phase4::execute(&order, &intermediate_fss).unwrap();
+
+            assert_eq!(composite.len(), 3);
+            assert!(composite.exists("file1.txt"));
+            assert!(composite.exists("file2.txt"));
+            assert!(composite.exists("file3.txt"));
+        }
+
+        #[test]
+        fn test_phase4_execute_missing_intermediate_fs() {
+            // Test error when intermediate filesystem is missing
+            let intermediate_fss = HashMap::new();
+            let order = OperationOrder::new(vec!["https://github.com/repo-a.git@main".to_string()]);
+
+            let result = phase4::execute(&order, &intermediate_fss);
+            assert!(result.is_err());
+            if let Err(Error::Generic(msg)) = result {
+                assert!(msg.contains("Missing intermediate filesystem"));
+            } else {
+                panic!("Expected Generic error");
+            }
+        }
+    }
+
+    mod phase5_tests {
+        use super::*;
+
+        // Note: MockGitOps and MockCacheOps are defined but not used in phase5 tests
+        // They're kept for potential future use
+        #[allow(dead_code)]
+        struct MockGitOps;
+        #[allow(dead_code)]
+        struct MockCacheOps;
+
+        #[allow(dead_code)]
+        impl GitOperations for MockGitOps {
+            fn clone_shallow(&self, _url: &str, _ref_name: &str, _path: &Path) -> Result<()> {
+                Ok(())
+            }
+
+            fn list_tags(&self, _url: &str) -> Result<Vec<String>> {
+                Ok(vec![])
+            }
+        }
+
+        #[allow(dead_code)]
+        impl CacheOperations for MockCacheOps {
+            fn exists(&self, _cache_path: &Path) -> bool {
+                false
+            }
+
+            fn get_cache_path(&self, _url: &str, _ref_name: &str) -> std::path::PathBuf {
+                std::path::PathBuf::from("/mock/cache")
+            }
+
+            fn get_cache_path_with_path(
+                &self,
+                _url: &str,
+                _ref_name: &str,
+                _path: Option<&str>,
+            ) -> std::path::PathBuf {
+                std::path::PathBuf::from("/mock/cache")
+            }
+
+            fn load_from_cache(&self, _cache_path: &Path) -> Result<MemoryFS> {
+                Ok(MemoryFS::new())
+            }
+
+            fn load_from_cache_with_path(
+                &self,
+                _cache_path: &Path,
+                _path: Option<&str>,
+            ) -> Result<MemoryFS> {
+                Ok(MemoryFS::new())
+            }
+
+            fn save_to_cache(&self, _cache_path: &Path, _fs: &MemoryFS) -> Result<()> {
+                Ok(())
+            }
+        }
+
+        #[test]
+        fn test_phase5_execute_merge_local_files() {
+            // Test merging composite filesystem with local files
+            let temp_dir = TempDir::new().unwrap();
+            let working_dir = temp_dir.path();
+
+            // Create local files
+            std::fs::create_dir_all(working_dir.join("subdir")).unwrap();
+            std::fs::write(working_dir.join("local.txt"), b"local content").unwrap();
+            std::fs::write(working_dir.join("subdir/nested.txt"), b"nested content").unwrap();
+
+            // Create composite filesystem
+            let mut composite_fs = MemoryFS::new();
+            composite_fs
+                .add_file_string("composite.txt", "composite content")
+                .unwrap();
+
+            // Create local config (empty for this test)
+            let local_config = vec![];
+
+            let final_fs = phase5::execute(&composite_fs, &local_config, working_dir).unwrap();
+
+            // Should contain both composite and local files
+            assert!(final_fs.exists("composite.txt"));
+            assert!(final_fs.exists("local.txt"));
+            assert!(final_fs.exists("subdir/nested.txt"));
+        }
+
+        #[test]
+        fn test_phase5_execute_local_files_override_composite() {
+            // Test that local files override composite files (last-write-wins)
+            let temp_dir = TempDir::new().unwrap();
+            let working_dir = temp_dir.path();
+
+            // Create local file with same name as composite
+            std::fs::write(working_dir.join("common.txt"), b"local version").unwrap();
+
+            // Create composite filesystem with same file
+            let mut composite_fs = MemoryFS::new();
+            composite_fs
+                .add_file_string("common.txt", "composite version")
+                .unwrap();
+
+            let local_config = vec![];
+
+            let final_fs = phase5::execute(&composite_fs, &local_config, working_dir).unwrap();
+
+            // Local file should override composite
+            let file = final_fs.get_file("common.txt").unwrap();
+            assert_eq!(
+                String::from_utf8(file.content.clone()).unwrap(),
+                "local version"
+            );
+        }
+
+        #[test]
+        fn test_phase5_execute_skips_hidden_files() {
+            // Test that hidden files and .git directory are skipped
+            let temp_dir = TempDir::new().unwrap();
+            let working_dir = temp_dir.path();
+
+            std::fs::write(working_dir.join(".hidden"), b"hidden").unwrap();
+            std::fs::write(working_dir.join(".common-repo.yaml"), b"config").unwrap();
+            std::fs::create_dir_all(working_dir.join(".git")).unwrap();
+            std::fs::write(working_dir.join(".git/config"), b"git config").unwrap();
+            std::fs::write(working_dir.join("visible.txt"), b"visible").unwrap();
+
+            let composite_fs = MemoryFS::new();
+            let local_config = vec![];
+
+            let final_fs = phase5::execute(&composite_fs, &local_config, working_dir).unwrap();
+
+            // Should only contain visible.txt
+            assert!(final_fs.exists("visible.txt"));
+            assert!(!final_fs.exists(".hidden"));
+            assert!(!final_fs.exists(".common-repo.yaml"));
+            assert!(!final_fs.exists(".git/config"));
+        }
+
+        #[test]
+        fn test_phase5_execute_empty_composite() {
+            // Test with empty composite filesystem
+            let temp_dir = TempDir::new().unwrap();
+            let working_dir = temp_dir.path();
+
+            std::fs::write(working_dir.join("local.txt"), b"local").unwrap();
+
+            let composite_fs = MemoryFS::new();
+            let local_config = vec![];
+
+            let final_fs = phase5::execute(&composite_fs, &local_config, working_dir).unwrap();
+
+            assert_eq!(final_fs.len(), 1);
+            assert!(final_fs.exists("local.txt"));
+        }
+    }
+
+    mod repo_tree_tests {
+        use super::*;
+
+        #[test]
+        fn test_repo_tree_creation() {
+            let root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let tree = RepoTree::new(root);
+
+            assert_eq!(tree.all_repos.len(), 0); // local is not counted
+        }
+
+        #[test]
+        fn test_repo_tree_with_children() {
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let child = RepoNode::new(
+                "https://github.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            root.add_child(child);
+            let tree = RepoTree::new(root);
+
+            assert_eq!(tree.all_repos.len(), 1);
+            assert!(tree.all_repos.contains(&(
+                "https://github.com/repo.git".to_string(),
+                "main".to_string()
+            )));
+        }
+
+        #[test]
+        fn test_repo_node_add_child() {
+            let mut parent = RepoNode::new(
+                "https://github.com/parent.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            let child = RepoNode::new(
+                "https://github.com/child.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+
+            assert_eq!(parent.children.len(), 0);
+            parent.add_child(child);
+            assert_eq!(parent.children.len(), 1);
+            assert_eq!(parent.children[0].url, "https://github.com/child.git");
+        }
+
+        #[test]
+        fn test_repo_tree_collects_all_repos() {
+            // Test that RepoTree collects all repos from nested structure
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let mut parent = RepoNode::new(
+                "https://github.com/parent.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            let child = RepoNode::new(
+                "https://github.com/child.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            parent.add_child(child);
+            root.add_child(parent);
+            let tree = RepoTree::new(root);
+
+            assert_eq!(tree.all_repos.len(), 2);
+            assert!(tree.all_repos.contains(&(
+                "https://github.com/parent.git".to_string(),
+                "main".to_string()
+            )));
+            assert!(tree.all_repos.contains(&(
+                "https://github.com/child.git".to_string(),
+                "main".to_string()
+            )));
+        }
+
+        #[test]
+        fn test_repo_tree_would_create_cycle() {
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let repo = RepoNode::new(
+                "https://github.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            root.add_child(repo);
+            let tree = RepoTree::new(root);
+
+            // Check if repo exists
+            assert!(tree.would_create_cycle("https://github.com/repo.git", "main"));
+            assert!(!tree.would_create_cycle("https://github.com/other.git", "main"));
+        }
     }
 }

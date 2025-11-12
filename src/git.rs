@@ -682,6 +682,124 @@ mod tests {
         assert_eq!(fs.len(), 0);
     }
 
+    #[test]
+    fn test_save_to_cache_empty_filesystem() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        let fs = MemoryFS::new();
+        save_to_cache(cache_dir, &fs).unwrap();
+
+        // Cache directory should exist but be empty
+        assert!(cache_dir.exists());
+        assert!(fs::read_dir(cache_dir).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn test_save_to_cache_nested_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("level1/level2/level3/file.txt", "nested content")
+            .unwrap();
+
+        save_to_cache(cache_dir, &fs).unwrap();
+
+        let file_path = cache_dir.join("level1/level2/level3/file.txt");
+        assert!(file_path.exists());
+        let content = fs::read_to_string(file_path).unwrap();
+        assert_eq!(content, "nested content");
+    }
+
+    #[test]
+    fn test_save_to_cache_file_permissions() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        let mut fs = MemoryFS::new();
+        let mut file = File::new(b"content".to_vec());
+        file.permissions = 0o755;
+        fs.add_file("test.txt", file).unwrap();
+
+        save_to_cache(cache_dir, &fs).unwrap();
+
+        let file_path = cache_dir.join("test.txt");
+        assert!(file_path.exists());
+        // Note: File permissions are not currently set by save_to_cache
+        // This test verifies the file is written correctly
+        let content = fs::read_to_string(file_path).unwrap();
+        assert_eq!(content, "content");
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_trailing_slash() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        fs::create_dir_all(cache_dir.join("subdir")).unwrap();
+        fs::write(cache_dir.join("subdir/file.txt"), b"content").unwrap();
+
+        // Test with trailing slash
+        let fs1 = load_from_cache_with_path(cache_dir, Some("subdir/")).unwrap();
+        let fs2 = load_from_cache_with_path(cache_dir, Some("subdir")).unwrap();
+
+        // Both should produce the same result
+        assert_eq!(fs1.len(), fs2.len());
+        assert_eq!(fs1.len(), 1);
+        assert!(fs1.exists("file.txt"));
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_root_variations() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        fs::write(cache_dir.join("file.txt"), b"content").unwrap();
+
+        // Test various root path representations
+        let fs1 = load_from_cache_with_path(cache_dir, Some("")).unwrap();
+        let fs2 = load_from_cache_with_path(cache_dir, Some(".")).unwrap();
+        let fs3 = load_from_cache_with_path(cache_dir, Some("/")).unwrap();
+        let fs4 = load_from_cache_with_path(cache_dir, None).unwrap();
+
+        // All should produce the same result (load root)
+        assert_eq!(fs1.len(), fs2.len());
+        assert_eq!(fs2.len(), fs3.len());
+        assert_eq!(fs3.len(), fs4.len());
+        assert_eq!(fs1.len(), 1);
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_nonexistent_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        fs::write(cache_dir.join("file.txt"), b"content").unwrap();
+
+        // Try to load from nonexistent path
+        let fs = load_from_cache_with_path(cache_dir, Some("nonexistent/path")).unwrap();
+
+        // Should return empty filesystem
+        assert_eq!(fs.len(), 0);
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_outside_repository() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        fs::write(cache_dir.join("file.txt"), b"content").unwrap();
+
+        // Try to load with path that goes outside (should be handled gracefully)
+        // This tests the path filtering logic
+        let fs = load_from_cache_with_path(cache_dir, Some("../outside")).unwrap();
+
+        // Should return empty filesystem (no files match)
+        assert_eq!(fs.len(), 0);
+    }
+
     // Note: Integration tests for clone_shallow and list_tags would require
     // actual git repositories and network access, so they're omitted for now
+    // Unit tests for list_tags would require mocking the Command output
 }

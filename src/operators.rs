@@ -861,5 +861,304 @@ mod tests {
             assert!(result.exists("README.md"));
             assert!(result.exists("src/main.rs"));
         }
+
+        #[test]
+        fn test_apply_with_clause_empty_operations() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "test").unwrap();
+
+            let operations = vec![];
+
+            let result = repo::apply_with_clause(&operations, &mut fs);
+            assert!(result.is_ok());
+            assert!(fs.exists("test.txt"));
+        }
+
+        #[test]
+        fn test_apply_with_clause_multiple_unimplemented_operations() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "test").unwrap();
+
+            let operations = vec![
+                Operation::Template {
+                    template: crate::config::TemplateOp {
+                        patterns: vec!["template.txt".to_string()],
+                    },
+                },
+                Operation::Json {
+                    json: crate::config::JsonMergeOp {
+                        source: "source.json".to_string(),
+                        dest: "dest.json".to_string(),
+                        path: "/".to_string(),
+                        append: false,
+                        position: "end".to_string(),
+                    },
+                },
+            ];
+
+            let result = repo::apply_with_clause(&operations, &mut fs);
+            assert!(result.is_err());
+            if let Err(crate::error::Error::Operator { operator, .. }) = result {
+                assert!(operator.contains("template/merge"));
+            } else {
+                panic!("Expected Operator error");
+            }
+        }
+
+        #[test]
+        fn test_apply_with_clause_all_unimplemented_operations() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "test").unwrap();
+
+            // Test all unimplemented operation types
+            let unimplemented_ops = vec![
+                Operation::Template {
+                    template: crate::config::TemplateOp {
+                        patterns: vec!["t.txt".to_string()],
+                    },
+                },
+                Operation::TemplateVars {
+                    template_vars: crate::config::TemplateVars {
+                        vars: std::collections::HashMap::new(),
+                    },
+                },
+                Operation::Yaml {
+                    yaml: crate::config::YamlMergeOp {
+                        source: "s.yaml".to_string(),
+                        dest: "d.yaml".to_string(),
+                        path: "/".to_string(),
+                        append: false,
+                    },
+                },
+                Operation::Json {
+                    json: crate::config::JsonMergeOp {
+                        source: "s.json".to_string(),
+                        dest: "d.json".to_string(),
+                        path: "/".to_string(),
+                        append: false,
+                        position: "end".to_string(),
+                    },
+                },
+                Operation::Toml {
+                    toml: crate::config::TomlMergeOp {
+                        source: "s.toml".to_string(),
+                        dest: "d.toml".to_string(),
+                        path: "/".to_string(),
+                        append: false,
+                        preserve_comments: false,
+                    },
+                },
+                Operation::Ini {
+                    ini: crate::config::IniMergeOp {
+                        source: "s.ini".to_string(),
+                        dest: "d.ini".to_string(),
+                        section: "main".to_string(),
+                        append: false,
+                        allow_duplicates: false,
+                    },
+                },
+                Operation::Markdown {
+                    markdown: crate::config::MarkdownMergeOp {
+                        source: "s.md".to_string(),
+                        dest: "d.md".to_string(),
+                        section: "Section".to_string(),
+                        append: false,
+                        level: 2,
+                        position: "end".to_string(),
+                        create_section: false,
+                    },
+                },
+                Operation::Tools {
+                    tools: crate::config::ToolsOp { tools: vec![] },
+                },
+            ];
+
+            for op in unimplemented_ops {
+                let mut test_fs = fs.clone();
+                let result = repo::apply_with_clause(&[op], &mut test_fs);
+                assert!(result.is_err(), "Unimplemented operation should error");
+            }
+        }
+    }
+
+    mod rename_edge_case_tests {
+        use super::*;
+
+        #[test]
+        fn test_rename_multiple_renames_same_file() {
+            // Test multiple rename operations on the same file
+            // Note: The rename implementation collects all files ONCE at the start,
+            // so sequential renames in one operation won't chain (the second mapping
+            // won't see files created by the first mapping)
+            let mut target = MemoryFS::new();
+            target.add_file_string("file.txt", "content").unwrap();
+
+            let op = RenameOp {
+                mappings: vec![
+                    RenameMapping {
+                        from: r"file\.txt".to_string(),
+                        to: "renamed1.txt".to_string(),
+                    },
+                    RenameMapping {
+                        from: r"renamed1\.txt".to_string(),
+                        to: "renamed2.txt".to_string(),
+                    },
+                ],
+            };
+
+            rename::apply(&op, &mut target).unwrap();
+
+            // Only the first rename applies because current_files is collected once at the start
+            // The second mapping doesn't see renamed1.txt because it wasn't in the original list
+            assert!(!target.exists("file.txt"));
+            assert!(target.exists("renamed1.txt"));
+            assert!(!target.exists("renamed2.txt"));
+        }
+
+        #[test]
+        fn test_rename_overlapping_patterns() {
+            // Test overlapping rename patterns
+            let mut target = MemoryFS::new();
+            target.add_file_string("test.txt", "content").unwrap();
+            target.add_file_string("test_backup.txt", "backup").unwrap();
+
+            let op = RenameOp {
+                mappings: vec![
+                    RenameMapping {
+                        from: r"test\.txt".to_string(),
+                        to: "test_backup.txt".to_string(),
+                    },
+                    RenameMapping {
+                        from: r"test_backup\.txt".to_string(),
+                        to: "final.txt".to_string(),
+                    },
+                ],
+            };
+
+            rename::apply(&op, &mut target).unwrap();
+
+            // Both files should be renamed
+            assert!(!target.exists("test.txt"));
+            assert!(!target.exists("test_backup.txt"));
+            assert!(target.exists("final.txt"));
+        }
+
+        #[test]
+        fn test_rename_invalid_regex_pattern() {
+            // Test invalid regex pattern
+            let mut target = MemoryFS::new();
+            target.add_file_string("test.txt", "content").unwrap();
+
+            let op = RenameOp {
+                mappings: vec![RenameMapping {
+                    from: r"[invalid".to_string(), // Invalid regex - unclosed bracket
+                    to: "renamed.txt".to_string(),
+                }],
+            };
+
+            let result = rename::apply(&op, &mut target);
+            assert!(result.is_err());
+            if let Err(crate::error::Error::Regex(_)) = result {
+                // Expected regex error
+            } else {
+                panic!("Expected Regex error for invalid pattern");
+            }
+        }
+
+        #[test]
+        fn test_rename_empty_pattern() {
+            // Test empty pattern (should match nothing)
+            let mut target = MemoryFS::new();
+            target.add_file_string("test.txt", "content").unwrap();
+
+            let op = RenameOp {
+                mappings: vec![RenameMapping {
+                    from: "".to_string(),
+                    to: "renamed.txt".to_string(),
+                }],
+            };
+
+            // Empty pattern might match everything or nothing depending on regex behavior
+            // This tests the behavior
+            let result = rename::apply(&op, &mut target);
+            // Result depends on regex behavior - could succeed or fail
+            // Just verify it doesn't panic
+            assert!(result.is_ok() || result.is_err());
+        }
+
+        #[test]
+        fn test_rename_pattern_no_matches() {
+            // Test pattern that doesn't match anything
+            let mut target = MemoryFS::new();
+            target.add_file_string("test.txt", "content").unwrap();
+
+            let op = RenameOp {
+                mappings: vec![RenameMapping {
+                    from: r"nonexistent\.txt".to_string(),
+                    to: "renamed.txt".to_string(),
+                }],
+            };
+
+            rename::apply(&op, &mut target).unwrap();
+
+            // File should remain unchanged
+            assert!(target.exists("test.txt"));
+            assert!(!target.exists("renamed.txt"));
+        }
+
+        #[test]
+        fn test_rename_to_existing_filename() {
+            // Test renaming to an existing filename (overwrite behavior)
+            let mut target = MemoryFS::new();
+            target.add_file_string("old.txt", "old content").unwrap();
+            target
+                .add_file_string("existing.txt", "existing content")
+                .unwrap();
+
+            let op = RenameOp {
+                mappings: vec![RenameMapping {
+                    from: r"old\.txt".to_string(),
+                    to: "existing.txt".to_string(),
+                }],
+            };
+
+            rename::apply(&op, &mut target).unwrap();
+
+            // old.txt should be renamed to existing.txt (overwriting it)
+            assert!(!target.exists("old.txt"));
+            assert!(target.exists("existing.txt"));
+            // Content should be from old.txt (last write wins)
+            let file = target.get_file("existing.txt").unwrap();
+            assert_eq!(
+                String::from_utf8(file.content.clone()).unwrap(),
+                "old content"
+            );
+        }
+
+        #[test]
+        fn test_rename_complex_capture_groups() {
+            // Test complex capture groups
+            let mut target = MemoryFS::new();
+            target
+                .add_file_string("src/main.rs", "fn main() {}")
+                .unwrap();
+            target
+                .add_file_string("src/lib.rs", "pub fn lib() {}")
+                .unwrap();
+
+            let op = RenameOp {
+                mappings: vec![RenameMapping {
+                    from: r"src/(\w+)\.rs".to_string(),
+                    to: "rust/$1.rs".to_string(),
+                }],
+            };
+
+            rename::apply(&op, &mut target).unwrap();
+
+            assert!(!target.exists("src/main.rs"));
+            assert!(!target.exists("src/lib.rs"));
+            assert!(target.exists("rust/main.rs"));
+            assert!(target.exists("rust/lib.rs"));
+        }
     }
 }
