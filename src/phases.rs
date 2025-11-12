@@ -654,10 +654,23 @@ pub mod phase5 {
     /// These are operations that apply to the final merged filesystem,
     /// typically merge operations that combine local and inherited content.
     fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
-        for operation in local_config {
+        // Filter to only merge operations that are appropriate for local merging
+        let merge_operations: Vec<&Operation> = local_config
+            .iter()
+            .filter(|op| {
+                matches!(
+                    op,
+                    Operation::Yaml { .. }
+                        | Operation::Json { .. }
+                        | Operation::Toml { .. }
+                        | Operation::Ini { .. }
+                        | Operation::Markdown { .. }
+                )
+            })
+            .collect();
+
+        for operation in merge_operations {
             match operation {
-                // For now, we only support merge operations in the local phase
-                // Other operations (repo, include, exclude, rename) should be handled in earlier phases
                 Operation::Yaml { yaml } => {
                     apply_yaml_merge_operation(final_fs, yaml)?;
                 }
@@ -679,17 +692,8 @@ pub mod phase5 {
                         "Template operations not yet implemented".to_string(),
                     ));
                 }
-                // These operations should not appear in local config (handled in earlier phases)
-                Operation::Repo { .. }
-                | Operation::Include { .. }
-                | Operation::Exclude { .. }
-                | Operation::Rename { .. }
-                | Operation::Tools { .. } => {
-                    return Err(Error::Generic(format!(
-                        "Operation {:?} should not appear in local merge phase",
-                        operation
-                    )));
-                }
+                // This should never happen due to filtering above
+                _ => unreachable!("Filtered operations should only include merge operations"),
             }
         }
         Ok(())
