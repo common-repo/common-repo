@@ -573,4 +573,167 @@ mod tests {
             .unwrap_or_else(|_| file_time.duration_since(now).unwrap());
         assert!(duration.as_secs() < 10); // Should be very recent
     }
+
+    #[test]
+    fn test_list_files_glob_recursive_pattern() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("src/main.rs", "code").unwrap();
+        fs.add_file_string("src/lib.rs", "code").unwrap();
+        fs.add_file_string("src/utils/helper.rs", "code").unwrap();
+        fs.add_file_string("tests/test.rs", "test").unwrap();
+        fs.add_file_string("README.md", "readme").unwrap();
+
+        // Test recursive pattern
+        let matches = fs.list_files_glob("**/*.rs").unwrap();
+        assert_eq!(matches.len(), 4);
+        assert!(matches.contains(&PathBuf::from("src/main.rs")));
+        assert!(matches.contains(&PathBuf::from("src/lib.rs")));
+        assert!(matches.contains(&PathBuf::from("src/utils/helper.rs")));
+        assert!(matches.contains(&PathBuf::from("tests/test.rs")));
+    }
+
+    #[test]
+    fn test_list_files_glob_multiple_wildcards() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("src/test_main.rs", "code").unwrap();
+        fs.add_file_string("src/test_utils.rs", "code").unwrap();
+        fs.add_file_string("src/main.rs", "code").unwrap();
+        fs.add_file_string("tests/test_main.rs", "test").unwrap();
+
+        // Test pattern with multiple wildcards
+        let matches = fs.list_files_glob("src/**/test*.rs").unwrap();
+        assert_eq!(matches.len(), 2);
+        assert!(matches.contains(&PathBuf::from("src/test_main.rs")));
+        assert!(matches.contains(&PathBuf::from("src/test_utils.rs")));
+    }
+
+    #[test]
+    fn test_list_files_glob_character_classes() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("a.txt", "content").unwrap();
+        fs.add_file_string("b.txt", "content").unwrap();
+        fs.add_file_string("c.txt", "content").unwrap();
+        fs.add_file_string("1.txt", "content").unwrap();
+        fs.add_file_string("A.txt", "content").unwrap();
+
+        // Test character class pattern
+        let matches = fs.list_files_glob("[a-z].txt").unwrap();
+        assert_eq!(matches.len(), 3);
+        assert!(matches.contains(&PathBuf::from("a.txt")));
+        assert!(matches.contains(&PathBuf::from("b.txt")));
+        assert!(matches.contains(&PathBuf::from("c.txt")));
+    }
+
+    #[test]
+    fn test_list_files_glob_empty_filesystem() {
+        let fs = MemoryFS::new();
+
+        let matches = fs.list_files_glob("*.txt").unwrap();
+        assert_eq!(matches.len(), 0);
+    }
+
+    #[test]
+    fn test_list_files_glob_no_matches() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("test.txt", "content").unwrap();
+        fs.add_file_string("test.rs", "code").unwrap();
+
+        let matches = fs.list_files_glob("*.js").unwrap();
+        assert_eq!(matches.len(), 0);
+    }
+
+    #[test]
+    fn test_list_files_glob_invalid_pattern() {
+        let fs = MemoryFS::new();
+
+        // Test invalid glob pattern
+        let result = fs.list_files_glob("[invalid");
+        assert!(result.is_err());
+        if let Err(crate::error::Error::Glob(_)) = result {
+            // Expected glob error
+        } else {
+            panic!("Expected Glob error for invalid pattern");
+        }
+    }
+
+    #[test]
+    fn test_add_file_with_file_object() {
+        let mut fs = MemoryFS::new();
+        let mut file = File::new(b"content".to_vec());
+        file.permissions = 0o755;
+        file.modified_time = std::time::SystemTime::UNIX_EPOCH;
+
+        fs.add_file("test.txt", file.clone()).unwrap();
+
+        let retrieved = fs.get_file("test.txt").unwrap();
+        assert_eq!(retrieved.content, b"content");
+        assert_eq!(retrieved.permissions, 0o755);
+        assert_eq!(retrieved.modified_time, std::time::SystemTime::UNIX_EPOCH);
+    }
+
+    #[test]
+    fn test_add_file_overwrite_existing() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("test.txt", "old content").unwrap();
+
+        let mut new_file = File::new(b"new content".to_vec());
+        new_file.permissions = 0o644;
+        fs.add_file("test.txt", new_file).unwrap();
+
+        let file = fs.get_file("test.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(file.content.clone()).unwrap(),
+            "new content"
+        );
+        assert_eq!(file.permissions, 0o644);
+    }
+
+    #[test]
+    fn test_add_file_to_nested_path() {
+        let mut fs = MemoryFS::new();
+        let file = File::new(b"nested content".to_vec());
+
+        fs.add_file("deep/nested/path/file.txt", file).unwrap();
+
+        assert!(fs.exists("deep/nested/path/file.txt"));
+        let retrieved = fs.get_file("deep/nested/path/file.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(retrieved.content.clone()).unwrap(),
+            "nested content"
+        );
+    }
+
+    #[test]
+    fn test_copy_file_overwrite_behavior() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("source.txt", "source content").unwrap();
+        fs.add_file_string("dest.txt", "old dest content").unwrap();
+
+        fs.copy_file("source.txt", "dest.txt").unwrap();
+
+        // dest.txt should be overwritten with source content
+        assert!(fs.exists("source.txt"));
+        assert!(fs.exists("dest.txt"));
+        let source = fs.get_file("source.txt").unwrap();
+        let dest = fs.get_file("dest.txt").unwrap();
+        assert_eq!(source.content, dest.content);
+        assert_eq!(
+            String::from_utf8(dest.content.clone()).unwrap(),
+            "source content"
+        );
+    }
+
+    #[test]
+    fn test_copy_file_to_nested_path() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("source.txt", "content").unwrap();
+
+        fs.copy_file("source.txt", "nested/path/copy.txt").unwrap();
+
+        assert!(fs.exists("source.txt"));
+        assert!(fs.exists("nested/path/copy.txt"));
+        let source = fs.get_file("source.txt").unwrap();
+        let copy = fs.get_file("nested/path/copy.txt").unwrap();
+        assert_eq!(source.content, copy.content);
+    }
 }
