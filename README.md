@@ -1,13 +1,25 @@
 # common-repo
 
-A Rust project with modern development tooling and automation.
+A Rust library for managing repository inheritance and file composition across multiple Git repositories.
+
+## Overview
+
+`common-repo` provides a sophisticated system for:
+- **Repository Inheritance**: Pull and compose files from multiple Git repositories
+- **File Operations**: Include, exclude, rename, and template files using declarative YAML configuration
+- **6-Phase Processing Pipeline**: Efficient parallel processing with automatic caching
+- **In-Memory Filesystem**: Fast file manipulation without disk I/O during processing
+
+Perfect for projects that need to compose shared configurations, templates, or code from multiple sources.
 
 ## Features
 
 - **Automated Testing & CI/CD**: GitHub Actions workflows for continuous integration
+- **Declarative Configuration**: YAML-based schema for complex file operations
+- **Smart Caching**: Automatic caching of cloned repositories for performance
+- **Type-Safe Operators**: Strongly-typed operation system with comprehensive error handling
 - **Code Quality**: Pre-commit hooks with rustfmt and clippy
 - **Conventional Commits**: Enforced commit message standards
-- **Semantic Versioning**: Automated version management and releases
 
 ## Getting Started
 
@@ -79,9 +91,9 @@ SKIP_NETWORK_TESTS=1 cargo test --test integration_test --features integration-t
 - Disabled by default since they require network access
 
 **Test Coverage:**
-- **93 unit tests** covering all core functionality
+- **183+ unit tests** covering all core functionality
 - **5 integration tests** validating end-to-end workflows
-- **14 doctests** providing executable examples in documentation
+- **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
 - **Test coverage analysis** available via cargo-tarpaulin
 
 #### Test Coverage Analysis
@@ -214,14 +226,29 @@ The project uses [Release Please](https://github.com/googleapis/release-please) 
 ```
 .
 ├── .github/
-│   └── workflows/       # GitHub Actions workflows
+│   └── workflows/         # GitHub Actions CI/CD workflows
 ├── src/
-│   └── main.rs          # Main application entry point
-├── Cargo.toml           # Rust package manifest
-├── .pre-commit-config.yaml  # Pre-commit hooks configuration
-├── .commitlintrc.yml    # Commit message linting rules
-└── README.md            # This file
+│   ├── lib.rs             # Library entry point and public API
+│   ├── main.rs            # Binary entry point (placeholder)
+│   ├── cache.rs           # In-process repository caching
+│   ├── config.rs          # YAML configuration parsing
+│   ├── error.rs           # Error types and handling
+│   ├── filesystem.rs      # In-memory filesystem implementation
+│   ├── git.rs             # Git operations (clone, tags, etc.)
+│   ├── operators.rs       # File operation implementations
+│   ├── path.rs            # Path manipulation utilities
+│   ├── phases.rs          # 6-phase processing pipeline
+│   └── repository.rs      # High-level repository management
+├── tests/
+│   └── integration_test.rs # Integration tests (feature-gated)
+├── Cargo.toml             # Rust package manifest
+├── .pre-commit-config.yaml # Pre-commit hooks configuration
+├── .commitlintrc.yml      # Commit message linting rules
+└── README.md              # This file
 ```
+
+Note: This is primarily a library crate. Use it by adding `common-repo` as a dependency
+in your Cargo.toml.
 
 ## Contributing
 
