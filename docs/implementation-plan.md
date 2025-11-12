@@ -60,6 +60,7 @@ These are the fundamental building blocks that everything else depends on.
   - CacheError
   - OperatorError
   - CycleDetectedError
+  - MergeConflictWarning
   - etc.
 - `error::Result<T>` - Type alias for Result<T, Error>
 
@@ -86,6 +87,8 @@ These are the fundamental building blocks that everything else depends on.
 - `git::list_tags()` - List all tags from a remote repository
 - `git::parse_semver_tag()` - Parse a tag string into a semantic version
 
+**Cache Strategy**: Refs are assumed immutable - no TTL needed
+
 **Dependencies**:
 - External: `git2` or shell out to `git` command, `semver`
 - Internal: Layer 0 (MemoryFS, Error)
@@ -110,11 +113,44 @@ These are the fundamental building blocks that everything else depends on.
 
 ---
 
+#### 1.3 Repository Cache
+**Purpose**: In-process caching of processed repositories
+
+**Components**:
+- `cache::RepoCache` - HashMap<(url, ref), IntermediateFS>
+- `cache::get_or_process()` - Return cached or process new
+- Thread-safe with Arc<Mutex<>> or similar
+
+**Why here**: Prevents duplicate processing of same url+ref combo in single run
+
+**Dependencies**:
+- Internal: Layer 0 (MemoryFS, Error)
+
+**Testing**: Unit tests for cache hits/misses
+
+---
+
 ### Layer 2: Operators (Depends on Layers 0-1)
 
 These implement the individual operations from the schema.
 
-#### 2.1 Basic File Operators
+#### 2.1 Repo Operator
+**Purpose**: Pull files from inherited repositories
+
+**Components**:
+- `operators::repo::apply()` - Process repo operator
+- `operators::repo::apply_with_clause()` - Apply inline `with:` operations
+  - The `with:` operations are syntactic sugar applied to this repo's intermediate filesystem
+  - They run after the repo's own operations but before merging
+
+**Dependencies**:
+- Internal: Layer 0 (Config, MemoryFS, Error), Layer 1 (Git, Cache)
+
+**Testing**: Integration tests with nested repos
+
+---
+
+#### 2.2 Basic File Operators
 **Purpose**: Include, exclude, rename operations
 
 **Components**:
@@ -129,25 +165,27 @@ These implement the individual operations from the schema.
 
 ---
 
-#### 2.2 Template Operators
+#### 2.3 Template Operators
 **Purpose**: Mark and process templates with variable substitution
 
 **Components**:
 - `operators::template::mark()` - Mark files as templates
 - `operators::template::process()` - Process templates with variables
+  - Simple `${VAR}` substitution initially
+  - Environment variables resolved at runtime
 - `operators::template_vars::collect()` - Build unified variable context
+  - Later definitions override earlier ones
+  - Environment variables provide values
 
 **Dependencies**:
-- External: TBD template engine (tera? handlebars?)
+- External: Simple regex-based substitution initially
 - Internal: Layer 0 (MemoryFS, Config, Error)
-
-**Note**: Template engine choice is an open question - start with simple `${VAR}` substitution
 
 **Testing**: Unit tests with template fixtures
 
 ---
 
-#### 2.3 Merge Operators
+#### 2.4 Merge Operators
 **Purpose**: YAML, JSON, TOML, INI, Markdown fragment merging
 
 **Components**:
@@ -156,6 +194,9 @@ These implement the individual operations from the schema.
 - `operators::merge::toml::apply()` - Merge TOML fragments
 - `operators::merge::ini::apply()` - Merge INI fragments
 - `operators::merge::markdown::apply()` - Merge Markdown fragments
+- `operators::merge::conflict_warning()` - Emit warnings on overwrites
+
+**Merge Strategy**: Last-write-wins with warnings on conflicts
 
 **Dependencies**:
 - External: `serde_yaml`, `serde_json`, `toml`, `ini`, markdown parser
@@ -167,7 +208,7 @@ These implement the individual operations from the schema.
 
 ---
 
-#### 2.4 Tool Validation Operator
+#### 2.5 Tool Validation Operator
 **Purpose**: Validate required tools exist with correct versions
 
 **Components**:
@@ -190,16 +231,23 @@ These implement the individual operations from the schema.
 These implement the 7 phases from the design doc.
 
 #### 3.1 Phase 1: Discovery and Cloning
-**Purpose**: Fetch all repos in parallel
+**Purpose**: Fetch all repos in parallel using breadth-first traversal
 
 **Components**:
 - `phase1::discover_repos()` - Recursively discover all inherited repos
 - `phase1::clone_parallel()` - Clone repos in parallel (breadth-first)
+  - Clone all repos at depth N before moving to depth N+1
+  - Maximizes parallelism and minimizes total time
 - `phase1::detect_cycles()` - Detect circular dependencies
 - `phase1::RepoTree` - Data structure for dependency tree
+- `phase1::handle_network_failure()` - Fall back to cache if network fails
+
+**Network Failure Behavior**:
+- If clone fails but cache exists, continue with cached version and warn
+- If clone fails and no cache exists, abort with error
 
 **Dependencies**:
-- Internal: Layer 0 (Config, MemoryFS, Error), Layer 1 (Git)
+- Internal: Layer 0 (Config, MemoryFS, Error), Layer 1 (Git, Cache)
 - External: `tokio` or `rayon` for parallelism
 
 **Testing**: Integration tests with mock repo trees
@@ -211,6 +259,7 @@ These implement the 7 phases from the design doc.
 
 **Components**:
 - `phase2::process_repo()` - Apply operations to produce intermediate FS
+  - Uses Layer 1.3 RepoCache to avoid duplicate processing
 - `phase2::IntermediateFS` - Wrapper around MemoryFS with metadata
 
 **Dependencies**:
@@ -221,11 +270,13 @@ These implement the 7 phases from the design doc.
 ---
 
 #### 3.3 Phase 3: Determining Operation Order
-**Purpose**: Build deterministic operation order
+**Purpose**: Build deterministic operation order using depth-first traversal
 
 **Components**:
 - `phase3::build_operation_order()` - Depth-first traversal to determine order
 - `phase3::OperationOrder` - List of repos in application order
+
+**Important**: While cloning uses breadth-first for speed, operation ordering uses depth-first for correctness (ancestors before parents before local)
 
 **Dependencies**:
 - Internal: Layer 0 (Config, Error), Layer 3.1 (RepoTree)
@@ -240,6 +291,7 @@ These implement the 7 phases from the design doc.
 **Components**:
 - `phase4::build_composite()` - Merge intermediate FSs in order
 - `phase4::apply_merge_operators()` - Apply merge operations
+  - Emit warnings on merge conflicts (last-write-wins)
 - `phase4::process_templates()` - Process all templates with unified context
 
 **Dependencies**:
@@ -283,6 +335,8 @@ These implement the 7 phases from the design doc.
 
 **Components**:
 - `phase7::update_cache()` - Save newly fetched repos to cache
+  - Only saves repos that were fetched, not loaded from cache
+  - Assumes refs are immutable - no expiration needed
 
 **Dependencies**:
 - Internal: Layer 0 (MemoryFS, Error), Layer 1 (Git)
@@ -292,6 +346,8 @@ These implement the 7 phases from the design doc.
 ---
 
 ### Layer 3.5: Version Detection (Depends on Layers 0-1)
+
+**Note**: This is a core feature, not deferred to future phases.
 
 #### 3.5.1 Version Checking
 **Purpose**: Detect when inherited repos have newer versions available
@@ -309,8 +365,6 @@ These implement the 7 phases from the design doc.
 **Dependencies**:
 - External: `semver`
 - Internal: Layer 0 (Config, Error), Layer 1 (Git)
-
-**Note**: This runs after Phase 1 (Discovery) to check all discovered repos
 
 **Integration with Pull Flow**:
 1. During `common-repo pull`, after Phase 1 discovers all repos:
@@ -376,8 +430,9 @@ These implement the 7 phases from the design doc.
 
 **Include**:
 - Layer 0: All foundation components
-- Layer 1: Git operations, basic path operations
-- Layer 2: Basic file operators only (include, exclude, rename)
+- Layer 1: Git operations, basic path operations, repo cache
+- Layer 2.1: Repo operator (without `with:` clause)
+- Layer 2.2: Basic file operators (include, exclude, rename)
 - Layer 3: All phases (simplified - no merge operators, no templates)
 - Layer 4: Basic CLI with pull command
 
@@ -386,6 +441,7 @@ These implement the 7 phases from the design doc.
 - Merge operators
 - Tool validation
 - Advanced error handling
+- `with:` clause in repo operator
 - Performance optimizations
 
 **Milestone**: Can pull a simple inherited repo with include/exclude/rename and write to disk
@@ -396,10 +452,11 @@ These implement the 7 phases from the design doc.
 **Goal**: Add template and merge capabilities, plus version checking
 
 **Add**:
-- Template operators (basic variable substitution)
-- YAML merge operator
-- JSON merge operator
-- Layer 3.5: Version detection and update checking
+- Layer 2.1: Full repo operator with `with:` clause support
+- Layer 2.3: Template operators (simple `${VAR}` substitution)
+- Layer 2.4: YAML merge operator
+- Layer 2.4: JSON merge operator
+- Layer 3.5: Version detection and update checking (core feature)
 - `common-repo update` command to check for outdated refs
 
 **Milestone**: Can handle templates, merge YAML/JSON configs, and detect outdated dependencies
@@ -410,11 +467,11 @@ These implement the 7 phases from the design doc.
 **Goal**: Complete all operators
 
 **Add**:
-- TOML merge operator
-- INI merge operator
-- Markdown merge operator
-- Tool validation operator
-- Advanced template engine (if needed)
+- Layer 2.4: TOML merge operator
+- Layer 2.4: INI merge operator
+- Layer 2.4: Markdown merge operator
+- Layer 2.5: Tool validation operator
+- Advanced template engine (if needed beyond simple substitution)
 - `common-repo check` command for config validation
 
 **Milestone**: Feature complete per design doc
@@ -426,11 +483,9 @@ These implement the 7 phases from the design doc.
 
 **Add**:
 - Parallel cloning optimization
-- In-process cache for duplicate repos
 - Progress indicators
 - Better error messages
 - Comprehensive logging
-- Cache TTL/management
 - Documentation
 
 **Milestone**: Production ready
@@ -444,18 +499,21 @@ These implement the 7 phases from the design doc.
 - Path operations
 - Configuration parsing
 - Error handling
+- In-process cache behavior
 
 ### Integration Tests
 - Each phase with mock data
 - Operator combinations
 - Cache behavior
 - Git operations (with test repos)
+- Version detection scenarios
 
 ### End-to-End Tests
 - Full scenarios with real repos
 - Performance benchmarks
 - Error scenarios
 - Cache scenarios
+- Network failure handling
 
 ---
 
@@ -467,14 +525,15 @@ These implement the 7 phases from the design doc.
 2. **Git library**: Use `git2` (libgit2 bindings) or shell out to `git` command?
    - Recommendation: Shell out to `git` initially (simpler), migrate to `git2` if needed
 
-3. **Template engine**: Which template engine to use?
-   - Recommendation: Start with simple regex-based `${VAR}` substitution, add full engine later if needed
+3. **Template engine**: Which template substitution approach?
+   - Decision: Start with simple regex-based `${VAR}` substitution
+   - Defaults handled via template-vars definitions, not inline syntax
 
 4. **Error handling strategy**: `anyhow` vs custom error types?
    - Recommendation: Use `thiserror` for library code, `anyhow` for CLI/application code
 
 5. **Progress indication**: How to show progress without slowing things down?
-   - Recommendation: Defer to Phase 4, use `indicatif` crate
+   - Recommendation: Basic progress in Phase 2/3, full progress bars in Phase 4
 
 ---
 
@@ -490,7 +549,6 @@ These implement the 7 phases from the design doc.
 **Phase 2 Crates**:
 - `serde_json` - JSON merge
 - `semver` - Version detection and comparison
-- Template engine TBD
 
 **Phase 3 Crates**:
 - `toml` - TOML merge
