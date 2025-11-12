@@ -1,0 +1,4 @@
+# Deep repository chain - Level 4 (Final)
+# This is the final level in the deep reference chain - contains actual content
+- include: ["**/*"]
+- exclude: [".git/**"]
