@@ -50,6 +50,14 @@ pub struct ApplyArgs {
 
 /// Execute the apply command
 pub fn execute(args: ApplyArgs) -> Result<()> {
+    use common_repo::cache::RepoCache;
+    use common_repo::config::from_file;
+    use common_repo::phases::orchestrator;
+    use common_repo::repository::RepositoryManager;
+    use std::time::Instant;
+
+    let start_time = Instant::now();
+
     // Determine config file path
     let config_path = args
         .config
@@ -71,36 +79,68 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
         PathBuf::from(home).join(".common-repo").join("cache")
     });
 
-    // TODO: Implement the actual 6-phase pipeline
-    // For now, this is a stub that validates arguments and prints what it would do
-
+    // Print header
     if !args.quiet {
         println!("🔍 Common Repository Apply");
-        println!();
-        println!("Config:     {}", config_path.display());
-        println!("Output:     {}", output_dir.display());
-        println!("Cache:      {}", cache_root.display());
-        println!("Dry run:    {}", args.dry_run);
-        println!("Force:      {}", args.force);
-        println!("Verbose:    {}", args.verbose);
-        println!("No cache:   {}", args.no_cache);
         println!();
 
         if args.dry_run {
             println!("🔎 DRY RUN MODE - No changes will be made");
             println!();
         }
-
-        println!("✅ Apply command stub executed successfully");
-        println!();
-        println!("📋 Next steps:");
-        println!("   - Parse configuration file");
-        println!("   - Discover and clone repositories");
-        println!("   - Process operations");
-        println!("   - Write output files");
     }
 
-    Ok(())
+    // Parse configuration
+    if !args.quiet && args.verbose {
+        println!("📋 Parsing configuration: {}", config_path.display());
+    }
+    let config = from_file(&config_path)?;
+
+    // Setup repository manager and cache
+    let repo_manager = RepositoryManager::new(cache_root.clone());
+    let repo_cache = RepoCache::new();
+
+    // Execute the 6-phase pipeline
+    let result = orchestrator::execute_pull(
+        &config,
+        &repo_manager,
+        &repo_cache,
+        &std::env::current_dir().expect("Failed to get current directory"),
+        if args.dry_run {
+            None
+        } else {
+            Some(&output_dir)
+        },
+    );
+
+    match result {
+        Ok(final_fs) => {
+            let duration = start_time.elapsed();
+
+            if !args.quiet {
+                println!("✅ Applied successfully in {:.2}s", duration.as_secs_f64());
+
+                // Report statistics
+                let file_count = final_fs.len();
+                if file_count > 0 {
+                    println!("   {} files processed", file_count);
+
+                    if !args.dry_run {
+                        println!("   Files written to: {}", output_dir.display());
+                    }
+                }
+            }
+
+            Ok(())
+        }
+        Err(e) => {
+            if !args.quiet {
+                println!("❌ Apply failed");
+                println!();
+            }
+            Err(e.into())
+        }
+    }
 }
 
 #[cfg(test)]

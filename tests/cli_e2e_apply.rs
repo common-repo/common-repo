@@ -101,7 +101,7 @@ fn test_apply_dry_run() {
         .stdout(predicate::str::contains("DRY RUN MODE"));
 }
 
-/// Test that --verbose flag is recognized
+/// Test that --verbose flag shows parsing information
 #[test]
 fn test_apply_verbose() {
     let temp = assert_fs::TempDir::new().unwrap();
@@ -125,10 +125,10 @@ fn test_apply_verbose() {
         .arg("--verbose")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Verbose:    true"));
+        .stdout(predicate::str::contains("📋 Parsing configuration"));
 }
 
-/// Test that --force flag is recognized
+/// Test that --force flag is accepted
 #[test]
 fn test_apply_force() {
     let temp = assert_fs::TempDir::new().unwrap();
@@ -152,10 +152,10 @@ fn test_apply_force() {
         .arg("--force")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Force:      true"));
+        .stdout(predicate::str::contains("Applied successfully"));
 }
 
-/// Test that --no-cache flag is recognized
+/// Test that --no-cache flag is accepted
 #[test]
 fn test_apply_no_cache() {
     let temp = assert_fs::TempDir::new().unwrap();
@@ -179,7 +179,7 @@ fn test_apply_no_cache() {
         .arg("--no-cache")
         .assert()
         .success()
-        .stdout(predicate::str::contains("No cache:   true"));
+        .stdout(predicate::str::contains("Applied successfully"));
 }
 
 /// Test that --quiet flag suppresses output
@@ -209,7 +209,7 @@ fn test_apply_quiet() {
         .stdout(predicate::str::is_empty());
 }
 
-/// Test that custom output directory is recognized
+/// Test that custom output directory is accepted
 #[test]
 fn test_apply_custom_output() {
     let temp = assert_fs::TempDir::new().unwrap();
@@ -235,12 +235,10 @@ fn test_apply_custom_output() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            output_dir.path().to_str().unwrap(),
-        ));
+        .stdout(predicate::str::contains("Applied successfully"));
 }
 
-/// Test that custom cache root is recognized
+/// Test that custom cache root is accepted
 #[test]
 fn test_apply_custom_cache_root() {
     let temp = assert_fs::TempDir::new().unwrap();
@@ -266,7 +264,7 @@ fn test_apply_custom_cache_root() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains(cache_dir.path().to_str().unwrap()));
+        .stdout(predicate::str::contains("Applied successfully"));
 }
 
 /// Test that invalid YAML config produces an error
@@ -284,11 +282,8 @@ fn test_apply_invalid_yaml() {
         .arg("--config")
         .arg(config_file.path())
         .assert()
-        .success(); // Currently succeeds because we're just a stub
-
-    // TODO: Once we implement config parsing, this should fail:
-    // .failure()
-    // .stderr(predicate::str::contains("YAML"));
+        .failure()
+        .stderr(predicate::str::contains("YAML parsing error"));
 }
 
 /// Test the main binary --version flag
@@ -365,5 +360,5 @@ fn test_apply_env_cache() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains(cache_dir.path().to_str().unwrap()));
+        .stdout(predicate::str::contains("Applied successfully"));
 }
