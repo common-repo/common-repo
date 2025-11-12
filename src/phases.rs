@@ -1,15 +1,17 @@
-//! Implementation of the 7 phases of the common-repo pull operation.
+//! Implementation of the 6 phases of the common-repo pull operation.
 //!
 //! ## Overview
 //!
-//! The pull operation follows 7 phases:
-//! 1. Discovery and Cloning - Fetch all inherited repos in parallel
+//! The pull operation follows 6 phases:
+//! 1. Discovery and Cloning - Fetch all inherited repos in parallel (with automatic caching)
 //! 2. Processing Individual Repos - Apply operations to each repo
 //! 3. Determining Operation Order - Calculate deterministic merge order
 //! 4. Composite Filesystem Construction - Merge all intermediate filesystems
 //! 5. Local File Merging - Merge with local files
 //! 6. Writing to Disk - Write final result to host filesystem
-//! 7. Cache Update - Save newly fetched repos to cache
+//!
+//! Note: Caching happens automatically during Phase 1 via RepositoryManager, so there is no
+//! separate cache update phase.
 //!
 //! Each phase depends only on the previous phases and the foundation layers (0-2).
 
@@ -72,7 +74,12 @@ impl RepoTree {
         }
     }
 
-    /// Check if adding this repo would create a cycle
+    /// Check if a repo exists anywhere in the tree
+    ///
+    /// Note: This is a simple existence check. For proper cycle detection during
+    /// tree construction, use `detect_cycles()` which checks for cycles in dependency paths.
+    /// Multiple branches can reference the same repo without creating a cycle.
+    #[allow(dead_code)]
     pub fn would_create_cycle(&self, url: &str, ref_: &str) -> bool {
         self.all_repos
             .contains(&(url.to_string(), ref_.to_string()))
@@ -102,46 +109,142 @@ pub mod phase1 {
     /// Uses breadth-first traversal to discover all repositories that need to be fetched.
     /// This ensures we find all dependencies before starting any cloning operations.
     pub fn discover_repos(config: &Schema) -> Result<RepoTree> {
-        // For now, implement a simple discovery that only looks at top-level repo operations
-        // TODO: Implement full recursive discovery with cycle detection
+        // Extract repo operations and build the repository tree
         let root_node = process_config_to_node(config)?;
+
+        // Check for cycles in the discovered tree
         let tree = RepoTree::new(root_node);
+        detect_cycles(&tree.root, &mut Vec::new())?;
+
+        // TODO: Implement full recursive discovery - parse each repo's .common-repo.yaml
+        // For now, we only discover top-level repo operations
+
         Ok(tree)
     }
 
+    /// Detect cycles in the repository dependency tree
+    ///
+    /// A cycle occurs when a repository appears multiple times in a single dependency path
+    /// (from root to leaf). Multiple branches can reference the same repo - that's allowed.
+    fn detect_cycles(node: &RepoNode, path: &mut Vec<(String, String)>) -> Result<()> {
+        // Skip the synthetic "local" root node for cycle detection
+        if node.url != "local" {
+            let repo_key = (node.url.clone(), node.ref_.clone());
+
+            // Check if this repo already appears in the current path (cycle detected)
+            if path.contains(&repo_key) {
+                // Build cycle description showing the circular path
+                let mut cycle_path = path
+                    .iter()
+                    .map(|(url, ref_)| format!("{}@{}", url, ref_))
+                    .collect::<Vec<_>>();
+                cycle_path.push(format!("{}@{}", node.url, node.ref_));
+
+                return Err(Error::CycleDetected {
+                    cycle: cycle_path.join(" -> "),
+                });
+            }
+
+            // Add this repo to the current path
+            path.push(repo_key.clone());
+        }
+
+        // Recursively check all children
+        for child in &node.children {
+            detect_cycles(child, path)?;
+        }
+
+        // Remove this repo from path when backtracking (allows same repo in different branches)
+        if node.url != "local" {
+            path.pop();
+        }
+
+        Ok(())
+    }
+
     /// Convert a configuration into a repository node
+    ///
+    /// Extracts repo operations as child nodes and keeps other operations in the root node.
     fn process_config_to_node(config: &Schema) -> Result<RepoNode> {
         // For the root config, we don't have a URL/ref, so we create a synthetic root
         // The root represents the local operations that will be applied
-        Ok(RepoNode::new(
+
+        let mut repo_operations = Vec::new();
+        let mut other_operations = Vec::new();
+
+        // Separate repo operations from other operations
+        for operation in config {
+            match operation {
+                Operation::Repo { repo } => {
+                    repo_operations.push(repo.clone());
+                }
+                _ => {
+                    other_operations.push(operation.clone());
+                }
+            }
+        }
+
+        // Create root node with non-repo operations
+        let mut root_node = RepoNode::new(
             "local".to_string(), // Special marker for local config
             "HEAD".to_string(),  // Not used for local
-            config.clone(),
-        ))
+            other_operations,
+        );
+
+        // Create child nodes for each repo operation
+        for repo_op in repo_operations {
+            // Check for cycles before adding (same url+ref as root would be a cycle)
+            if repo_op.url == "local" {
+                return Err(Error::CycleDetected {
+                    cycle: format!("{}@{}", repo_op.url, repo_op.r#ref),
+                });
+            }
+
+            // Extract operations from the repo's `with:` clause
+            let child_operations = repo_op.with;
+
+            let child_node = RepoNode::new(repo_op.url, repo_op.r#ref, child_operations);
+
+            root_node.add_child(child_node);
+        }
+
+        Ok(root_node)
     }
 
     /// Clone all repositories in the tree in parallel
     ///
     /// Uses breadth-first ordering to maximize parallelism - all repos at depth N
     /// are cloned before moving to depth N+1.
+    ///
+    /// Note: Currently implements sequential cloning per level. To enable true parallel cloning,
+    /// RepositoryManager would need to be wrapped in Arc or made Clone, or we could use
+    /// rayon/tokio for parallelization. The structure is ready for parallelization.
     pub fn clone_parallel(
         tree: &RepoTree,
         repo_manager: &RepositoryManager,
         _cache: &RepoCache, // TODO: Use cache for network failure fallback
     ) -> Result<()> {
-        // For now, implement sequential cloning. Parallel cloning can be added later.
-        // This follows the depth-first discovery but clones breadth-first per level.
-
         let mut current_level = vec![&tree.root];
         let mut next_level = Vec::new();
 
         while !current_level.is_empty() {
+            // Collect all repos at current depth level that need cloning
+            let repos_to_clone: Vec<(&str, &str)> = current_level
+                .iter()
+                .filter_map(|node| {
+                    if node.url != "local" {
+                        Some((node.url.as_str(), node.ref_.as_str()))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
             // Clone all repos at current depth level
-            for node in &current_level {
-                if node.url != "local" {
-                    // Skip synthetic local root
-                    repo_manager.fetch_repository(&node.url, &node.ref_)?;
-                }
+            // TODO: Parallelize this loop when RepositoryManager supports Arc/Clone or when
+            // using rayon/tokio. For now, sequential cloning ensures correctness.
+            for (url, ref_) in repos_to_clone {
+                repo_manager.fetch_repository(url, ref_)?;
             }
 
             // Collect next level
@@ -155,16 +258,6 @@ pub mod phase1 {
             next_level.clear();
         }
 
-        Ok(())
-    }
-
-    /// Handle network failures by falling back to cache
-    ///
-    /// If a repository clone fails but we have it cached, continue with the cached version.
-    /// If clone fails and no cache exists, this is a hard failure.
-    pub fn handle_network_failure(_url: &str, _ref_: &str, _cache: &RepoCache) -> Result<()> {
-        // TODO: Implement network failure handling with cache fallback
-        // For now, let RepositoryManager handle this
         Ok(())
     }
 }
