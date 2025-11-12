@@ -250,6 +250,37 @@ The project uses [Release Please](https://github.com/googleapis/release-please) 
 Note: This is primarily a library crate. Use it by adding `common-repo` as a dependency
 in your Cargo.toml.
 
+## Usage
+
+Add `common-repo` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+common-repo = "0.1"
+```
+
+### Basic Example
+
+```rust
+use common_repo::{RepositoryManager, Config};
+use std::path::Path;
+
+// Load configuration from YAML
+let config_yaml = r#"
+repositories:
+  - url: https://github.com/example/shared-config.git
+    ref: main
+    operations:
+      - include: "config/*.yaml"
+"#;
+
+let config: Config = serde_yaml::from_str(config_yaml)?;
+let manager = RepositoryManager::new()?;
+
+// Execute the repository composition
+manager.execute(&config, Path::new("output"))?;
+```
+
 ## Contributing
 
 1. Create a feature branch
