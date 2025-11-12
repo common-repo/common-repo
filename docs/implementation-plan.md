@@ -352,20 +352,6 @@ These implement the 7 phases from the design doc.
 
 ---
 
-#### 3.7 Phase 7: Cache Update
-**Purpose**: Update cache with fetched repos
-
-**Components**:
-- `phase7::update_cache()` - Save newly fetched repos to cache
-  - Only saves repos that were fetched, not loaded from cache
-  - Assumes refs are immutable - no expiration needed
-
-**Dependencies**:
-- Internal: Layer 0 (MemoryFS, Error), Layer 1 (Git)
-
-**Testing**: Integration tests with cache directory
-
----
 
 ### Layer 3.5: Version Detection (Depends on Layers 0-1)
 

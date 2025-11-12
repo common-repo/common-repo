@@ -24,16 +24,48 @@ cargo run
 ```
 
 ### Testing
+
+This project has comprehensive testing with both unit tests and integration tests:
+
+#### Unit Tests (Recommended for development)
 ```bash
-# Run all tests
+# Run unit tests only (fast, no network required)
 cargo test
 
-# Run tests with output visible
+# Run tests with verbose output
 cargo test -- --nocapture
 
-# Run a specific test
+# Run a specific unit test
 cargo test test_name
+
+# Run tests for a specific module
+cargo test mod::test_name
 ```
+
+#### Integration Tests (Requires network)
+Integration tests verify end-to-end functionality with real repositories:
+
+```bash
+# Run all tests including integration tests
+cargo test --features integration-tests
+
+# Run only integration tests
+cargo test --test integration_test --features integration-tests
+
+# Run integration tests with verbose output
+cargo test --test integration_test --features integration-tests -- --nocapture
+
+# Skip network-dependent integration tests
+SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
+```
+
+**Important Notes:**
+- **Use unit tests during development** - they're fast and don't require network
+- **Run integration tests before major changes** - they verify real-world functionality
+- **Integration tests are disabled by default** to avoid network dependencies
+- **All tests must pass** for CI/CD to succeed (both unit and integration tests)
+- **72 unit tests** cover individual components and functions
+- **5 integration tests** validate end-to-end repository inheritance workflows
 
 ### Code Quality
 ```bash

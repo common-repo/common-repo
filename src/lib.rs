@@ -10,4 +10,5 @@ pub mod filesystem;
 pub mod git;
 pub mod operators;
 pub mod path;
+pub mod phases;
 pub mod repository;
