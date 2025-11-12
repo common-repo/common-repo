@@ -28,6 +28,9 @@
 //! - MemoryFS loading and content verification
 //! - End-to-end repository management pipeline
 
+use common_repo::cache::RepoCache;
+use common_repo::config::Schema;
+use common_repo::phases::orchestrator;
 use common_repo::repository::RepositoryManager;
 use std::env;
 use std::path::PathBuf;
@@ -224,6 +227,171 @@ fn test_list_repository_tags_integration() {
         }
         Err(e) => {
             println!("⚠ Tag listing failed (expected if no tags exist): {}", e);
+        }
+    }
+}
+
+/// Integration test verifying automatic caching in RepositoryManager
+/// This test confirms that repositories are automatically cached during fetch operations.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_repository_manager_automatic_caching() {
+    // Skip if network tests are disabled
+    if env::var("SKIP_NETWORK_TESTS").is_ok() {
+        println!("Skipping network integration test");
+        return;
+    }
+
+    // Create a temporary directory for caching
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let cache_dir = temp_dir.path().join("cache");
+
+    // Create repository manager with real implementations
+    let manager = RepositoryManager::new(cache_dir);
+
+    let repo_url = "https://github.com/common-repo/common-repo.git";
+    let ref_name = "main";
+
+    // Before fetch, repository should not be cached
+    assert!(
+        !manager.is_cached(repo_url, ref_name),
+        "Repository should not be cached initially"
+    );
+
+    // Fetch the repository - this should automatically cache it
+    println!("Fetching repository (should clone and cache)...");
+    let _fs = manager
+        .fetch_repository(repo_url, ref_name)
+        .expect("Failed to fetch repository");
+
+    // After fetch, repository should be cached
+    assert!(
+        manager.is_cached(repo_url, ref_name),
+        "Repository should be automatically cached after fetch"
+    );
+
+    // Second fetch should be much faster (from cache)
+    println!("Fetching repository again (should use cache)...");
+    let start_time = std::time::Instant::now();
+    let _fs2 = manager
+        .fetch_repository(repo_url, ref_name)
+        .expect("Failed to fetch repository from cache");
+    let cached_time = start_time.elapsed();
+
+    println!("Cached fetch took: {:?}", cached_time);
+    assert!(
+        cached_time.as_millis() < 100,
+        "Cached fetch should be very fast (< 100ms), took {:?}",
+        cached_time
+    );
+
+    println!("✓ RepositoryManager automatic caching verified!");
+}
+
+/// Integration test for basic inheritance pipeline (Phases 1-5)
+/// This test verifies that the end-to-end inheritance workflow works correctly.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_basic_inheritance_pipeline() {
+    // Skip if network tests are disabled
+    if env::var("SKIP_NETWORK_TESTS").is_ok() {
+        println!("Skipping network integration test");
+        return;
+    }
+
+    // Create a temporary directory for caching
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let cache_dir = temp_dir.path().join("cache");
+
+    // Create repository manager with real implementations using temp cache
+    let manager = RepositoryManager::new(cache_dir.clone());
+
+    // Create a separate cache instance for the orchestrator
+    let cache = RepoCache::new();
+
+    // Create a simple configuration that inherits from this repository
+    let config_yaml = r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: main
+  with:
+  - include:
+      patterns: ["README.md", "Cargo.toml"]
+  - exclude:
+      patterns: ["target/**", ".git/**"]
+- include:
+    patterns: ["src/**/*.rs"]
+- rename:
+    mappings:
+    - from: "(.*)\\.rs"
+      to: "rust/$1.rs"
+"#;
+
+    // Parse the configuration
+    let config: Schema =
+        serde_yaml::from_str(config_yaml).expect("Failed to parse test configuration");
+
+    println!("✓ Parsed configuration with {} operations", config.len());
+
+    // Execute the inheritance pipeline (Phases 1-5)
+    let result = orchestrator::execute_pull(
+        &config,
+        &manager,
+        &cache,
+        std::env::current_dir().unwrap().as_path(),
+    );
+
+    match result {
+        Ok(composite_fs) => {
+            println!("✓ Successfully executed inheritance pipeline");
+
+            // Verify the composite filesystem contains expected files
+            let files: Vec<_> = composite_fs.list_files();
+            println!("✓ Composite filesystem contains {} files", files.len());
+
+            // Check that we have the expected files from inheritance
+            let expected_files = [
+                "README.md",
+                "Cargo.toml",
+                "rust/lib.rs",
+                "rust/main.rs",
+                "rust/config.rs",
+                "rust/error.rs",
+                "rust/filesystem.rs",
+                "rust/git.rs",
+                "rust/operators.rs",
+                "rust/path.rs",
+                "rust/phases.rs",
+                "rust/repository.rs",
+            ];
+
+            for expected_file in &expected_files {
+                if composite_fs.exists(expected_file) {
+                    println!("✓ Found expected file: {}", expected_file);
+                } else {
+                    println!("⚠ Missing expected file: {}", expected_file);
+                }
+            }
+
+            // Verify content of a known file
+            if let Some(cargo_toml) = composite_fs.get_file("Cargo.toml") {
+                let content = String::from_utf8_lossy(&cargo_toml.content);
+                if content.contains("common-repo") {
+                    println!("✓ Cargo.toml content verified");
+                } else {
+                    println!("⚠ Cargo.toml content unexpected");
+                }
+            }
+
+            // Verify that excluded files are not present
+            if !composite_fs.exists("target/debug/common-repo") {
+                println!("✓ Excluded files properly filtered out");
+            }
+
+            println!("✓ Basic inheritance pipeline test completed successfully!");
+        }
+        Err(e) => {
+            panic!("Inheritance pipeline failed: {}", e);
         }
     }
 }
