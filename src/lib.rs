@@ -8,5 +8,6 @@ pub mod config;
 pub mod error;
 pub mod filesystem;
 pub mod git;
+pub mod operators;
 pub mod path;
 pub mod repository;

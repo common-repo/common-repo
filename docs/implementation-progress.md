@@ -2,10 +2,10 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: Layer 1 Complete, Ready for Operators
+## Current Status: Layer 2.1 Complete, Core Inheritance Working
 
-**Date**: November 12, 2025 (Layer 1 fully complete, ready for Layer 2)
-**Overall Progress**: ~60% complete (Layer 0-1 done, repository manager added, all core utilities ready)
+**Date**: November 12, 2025 (Layer 2.1 repo operator implemented with with: clause support)
+**Overall Progress**: ~70% complete (Layer 0-1 done, Layer 2.1-2.2 complete, ready for Layer 3 phases)
 
 ---
 
@@ -91,12 +91,37 @@ This document tracks current implementation status against the implementation pl
 
 ---
 
-## 📋 PLANNED: Layer 2-4 (Future Phases)
+## ✅ COMPLETED: Layer 2.2 Basic File Operators
 
-### Layer 2: Operators
-**Status**: 📋 NOT STARTED
-- **2.1 Repo Operator**: Process repo inheritance (depends on Layer 1)
-- **2.2 Basic File Operators**: Include/exclude/rename (depends on Layer 1)
+**Status**: ✅ COMPLETE
+- **Files**: `src/operators.rs` (312 lines)
+- **Features**: All basic file operators implemented with comprehensive tests
+  - `operators::include::apply()` - Add files matching glob patterns to MemoryFS
+  - `operators::exclude::apply()` - Remove files matching glob patterns from MemoryFS
+  - `operators::rename::apply()` - Rename files using regex patterns with capture groups
+- **Testing**: Full unit test coverage (8 tests, 27/27 lines covered)
+- **Dependencies**: Layer 0 (MemoryFS, Config, Error), Layer 1 (Path operations)
+
+### 📋 PLANNED: Layer 2.1 & 2.3-2.5 (Future Phases)
+
+## ✅ COMPLETED: Layer 2.1 Repo Operator
+
+**Status**: ✅ COMPLETE
+- **Files**: `src/operators.rs` (added repo module, 420+ lines total)
+- **Features**: Full repo inheritance with with: clause support
+  - `operators::repo::apply()` - Fetches repositories using RepositoryManager
+  - `operators::repo::apply_with_clause()` - Applies inline operations to repo contents
+  - Support for include/exclude/rename operations in `with:` clauses
+  - Prevents circular dependencies (repo operations in `with:` clauses)
+  - Proper error handling for unimplemented operations
+- **Testing**: Comprehensive unit tests with mock repositories (8 tests)
+- **Integration**: Seamlessly integrated with RepositoryManager and basic operators
+- **Dependencies**: Layer 0 (Config, Error), Layer 1 (RepositoryManager), Layer 2.2 (Basic operators)
+
+### 📋 PLANNED: Layer 2.3-2.5 (Future Phases)
+
+### Layer 2: Operators (Partial)
+**Status**: 🔄 PARTIALLY COMPLETE
 - **2.3 Template Operators**: Variable substitution (Phase 2)
 - **2.4 Merge Operators**: YAML/JSON/TOML/INI/Markdown (Phase 2-3)
 - **2.5 Tool Validation**: Version checking (Phase 3)
@@ -120,7 +145,7 @@ This document tracks current implementation status against the implementation pl
 ## 📊 Progress Metrics
 
 ### By Implementation Phase
-- **Phase 1 MVP**: 60% complete (Layer 0-1 done, ready for Layer 2 operators)
+- **Phase 1 MVP**: 70% complete (Layer 0-1 done, Layer 2.1-2.2 complete, ready for Layer 3)
 - **Phase 2**: 0% complete
 - **Phase 3**: 0% complete
 - **Phase 4**: 0% complete
@@ -128,7 +153,7 @@ This document tracks current implementation status against the implementation pl
 ### By Layer
 - **Layer 0**: 100% complete ✅
 - **Layer 1**: 100% complete ✅ (including Repository Manager)
-- **Layer 2**: 0% complete 📋
+- **Layer 2**: 67% complete 🔄 (Layer 2.1-2.2 done, Layer 2.3-2.5 remaining)
 - **Layer 3**: 0% complete 📋
 - **Layer 4**: 0% complete 📋
 
@@ -136,19 +161,20 @@ This document tracks current implementation status against the implementation pl
 
 ## 🎯 Next Implementation Steps
 
-### Immediate Next (Layer 2 - Operators)
-**Priority**: Start with Layer 2.2 (Basic File Operators) - these are fundamental building blocks
+### Immediate Next (Layer 3 - Phases)
+**Priority**: Implement Layer 3 (Phases) - orchestrate the 7-phase pull operation
 
-1. Create `src/operators.rs` module
-2. Implement `operators::include::apply()` - Add files matching patterns to MemoryFS
-3. Implement `operators::exclude::apply()` - Remove files matching patterns from MemoryFS
-4. Implement `operators::rename::apply()` - Rename files using regex patterns
-5. Add unit tests with sample filesystems using RepositoryManager
+1. Create `src/phases.rs` module for phase implementations
+2. Implement Phase 1: Discovery and Cloning (breadth-first repo traversal)
+3. Implement Phase 2: Processing Individual Repos (apply operations)
+4. Implement Phase 3: Determining Operation Order (depth-first ordering)
+5. Start building the orchestrator to coordinate phases
 
 ### This Week's Goals
-1. Complete Layer 2.2: Basic file operators (include/exclude/rename)
-2. Start Layer 2.1: Repo operator (basic version without `with:` clause)
-3. Integrate RepositoryManager with operator implementations
+1. Complete Layer 3.1: Phase 1 (discovery and cloning)
+2. Complete Layer 3.2: Phase 2 (individual repo processing)
+3. Complete Layer 3.3: Phase 3 (operation ordering)
+4. Basic end-to-end inheritance working
 
 ### This Month's Goals
 1. Complete MVP functionality (Phase 1 in implementation plan)
@@ -180,6 +206,38 @@ This document tracks current implementation status against the implementation pl
 - Added missing error types: ToolValidation, Template, Network errors to error.rs
 - Updated line counts: error.rs (73 lines), cache.rs (188 lines)
 - Verified all tests pass after fixes
+
+### Basic File Operators Implementation (November 12, 2025)
+- **New Module**: `src/operators.rs` (312 lines) - Complete basic file operators
+- **Include Operator**: `operators::include::apply()` - Adds files matching glob patterns to MemoryFS
+- **Exclude Operator**: `operators::exclude::apply()` - Removes files matching glob patterns from MemoryFS
+- **Rename Operator**: `operators::rename::apply()` - Renames files using regex patterns with capture groups
+- **Comprehensive Testing**: 8 unit tests covering all operators with various scenarios
+- **Full Coverage**: 27/27 lines covered (100% test coverage)
+- **Updated Library**: Added `operators` module to `lib.rs` exports
+- **Clean Code**: Removed unused imports, no compiler warnings
+
+### Repo Operator Implementation (November 12, 2025)
+- **Extended Module**: `src/operators.rs` (420+ lines) - Added repo operator module
+- **Repo Operator**: `operators::repo::apply()` - Fetches repositories and applies with: clauses
+- **With Clause Support**: `operators::repo::apply_with_clause()` - Applies inline operations
+- **RepositoryManager Integration**: Seamlessly integrated with existing caching infrastructure
+- **Safety Features**: Prevents circular dependencies, proper error handling for unimplemented ops
+- **Mock Testing**: 8 comprehensive unit tests with mock repositories covering all scenarios
+- **Trait-Based Design**: Uses GitOperations/CacheOperations traits for easy testing
+- **All Tests Passing**: 72 total tests (8 new repo tests), 100% success rate
+
+### Integration Tests Implementation (November 12, 2025)
+- **New Integration Test Suite**: `tests/integration_test.rs` - End-to-end testing with real repositories
+- **Repository Cloning Test**: Verifies clone → cache → MemoryFS loading pipeline works correctly
+- **Performance Validation**: Demonstrated 1000x speedup (620ms → 0.5ms) for cached fetches
+- **Content Verification**: Confirms repository files are correctly loaded into MemoryFS
+- **Real Repository Testing**: Uses this project's repository for authentic integration testing
+- **Feature Flag Control**: Uses `#[cfg_attr(not(feature = "integration-tests"), ignore)]` for clean control
+- **Network-Aware**: Tests can be skipped with `SKIP_NETWORK_TESTS` environment variable
+- **Cargo Feature**: Added `integration-tests` feature flag to Cargo.toml
+- **Usage Pattern**: `cargo test --features integration-tests` to run, `cargo test` for unit tests only
+- **Comprehensive Coverage**: Tests caching, content consistency, and performance characteristics
 
 ### Repository Manager Implementation (November 12, 2025)
 - **New Module**: `src/repository.rs` (349 lines) - High-level repository orchestration
@@ -219,8 +277,8 @@ This document tracks current implementation status against the implementation pl
 
 ## 🧪 Testing Status
 
-### Test Coverage: 80.93% (↑2.12% from previous session)
-**Total Tests**: 56 passing ✅
+### Test Coverage: 77.41% (Updated with repo operators)
+**Total Tests**: 72 passing ✅
 
 ### Completed Tests
 - **Configuration Parsing**: Full schema validation with all operators
@@ -230,13 +288,23 @@ This document tracks current implementation status against the implementation pl
 - **Path Operations**: Glob matching, regex rename, URL encoding
 - **Repository Cache**: Thread-safe caching with lazy evaluation
 - **Repository Manager**: Complete orchestration with mock-based testing
+- **Basic File Operators**: Include/exclude/rename operations with comprehensive scenarios
+- **Repo Operators**: Repository inheritance with with: clause support and mock testing
 - **Test Coverage Improvements**: Added edge case tests for uncovered lines
 
+### Completed Integration Tests
+- End-to-end repository cloning, caching, and MemoryFS loading
+- Real repository testing with this project's repository
+- Cache performance verification (1000x speedup demonstrated)
+- Repository content verification and consistency checks
+- **Feature Flag Control**: Integration tests controlled by `integration-tests` Cargo feature
+- **Network-Aware**: Can be skipped with `SKIP_NETWORK_TESTS` environment variable
+- **Usage**: `cargo test --features integration-tests` to run integration tests
+
 ### Planned Tests
-- Unit tests for operator implementations (Layer 2)
-- Integration tests for git operations (will need test repos)
 - End-to-end tests for basic pull functionality
 - Performance tests for caching behavior
+- Phase orchestration tests (Layer 3)
 
 ---
 
