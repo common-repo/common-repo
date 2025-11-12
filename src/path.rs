@@ -5,6 +5,16 @@ use glob::Pattern;
 use regex::Regex;
 
 /// Match a path against a glob pattern
+///
+/// # Examples
+///
+/// ```
+/// use common_repo::path::glob_match;
+///
+/// assert!(glob_match("*.rs", "main.rs").unwrap());
+/// assert!(glob_match("src/*.rs", "src/main.rs").unwrap());
+/// assert!(!glob_match("*.rs", "main.js").unwrap());
+/// ```
 #[allow(dead_code)]
 pub fn glob_match(pattern: &str, path: &str) -> Result<bool> {
     let pattern = Pattern::new(pattern).map_err(Error::Glob)?;
@@ -18,6 +28,30 @@ pub fn glob_match(pattern: &str, path: &str) -> Result<bool> {
 /// The matched portion of the path is replaced with the expanded replacement string.
 ///
 /// Returns the new path if the pattern matches, None if it doesn't match.
+///
+/// # Examples
+///
+/// ```
+/// use common_repo::path::regex_rename;
+///
+/// // Simple replacement
+/// assert_eq!(
+///     regex_rename(r"(\w+)\.rs", "$1_backup.rs", "main.rs").unwrap(),
+///     Some("main_backup.rs".to_string())
+/// );
+///
+/// // Multiple capture groups
+/// assert_eq!(
+///     regex_rename(r"(\w+)/(\w+)\.rs", "$2_$1.rs", "src/main.rs").unwrap(),
+///     Some("main_src.rs".to_string())
+/// );
+///
+/// // No match returns None
+/// assert_eq!(
+///     regex_rename(r"(\w+)\.js", "$1_backup.js", "main.rs").unwrap(),
+///     None
+/// );
+/// ```
 #[allow(dead_code)]
 pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Option<String>> {
     let regex = Regex::new(pattern).map_err(Error::Regex)?;

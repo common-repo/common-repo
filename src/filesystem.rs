@@ -21,6 +21,19 @@ pub struct File {
 #[allow(dead_code)]
 impl File {
     /// Create a new file with content
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::File;
+    ///
+    /// let content = vec![72, 101, 108, 108, 111]; // "Hello"
+    /// let file = File::new(content);
+    ///
+    /// assert_eq!(file.size(), 5);
+    /// assert_eq!(file.permissions, 0o644);
+    /// assert_eq!(file.content, vec![72, 101, 108, 108, 111]);
+    /// ```
     pub fn new(content: Vec<u8>) -> Self {
         Self {
             content,
@@ -30,11 +43,34 @@ impl File {
     }
 
     /// Create a new file from string content
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::File;
+    ///
+    /// let file = File::from_string("Hello, world!");
+    ///
+    /// assert_eq!(file.content, b"Hello, world!");
+    /// assert_eq!(file.size(), 13);
+    /// ```
     pub fn from_string(content: &str) -> Self {
         Self::new(content.as_bytes().to_vec())
     }
 
     /// Get file size in bytes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::File;
+    ///
+    /// let empty = File::new(vec![]);
+    /// assert_eq!(empty.size(), 0);
+    ///
+    /// let file = File::from_string("content");
+    /// assert_eq!(file.size(), 7);
+    /// ```
     pub fn size(&self) -> usize {
         self.content.len()
     }
@@ -51,6 +87,16 @@ pub struct MemoryFS {
 #[allow(dead_code)]
 impl MemoryFS {
     /// Create a new empty filesystem
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::MemoryFS;
+    ///
+    /// let fs = MemoryFS::new();
+    /// assert!(fs.is_empty());
+    /// assert_eq!(fs.len(), 0);
+    /// ```
     pub fn new() -> Self {
         Self::default()
     }
@@ -68,6 +114,21 @@ impl MemoryFS {
     }
 
     /// Add a file with string content
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::MemoryFS;
+    ///
+    /// let mut fs = MemoryFS::new();
+    /// fs.add_file_string("README.md", "# My Project").unwrap();
+    ///
+    /// assert!(fs.exists("README.md"));
+    /// assert_eq!(fs.len(), 1);
+    ///
+    /// let file = fs.get_file("README.md").unwrap();
+    /// assert_eq!(file.content, b"# My Project");
+    /// ```
     pub fn add_file_string<P: AsRef<Path>>(&mut self, path: P, content: &str) -> Result<()> {
         self.add_file(path, File::from_string(content))
     }
@@ -83,6 +144,19 @@ impl MemoryFS {
     }
 
     /// Check if a file exists
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::MemoryFS;
+    ///
+    /// let mut fs = MemoryFS::new();
+    ///
+    /// assert!(!fs.exists("file.txt"));
+    ///
+    /// fs.add_file_string("file.txt", "content").unwrap();
+    /// assert!(fs.exists("file.txt"));
+    /// ```
     pub fn exists<P: AsRef<Path>>(&self, path: P) -> bool {
         self.files.contains_key(path.as_ref())
     }
@@ -109,6 +183,20 @@ impl MemoryFS {
     }
 
     /// Rename a file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::MemoryFS;
+    ///
+    /// let mut fs = MemoryFS::new();
+    /// fs.add_file_string("old_name.txt", "content").unwrap();
+    ///
+    /// fs.rename_file("old_name.txt", "new_name.txt").unwrap();
+    ///
+    /// assert!(!fs.exists("old_name.txt"));
+    /// assert!(fs.exists("new_name.txt"));
+    /// ```
     pub fn rename_file<P: AsRef<Path>, Q: AsRef<Path>>(&mut self, from: P, to: Q) -> Result<()> {
         let from_path = from.as_ref();
         let to_path = to.as_ref();
@@ -154,6 +242,24 @@ impl MemoryFS {
     }
 
     /// Merge another filesystem into this one (last-write-wins)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::filesystem::MemoryFS;
+    ///
+    /// let mut fs1 = MemoryFS::new();
+    /// fs1.add_file_string("file1.txt", "content1").unwrap();
+    ///
+    /// let mut fs2 = MemoryFS::new();
+    /// fs2.add_file_string("file2.txt", "content2").unwrap();
+    ///
+    /// fs1.merge(&fs2);
+    ///
+    /// assert_eq!(fs1.len(), 2);
+    /// assert!(fs1.exists("file1.txt"));
+    /// assert!(fs1.exists("file2.txt"));
+    /// ```
     pub fn merge(&mut self, other: &MemoryFS) {
         for (path, file) in &other.files {
             self.files.insert(path.clone(), file.clone());

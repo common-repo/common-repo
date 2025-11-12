@@ -170,7 +170,16 @@ pub struct MarkdownMergeOp {
     pub create_section: bool,
 }
 
-fn default_header_level() -> u8 {
+/// Get the default header level for markdown operations
+///
+/// # Examples
+///
+/// ```
+/// use common_repo::config::default_header_level;
+///
+/// assert_eq!(default_header_level(), 2);
+/// ```
+pub fn default_header_level() -> u8 {
     2
 }
 

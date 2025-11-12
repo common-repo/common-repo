@@ -368,21 +368,21 @@ All doctests must pass for CI to succeed.
 ## Progress Tracking
 
 - [x] `path::encode_url_path` (completed)
-- [ ] `path::glob_match`
-- [ ] `path::regex_rename`
-- [ ] `git::parse_semver_tag`
-- [ ] `cache::CacheKey::new`
-- [ ] `filesystem::File::new`
-- [ ] `filesystem::File::from_string`
-- [ ] `filesystem::File::size`
-- [ ] `filesystem::MemoryFS::new`
-- [ ] `filesystem::MemoryFS::add_file_string`
-- [ ] `filesystem::MemoryFS::exists`
-- [ ] `filesystem::MemoryFS::rename_file`
-- [ ] `filesystem::MemoryFS::merge`
-- [ ] `config::default_header_level`
+- [x] `path::glob_match` (completed)
+- [x] `path::regex_rename` (completed)
+- [x] `git::parse_semver_tag` (completed)
+- [x] `cache::CacheKey::new` (completed)
+- [x] `filesystem::File::new` (completed)
+- [x] `filesystem::File::from_string` (completed)
+- [x] `filesystem::File::size` (completed)
+- [x] `filesystem::MemoryFS::new` (completed)
+- [x] `filesystem::MemoryFS::add_file_string` (completed)
+- [x] `filesystem::MemoryFS::exists` (completed)
+- [x] `filesystem::MemoryFS::rename_file` (completed)
+- [x] `filesystem::MemoryFS::merge` (completed)
+- [x] `config::default_header_level` (completed)
 
-**Total:** 1/14 high and medium priority doctests completed (7%)
+**Total:** 14/14 high and medium priority doctests completed (100%)
 
 ---
 
