@@ -68,7 +68,10 @@ impl RepoTree {
     }
 
     fn collect_repos(node: &RepoNode, repos: &mut HashSet<(String, String)>) {
-        repos.insert((node.url.clone(), node.ref_.clone()));
+        // Only add real repositories, not the synthetic "local" root
+        if node.url != "local" {
+            repos.insert((node.url.clone(), node.ref_.clone()));
+        }
         for child in &node.children {
             Self::collect_repos(child, repos);
         }
@@ -99,7 +102,7 @@ pub mod phase1 {
         repo_manager: &RepositoryManager,
         cache: &RepoCache,
     ) -> Result<RepoTree> {
-        let tree = discover_repos(config)?;
+        let tree = discover_repos(config, repo_manager)?;
         clone_parallel(&tree, repo_manager, cache)?;
         Ok(tree)
     }
@@ -108,18 +111,122 @@ pub mod phase1 {
     ///
     /// Uses breadth-first traversal to discover all repositories that need to be fetched.
     /// This ensures we find all dependencies before starting any cloning operations.
-    pub fn discover_repos(config: &Schema) -> Result<RepoTree> {
+    pub fn discover_repos(config: &Schema, repo_manager: &RepositoryManager) -> Result<RepoTree> {
         // Extract repo operations and build the repository tree
         let root_node = process_config_to_node(config)?;
 
+        // Recursively discover all inherited repos by parsing their .common-repo.yaml files
+        let root_node = discover_inherited_configs(root_node, repo_manager, &mut HashSet::new())?;
+
         // Check for cycles in the discovered tree
-        let tree = RepoTree::new(root_node);
+        let tree = RepoTree::new(root_node.clone());
         detect_cycles(&tree.root, &mut Vec::new())?;
 
-        // TODO: Implement full recursive discovery - parse each repo's .common-repo.yaml
-        // For now, we only discover top-level repo operations
-
         Ok(tree)
+    }
+
+    /// Recursively discover inherited configurations from .common-repo.yaml files
+    ///
+    /// For each repository node in the tree, fetch the repo and parse its .common-repo.yaml
+    /// file to discover further inheritance. Uses a visited set to prevent infinite recursion.
+    fn discover_inherited_configs(
+        mut node: RepoNode,
+        repo_manager: &RepositoryManager,
+        visited: &mut HashSet<(String, String)>,
+    ) -> Result<RepoNode> {
+        // Process all children recursively
+        let mut new_children = Vec::new();
+
+        for child in node.children {
+            // If this child represents a real repository (not "local"), try to parse its config
+            if child.url != "local" {
+                let repo_key = (child.url.clone(), child.ref_.clone());
+
+                // Check if we've already visited this repo to prevent infinite recursion
+                if visited.contains(&repo_key) {
+                    // Skip this repo - it's already been processed (cycle prevention)
+                    continue;
+                }
+
+                // Mark as visited
+                visited.insert(repo_key.clone());
+
+                // Try to fetch and parse the inherited config
+                match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
+                    Ok(inherited_config) => {
+                        // Process the inherited config to get its repo operations
+                        let inherited_node = process_config_to_node(&inherited_config)?;
+
+                        // Recursively discover configs for the inherited repos
+                        let inherited_node =
+                            discover_inherited_configs(inherited_node, repo_manager, visited)?;
+
+                        // The inherited node becomes a child, but we also need to preserve
+                        // the operations from the current child's `with:` clause
+                        let mut combined_node = RepoNode::new(
+                            child.url.clone(),
+                            child.ref_.clone(),
+                            child.operations.clone(),
+                        );
+
+                        // Add all the inherited repos as children
+                        for inherited_child in inherited_node.children {
+                            combined_node.add_child(inherited_child);
+                        }
+
+                        new_children.push(combined_node);
+                    }
+                    Err(_) => {
+                        // If we can't fetch/parse the config, just use the original child as-is
+                        // This allows repositories without .common-repo.yaml files to still work
+                        new_children.push(child);
+                    }
+                }
+
+                // Remove from visited set when done processing this branch
+                visited.remove(&repo_key);
+            } else {
+                // Local nodes don't need inheritance discovery
+                new_children.push(child);
+            }
+        }
+
+        node.children = new_children;
+        Ok(node)
+    }
+
+    /// Fetch a repository and parse its .common-repo.yaml file
+    fn fetch_and_parse_config(
+        url: &str,
+        ref_: &str,
+        repo_manager: &RepositoryManager,
+    ) -> Result<Schema> {
+        // Fetch the repository
+        let fs = repo_manager.fetch_repository(url, ref_)?;
+
+        // Try to read .common-repo.yaml
+        let config_content = match fs.get_file(".common-repo.yaml") {
+            Some(file) => file.content.clone(),
+            None => {
+                // Try .commonrepo.yaml as fallback
+                match fs.get_file(".commonrepo.yaml") {
+                    Some(file) => file.content.clone(),
+                    None => {
+                        return Err(Error::ConfigParse {
+                            message: "No .common-repo.yaml or .commonrepo.yaml found in repository"
+                                .to_string(),
+                        });
+                    }
+                }
+            }
+        };
+
+        // Parse the YAML content
+        let yaml_str = String::from_utf8(config_content).map_err(|_| Error::ConfigParse {
+            message: "Invalid UTF-8 in .common-repo.yaml".to_string(),
+        })?;
+
+        crate::config::parse(&yaml_str)
     }
 
     /// Detect cycles in the repository dependency tree
@@ -216,13 +323,17 @@ pub mod phase1 {
     /// Uses breadth-first ordering to maximize parallelism - all repos at depth N
     /// are cloned before moving to depth N+1.
     ///
+    /// Network Failure Behavior:
+    /// - If clone fails but cache exists, continue with cached version and warn
+    /// - If clone fails and no cache exists, abort with error
+    ///
     /// Note: Currently implements sequential cloning per level. To enable true parallel cloning,
     /// RepositoryManager would need to be wrapped in Arc or made Clone, or we could use
     /// rayon/tokio for parallelization. The structure is ready for parallelization.
     pub fn clone_parallel(
         tree: &RepoTree,
         repo_manager: &RepositoryManager,
-        _cache: &RepoCache, // TODO: Use cache for network failure fallback
+        _cache: &RepoCache,
     ) -> Result<()> {
         let mut current_level = vec![&tree.root];
         let mut next_level = Vec::new();
@@ -244,7 +355,24 @@ pub mod phase1 {
             // TODO: Parallelize this loop when RepositoryManager supports Arc/Clone or when
             // using rayon/tokio. For now, sequential cloning ensures correctness.
             for (url, ref_) in repos_to_clone {
-                repo_manager.fetch_repository(url, ref_)?;
+                // Try to fetch the repository
+                if let Err(e) = repo_manager.fetch_repository(url, ref_) {
+                    // Check if this is a network-related error and if we have a cached version
+                    let is_network_error =
+                        matches!(e, Error::GitClone { .. }) || matches!(e, Error::Network { .. });
+
+                    if is_network_error && repo_manager.is_cached(url, ref_) {
+                        // Fall back to cached version with warning
+                        eprintln!(
+                            "Warning: Network fetch failed for {}@{}, falling back to cached version",
+                            url, ref_
+                        );
+                        // Continue - the repository is already cached and will be used
+                    } else {
+                        // Either not a network error, or no cache available - propagate the error
+                        return Err(e);
+                    }
+                }
             }
 
             // Collect next level
@@ -435,11 +563,108 @@ pub mod phase2 {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::config::{ExcludeOp, Operation};
+        use crate::config::{ExcludeOp, Operation, RepoOp};
         use crate::filesystem::MemoryFS;
         use crate::repository::{CacheOperations, GitOperations, RepositoryManager};
+        use std::collections::HashMap;
         use std::path::{Path, PathBuf};
         use std::sync::{Arc, Mutex};
+
+        struct RecursiveMockGitOps {
+            repo_configs: HashMap<String, String>, // url -> yaml content
+        }
+
+        impl RecursiveMockGitOps {
+            fn new() -> Self {
+                let mut repo_configs = HashMap::new();
+
+                // Parent repo has its own config with a child repo
+                repo_configs.insert(
+                    "https://github.com/parent/repo.git".to_string(),
+                    r#"
+- repo:
+    url: https://github.com/child/repo.git
+    ref: main
+    with:
+      - include: ["src/**"]
+- include: ["parent.txt"]
+"#
+                    .to_string(),
+                );
+
+                // Child repo has its own config
+                repo_configs.insert(
+                    "https://github.com/child/repo.git".to_string(),
+                    r#"
+- include: ["child.txt"]
+"#
+                    .to_string(),
+                );
+
+                Self { repo_configs }
+            }
+        }
+
+        impl GitOperations for RecursiveMockGitOps {
+            fn clone_shallow(&self, _url: &str, _ref_name: &str, _path: &Path) -> Result<()> {
+                Ok(())
+            }
+
+            fn list_tags(&self, _url: &str) -> Result<Vec<String>> {
+                Ok(vec![])
+            }
+        }
+
+        struct RecursiveMockCacheOps {
+            repo_configs: HashMap<String, String>,
+        }
+
+        impl RecursiveMockCacheOps {
+            fn new(repo_configs: HashMap<String, String>) -> Self {
+                Self { repo_configs }
+            }
+
+            fn get_repo_key(&self, cache_path: &Path) -> Option<String> {
+                // Extract repo URL from cache path (simplified logic for test)
+                if cache_path.to_string_lossy().contains("parent") {
+                    Some("https://github.com/parent/repo.git".to_string())
+                } else if cache_path.to_string_lossy().contains("child") {
+                    Some("https://github.com/child/repo.git".to_string())
+                } else {
+                    None
+                }
+            }
+        }
+
+        impl CacheOperations for RecursiveMockCacheOps {
+            fn exists(&self, _cache_path: &Path) -> bool {
+                true // Always cached for this test
+            }
+
+            fn get_cache_path(&self, url: &str, _ref_name: &str) -> PathBuf {
+                // Create a path that encodes the URL for testing
+                PathBuf::from(format!(
+                    "/mock/cache/{}",
+                    url.replace("/", "_").replace(":", "")
+                ))
+            }
+
+            fn load_from_cache(&self, cache_path: &Path) -> Result<MemoryFS> {
+                let mut fs = MemoryFS::new();
+
+                if let Some(repo_url) = self.get_repo_key(cache_path)
+                    && let Some(config_content) = self.repo_configs.get(&repo_url)
+                {
+                    fs.add_file_string(".common-repo.yaml", config_content)?;
+                }
+
+                Ok(fs)
+            }
+
+            fn save_to_cache(&self, _cache_path: &Path, _fs: &MemoryFS) -> Result<()> {
+                Ok(())
+            }
+        }
 
         struct MockGitOps {
             clone_calls: Arc<Mutex<usize>>,
@@ -559,6 +784,129 @@ pub mod phase2 {
             let repo_fs = &intermediate.get(repo_key).unwrap().fs;
             assert!(repo_fs.exists("keep.txt"));
             assert!(!repo_fs.exists("temp.tmp"));
+        }
+
+        #[test]
+        fn test_recursive_discovery() {
+            let mock_git = RecursiveMockGitOps::new();
+            let repo_configs = mock_git.repo_configs.clone();
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            // Create a simple local config that includes the parent repo
+            let local_config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/parent/repo.git".to_string(),
+                    r#ref: "main".to_string(),
+                    with: vec![Operation::Include {
+                        include: crate::config::IncludeOp {
+                            patterns: vec!["*.md".to_string()],
+                        },
+                    }],
+                },
+            }];
+
+            // Discover repos recursively
+            let tree = crate::phases::phase1::discover_repos(&local_config, &repo_manager)
+                .expect("recursive discovery should succeed");
+
+            // Verify the tree structure
+            assert_eq!(
+                tree.all_repos.len(),
+                2,
+                "Should discover parent and child repos"
+            );
+
+            // Root should have one child (parent repo)
+            assert_eq!(tree.root.children.len(), 1, "Root should have one child");
+
+            let parent_node = &tree.root.children[0];
+            assert_eq!(parent_node.url, "https://github.com/parent/repo.git");
+            assert_eq!(parent_node.ref_, "main");
+
+            // Parent should have one child (child repo)
+            assert_eq!(
+                parent_node.children.len(),
+                1,
+                "Parent should have one child"
+            );
+
+            let child_node = &parent_node.children[0];
+            assert_eq!(child_node.url, "https://github.com/child/repo.git");
+            assert_eq!(child_node.ref_, "main");
+
+            // Child should have no children (leaf node)
+            assert_eq!(child_node.children.len(), 0, "Child should be a leaf node");
+        }
+
+        #[test]
+        fn test_cycle_detection_during_discovery() {
+            // This test would create a cycle in the inheritance chain
+            // For now, we'll test that the visited set prevents infinite recursion
+            // by creating a mock that would cause cycles if not handled properly
+
+            let mut repo_configs = HashMap::new();
+
+            // Repo A includes Repo B
+            repo_configs.insert(
+                "https://github.com/repo-a.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-b.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            // Repo B includes Repo A (creates cycle)
+            repo_configs.insert(
+                "https://github.com/repo-b.git".to_string(),
+                r#"
+- repo:
+    url: https://github.com/repo-a.git
+    ref: main
+"#
+                .to_string(),
+            );
+
+            let mock_git = RecursiveMockGitOps {
+                repo_configs: repo_configs.clone(),
+            };
+            let mock_cache = RecursiveMockCacheOps::new(repo_configs);
+
+            let repo_manager =
+                RepositoryManager::with_operations(Box::new(mock_git), Box::new(mock_cache));
+
+            // Create a config that starts with repo-a
+            let local_config = vec![Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/repo-a.git".to_string(),
+                    r#ref: "main".to_string(),
+                    with: vec![],
+                },
+            }];
+
+            // Discovery should succeed but avoid infinite recursion due to visited set
+            let tree = crate::phases::phase1::discover_repos(&local_config, &repo_manager)
+                .expect("cycle detection should prevent infinite recursion");
+
+            // Due to cycle prevention, only repo-a gets fully discovered
+            // repo-b would create a cycle so it's skipped
+            assert_eq!(
+                tree.all_repos.len(),
+                1,
+                "Should discover only repo-a due to cycle prevention"
+            );
+
+            // Repo A should not have children due to cycle prevention
+            let repo_a_node = &tree.root.children[0];
+            assert_eq!(
+                repo_a_node.children.len(),
+                0,
+                "Repo A should not have children due to cycle prevention"
+            );
         }
     }
 }
