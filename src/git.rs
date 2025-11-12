@@ -265,6 +265,34 @@ pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
 }
 
 /// Parse a tag string into a semantic version
+///
+/// # Examples
+///
+/// ```
+/// use common_repo::git::parse_semver_tag;
+/// use semver::Version;
+///
+/// // With 'v' prefix
+/// assert_eq!(
+///     parse_semver_tag("v1.0.0"),
+///     Some(Version::parse("1.0.0").unwrap())
+/// );
+///
+/// // Without prefix
+/// assert_eq!(
+///     parse_semver_tag("2.1.3"),
+///     Some(Version::parse("2.1.3").unwrap())
+/// );
+///
+/// // Pre-release versions
+/// assert_eq!(
+///     parse_semver_tag("v1.0.0-alpha"),
+///     Some(Version::parse("1.0.0-alpha").unwrap())
+/// );
+///
+/// // Invalid versions
+/// assert_eq!(parse_semver_tag("not-a-version"), None);
+/// ```
 #[allow(dead_code)]
 pub fn parse_semver_tag(tag: &str) -> Option<Version> {
     // Common tag formats: v1.0.0, 1.0.0, v1.0, 1.0

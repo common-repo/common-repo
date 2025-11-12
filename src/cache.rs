@@ -17,6 +17,22 @@ pub struct CacheKey {
 
 #[allow(dead_code)]
 impl CacheKey {
+    /// Create a new cache key from a URL and reference
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::cache::CacheKey;
+    ///
+    /// let key = CacheKey::new("https://github.com/user/repo.git", "main");
+    /// assert_eq!(key.url, "https://github.com/user/repo.git");
+    /// assert_eq!(key.r#ref, "main");
+    ///
+    /// // Keys with same values are equal
+    /// let key1 = CacheKey::new("https://example.com/repo", "v1.0.0");
+    /// let key2 = CacheKey::new("https://example.com/repo", "v1.0.0");
+    /// assert_eq!(key1, key2);
+    /// ```
     pub fn new(url: &str, r#ref: &str) -> Self {
         Self {
             url: url.to_string(),
