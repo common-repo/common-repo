@@ -70,9 +70,28 @@ pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(),
 /// Load a cached repository into MemoryFS
 #[allow(dead_code)]
 pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
+    load_from_cache_with_path(cache_dir, None)
+}
+
+/// Load a cached repository into MemoryFS with optional path filtering
+///
+/// When a path is specified, only files under that sub-directory are loaded,
+/// and the specified path becomes the effective filesystem root.
+#[allow(dead_code)]
+pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result<MemoryFS, Error> {
     let mut fs = MemoryFS::new();
 
-    fn load_directory(dir: &Path, base_path: &Path, fs: &mut MemoryFS) -> Result<(), Error> {
+    // Normalize path: remove leading/trailing slashes, handle empty/None
+    let filter_path = path
+        .filter(|p| !p.is_empty() && *p != "." && *p != "/")
+        .map(|p| PathBuf::from(p.trim_matches('/')));
+
+    fn load_directory(
+        dir: &Path,
+        base_path: &Path,
+        fs: &mut MemoryFS,
+        filter_path: Option<&PathBuf>,
+    ) -> Result<(), Error> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -81,29 +100,58 @@ pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
             if path.is_dir() {
                 // Skip .git directory
                 if !path.ends_with(".git") {
-                    load_directory(&path, base_path, fs)?;
+                    load_directory(&path, base_path, fs, filter_path)?;
                 }
             } else {
-                // Read file content
-                let content = fs::read(&path)?;
-                let metadata = entry.metadata()?;
+                // Apply path filtering if specified
+                if let Some(filter) = filter_path {
+                    // Check if this file is under the filter path
+                    if !relative_path.starts_with(filter) {
+                        continue;
+                    }
+                    // Remap the path to be relative to the filter path
+                    let remapped_path = relative_path.strip_prefix(filter).unwrap_or(relative_path);
+                    if remapped_path.as_os_str().is_empty() {
+                        continue; // Skip the root directory itself
+                    }
 
-                // Create File with basic metadata
-                let file = File {
-                    content,
-                    permissions: 0o644, // Default permissions, TODO: Check actual permissions
-                    modified_time: metadata
-                        .modified()
-                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
-                };
+                    // Read file content
+                    let content = fs::read(&path)?;
+                    let metadata = entry.metadata()?;
 
-                fs.add_file(relative_path, file)?;
+                    // Create File with basic metadata
+                    let file = File {
+                        content,
+                        permissions: 0o644, // Default permissions, TODO: Check actual permissions
+                        modified_time: metadata
+                            .modified()
+                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                    };
+
+                    fs.add_file(remapped_path, file)?;
+                } else {
+                    // No filtering - load all files as-is
+                    // Read file content
+                    let content = fs::read(&path)?;
+                    let metadata = entry.metadata()?;
+
+                    // Create File with basic metadata
+                    let file = File {
+                        content,
+                        permissions: 0o644, // Default permissions, TODO: Check actual permissions
+                        modified_time: metadata
+                            .modified()
+                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                    };
+
+                    fs.add_file(relative_path, file)?;
+                }
             }
         }
         Ok(())
     }
 
-    load_directory(cache_dir, cache_dir, &mut fs)?;
+    load_directory(cache_dir, cache_dir, &mut fs, filter_path.as_ref())?;
     Ok(fs)
 }
 
@@ -136,6 +184,17 @@ pub fn save_to_cache(cache_dir: &Path, fs: &MemoryFS) -> Result<(), Error> {
 /// Convert URL and ref to cache path
 #[allow(dead_code)]
 pub fn url_to_cache_path(cache_root: &Path, url: &str, ref_name: &str) -> PathBuf {
+    url_to_cache_path_with_path(cache_root, url, ref_name, None)
+}
+
+/// Convert URL, ref, and optional sub-path to cache path
+#[allow(dead_code)]
+pub fn url_to_cache_path_with_path(
+    cache_root: &Path,
+    url: &str,
+    ref_name: &str,
+    path: Option<&str>,
+) -> PathBuf {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
@@ -147,7 +206,20 @@ pub fn url_to_cache_path(cache_root: &Path, url: &str, ref_name: &str) -> PathBu
     // Sanitize ref name for filesystem (replace / with -)
     let safe_ref = ref_name.replace('/', "-");
 
-    cache_root.join(format!("{}-{}", url_hash, safe_ref))
+    // Include path in cache key if present and non-empty
+    let cache_key = if let Some(path) = path {
+        let normalized_path = path.trim_matches('/').trim();
+        if normalized_path.is_empty() || normalized_path == "." {
+            format!("{}-{}", url_hash, safe_ref)
+        } else {
+            let safe_path = normalized_path.replace(['/', '.'], "-");
+            format!("{}-{}-path-{}", url_hash, safe_ref, safe_path)
+        }
+    } else {
+        format!("{}-{}", url_hash, safe_ref)
+    };
+
+    cache_root.join(cache_key)
 }
 
 /// List all tags from a remote repository
@@ -243,6 +315,58 @@ mod tests {
 
         // Different URLs should produce different paths
         assert_ne!(path1, path2);
+    }
+
+    #[test]
+    fn test_url_to_cache_path_with_path() {
+        let cache_root = PathBuf::from("/tmp/cache");
+        let url = "https://github.com/example/repo.git";
+        let ref_name = "main";
+
+        let path_no_filter = url_to_cache_path_with_path(&cache_root, url, ref_name, None);
+        let path_with_filter = url_to_cache_path_with_path(&cache_root, url, ref_name, Some("uv"));
+
+        // Paths should be different when path filter is applied
+        assert_ne!(path_no_filter, path_with_filter);
+
+        // Both should start with cache root
+        assert!(path_no_filter.starts_with(&cache_root));
+        assert!(path_with_filter.starts_with(&cache_root));
+
+        // Path with filter should contain the path information
+        assert!(path_with_filter.to_string_lossy().contains("path-uv"));
+    }
+
+    #[test]
+    fn test_url_to_cache_path_with_path_normalization() {
+        let cache_root = PathBuf::from("/tmp/cache");
+        let url = "https://github.com/example/repo.git";
+        let ref_name = "main";
+
+        let path1 = url_to_cache_path_with_path(&cache_root, url, ref_name, Some("uv"));
+        let path2 = url_to_cache_path_with_path(&cache_root, url, ref_name, Some("uv/"));
+        let path3 = url_to_cache_path_with_path(&cache_root, url, ref_name, Some("/uv/"));
+
+        // All should produce the same path (normalized)
+        assert_eq!(path1, path2);
+        assert_eq!(path2, path3);
+    }
+
+    #[test]
+    fn test_url_to_cache_path_with_path_empty() {
+        let cache_root = PathBuf::from("/tmp/cache");
+        let url = "https://github.com/example/repo.git";
+        let ref_name = "main";
+
+        let path_none = url_to_cache_path_with_path(&cache_root, url, ref_name, None);
+        let path_empty = url_to_cache_path_with_path(&cache_root, url, ref_name, Some(""));
+        let path_dot = url_to_cache_path_with_path(&cache_root, url, ref_name, Some("."));
+        let path_slash = url_to_cache_path_with_path(&cache_root, url, ref_name, Some("/"));
+
+        // All empty/None path variations should produce the same path as no path
+        assert_eq!(path_none, path_empty);
+        assert_eq!(path_empty, path_dot);
+        assert_eq!(path_dot, path_slash);
     }
 
     #[test]
@@ -400,6 +524,134 @@ mod tests {
 
         let content = fs::read_to_string(cache_dir.join("file.txt")).unwrap();
         assert_eq!(content, "new content");
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_no_filter() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create test directory structure
+        fs::create_dir_all(cache_dir.join("subdir")).unwrap();
+        fs::write(cache_dir.join("file1.txt"), b"content1").unwrap();
+        fs::write(cache_dir.join("subdir/file2.txt"), b"content2").unwrap();
+
+        // Load without path filter
+        let fs = load_from_cache_with_path(cache_dir, None).unwrap();
+
+        assert_eq!(fs.len(), 2);
+        assert!(fs.exists("file1.txt"));
+        assert!(fs.exists("subdir/file2.txt"));
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_filter() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create test directory structure
+        fs::create_dir_all(cache_dir.join("uv")).unwrap();
+        fs::create_dir_all(cache_dir.join("django")).unwrap();
+        fs::write(cache_dir.join("README.md"), b"root readme").unwrap();
+        fs::write(cache_dir.join("uv/main.py"), b"uv main").unwrap();
+        fs::write(cache_dir.join("uv/lib.py"), b"uv lib").unwrap();
+        fs::write(cache_dir.join("django/models.py"), b"django models").unwrap();
+
+        // Load with path filter "uv"
+        let fs = load_from_cache_with_path(cache_dir, Some("uv")).unwrap();
+
+        // Should only contain files from uv directory, with paths relative to uv/
+        assert_eq!(fs.len(), 2);
+        assert!(fs.exists("main.py"));
+        assert!(fs.exists("lib.py"));
+        assert!(!fs.exists("README.md"));
+        assert!(!fs.exists("django/models.py"));
+
+        let main_content = fs.get_file("main.py").unwrap();
+        assert_eq!(main_content.content, b"uv main");
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_filter_nested() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create nested directory structure
+        fs::create_dir_all(cache_dir.join("src").join("python").join("uv")).unwrap();
+        fs::create_dir_all(cache_dir.join("src").join("python").join("django")).unwrap();
+        fs::write(
+            cache_dir
+                .join("src")
+                .join("python")
+                .join("uv")
+                .join("main.py"),
+            b"uv main",
+        )
+        .unwrap();
+        fs::write(
+            cache_dir
+                .join("src")
+                .join("python")
+                .join("uv")
+                .join("utils.py"),
+            b"uv utils",
+        )
+        .unwrap();
+        fs::write(
+            cache_dir
+                .join("src")
+                .join("python")
+                .join("django")
+                .join("app.py"),
+            b"django app",
+        )
+        .unwrap();
+
+        // Load with path filter "src/python/uv"
+        let fs = load_from_cache_with_path(cache_dir, Some("src/python/uv")).unwrap();
+
+        // Should only contain files from src/python/uv directory
+        assert_eq!(fs.len(), 2);
+        assert!(fs.exists("main.py"));
+        assert!(fs.exists("utils.py"));
+        assert!(!fs.exists("src/python/django/app.py"));
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_empty_filter() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create test files
+        fs::write(cache_dir.join("file1.txt"), b"content1").unwrap();
+        fs::write(cache_dir.join("file2.txt"), b"content2").unwrap();
+
+        // Load with empty path filter - should behave like no filter
+        let fs1 = load_from_cache_with_path(cache_dir, None).unwrap();
+        let fs2 = load_from_cache_with_path(cache_dir, Some("")).unwrap();
+        let fs3 = load_from_cache_with_path(cache_dir, Some(".")).unwrap();
+        let fs4 = load_from_cache_with_path(cache_dir, Some("/")).unwrap();
+
+        // All should be equivalent to loading without filter
+        assert_eq!(fs1.len(), fs2.len());
+        assert_eq!(fs2.len(), fs3.len());
+        assert_eq!(fs3.len(), fs4.len());
+        assert_eq!(fs1.len(), 2);
+    }
+
+    #[test]
+    fn test_load_from_cache_with_path_nonexistent_filter() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create some files
+        fs::write(cache_dir.join("file1.txt"), b"content1").unwrap();
+
+        // Load with path filter for nonexistent directory
+        let fs = load_from_cache_with_path(cache_dir, Some("nonexistent")).unwrap();
+
+        // Should return empty filesystem since no files match the filter
+        assert_eq!(fs.len(), 0);
     }
 
     // Note: Integration tests for clone_shallow and list_tags would require
