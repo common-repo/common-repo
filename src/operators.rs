@@ -717,12 +717,10 @@ mod tests {
 
             let result = repo::apply_with_clause(&operations, &mut fs);
             assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("Repo operations not allowed")
-            );
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("Repo operations not allowed"));
         }
 
         #[test]
@@ -741,12 +739,10 @@ mod tests {
 
             let result = repo::apply_with_clause(&operations, &mut fs);
             assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("Operation not yet implemented")
-            );
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("Operation not yet implemented"));
         }
 
         #[test]
