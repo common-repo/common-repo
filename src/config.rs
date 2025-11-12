@@ -27,6 +27,10 @@ pub struct RepoOp {
     pub url: String,
     /// Git reference (branch, tag, commit)
     pub r#ref: String,
+    /// Optional sub-path within the repository to use as effective root
+    /// Only files under this path will be loaded into the filesystem
+    #[serde(default)]
+    pub path: Option<String>,
     /// Optional inline operations to apply to this repo
     #[serde(default)]
     pub with: Vec<Operation>,
@@ -276,6 +280,10 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                 .ok_or_else(|| Error::Generic("Repo operation missing ref".to_string()))?;
 
+            let path = repo_map
+                .remove(serde_yaml::Value::String("path".to_string()))
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+
             let with = if let Some(with_value) =
                 repo_map.remove(serde_yaml::Value::String("with".to_string()))
             {
@@ -301,7 +309,12 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             };
 
             Ok(Operation::Repo {
-                repo: RepoOp { url, r#ref, with },
+                repo: RepoOp {
+                    url,
+                    r#ref,
+                    path,
+                    with,
+                },
             })
         }
         "include" => {

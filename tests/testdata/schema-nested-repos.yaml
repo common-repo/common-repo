@@ -5,10 +5,11 @@
 # of 'with' clauses. This is an edge case that tests the parser's
 # ability to handle complex nested structures.
 
-# Top-level repo with nested repos in its with clause
+# Top-level repo with nested repos in its with clause (using sub-path)
 - repo:
     url: https://github.com/common-repo/common-repo.git
     ref: main
+    path: src  # Only load files under src/ directory
     with:
       # First nested repo operation
       - repo:

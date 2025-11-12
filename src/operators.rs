@@ -484,6 +484,7 @@ mod tests {
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
                 r#ref: "main".to_string(),
+                path: None,
                 with: vec![], // No with clause
             };
 
@@ -519,6 +520,7 @@ mod tests {
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
                 r#ref: "main".to_string(),
+                path: None,
                 with: vec![Operation::Exclude {
                     exclude: ExcludeOp {
                         patterns: vec!["*.rs".to_string()],
@@ -558,6 +560,7 @@ mod tests {
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
                 r#ref: "main".to_string(),
+                path: None,
                 with: vec![
                     Operation::Exclude {
                         exclude: ExcludeOp {
@@ -659,6 +662,7 @@ mod tests {
             let operations = vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/repo.git".to_string(),
+                    path: None,
                     r#ref: "main".to_string(),
                     with: vec![],
                 },

@@ -157,10 +157,13 @@ These are the fundamental building blocks that everything else depends on.
 These implement the individual operations from the schema.
 
 #### 2.1 Repo Operator
-**Purpose**: Pull files from inherited repositories
+**Purpose**: Pull files from inherited repositories with optional sub-path support
 
 **Components**:
-- `operators::repo::apply()` - Process repo operator
+- `operators::repo::apply()` - Process repo operator with sub-path filtering
+  - Supports optional `path:` parameter to use sub-directory as effective root
+  - Only files under the specified path are loaded into the filesystem
+  - Enables multiple configurations within a single repository
 - `operators::repo::apply_with_clause()` - Apply inline `with:` operations
   - The `with:` operations are syntactic sugar applied to this repo's intermediate filesystem
   - They run after the repo's own operations but before merging
@@ -168,7 +171,7 @@ These implement the individual operations from the schema.
 **Dependencies**:
 - Internal: Layer 0 (Config, MemoryFS, Error), Layer 1 (Git, Cache)
 
-**Testing**: Integration tests with nested repos
+**Testing**: Integration tests with nested repos and sub-path filtering
 
 ---
 
