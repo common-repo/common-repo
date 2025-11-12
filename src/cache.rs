@@ -216,4 +216,11 @@ mod tests {
         assert!(cache.is_empty().unwrap());
         assert!(!cache.contains(&key).unwrap());
     }
+
+    #[test]
+    fn test_cache_default() {
+        let cache = RepoCache::default();
+        assert!(cache.is_empty().unwrap());
+        assert_eq!(cache.len().unwrap(), 0);
+    }
 }

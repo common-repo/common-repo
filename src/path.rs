@@ -15,6 +15,7 @@ pub fn glob_match(pattern: &str, path: &str) -> Result<bool> {
 ///
 /// The `pattern` is a regex that may contain capture groups.
 /// The `replacement` is a string that can reference capture groups using $1, $2, etc.
+/// The matched portion of the path is replaced with the expanded replacement string.
 ///
 /// Returns the new path if the pattern matches, None if it doesn't match.
 #[allow(dead_code)]
@@ -22,7 +23,7 @@ pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Opti
     let regex = Regex::new(pattern).map_err(Error::Regex)?;
     if let Some(captures) = regex.captures(path) {
         // Use captures to expand $1, $2, etc. in the replacement string
-        let mut result = String::new();
+        let mut expanded_replacement = String::new();
         let mut chars = replacement.chars().peekable();
 
         while let Some(ch) = chars.next() {
@@ -33,12 +34,19 @@ pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Opti
                 let digit = digit_char.to_digit(10).unwrap() as usize;
                 chars.next(); // consume the digit
                 if let Some(capture) = captures.get(digit) {
-                    result.push_str(capture.as_str());
+                    expanded_replacement.push_str(capture.as_str());
                 }
                 continue;
             }
-            result.push(ch);
+            expanded_replacement.push(ch);
         }
+
+        // Replace the matched portion in the original path
+        let matched_range = captures.get(0).unwrap().range();
+        let mut result = String::with_capacity(path.len() + expanded_replacement.len());
+        result.push_str(&path[..matched_range.start]);
+        result.push_str(&expanded_replacement);
+        result.push_str(&path[matched_range.end..]);
 
         Ok(Some(result))
     } else {
@@ -120,5 +128,90 @@ mod tests {
             encode_url_path("git@host.com:user/repo.git"),
             "git_host.com_user-repo.git"
         );
+
+        // Test special characters
+        assert_eq!(encode_url_path("test*file?name"), "test_file_name");
+        assert_eq!(encode_url_path("file<with>bars|"), "file_with_bars_");
+        assert_eq!(encode_url_path("file\"with\"quotes"), "file_with_quotes");
+
+        // Test that alphanumeric and safe chars are preserved
+        assert_eq!(encode_url_path("normal_file.txt"), "normal_file.txt");
+        assert_eq!(
+            encode_url_path("file_with-dash.and_underscore"),
+            "file_with-dash.and_underscore"
+        );
+
+        // Test replacement of other special chars
+        assert_eq!(
+            encode_url_path("file@with#special$chars%"),
+            "file_with_special_chars_"
+        );
+
+        // Test backslash character specifically (line 66)
+        assert_eq!(
+            encode_url_path("path\\with\\backslashes"),
+            "path-with-backslashes"
+        );
+    }
+
+    #[test]
+    fn test_regex_rename_edge_cases() {
+        // Test with no capture groups
+        assert_eq!(
+            regex_rename(r"old", r"new", "oldfile").unwrap(),
+            Some("newfile".to_string())
+        );
+
+        // Test replacement that doesn't change the whole string
+        assert_eq!(
+            regex_rename(r"old", r"new", "old").unwrap(),
+            Some("new".to_string())
+        );
+
+        // Test with multiple replacements in same string
+        assert_eq!(
+            regex_rename(r"(\w+)", r"$1_backup", "file1 file2").unwrap(),
+            Some("file1_backup file2".to_string())
+        );
+
+        // Test with invalid regex
+        assert!(regex_rename(r"[invalid", r"replacement", "test").is_err());
+
+        // Test with backreferences beyond available groups
+        assert_eq!(
+            regex_rename(r"(\w+)", r"$1_$2", "test").unwrap(),
+            Some("test_".to_string()) // $2 should be empty
+        );
+
+        // Test with escaped dollar signs ($$ becomes $, then $1 becomes capture group)
+        assert_eq!(
+            regex_rename(r"(\w+)", r"$$1", "test").unwrap(),
+            Some("$test".to_string())
+        );
+
+        // Test literal $ followed by number
+        assert_eq!(
+            regex_rename(r"(\w+)", r"prefix$1suffix", "test").unwrap(),
+            Some("prefixtestsuffix".to_string())
+        );
+
+        // Test empty pattern
+        assert_eq!(
+            regex_rename(r"", r"prefix", "test").unwrap(),
+            Some("prefixtest".to_string())
+        );
+
+        // Test pattern that matches empty string
+        assert_eq!(
+            regex_rename(r"^", r"prefix", "test").unwrap(),
+            Some("prefixtest".to_string())
+        );
+    }
+
+    #[test]
+    fn test_glob_match_errors() {
+        // Test invalid glob patterns
+        assert!(glob_match("*[invalid", "test").is_err());
+        assert!(glob_match("**", "test").is_ok()); // Valid glob
     }
 }
