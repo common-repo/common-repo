@@ -7,11 +7,22 @@ use crate::filesystem::{File, MemoryFS};
 use semver::Version;
 
 /// Clone a repository at a specific ref using shallow clone
+///
+/// This uses the system git command, which automatically handles:
+/// - SSH keys from ~/.ssh/
+/// - Git credential helpers
+/// - Personal access tokens
+/// - Any authentication configured in ~/.gitconfig
 #[allow(dead_code)]
 pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(), Error> {
-    // Create target directory if it doesn't exist
-    if !target_dir.exists() {
-        fs::create_dir_all(target_dir)?;
+    // Remove target directory if it exists (git won't clone into existing non-empty dir)
+    if target_dir.exists() {
+        fs::remove_dir_all(target_dir)?;
+    }
+
+    // Create parent directory if it doesn't exist
+    if let Some(parent) = target_dir.parent() {
+        fs::create_dir_all(parent)?;
     }
 
     // Execute git clone --depth=1 --branch <ref> <url> <target_dir>
@@ -27,10 +38,29 @@ pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(),
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
+
+        // Provide helpful error message for common auth failures
+        let message = if stderr.contains("Authentication failed")
+            || stderr.contains("Permission denied")
+            || stderr.contains("Could not read from remote repository")
+        {
+            format!(
+                "Authentication failed. Make sure you have access to the repository.\n\
+                For private repos, ensure you have:\n\
+                - SSH key added to ssh-agent\n\
+                - Git credentials configured\n\
+                - Personal access token set up\n\
+                Error: {}",
+                stderr
+            )
+        } else {
+            stderr.to_string()
+        };
+
         return Err(Error::GitClone {
             url: url.to_string(),
             r#ref: ref_name.to_string(),
-            message: stderr.to_string(),
+            message,
         });
     }
 
