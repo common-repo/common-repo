@@ -72,8 +72,14 @@ pub enum Error {
     #[error("Semver parsing error: {0}")]
     Semver(#[from] semver::Error),
 
-    #[error("Generic error: {0}")]
-    Generic(String),
+    #[error("Lock poisoned: {context}")]
+    LockPoisoned { context: String },
+
+    #[error("Serialization error: {message}")]
+    Serialization { message: String },
+
+    #[error("Feature not implemented: {feature}")]
+    NotImplemented { feature: String },
 }
 
 /// Result type alias for common-repo operations
@@ -167,14 +173,6 @@ mod tests {
         let error: Error = yaml_error.into();
         let display = format!("{}", error);
         assert!(display.contains("YAML parsing error"));
-    }
-
-    #[test]
-    fn test_error_generic() {
-        let error = Error::Generic("Something went wrong".to_string());
-        let display = format!("{}", error);
-        assert!(display.contains("Generic error"));
-        assert!(display.contains("Something went wrong"));
     }
 
     #[test]

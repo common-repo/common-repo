@@ -64,10 +64,9 @@ impl RepoCache {
     {
         // First check if we have a cached result
         {
-            let cache = self
-                .cache
-                .lock()
-                .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+            let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+                context: "Cache lock".to_string(),
+            })?;
             if let Some(cached) = cache.get(&key) {
                 return Ok(cached.clone());
             }
@@ -78,10 +77,9 @@ impl RepoCache {
 
         // Store in cache
         {
-            let mut cache = self
-                .cache
-                .lock()
-                .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+            let mut cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+                context: "Cache lock".to_string(),
+            })?;
             cache.insert(key, result.clone());
         }
 
@@ -90,57 +88,51 @@ impl RepoCache {
 
     /// Manually insert a value into the cache
     pub fn insert(&self, key: CacheKey, value: MemoryFS) -> Result<()> {
-        let mut cache = self
-            .cache
-            .lock()
-            .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+        let mut cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+            context: "Cache lock".to_string(),
+        })?;
         cache.insert(key, value);
         Ok(())
     }
 
     /// Get a value from cache without computing
     pub fn get(&self, key: &CacheKey) -> Result<Option<MemoryFS>> {
-        let cache = self
-            .cache
-            .lock()
-            .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+        let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+            context: "Cache lock".to_string(),
+        })?;
         Ok(cache.get(key).cloned())
     }
 
     /// Check if a key exists in cache
     pub fn contains(&self, key: &CacheKey) -> Result<bool> {
-        let cache = self
-            .cache
-            .lock()
-            .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+        let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+            context: "Cache lock".to_string(),
+        })?;
         Ok(cache.contains_key(key))
     }
 
     /// Clear all cached entries
     pub fn clear(&self) -> Result<()> {
-        let mut cache = self
-            .cache
-            .lock()
-            .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+        let mut cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+            context: "Cache lock".to_string(),
+        })?;
         cache.clear();
         Ok(())
     }
 
     /// Get the number of cached entries
     pub fn len(&self) -> Result<usize> {
-        let cache = self
-            .cache
-            .lock()
-            .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+        let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+            context: "Cache lock".to_string(),
+        })?;
         Ok(cache.len())
     }
 
     /// Check if cache is empty
     pub fn is_empty(&self) -> Result<bool> {
-        let cache = self
-            .cache
-            .lock()
-            .map_err(|_| Error::Generic("Cache lock poisoned".to_string()))?;
+        let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
+            context: "Cache lock".to_string(),
+        })?;
         Ok(cache.is_empty())
     }
 }

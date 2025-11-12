@@ -4,7 +4,7 @@
 //! schema YAML files in the testdata directory. Each YAML file is tested
 //! to ensure it parses correctly.
 
-use common_repo::config::{Schema, parse};
+use common_repo::config::{parse, Schema};
 use std::path::Path;
 
 /// Test that a schema YAML file parses successfully
