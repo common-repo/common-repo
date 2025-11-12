@@ -64,7 +64,7 @@ SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 - **Run integration tests before major changes** - they verify real-world functionality
 - **Integration tests are disabled by default** to avoid network dependencies
 - **All tests must pass** for CI/CD to succeed (both unit and integration tests)
-- **183+ unit tests** cover individual components and functions (including repository sub-path filtering)
+- **186 total tests** (167 unit, 5 integration, 14 datatest) cover individual components and full workflows
 - **5 integration tests** validate end-to-end repository inheritance workflows
 - **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
 
