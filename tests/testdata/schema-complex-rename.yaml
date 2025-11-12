@@ -1,0 +1,30 @@
+######################
+# CommonRepo v2 schema - Complex Rename Patterns
+#
+# This schema tests complex regex patterns with multiple capture groups,
+# edge cases in rename operations, and various regex features.
+
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: main
+
+- include:
+    - "**/*"
+
+# Complex rename operations with multiple capture groups
+- rename:
+    # Multiple capture groups with reordering
+    - "src/([^/]+)/([^/]+)/(.*)": "%[2]s/%[1]s/%[3]s"
+    # Nested groups
+    - "^old/([^/]+)/subdir/([^/]+)/(.*\\.rs)$": "new/%[1]s/%[2]s/%[3]s"
+    # Character classes and escapes
+    - "([^/]+)\\.(ts|js|tsx|jsx)$": "%[1]s.compiled.%[2]s"
+    # Anchors and boundaries
+    - "^config/(.*)$": "settings/%[1]s"
+    - "(.*)\\.bak$": "%[1]s"
+    # Multiple groups with complex patterns
+    - "([a-zA-Z0-9_-]+)/([0-9]+)/(.*)": "%[3]s/v%[2]s/%[1]s"
+    # Edge case: single character capture
+    - "^([a-z])/(.*)$": "alpha/%[1]s/%[2]s"
+    # Edge case: optional groups (though regex doesn't support true optional in this context)
+    - "test/(.*?)(\\.test)?\\.rs$": "tests/%[1]s%[2]s.rs"

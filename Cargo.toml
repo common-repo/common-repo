@@ -16,6 +16,11 @@ walkdir = "2.5"
 
 [dev-dependencies]
 tempfile = "3.0"
+datatest-stable = "0.1"
 
 [features]
 integration-tests = []
+
+[[test]]
+name = "schema_parsing_test"
+harness = false
