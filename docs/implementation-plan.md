@@ -406,25 +406,35 @@ These implement the 7 phases from the design doc.
 ### Layer 4: CLI & Orchestration (Depends on all layers)
 
 #### 4.1 CLI Interface
-**Purpose**: Command-line interface
+**Purpose**: User-friendly command-line interface for all `common-repo` functionality.
+
+**Design Document**: [docs/cli-design.md](docs/cli-design.md)
 
 **Components**:
-- `cli::parse_args()` - Parse command-line arguments
-- `cli::commands::pull()` - Main pull command
-  - Execute all phases
-  - After Phase 1: Check for version updates and warn/inform user
-  - Display which repos are outdated
-- `cli::commands::check()` - Validate configuration without pulling
-- `cli::commands::update()` - Check for updates only (no pull)
-  - List all inherited repos with their current and available versions
-  - Show breaking vs compatible updates
-  - Optionally: suggest updated `.common-repo.yaml` with new refs
+- `cli::parse_args()` - Parse arguments using `clap`
+- `cli::commands::apply` - Main command to execute the full 6-phase pipeline
+- `cli::commands::init` - Initialize a new `.common-repo.yaml`
+- `cli::commands::check` - Validate configuration and check for updates
+- `cli::commands::update` - Update repository refs to newer versions
+- `cli::commands::diff` - Show what would change if configuration were applied
+- `cli::commands::cache` - Manage the local repository cache (list, clean)
+- `cli::commands::tree` - Display the repository inheritance tree
+- `cli::commands::info` - Show information about a repository or configuration
+- `cli::commands::ls` - List files that would be created/modified
+- `cli::commands::validate` - Validate a configuration file
+- `cli::commands::version` - Show version information
+- `cli::commands::help` - Show help information
+
+**Implementation Phases (from CLI Design)**:
+- **Phase 1 (MVP)**: `apply`, `init`, `validate`, `cache list`, `cache clean`
+- **Phase 2**: `check`, `update`, `diff`, `tree`, `info`
+- **Phase 3**: `init --interactive`, `ls`, `cache update`, and other enhancements
 
 **Dependencies**:
 - External: `clap`
-- Internal: All layers including Layer 3.5 (Version)
+- Internal: All layers, including Layer 3.5 (Version Detection) for `check` and `update` commands
 
-**Testing**: Integration tests, end-to-end tests
+**Testing**: End-to-end integration tests for each command and its options.
 
 ---
 
@@ -455,7 +465,7 @@ These implement the 7 phases from the design doc.
 - Layer 2.1: Repo operator (without `with:` clause)
 - Layer 2.2: Basic file operators (include, exclude, rename)
 - Layer 3: All phases (simplified - no merge operators, no templates)
-- Layer 4: Basic CLI with pull command
+- Layer 4: Basic CLI with `apply`, `init`, and `validate` commands.
 
 **Exclude** (defer to later):
 - Template operators
@@ -464,28 +474,29 @@ These implement the 7 phases from the design doc.
 - Advanced error handling
 - `with:` clause in repo operator
 - Performance optimizations
+- Advanced CLI commands (`check`, `update`, `diff`, `tree`, `info`, `ls`)
 
-**Milestone**: Can pull a simple inherited repo with include/exclude/rename and write to disk
+**Milestone**: Can pull a simple inherited repo with include/exclude/rename, write to disk, and initialize a new project.
 
 ---
 
 ### Phase 2: Operators & Version Detection
-**Goal**: Add template and merge capabilities, plus version checking
+**Goal**: Add template and merge capabilities, plus version checking and enhanced CLI.
 
 **Add**:
 - Layer 2.1: Full repo operator with `with:` clause support
 - Layer 2.3: Template operators (simple `${VAR}` substitution)
 - Layer 2.4: YAML merge operator
 - Layer 2.4: JSON merge operator
-- Layer 3.5: Version detection and update checking (core feature)
-- `common-repo update` command to check for outdated refs
+- Layer 3.5: Version detection and update checking
+- CLI commands: `check`, `update`, `diff`, `tree`, `info`
 
-**Milestone**: Can handle templates, merge YAML/JSON configs, and detect outdated dependencies
+**Milestone**: Can handle templates, merge YAML/JSON configs, detect outdated dependencies, and inspect the configuration with advanced CLI commands.
 
 ---
 
 ### Phase 3: Full Feature Set
-**Goal**: Complete all operators
+**Goal**: Complete all operators and CLI features.
 
 **Add**:
 - Layer 2.4: TOML merge operator
@@ -493,9 +504,9 @@ These implement the 7 phases from the design doc.
 - Layer 2.4: Markdown merge operator
 - Layer 2.5: Tool validation operator
 - Advanced template engine (if needed beyond simple substitution)
-- `common-repo check` command for config validation
+- CLI commands: `init --interactive`, `ls`, `cache update`
 
-**Milestone**: Feature complete per design doc
+**Milestone**: Feature complete per design doc.
 
 ---
 

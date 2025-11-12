@@ -439,6 +439,10 @@ The tool is implemented in Rust for:
 - Strong type system (helps with complex operations)
 - Excellent error handling ergonomics
 
+## CLI Design
+
+A detailed CLI design is available in [docs/cli-design.md](docs/cli-design.md). This document outlines the full command structure, options, and user experience.
+
 ## Testing Strategy
 
 ### Unit Tests
