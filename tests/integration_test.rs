@@ -395,3 +395,189 @@ fn test_basic_inheritance_pipeline() {
         }
     }
 }
+
+/// Integration test for repository sub-path filtering with real git operations
+/// This test verifies that path filtering works correctly with actual repository cloning,
+/// using subdirectories within our own repository as simulated external repositories.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_repository_sub_path_filtering_integration() {
+    // Skip if network tests are disabled
+    if env::var("SKIP_NETWORK_TESTS").is_ok() {
+        println!("Skipping network integration test");
+        return;
+    }
+
+    // Create a temporary directory for caching
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let cache_dir = temp_dir.path().join("cache");
+
+    // Create repository manager with real implementations using temp cache
+    let manager = RepositoryManager::new(cache_dir.clone());
+
+    // Repository details - using this project's repository with implementing-the-plan branch
+    let repo_url = "https://github.com/common-repo/common-repo.git";
+    let ref_name = "implementing-the-plan";
+
+    println!("Testing repository sub-path filtering with real git operations...");
+
+    // Test 1: Fetch simulated-repo-1 (which references simulated-repo-2 via path filtering)
+    println!("Fetching simulated-repo-1 (path: tests/testdata/simulated-repo-1)...");
+    let fs_repo1 = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/simulated-repo-1"))
+        .expect("Failed to fetch simulated-repo-1 with path filtering");
+
+    // Verify we got the correct files from simulated-repo-1
+    assert!(
+        fs_repo1.exists("repo1-file.txt"),
+        "repo1-file.txt should be present"
+    );
+    assert!(
+        fs_repo1.exists(".common-repo.yaml"),
+        ".common-repo.yaml should be present"
+    );
+    assert!(
+        !fs_repo1.exists("repo2-file.txt"),
+        "repo2-file.txt should NOT be present (different path)"
+    );
+    assert!(
+        !fs_repo1.exists("integration-file.txt"),
+        "integration-file.txt should NOT be present"
+    );
+
+    println!("✓ Successfully fetched simulated-repo-1 with path filtering");
+
+    // Test 2: Fetch simulated-repo-2 (which references cross-repo-integration via path filtering)
+    println!("Fetching simulated-repo-2 (path: tests/testdata/simulated-repo-2)...");
+    let fs_repo2 = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/simulated-repo-2"))
+        .expect("Failed to fetch simulated-repo-2 with path filtering");
+
+    // Verify we got the correct files from simulated-repo-2
+    assert!(
+        fs_repo2.exists("repo2-file.txt"),
+        "repo2-file.txt should be present"
+    );
+    assert!(
+        fs_repo2.exists(".common-repo.yaml"),
+        ".common-repo.yaml should be present"
+    );
+    assert!(
+        !fs_repo2.exists("repo1-file.txt"),
+        "repo1-file.txt should NOT be present (different path)"
+    );
+    assert!(
+        !fs_repo2.exists("integration-file.txt"),
+        "integration-file.txt should NOT be present"
+    );
+
+    println!("✓ Successfully fetched simulated-repo-2 with path filtering");
+
+    // Test 3: Fetch cross-repo-integration (which contains shared configs)
+    println!("Fetching cross-repo-integration (path: tests/testdata/cross-repo-integration)...");
+    let fs_integration = manager
+        .fetch_repository_with_path(
+            repo_url,
+            ref_name,
+            Some("tests/testdata/cross-repo-integration"),
+        )
+        .expect("Failed to fetch cross-repo-integration with path filtering");
+
+    // Verify we got the correct files from cross-repo-integration
+    assert!(
+        fs_integration.exists("integration-file.txt"),
+        "integration-file.txt should be present"
+    );
+    assert!(
+        fs_integration.exists(".common-repo.yaml"),
+        ".common-repo.yaml should be present"
+    );
+    assert!(
+        !fs_integration.exists("repo1-file.txt"),
+        "repo1-file.txt should NOT be present (different path)"
+    );
+    assert!(
+        !fs_integration.exists("repo2-file.txt"),
+        "repo2-file.txt should NOT be present (different path)"
+    );
+
+    println!("✓ Successfully fetched cross-repo-integration with path filtering");
+
+    // Test 4: Cache isolation - verify that different paths create separate cache entries
+    println!("Testing cache isolation between different paths...");
+
+    // Check that each path is cached separately
+    assert!(
+        manager.is_cached_with_path(repo_url, ref_name, Some("tests/testdata/simulated-repo-1")),
+        "simulated-repo-1 should be cached"
+    );
+    assert!(
+        manager.is_cached_with_path(repo_url, ref_name, Some("tests/testdata/simulated-repo-2")),
+        "simulated-repo-2 should be cached"
+    );
+    assert!(
+        manager.is_cached_with_path(
+            repo_url,
+            ref_name,
+            Some("tests/testdata/cross-repo-integration")
+        ),
+        "cross-repo-integration should be cached"
+    );
+
+    // Test 5: Performance - verify cached fetches are fast
+    println!("Testing cached fetch performance...");
+
+    let start_time = std::time::Instant::now();
+    let _fs_repo1_cached = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/simulated-repo-1"))
+        .expect("Failed to fetch cached simulated-repo-1");
+    let cached_time = start_time.elapsed();
+
+    println!("Cached fetch took: {:?}", cached_time);
+    assert!(
+        cached_time.as_millis() < 100,
+        "Cached fetch should be very fast (< 100ms), took {:?}",
+        cached_time
+    );
+
+    // Test 6: Verify content integrity across fetches
+    println!("Verifying content integrity across multiple fetches...");
+
+    let fs_repo1_again = manager
+        .fetch_repository_with_path(repo_url, ref_name, Some("tests/testdata/simulated-repo-1"))
+        .expect("Failed to fetch simulated-repo-1 again");
+
+    // Compare file contents
+    let content1 = fs_repo1.get_file("repo1-file.txt").unwrap().content.clone();
+    let content1_again = fs_repo1_again
+        .get_file("repo1-file.txt")
+        .unwrap()
+        .content
+        .clone();
+    assert_eq!(
+        content1, content1_again,
+        "File content should be identical across fetches"
+    );
+
+    let config1 = fs_repo1
+        .get_file(".common-repo.yaml")
+        .unwrap()
+        .content
+        .clone();
+    let config1_again = fs_repo1_again
+        .get_file(".common-repo.yaml")
+        .unwrap()
+        .content
+        .clone();
+    assert_eq!(
+        config1, config1_again,
+        "Config content should be identical across fetches"
+    );
+
+    println!("✓ Repository sub-path filtering integration test completed successfully!");
+    println!("✓ Real git cloning operations verified");
+    println!("✓ Path filtering isolates repository contents correctly");
+    println!("✓ Cache isolation between different paths confirmed");
+    println!("✓ Performance benefits from caching verified");
+    println!("✓ Content integrity maintained across fetches");
+}
