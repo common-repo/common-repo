@@ -1,0 +1,9 @@
+# Deep repository chain - Level 1
+# This tests deep repository references: repo-1 -> repo-2 -> repo-3 -> repo-4
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: implementing-the-plan
+    path: tests/testdata/deep-repo-2
+    with:
+      - include: ["**/*"]
+      - exclude: [".git/**"]
