@@ -344,14 +344,24 @@ These implement the 7 phases from the design doc.
 **Purpose**: Write final filesystem to disk
 
 **Components**:
-- `phase6::write_to_disk()` - Write MemoryFS to host filesystem
-- `phase6::preserve_permissions()` - Maintain file permissions
+- `phase6::execute()` - Write MemoryFS to host filesystem at specified output path
+  - Iterate over all files in MemoryFS
+  - Create parent directories recursively using `std::fs::create_dir_all()`
+  - Write file content using `std::fs::write()`
+  - Set file permissions on Unix-like systems using `std::fs::set_permissions()`
+  - Handle errors gracefully with descriptive messages
+
+**Implementation Details**:
+- Path resolution: Join `output_path` with each file's relative path
+- Directory creation: Ensure parent directories exist before writing files
+- Permission handling: Use `#[cfg(unix)]` for Unix permission setting, graceful handling on Windows
+- Error handling: Use `Error::Io` for IO errors (via `#[from]`), `Error::Filesystem` for custom messages
 
 **Dependencies**:
 - Internal: Layer 0 (MemoryFS, Error)
-- External: `std::fs`
+- External: `std::fs`, `std::os::unix::fs::PermissionsExt` (Unix only)
 
-**Testing**: Integration tests with temp directories
+**Testing**: Integration tests with temp directories, verify file content, permissions, and nested directory creation
 
 ---
 

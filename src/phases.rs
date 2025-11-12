@@ -1391,7 +1391,7 @@ pub mod orchestrator {
     use crate::repository::RepositoryManager;
     use std::path::Path;
 
-    /// Execute the complete pull operation (Phases 1-5 implemented)
+    /// Execute the complete pull operation (Phases 1-6)
     ///
     /// This orchestrates the complete inheritance pipeline:
     /// 1. Discover and clone repositories (with automatic caching)
@@ -1399,13 +1399,16 @@ pub mod orchestrator {
     /// 3. Determine correct merge order
     /// 4. Merge into composite filesystem
     /// 5. Merge with local files and apply local operations
+    /// 6. Write final filesystem to disk (if output_path is provided)
     ///
-    /// Returns the final MemoryFS ready for disk writing.
+    /// If `output_path` is `None`, returns the final MemoryFS without writing to disk.
+    /// If `output_path` is `Some(path)`, writes to disk and returns the MemoryFS.
     pub fn execute_pull(
         config: &Schema,
         repo_manager: &RepositoryManager,
         cache: &RepoCache,
         working_dir: &Path,
+        output_path: Option<&Path>,
     ) -> Result<MemoryFS> {
         // Phase 1: Discovery and Cloning
         let repo_tree = phase1::execute(config, repo_manager, cache)?;
@@ -1421,6 +1424,11 @@ pub mod orchestrator {
 
         // Phase 5: Local File Merging
         let final_fs = phase5::execute(&composite_fs, config, working_dir)?;
+
+        // Phase 6: Write to Disk (if output path provided)
+        if let Some(output) = output_path {
+            phase6::execute(&final_fs, output)?;
+        }
 
         Ok(final_fs)
     }
@@ -1624,17 +1632,13 @@ pub mod phase5 {
 
         // Navigate to the path in the destination
         let path_parts: Vec<&str> = path.split('.').collect();
-
-        // Start with the root
-        let mut current_path: Vec<String> = Vec::new();
-        let mut current_ref = dest;
+        let mut current = dest;
 
         for (i, part) in path_parts.iter().enumerate() {
             let is_last = i == path_parts.len() - 1;
-            current_path.push(part.to_string());
 
-            match current_ref {
-                Value::Mapping(map) => {
+            match current {
+                Value::Mapping(ref mut map) => {
                     let key = Value::String(part.to_string());
                     if is_last {
                         // This is where we merge
@@ -1649,35 +1653,34 @@ pub mod phase5 {
                         }
                         return Ok(());
                     } else {
-                        // Navigate deeper
+                        // Navigate deeper - ensure intermediate mapping exists
                         if !map.contains_key(&key) {
                             map.insert(key.clone(), Value::Mapping(Mapping::new()));
                         }
-                        current_ref = map.get_mut(&key).unwrap();
+                        // Safe to unwrap since we just ensured it exists
+                        current = map.get_mut(&key).unwrap();
                     }
                 }
-                Value::Sequence(seq) => {
-                    if let Ok(index) = part.parse::<usize>() {
-                        if is_last {
-                            // Merge into sequence at index
-                            if index >= seq.len() {
-                                // Extend sequence if needed
-                                seq.resize(index + 1, Value::Null);
-                            }
-                            merge_yaml_values(&mut seq[index], source, append);
-                            return Ok(());
-                        } else {
-                            // Navigate into sequence element
-                            if index >= seq.len() {
-                                seq.resize(index + 1, Value::Null);
-                            }
-                            current_ref = &mut seq[index];
+                Value::Sequence(ref mut seq) => {
+                    let index = part.parse::<usize>().map_err(|_| Error::Merge {
+                        operation: "YAML merge".to_string(),
+                        message: format!("Invalid array index '{}' in path '{}'", part, path),
+                    })?;
+
+                    if is_last {
+                        // Merge into sequence at index
+                        if index >= seq.len() {
+                            // Extend sequence if needed
+                            seq.resize(index + 1, Value::Null);
                         }
+                        merge_yaml_values(&mut seq[index], source, append);
+                        return Ok(());
                     } else {
-                        return Err(Error::Merge {
-                            operation: "YAML merge".to_string(),
-                            message: format!("Invalid array index '{}' in path '{}'", part, path),
-                        });
+                        // Navigate into sequence element
+                        if index >= seq.len() {
+                            seq.resize(index + 1, Value::Null);
+                        }
+                        current = &mut seq[index];
                     }
                 }
                 _ => {
@@ -1802,15 +1805,13 @@ pub mod phase5 {
 
         // Navigate to the path in the destination
         let path_parts: Vec<&str> = path.split('.').collect();
-
-        // Start with the root
-        let mut current_ref = dest;
+        let mut current = dest;
 
         for (i, part) in path_parts.iter().enumerate() {
             let is_last = i == path_parts.len() - 1;
 
-            match current_ref {
-                Value::Object(map) => {
+            match current {
+                Value::Object(ref mut map) => {
                     let key = part.to_string();
                     if is_last {
                         // This is where we merge
@@ -1825,35 +1826,34 @@ pub mod phase5 {
                         }
                         return Ok(());
                     } else {
-                        // Navigate deeper
+                        // Navigate deeper - ensure intermediate object exists
                         if !map.contains_key(&key) {
                             map.insert(key.clone(), Value::Object(serde_json::Map::new()));
                         }
-                        current_ref = map.get_mut(&key).unwrap();
+                        // Safe to unwrap since we just ensured it exists
+                        current = map.get_mut(&key).unwrap();
                     }
                 }
-                Value::Array(arr) => {
-                    if let Ok(index) = part.parse::<usize>() {
-                        if is_last {
-                            // Merge into array at index
-                            if index >= arr.len() {
-                                // Extend array if needed
-                                arr.resize(index + 1, Value::Null);
-                            }
-                            merge_json_values(&mut arr[index], source, append);
-                            return Ok(());
-                        } else {
-                            // Navigate into array element
-                            if index >= arr.len() {
-                                arr.resize(index + 1, Value::Null);
-                            }
-                            current_ref = &mut arr[index];
+                Value::Array(ref mut arr) => {
+                    let index = part.parse::<usize>().map_err(|_| Error::Merge {
+                        operation: "JSON merge".to_string(),
+                        message: format!("Invalid array index '{}' in path '{}'", part, path),
+                    })?;
+
+                    if is_last {
+                        // Merge into array at index
+                        if index >= arr.len() {
+                            // Extend array if needed
+                            arr.resize(index + 1, Value::Null);
                         }
+                        merge_json_values(&mut arr[index], source, append);
+                        return Ok(());
                     } else {
-                        return Err(Error::Merge {
-                            operation: "JSON merge".to_string(),
-                            message: format!("Invalid array index '{}' in path '{}'", part, path),
-                        });
+                        // Navigate into array element
+                        if index >= arr.len() {
+                            arr.resize(index + 1, Value::Null);
+                        }
+                        current = &mut arr[index];
                     }
                 }
                 _ => {
@@ -1914,41 +1914,554 @@ pub mod phase5 {
     }
 
     /// Apply a TOML merge operation to the filesystem
-    fn apply_toml_merge_operation(_fs: &mut MemoryFS, _toml_op: &TomlMergeOp) -> Result<()> {
-        // TODO: Implement TOML merge operations
-        Err(Error::NotImplemented {
-            feature: "TOML merge operations".to_string(),
-        })
+    pub fn apply_toml_merge_operation(fs: &mut MemoryFS, toml_op: &TomlMergeOp) -> Result<()> {
+        use toml::Value;
+
+        // Read source fragment
+        let source_content = fs.get_file(&toml_op.source).ok_or_else(|| Error::Merge {
+            operation: "TOML merge".to_string(),
+            message: format!("Source file '{}' not found", toml_op.source),
+        })?;
+
+        let source_str = match std::str::from_utf8(&source_content.content) {
+            Ok(s) => s.to_string(),
+            Err(_) => {
+                return Err(Error::Merge {
+                    operation: "TOML merge".to_string(),
+                    message: format!("Invalid UTF-8 in source TOML '{}'", toml_op.source),
+                })
+            }
+        };
+
+        let source_toml: Value = toml::from_str(&source_str).map_err(|e| Error::Merge {
+            operation: "TOML merge".to_string(),
+            message: format!("Failed to parse source TOML '{}': {}", toml_op.source, e),
+        })?;
+
+        // Read destination file (or create empty if it doesn't exist)
+        let dest_content = if let Some(file) = fs.get_file(&toml_op.dest) {
+            file.content.clone()
+        } else {
+            Vec::new()
+        };
+
+        let mut dest_toml: Value = if dest_content.is_empty() {
+            Value::Table(toml::map::Map::new())
+        } else {
+            let dest_str = String::from_utf8(dest_content).map_err(|_| Error::Merge {
+                operation: "TOML merge".to_string(),
+                message: format!("Invalid UTF-8 in destination TOML '{}'", toml_op.dest),
+            })?;
+            toml::from_str(&dest_str).map_err(|e| Error::Merge {
+                operation: "TOML merge".to_string(),
+                message: format!("Failed to parse destination TOML '{}': {}", toml_op.dest, e),
+            })?
+        };
+
+        // Perform the merge
+        merge_toml_at_path(&mut dest_toml, &source_toml, &toml_op.path, toml_op.append)?;
+
+        // Write back the merged result
+        let merged_content = toml::to_string(&dest_toml).map_err(|e| Error::Merge {
+            operation: "TOML merge".to_string(),
+            message: format!("Failed to serialize merged TOML: {}", e),
+        })?;
+
+        fs.add_file_string(&toml_op.dest, &merged_content)?;
+
+        Ok(())
+    }
+
+    /// Merge TOML values at a specific path
+    fn merge_toml_at_path(
+        dest: &mut toml::Value,
+        source: &toml::Value,
+        path: &str,
+        append: bool,
+    ) -> Result<()> {
+        use toml::Value;
+
+        if path.is_empty() {
+            // Merge at root level
+            merge_toml_values(dest, source, append);
+            return Ok(());
+        }
+
+        // Navigate to the path in the destination
+        let path_parts: Vec<&str> = path.split('.').collect();
+        let mut current = dest;
+
+        for (i, part) in path_parts.iter().enumerate() {
+            let is_last = i == path_parts.len() - 1;
+
+            match current {
+                Value::Table(ref mut table) => {
+                    if is_last {
+                        // This is where we merge
+                        if let Some(existing) = table.get_mut(*part) {
+                            merge_toml_values(existing, source, append);
+                        } else {
+                            table.insert(part.to_string(), source.clone());
+                        }
+                        return Ok(());
+                    } else {
+                        // Navigate deeper - ensure intermediate table exists
+                        if !table.contains_key(*part) {
+                            table.insert(part.to_string(), Value::Table(toml::map::Map::new()));
+                        }
+                        // Safe to unwrap since we just ensured it exists
+                        current = table.get_mut(*part).unwrap();
+                    }
+                }
+                Value::Array(ref mut array) => {
+                    let index = part.parse::<usize>().map_err(|_| Error::Merge {
+                        operation: "TOML merge".to_string(),
+                        message: format!("Invalid array index '{}' in path '{}'", part, path),
+                    })?;
+
+                    if is_last {
+                        // Merge into array at index
+                        if index >= array.len() {
+                            // Extend array if needed
+                            array.resize(index + 1, Value::String("".to_string()));
+                        }
+                        merge_toml_values(&mut array[index], source, append);
+                        return Ok(());
+                    } else {
+                        // Navigate into array element
+                        if index >= array.len() {
+                            array.resize(index + 1, Value::String("".to_string()));
+                        }
+                        current = &mut array[index];
+                    }
+                }
+                _ => {
+                    return Err(Error::Merge {
+                        operation: "TOML merge".to_string(),
+                        message: format!(
+                            "Cannot navigate into non-container at path segment '{}' in '{}'",
+                            part, path
+                        ),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Merge two TOML values
+    fn merge_toml_values(dest: &mut toml::Value, source: &toml::Value, append: bool) {
+        use toml::Value;
+
+        match (&*dest, source) {
+            (Value::Table(_), Value::Table(source_table)) => {
+                // Merge tables - get mutable access to dest_table
+                if let Value::Table(dest_table) = dest {
+                    for (key, value) in source_table {
+                        if dest_table.contains_key(key) {
+                            if append {
+                                // In append mode, recursively merge existing values
+                                merge_toml_values(dest_table.get_mut(key).unwrap(), value, true);
+                            } else {
+                                // In replace mode, replace existing values
+                                dest_table.insert(key.clone(), value.clone());
+                            }
+                        } else {
+                            // Add new keys
+                            dest_table.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+            }
+            (Value::Array(_), Value::Array(_)) => {
+                if append {
+                    // Append arrays
+                    if let (Value::Array(dest_arr), Value::Array(source_arr)) = (&mut *dest, source)
+                    {
+                        dest_arr.extend(source_arr.clone());
+                    }
+                } else {
+                    // Replace array
+                    *dest = source.clone();
+                }
+            }
+            _ => {
+                // For other types, replace
+                *dest = source.clone();
+            }
+        }
     }
 
     /// Apply an INI merge operation to the filesystem
-    fn apply_ini_merge_operation(_fs: &mut MemoryFS, _ini_op: &IniMergeOp) -> Result<()> {
-        // TODO: Implement INI merge operations
-        Err(Error::NotImplemented {
-            feature: "INI merge operations".to_string(),
-        })
+    pub fn apply_ini_merge_operation(fs: &mut MemoryFS, ini_op: &IniMergeOp) -> Result<()> {
+        use ini::Ini;
+
+        // Read source fragment
+        let source_content = fs.get_file(&ini_op.source).ok_or_else(|| Error::Merge {
+            operation: "INI merge".to_string(),
+            message: format!("Source file '{}' not found", ini_op.source),
+        })?;
+
+        let source_str = match std::str::from_utf8(&source_content.content) {
+            Ok(s) => s.to_string(),
+            Err(_) => {
+                return Err(Error::Merge {
+                    operation: "INI merge".to_string(),
+                    message: format!("Invalid UTF-8 in source INI '{}'", ini_op.source),
+                })
+            }
+        };
+
+        let source_ini = Ini::load_from_str(&source_str).map_err(|e| Error::Merge {
+            operation: "INI merge".to_string(),
+            message: format!("Failed to parse source INI '{}': {}", ini_op.source, e),
+        })?;
+
+        // Read destination file (or create empty if it doesn't exist)
+        let dest_content = if let Some(file) = fs.get_file(&ini_op.dest) {
+            file.content.clone()
+        } else {
+            Vec::new()
+        };
+
+        let mut dest_ini = if dest_content.is_empty() {
+            Ini::new()
+        } else {
+            let dest_str = String::from_utf8(dest_content).map_err(|_| Error::Merge {
+                operation: "INI merge".to_string(),
+                message: format!("Invalid UTF-8 in destination INI '{}'", ini_op.dest),
+            })?;
+            Ini::load_from_str(&dest_str).map_err(|e| Error::Merge {
+                operation: "INI merge".to_string(),
+                message: format!("Failed to parse destination INI '{}': {}", ini_op.dest, e),
+            })?
+        };
+
+        // Perform the merge
+        merge_ini_section(&mut dest_ini, &source_ini, &ini_op.section, ini_op.append)?;
+
+        // Write back the merged result
+        let mut merged_content = Vec::new();
+        dest_ini
+            .write_to(&mut merged_content)
+            .map_err(|e| Error::Merge {
+                operation: "INI merge".to_string(),
+                message: format!("Failed to serialize merged INI: {}", e),
+            })?;
+
+        fs.add_file(&ini_op.dest, File::new(merged_content))?;
+
+        Ok(())
+    }
+
+    /// Merge INI sections
+    fn merge_ini_section(
+        dest: &mut ini::Ini,
+        source: &ini::Ini,
+        section: &str,
+        append: bool,
+    ) -> Result<()> {
+        // If section is specified, merge all source properties into that section
+        if !section.is_empty() {
+            for (_section_name, properties) in source.iter() {
+                for (key, value) in properties.iter() {
+                    if append {
+                        // Only set if not already set
+                        if dest.get_from(Some(section), key).is_none() {
+                            dest.set_to(
+                                Some(section.to_string()),
+                                key.to_string(),
+                                value.to_string(),
+                            );
+                        }
+                    } else {
+                        // Always set (replace)
+                        dest.set_to(
+                            Some(section.to_string()),
+                            key.to_string(),
+                            value.to_string(),
+                        );
+                    }
+                }
+            }
+        } else {
+            // If no section specified, merge sections by name
+            for (section_name, properties) in source.iter() {
+                let target_section = section_name.unwrap_or("");
+                for (key, value) in properties.iter() {
+                    if append {
+                        // Only set if not already set
+                        if dest.get_from(Some(target_section), key).is_none() {
+                            dest.set_to(
+                                Some(target_section.to_string()),
+                                key.to_string(),
+                                value.to_string(),
+                            );
+                        }
+                    } else {
+                        // Always set (replace)
+                        dest.set_to(
+                            Some(target_section.to_string()),
+                            key.to_string(),
+                            value.to_string(),
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Apply a Markdown merge operation to the filesystem
-    fn apply_markdown_merge_operation(
-        _fs: &mut MemoryFS,
-        _markdown_op: &MarkdownMergeOp,
+    pub fn apply_markdown_merge_operation(
+        fs: &mut MemoryFS,
+        markdown_op: &MarkdownMergeOp,
     ) -> Result<()> {
-        // TODO: Implement Markdown merge operations
-        Err(Error::NotImplemented {
-            feature: "Markdown merge operations".to_string(),
-        })
+        // Read source fragment
+        let source_content = fs
+            .get_file(&markdown_op.source)
+            .ok_or_else(|| Error::Merge {
+                operation: "Markdown merge".to_string(),
+                message: format!("Source file '{}' not found", markdown_op.source),
+            })?;
+
+        let source_md = match std::str::from_utf8(&source_content.content) {
+            Ok(s) => s.to_string(),
+            Err(_) => {
+                return Err(Error::Merge {
+                    operation: "Markdown merge".to_string(),
+                    message: format!("Invalid UTF-8 in source Markdown '{}'", markdown_op.source),
+                })
+            }
+        };
+
+        // Read destination file (or create empty if it doesn't exist)
+        let dest_content = if let Some(file) = fs.get_file(&markdown_op.dest) {
+            file.content.clone()
+        } else {
+            Vec::new()
+        };
+
+        let dest_md = if dest_content.is_empty() {
+            String::new()
+        } else {
+            String::from_utf8(dest_content).map_err(|_| Error::Merge {
+                operation: "Markdown merge".to_string(),
+                message: format!(
+                    "Invalid UTF-8 in destination Markdown '{}'",
+                    markdown_op.dest
+                ),
+            })?
+        };
+
+        // Perform the merge
+        let merged_md = merge_markdown_sections(
+            &dest_md,
+            &source_md,
+            &markdown_op.section,
+            markdown_op.level,
+            markdown_op.append,
+            &markdown_op.position,
+            markdown_op.create_section,
+        )?;
+
+        // Write back the merged result
+        fs.add_file_string(&markdown_op.dest, &merged_md)?;
+
+        Ok(())
+    }
+
+    /// Merge markdown sections
+    fn merge_markdown_sections(
+        dest_md: &str,
+        source_md: &str,
+        section: &str,
+        level: u8,
+        append: bool,
+        position: &str,
+        create_section: bool,
+    ) -> Result<String> {
+        if dest_md.is_empty() {
+            // If destination is empty, create the section and add source content
+            if create_section {
+                let header = format!("{} {}\n\n", "#".repeat(level as usize), section);
+                return Ok(format!("{}{}", header, source_md));
+            } else {
+                return Ok(source_md.to_string());
+            }
+        }
+
+        // Find the target section in destination
+        let lines: Vec<&str> = dest_md.lines().collect();
+        let target_header = format!("{} {}", "#".repeat(level as usize), section);
+
+        // Find where the target section starts and ends
+        let mut section_start = None;
+        let mut section_end = None;
+        let mut in_target_section = false;
+
+        for (i, line) in lines.iter().enumerate() {
+            if line.trim() == target_header.trim() {
+                section_start = Some(i);
+                in_target_section = true;
+                continue;
+            }
+
+            if in_target_section {
+                // Check if we've reached the next header of same or higher level
+                if line.starts_with('#') {
+                    let header_level = line.chars().take_while(|&c| c == '#').count() as u8;
+                    if header_level <= level {
+                        section_end = Some(i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // If section wasn't found
+        if section_start.is_none() {
+            if create_section {
+                // Add the section at the end
+                let header = format!("{} {}\n\n", "#".repeat(level as usize), section);
+                return Ok(format!("{}\n{}{}", dest_md, header, source_md));
+            } else {
+                return Err(Error::Merge {
+                    operation: "Markdown merge".to_string(),
+                    message: format!(
+                        "Section '{}' not found and create_section is false",
+                        section
+                    ),
+                });
+            }
+        }
+
+        let start_idx = section_start.unwrap();
+        let end_idx = section_end.unwrap_or(lines.len());
+
+        // Extract content before section, section content, and after section
+        let before_section = &lines[..start_idx];
+        let section_content = &lines[start_idx..end_idx];
+        let after_section = &lines[end_idx..];
+
+        // Build the merged section content
+        let mut merged_section = Vec::new();
+
+        // Add the section header
+        merged_section.extend_from_slice(section_content);
+
+        // Determine where to insert the source content
+        let insert_at_end = position != "start";
+        let source_lines: Vec<&str> = source_md.lines().collect();
+
+        if append {
+            // Append mode: only add if content doesn't already exist
+            let existing_content = section_content[1..]
+                .iter()
+                .map(|s| s.trim())
+                .collect::<String>();
+            let source_content = source_lines.iter().map(|s| s.trim()).collect::<String>();
+
+            if !existing_content.contains(&source_content) {
+                if insert_at_end {
+                    // Add source content at the end of the section
+                    merged_section.extend(source_lines);
+                } else {
+                    // Insert source content at the beginning of the section content
+                    merged_section.splice(1..1, source_lines);
+                }
+            }
+        } else {
+            // Replace mode: replace existing content
+            if insert_at_end {
+                // Replace everything after the header
+                merged_section.truncate(1); // Keep only the header
+                merged_section.extend(source_lines);
+            } else {
+                // Insert at start (after header)
+                merged_section.truncate(1); // Keep only the header
+                merged_section.extend(source_lines);
+            }
+        }
+
+        // Reconstruct the full document
+        let mut result = String::new();
+
+        // Add content before section
+        for line in before_section {
+            result.push_str(line);
+            result.push('\n');
+        }
+
+        // Add merged section
+        for line in &merged_section {
+            result.push_str(line);
+            result.push('\n');
+        }
+
+        // Add content after section
+        for line in after_section {
+            result.push_str(line);
+            result.push('\n');
+        }
+
+        // Remove trailing newline if the original didn't have one
+        if !dest_md.ends_with('\n') && result.ends_with('\n') {
+            result.pop();
+        }
+
+        Ok(result)
     }
 }
 
 pub mod phase6 {
     use super::*;
+    use std::fs;
+    use std::path::Path;
 
-    pub fn execute(_final_fs: &MemoryFS, _output_path: &std::path::Path) -> Result<()> {
-        // TODO: Implement Phase 6 - Writing to Disk
-        Err(Error::NotImplemented {
-            feature: "Phase 6 - Writing to Disk".to_string(),
-        })
+    /// Execute Phase 6: Write final filesystem to disk
+    ///
+    /// Writes all files from the MemoryFS to the host filesystem at the specified output path.
+    /// Creates all necessary directories recursively and preserves file permissions where possible.
+    pub fn execute(final_fs: &MemoryFS, output_path: &Path) -> Result<()> {
+        for (relative_path, file) in final_fs.files() {
+            // Construct full output path
+            let full_path = output_path.join(relative_path);
+
+            // Create parent directories if needed
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| Error::Filesystem {
+                    message: format!("Failed to create directory '{}': {}", parent.display(), e),
+                })?;
+            }
+
+            // Write file content
+            fs::write(&full_path, &file.content).map_err(|e| Error::Filesystem {
+                message: format!("Failed to write file '{}': {}", full_path.display(), e),
+            })?;
+
+            // Set permissions on Unix-like systems
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let perms = fs::Permissions::from_mode(file.permissions);
+                if let Err(e) = fs::set_permissions(&full_path, perms) {
+                    // Log warning but don't fail - permissions are best-effort
+                    // On some systems (e.g., certain mount points), setting permissions may fail
+                    return Err(Error::Filesystem {
+                        message: format!(
+                            "Failed to set permissions on '{}': {}",
+                            full_path.display(),
+                            e
+                        ),
+                    });
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -2230,6 +2743,9 @@ mod phase_tests {
 
     mod phase5_tests {
         use super::*;
+        use crate::phases::phase5::{
+            apply_ini_merge_operation, apply_markdown_merge_operation, apply_toml_merge_operation,
+        };
 
         // Note: MockGitOps and MockCacheOps are defined but not used in phase5 tests
         // They're kept for potential future use
@@ -2379,6 +2895,464 @@ mod phase_tests {
 
             assert_eq!(final_fs.len(), 1);
             assert!(final_fs.exists("local.txt"));
+        }
+
+        #[test]
+        fn test_toml_merge_operation_root_level() {
+            // Test TOML merge at root level
+            let mut fs = MemoryFS::new();
+
+            // Create source TOML fragment
+            let source_toml = r#"
+[package]
+name = "test-package"
+version = "1.0.0"
+"#;
+            fs.add_file_string("source.toml", source_toml).unwrap();
+
+            // Create destination TOML file
+            let dest_toml = r#"
+[dependencies]
+serde = "1.0"
+"#;
+            fs.add_file_string("Cargo.toml", dest_toml).unwrap();
+
+            let toml_op = crate::config::TomlMergeOp {
+                source: "source.toml".to_string(),
+                dest: "Cargo.toml".to_string(),
+                path: "".to_string(), // root level
+                append: false,
+                preserve_comments: false,
+            };
+
+            apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
+
+            let result = fs.get_file("Cargo.toml").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain both original and merged content
+            assert!(result_str.contains("serde = \"1.0\""));
+            assert!(result_str.contains("name = \"test-package\""));
+            assert!(result_str.contains("version = \"1.0.0\""));
+        }
+
+        #[test]
+        fn test_toml_merge_operation_nested_path() {
+            // Test TOML merge at nested path
+            let mut fs = MemoryFS::new();
+
+            // Create source TOML fragment
+            let source_toml = r#"
+enabled = true
+timeout = 30
+"#;
+            fs.add_file_string("config.toml", source_toml).unwrap();
+
+            // Create destination TOML file
+            let dest_toml = r#"
+[server]
+host = "localhost"
+
+[database]
+name = "mydb"
+"#;
+            fs.add_file_string("merged.toml", dest_toml).unwrap();
+
+            let toml_op = crate::config::TomlMergeOp {
+                source: "config.toml".to_string(),
+                dest: "merged.toml".to_string(),
+                path: "server".to_string(),
+                append: false,
+                preserve_comments: false,
+            };
+
+            apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
+
+            let result = fs.get_file("merged.toml").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should have server section with new fields
+            assert!(result_str.contains("[server]"));
+            assert!(result_str.contains("host = \"localhost\""));
+            assert!(result_str.contains("enabled = true"));
+            assert!(result_str.contains("timeout = 30"));
+            // Should still have database section
+            assert!(result_str.contains("[database]"));
+            assert!(result_str.contains("name = \"mydb\""));
+        }
+
+        #[test]
+        fn test_ini_merge_operation_basic() {
+            // Test INI merge with section
+            let mut fs = MemoryFS::new();
+
+            // Create source INI fragment
+            let source_ini = r#"
+[database]
+driver = postgresql
+port = 5432
+"#;
+            fs.add_file_string("db.ini", source_ini).unwrap();
+
+            // Create destination INI file
+            let dest_ini = r#"
+[server]
+host = localhost
+port = 8080
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = crate::config::IniMergeOp {
+                source: "db.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: "database".to_string(),
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = fs.get_file("config.ini").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain both sections
+            assert!(result_str.contains("[server]"));
+            assert!(result_str.contains("host=localhost"));
+            assert!(result_str.contains("port=8080"));
+            assert!(result_str.contains("[database]"));
+            assert!(result_str.contains("driver=postgresql"));
+            assert!(result_str.contains("port=5432"));
+        }
+
+        #[test]
+        fn test_ini_merge_operation_append_mode() {
+            // Test INI merge in append mode (should not overwrite existing keys)
+            let mut fs = MemoryFS::new();
+
+            // Create source INI fragment
+            let source_ini = r#"
+[settings]
+timeout = 60
+debug = true
+"#;
+            fs.add_file_string("new.ini", source_ini).unwrap();
+
+            // Create destination INI file with overlapping key
+            let dest_ini = r#"
+[settings]
+timeout = 30
+host = localhost
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = crate::config::IniMergeOp {
+                source: "new.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: "settings".to_string(),
+                append: true, // append mode
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = fs.get_file("config.ini").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain merged content
+            assert!(result_str.contains("[settings]"));
+            assert!(result_str.contains("host=localhost"));
+            assert!(result_str.contains("debug=true"));
+            // In append mode, existing keys should not be overwritten
+            assert!(result_str.contains("timeout=30"));
+        }
+
+        #[test]
+        fn test_markdown_merge_operation_basic() {
+            // Test Markdown merge with section
+            let mut fs = MemoryFS::new();
+
+            // Create source markdown fragment
+            let source_md = r#"## Installation
+
+Run the following command:
+
+```
+npm install my-package
+```
+
+## Usage
+
+Basic usage example here.
+"#;
+            fs.add_file_string("install.md", source_md).unwrap();
+
+            // Create destination markdown file
+            let dest_md = r#"# My Package
+
+This is a great package.
+
+## Features
+
+- Feature 1
+- Feature 2
+"#;
+            fs.add_file_string("README.md", dest_md).unwrap();
+
+            let markdown_op = crate::config::MarkdownMergeOp {
+                source: "install.md".to_string(),
+                dest: "README.md".to_string(),
+                section: "Installation".to_string(),
+                append: false,
+                level: 2,
+                position: "end".to_string(),
+                create_section: true,
+            };
+
+            apply_markdown_merge_operation(&mut fs, &markdown_op).unwrap();
+
+            let result = fs.get_file("README.md").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain both original content and merged section
+            assert!(result_str.contains("# My Package"));
+            assert!(result_str.contains("## Features"));
+            assert!(result_str.contains("## Installation"));
+            assert!(result_str.contains("npm install my-package"));
+            assert!(result_str.contains("## Usage"));
+        }
+
+        #[test]
+        fn test_markdown_merge_operation_create_section() {
+            // Test Markdown merge creating a new section
+            let mut fs = MemoryFS::new();
+
+            // Create source markdown fragment
+            let source_md = r#"This package provides excellent functionality."#;
+            fs.add_file_string("description.md", source_md).unwrap();
+
+            // Create destination markdown file without the target section
+            let dest_md = r#"# My Package
+
+## Installation
+
+Install instructions here.
+"#;
+            fs.add_file_string("README.md", dest_md).unwrap();
+
+            let markdown_op = crate::config::MarkdownMergeOp {
+                source: "description.md".to_string(),
+                dest: "README.md".to_string(),
+                section: "Description".to_string(),
+                append: false,
+                level: 2,
+                position: "end".to_string(),
+                create_section: true, // create section if it doesn't exist
+            };
+
+            apply_markdown_merge_operation(&mut fs, &markdown_op).unwrap();
+
+            let result = fs.get_file("README.md").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain the new section
+            assert!(result_str.contains("## Description"));
+            assert!(result_str.contains("This package provides excellent functionality"));
+        }
+
+        #[test]
+        fn test_markdown_merge_operation_append_mode() {
+            // Test Markdown merge in append mode
+            let mut fs = MemoryFS::new();
+
+            // Create source markdown fragment
+            let source_md = r#"- New feature added
+- Bug fixes included"#;
+            fs.add_file_string("updates.md", source_md).unwrap();
+
+            // Create destination markdown file with existing section
+            let dest_md = r#"# Changelog
+
+## Version 1.0.0
+
+- Initial release
+- Basic functionality
+"#;
+            fs.add_file_string("CHANGELOG.md", dest_md).unwrap();
+
+            let markdown_op = crate::config::MarkdownMergeOp {
+                source: "updates.md".to_string(),
+                dest: "CHANGELOG.md".to_string(),
+                section: "Version 1.0.0".to_string(),
+                append: true, // append mode
+                level: 2,
+                position: "end".to_string(),
+                create_section: false,
+            };
+
+            apply_markdown_merge_operation(&mut fs, &markdown_op).unwrap();
+
+            let result = fs.get_file("CHANGELOG.md").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain original content plus appended content
+            assert!(result_str.contains("## Version 1.0.0"));
+            assert!(result_str.contains("- Initial release"));
+            assert!(result_str.contains("- Basic functionality"));
+            assert!(result_str.contains("- New feature added"));
+            assert!(result_str.contains("- Bug fixes included"));
+        }
+    }
+
+    mod phase6_tests {
+        use super::*;
+        use crate::filesystem::File;
+        use std::fs;
+        use std::os::unix::fs::PermissionsExt;
+
+        #[test]
+        fn test_phase6_write_single_file() {
+            let temp_dir = TempDir::new().unwrap();
+            let output_path = temp_dir.path();
+
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "Hello, world!").unwrap();
+
+            phase6::execute(&fs, output_path).unwrap();
+
+            let file_path = output_path.join("test.txt");
+            assert!(file_path.exists());
+            let content = fs::read_to_string(&file_path).unwrap();
+            assert_eq!(content, "Hello, world!");
+        }
+
+        #[test]
+        fn test_phase6_write_nested_directories() {
+            let temp_dir = TempDir::new().unwrap();
+            let output_path = temp_dir.path();
+
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("src/utils/helper.rs", "pub fn helper() {}")
+                .unwrap();
+            fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
+            fs.add_file_string("README.md", "# Project").unwrap();
+
+            phase6::execute(&fs, output_path).unwrap();
+
+            // Verify nested file exists
+            let nested_path = output_path.join("src/utils/helper.rs");
+            assert!(nested_path.exists());
+            assert!(nested_path.parent().unwrap().exists()); // utils directory
+            assert!(nested_path.parent().unwrap().parent().unwrap().exists()); // src directory
+
+            // Verify other files exist
+            assert!(output_path.join("src/main.rs").exists());
+            assert!(output_path.join("README.md").exists());
+
+            // Verify content
+            let content = fs::read_to_string(&nested_path).unwrap();
+            assert_eq!(content, "pub fn helper() {}");
+        }
+
+        #[test]
+        fn test_phase6_write_multiple_files() {
+            let temp_dir = TempDir::new().unwrap();
+            let output_path = temp_dir.path();
+
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("file1.txt", "Content 1").unwrap();
+            fs.add_file_string("file2.txt", "Content 2").unwrap();
+            fs.add_file_string("file3.txt", "Content 3").unwrap();
+
+            phase6::execute(&fs, output_path).unwrap();
+
+            assert_eq!(
+                fs::read_to_string(output_path.join("file1.txt")).unwrap(),
+                "Content 1"
+            );
+            assert_eq!(
+                fs::read_to_string(output_path.join("file2.txt")).unwrap(),
+                "Content 2"
+            );
+            assert_eq!(
+                fs::read_to_string(output_path.join("file3.txt")).unwrap(),
+                "Content 3"
+            );
+        }
+
+        #[test]
+        fn test_phase6_write_binary_content() {
+            let temp_dir = TempDir::new().unwrap();
+            let output_path = temp_dir.path();
+
+            let mut fs = MemoryFS::new();
+            let binary_data = vec![0u8, 1u8, 2u8, 255u8, 128u8];
+            fs.add_file_content("binary.bin", binary_data.clone())
+                .unwrap();
+
+            phase6::execute(&fs, output_path).unwrap();
+
+            let file_path = output_path.join("binary.bin");
+            assert!(file_path.exists());
+            let content = fs::read(&file_path).unwrap();
+            assert_eq!(content, binary_data);
+        }
+
+        #[test]
+        #[cfg(unix)]
+        fn test_phase6_preserve_permissions() {
+            let temp_dir = TempDir::new().unwrap();
+            let output_path = temp_dir.path();
+
+            let mut fs = MemoryFS::new();
+            let mut file = File::from_string("executable content");
+            file.permissions = 0o755; // Executable permissions
+            fs.add_file("script.sh", file).unwrap();
+
+            phase6::execute(&fs, output_path).unwrap();
+
+            let file_path = output_path.join("script.sh");
+            assert!(file_path.exists());
+
+            let metadata = fs::metadata(&file_path).unwrap();
+            let permissions = metadata.permissions();
+            let mode = permissions.mode();
+            // Check that executable bit is set (0o755 = 493 in decimal)
+            // We check the last 3 octal digits (permissions)
+            assert_eq!(mode & 0o777, 0o755);
+        }
+
+        #[test]
+        fn test_phase6_empty_filesystem() {
+            let temp_dir = TempDir::new().unwrap();
+            let output_path = temp_dir.path();
+
+            let fs = MemoryFS::new();
+
+            // Should not error on empty filesystem
+            phase6::execute(&fs, output_path).unwrap();
+
+            // Directory should exist but be empty
+            assert!(output_path.exists());
+            assert!(fs::read_dir(output_path).unwrap().next().is_none());
+        }
+
+        #[test]
+        fn test_phase6_overwrite_existing_file() {
+            let temp_dir = TempDir::new().unwrap();
+            let output_path = temp_dir.path();
+
+            // Create an existing file
+            let existing_path = output_path.join("existing.txt");
+            fs::write(&existing_path, "old content").unwrap();
+
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("existing.txt", "new content").unwrap();
+
+            phase6::execute(&fs, output_path).unwrap();
+
+            // File should be overwritten
+            let content = fs::read_to_string(&existing_path).unwrap();
+            assert_eq!(content, "new content");
         }
     }
 
