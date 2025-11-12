@@ -264,9 +264,9 @@ mod tests {
 - rename:
     mappings:
       - from: "badname/(.*)"
-        to: "goodname/%[1]s"
+        to: "goodname/$1"
       - from: "^files/(.*)"
-        to: "%[1]s"
+        to: "$1"
 "#;
 
         let schema = parse(yaml).unwrap();
@@ -276,9 +276,9 @@ mod tests {
             Operation::Rename { rename } => {
                 assert_eq!(rename.mappings.len(), 2);
                 assert_eq!(rename.mappings[0].from, "badname/(.*)");
-                assert_eq!(rename.mappings[0].to, "goodname/%[1]s");
+                assert_eq!(rename.mappings[0].to, "goodname/$1");
                 assert_eq!(rename.mappings[1].from, "^files/(.*)");
-                assert_eq!(rename.mappings[1].to, "%[1]s");
+                assert_eq!(rename.mappings[1].to, "$1");
             }
             _ => panic!("Expected Rename operation"),
         }

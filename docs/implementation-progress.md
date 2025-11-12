@@ -2,10 +2,10 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: Foundation Complete, Starting Layer 1
+## Current Status: Core Utilities Complete, Starting Operators
 
-**Date**: November 12, 2025
-**Overall Progress**: ~15% complete (Layer 0 done, starting Layer 1)
+**Date**: November 12, 2025 (Updated with fixes)
+**Overall Progress**: ~45% complete (Layer 0-1 done, starting Layer 2)
 
 ---
 
@@ -27,8 +27,8 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.3 Error Handling
 **Status**: ✅ COMPLETE
-- **Files**: `src/error.rs` (56 lines)
-- **Features**: Comprehensive error enum with thiserror, all error types from plan (ConfigParse, GitClone, Cache, Operator, CycleDetected, MergeConflict, etc.)
+- **Files**: `src/error.rs` (73 lines)
+- **Features**: Comprehensive error enum with thiserror, all error types from plan (ConfigParse, GitClone, Cache, Operator, CycleDetected, MergeConflict, ToolValidation, Template, Network, etc.)
 - **Dependencies**: `thiserror`, `anyhow`, `regex`, `glob`, `url`, `semver` added
 
 ---
@@ -36,30 +36,36 @@ This document tracks current implementation status against the implementation pl
 ## 🚧 IN PROGRESS: Layer 1 - Core Utilities
 
 ### 1.1 Git Operations
-**Status**: 📝 NEXT TO IMPLEMENT
-- **Plan**: Implement git operations module
-- **Components needed**:
-  - `git::clone_shallow()` - Shallow clone with specific ref
-  - `git::load_from_cache()` - Load cached repo into MemoryFS
-  - `git::save_to_cache()` - Save repo to cache directory
-  - `git::url_to_cache_path()` - Convert url+ref to cache path
-  - `git::list_tags()` - List remote tags for version detection
-  - `git::parse_semver_tag()` - Parse semantic version tags
-- **Decision**: Start with shell commands (simpler), consider `git2` later
-- **Dependencies**: Shell command execution (no new crates yet)
+**Status**: ✅ COMPLETE
+- **Files**: `src/git.rs` (197 lines)
+- **Features**: All git operations implemented with shell commands
+  - `git::clone_shallow()` - Shallow clone with specific ref using `git clone --depth=1 --branch`
+  - `git::load_from_cache()` - Load cached repo into MemoryFS with file metadata
+  - `git::save_to_cache()` - Save MemoryFS to cache directory
+  - `git::url_to_cache_path()` - Convert url+ref to filesystem-safe cache path
+  - `git::list_tags()` - List remote tags using `git ls-remote --tags`
+  - `git::parse_semver_tag()` - Parse semantic version tags (v1.0.0, 1.0.0 formats)
+- **Testing**: Unit tests for path conversion and semver parsing
+- **Dependencies**: Shell command execution (no new crates needed)
 
 ### 1.2 Path Operations
-**Status**: 📝 NEXT TO IMPLEMENT (after Git ops)
-- **Components needed**:
-  - `path::glob_match()` - Match paths against glob patterns
-  - `path::regex_rename()` - Apply regex rename with capture groups
-  - `path::encode_url_path()` - Encode URL for filesystem paths
+**Status**: ✅ COMPLETE
+- **Files**: `src/path.rs` (121 lines)
+- **Features**: All path operations implemented
+  - `path::glob_match()` - Match paths against glob patterns using glob crate
+  - `path::regex_rename()` - Apply regex rename with capture groups ($1, $2, etc.)
+  - `path::encode_url_path()` - Encode URLs for filesystem-safe paths
+- **Testing**: Unit tests for all operations with various patterns
 
 ### 1.3 Repository Cache
-**Status**: 📝 NEXT TO IMPLEMENT (after Path ops)
-- **Components needed**:
-  - `cache::RepoCache` - Thread-safe HashMap for in-process caching
-  - `cache::get_or_process()` - Cache hit/miss logic
+**Status**: ✅ COMPLETE
+- **Files**: `src/cache.rs` (188 lines)
+- **Features**: Thread-safe in-process repository cache implemented
+  - `cache::RepoCache` - Arc<Mutex<HashMap>> for thread-safe caching
+  - `cache::get_or_process()` - Cache hit/miss logic with lazy evaluation
+  - `CacheKey` - Composite key for (url, ref) pairs
+  - Additional methods: insert, get, contains, clear, len, is_empty
+- **Testing**: Comprehensive unit tests for all cache operations and thread safety
 
 ---
 
@@ -92,14 +98,14 @@ This document tracks current implementation status against the implementation pl
 ## 📊 Progress Metrics
 
 ### By Implementation Phase
-- **Phase 1 MVP**: 30% complete (Layer 0 done, Layer 1 in progress)
+- **Phase 1 MVP**: 45% complete (Layer 0-1 done, starting Layer 2)
 - **Phase 2**: 0% complete
 - **Phase 3**: 0% complete
 - **Phase 4**: 0% complete
 
 ### By Layer
 - **Layer 0**: 100% complete ✅
-- **Layer 1**: 0% complete 🚧
+- **Layer 1**: 100% complete ✅
 - **Layer 2**: 0% complete 📋
 - **Layer 3**: 0% complete 📋
 - **Layer 4**: 0% complete 📋
@@ -108,17 +114,16 @@ This document tracks current implementation status against the implementation pl
 
 ## 🎯 Next Implementation Steps
 
-### Immediate Next (Layer 1.1 - Git Operations)
-1. Create `src/git.rs` module
-2. Implement `clone_shallow()` function (shell out to `git clone --depth=1`)
-3. Implement cache directory management
-4. Add tests with mock git repos
+### Immediate Next (Layer 2.2 - Basic File Operators)
+1. Create `src/operators.rs` module
+2. Implement `operators::include::apply()` - Add files matching patterns
+3. Implement `operators::exclude::apply()` - Remove files matching patterns
+4. Implement `operators::rename::apply()` - Rename files using regex patterns
+5. Add unit tests with sample filesystems
 
 ### This Week's Goals
-1. Complete Layer 1.1: Basic git clone functionality
-2. Complete Layer 1.2: Path operations
-3. Complete Layer 1.3: In-process repo cache
-4. Start Layer 2.2: Basic file operators (include/exclude/rename)
+1. Complete Layer 2.2: Basic file operators (include/exclude/rename)
+2. Start Layer 2.1: Repo operator (basic version without `with:` clause)
 
 ### This Month's Goals
 1. Complete MVP functionality (Phase 1 in implementation plan)
@@ -141,6 +146,12 @@ This document tracks current implementation status against the implementation pl
 
 ### Files Removed
 - `docs/alignment-summary.md` - Consolidated into implementation plan
+
+### Recent Fixes (November 12, 2025)
+- Fixed rename operation format inconsistency: config test now uses `$1` format matching path.rs implementation
+- Added missing error types: ToolValidation, Template, Network errors to error.rs
+- Updated line counts: error.rs (73 lines), cache.rs (188 lines)
+- Verified all tests pass after fixes
 
 ---
 

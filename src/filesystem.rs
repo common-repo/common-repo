@@ -159,4 +159,9 @@ impl MemoryFS {
             self.files.insert(path.clone(), file.clone());
         }
     }
+
+    /// Iterate over all files as (path, file) pairs
+    pub fn files(&self) -> impl Iterator<Item = (&PathBuf, &File)> {
+        self.files.iter()
+    }
 }
