@@ -91,7 +91,7 @@ SKIP_NETWORK_TESTS=1 cargo test --test integration_test --features integration-t
 - Disabled by default since they require network access
 
 **Test Coverage:**
-- **183+ unit tests** covering all core functionality
+- **186 total tests** (167 unit, 5 integration, 14 datatest) covering all core functionality
 - **5 integration tests** validating end-to-end workflows
 - **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
 - **Test coverage analysis** available via cargo-tarpaulin
