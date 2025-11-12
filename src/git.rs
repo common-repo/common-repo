@@ -178,6 +178,8 @@ pub fn parse_semver_tag(tag: &str) -> Option<Version> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_url_to_cache_path() {
@@ -191,6 +193,29 @@ mod tests {
     }
 
     #[test]
+    fn test_url_to_cache_path_with_slashes() {
+        let cache_root = PathBuf::from("/tmp/cache");
+        let url = "https://github.com/example/repo.git";
+        let ref_name = "feature/some-branch";
+
+        let cache_path = url_to_cache_path(&cache_root, url, ref_name);
+        assert!(cache_path.starts_with(&cache_root));
+        // Slashes should be replaced with dashes
+        assert!(cache_path.to_string_lossy().contains("feature-some-branch"));
+    }
+
+    #[test]
+    fn test_url_to_cache_path_different_urls() {
+        let cache_root = PathBuf::from("/tmp/cache");
+
+        let path1 = url_to_cache_path(&cache_root, "https://github.com/user1/repo.git", "main");
+        let path2 = url_to_cache_path(&cache_root, "https://github.com/user2/repo.git", "main");
+
+        // Different URLs should produce different paths
+        assert_ne!(path1, path2);
+    }
+
+    #[test]
     fn test_parse_semver_tag() {
         assert_eq!(
             parse_semver_tag("v1.0.0"),
@@ -201,6 +226,150 @@ mod tests {
             Some(Version::parse("1.0.0").unwrap())
         );
         assert_eq!(parse_semver_tag("invalid"), None);
+    }
+
+    #[test]
+    fn test_parse_semver_tag_variations() {
+        // Test various valid semver formats
+        assert_eq!(
+            parse_semver_tag("v2.1.3-alpha"),
+            Some(Version::parse("2.1.3-alpha").unwrap())
+        );
+        assert_eq!(
+            parse_semver_tag("3.0.0-beta.1"),
+            Some(Version::parse("3.0.0-beta.1").unwrap())
+        );
+        // Note: semver crate requires patch version, so "1.0" is invalid
+        assert_eq!(parse_semver_tag("v1.0"), None);
+        assert_eq!(parse_semver_tag("2.0"), None);
+
+        // Test invalid formats
+        assert_eq!(parse_semver_tag("not-a-version"), None);
+        assert_eq!(parse_semver_tag("v"), None);
+        assert_eq!(parse_semver_tag(""), None);
+        assert_eq!(parse_semver_tag("v1.0.0.0"), None); // Too many components
+    }
+
+    #[test]
+    fn test_load_from_cache_empty_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        let fs = load_from_cache(cache_dir).unwrap();
+        assert!(fs.is_empty());
+    }
+
+    #[test]
+    fn test_load_from_cache_with_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create some test files
+        fs::create_dir_all(cache_dir.join("subdir")).unwrap();
+        fs::write(cache_dir.join("file1.txt"), b"content1").unwrap();
+        fs::write(cache_dir.join("file2.txt"), b"content2").unwrap();
+        fs::write(cache_dir.join("subdir/file3.txt"), b"content3").unwrap();
+
+        let fs = load_from_cache(cache_dir).unwrap();
+
+        assert_eq!(fs.len(), 3);
+        assert!(fs.exists("file1.txt"));
+        assert!(fs.exists("file2.txt"));
+        assert!(fs.exists("subdir/file3.txt"));
+
+        let file1 = fs.get_file("file1.txt").unwrap();
+        assert_eq!(file1.content, b"content1");
+
+        let file3 = fs.get_file("subdir/file3.txt").unwrap();
+        assert_eq!(file3.content, b"content3");
+    }
+
+    #[test]
+    fn test_load_from_cache_skips_git_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create files including a .git directory that should be skipped
+        fs::create_dir_all(cache_dir.join(".git")).unwrap();
+        fs::create_dir_all(cache_dir.join("src")).unwrap();
+        fs::write(cache_dir.join("README.md"), b"readme").unwrap();
+        fs::write(cache_dir.join("src/main.rs"), b"code").unwrap();
+        fs::write(cache_dir.join(".git/config"), b"git config").unwrap();
+
+        let fs = load_from_cache(cache_dir).unwrap();
+
+        // Should contain files but not .git directory contents
+        assert_eq!(fs.len(), 2);
+        assert!(fs.exists("README.md"));
+        assert!(fs.exists("src/main.rs"));
+        assert!(!fs.exists(".git/config"));
+    }
+
+    #[test]
+    fn test_save_to_cache_and_load() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create a MemoryFS with some files
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("file1.txt", "content1").unwrap();
+        fs.add_file_string("subdir/file2.txt", "content2").unwrap();
+
+        // Save to cache
+        save_to_cache(cache_dir, &fs).unwrap();
+
+        // Load back and verify
+        let loaded_fs = load_from_cache(cache_dir).unwrap();
+
+        assert_eq!(loaded_fs.len(), 2);
+        assert!(loaded_fs.exists("file1.txt"));
+        assert!(loaded_fs.exists("subdir/file2.txt"));
+
+        let file1 = loaded_fs.get_file("file1.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(file1.content.clone()).unwrap(),
+            "content1"
+        );
+
+        let file2 = loaded_fs.get_file("subdir/file2.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(file2.content.clone()).unwrap(),
+            "content2"
+        );
+    }
+
+    #[test]
+    fn test_save_to_cache_creates_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("deep/nested/path/file.txt", "content")
+            .unwrap();
+
+        save_to_cache(cache_dir, &fs).unwrap();
+
+        // Check that the directory structure was created
+        assert!(cache_dir.join("deep/nested/path/file.txt").exists());
+        let content = fs::read_to_string(cache_dir.join("deep/nested/path/file.txt")).unwrap();
+        assert_eq!(content, "content");
+    }
+
+    #[test]
+    fn test_save_to_cache_overwrites_existing_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path();
+
+        // Create initial file
+        fs::write(cache_dir.join("file.txt"), b"old content").unwrap();
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("file.txt", "new content").unwrap();
+
+        save_to_cache(cache_dir, &fs).unwrap();
+
+        let content = fs::read_to_string(cache_dir.join("file.txt")).unwrap();
+        assert_eq!(content, "new content");
     }
 
     // Note: Integration tests for clone_shallow and list_tags would require

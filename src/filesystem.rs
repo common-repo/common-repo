@@ -165,3 +165,306 @@ impl MemoryFS {
         self.files.iter()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::SystemTime;
+
+    #[test]
+    fn test_file_new() {
+        let content = vec![1, 2, 3, 4, 5];
+        let file = File::new(content.clone());
+
+        assert_eq!(file.content, content);
+        assert_eq!(file.size(), 5);
+        assert_eq!(file.permissions, 0o644);
+    }
+
+    #[test]
+    fn test_file_from_string() {
+        let content = "Hello, world!";
+        let file = File::from_string(content);
+
+        assert_eq!(file.content, content.as_bytes());
+        assert_eq!(file.size(), content.len());
+    }
+
+    #[test]
+    fn test_file_size() {
+        let empty_file = File::new(vec![]);
+        assert_eq!(empty_file.size(), 0);
+
+        let file = File::new(vec![42]);
+        assert_eq!(file.size(), 1);
+
+        let large_file = File::new(vec![0; 1000]);
+        assert_eq!(large_file.size(), 1000);
+    }
+
+    #[test]
+    fn test_memory_fs_new() {
+        let fs = MemoryFS::new();
+        assert!(fs.is_empty());
+        assert_eq!(fs.len(), 0);
+    }
+
+    #[test]
+    fn test_memory_fs_add_file() {
+        let mut fs = MemoryFS::new();
+        let file = File::from_string("test content");
+
+        fs.add_file("test.txt", file).unwrap();
+
+        assert!(!fs.is_empty());
+        assert_eq!(fs.len(), 1);
+        assert!(fs.exists("test.txt"));
+    }
+
+    #[test]
+    fn test_memory_fs_add_file_content() {
+        let mut fs = MemoryFS::new();
+        let content = vec![1, 2, 3];
+
+        fs.add_file_content("binary.dat", content.clone()).unwrap();
+
+        assert!(fs.exists("binary.dat"));
+        let retrieved = fs.get_file("binary.dat").unwrap();
+        assert_eq!(retrieved.content, content);
+    }
+
+    #[test]
+    fn test_memory_fs_add_file_string() {
+        let mut fs = MemoryFS::new();
+
+        fs.add_file_string("hello.txt", "Hello, World!").unwrap();
+
+        assert!(fs.exists("hello.txt"));
+        let retrieved = fs.get_file("hello.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(retrieved.content.clone()).unwrap(),
+            "Hello, World!"
+        );
+    }
+
+    #[test]
+    fn test_memory_fs_get_file() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("test.txt", "content").unwrap();
+
+        let file = fs.get_file("test.txt").unwrap();
+        assert_eq!(String::from_utf8(file.content.clone()).unwrap(), "content");
+
+        assert!(fs.get_file("nonexistent.txt").is_none());
+    }
+
+    #[test]
+    fn test_memory_fs_remove_file() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("test.txt", "content").unwrap();
+
+        assert!(fs.exists("test.txt"));
+
+        let removed = fs.remove_file("test.txt").unwrap().unwrap();
+        assert_eq!(String::from_utf8(removed.content).unwrap(), "content");
+
+        assert!(!fs.exists("test.txt"));
+        assert!(fs.remove_file("nonexistent.txt").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_memory_fs_exists() {
+        let mut fs = MemoryFS::new();
+
+        assert!(!fs.exists("test.txt"));
+
+        fs.add_file_string("test.txt", "content").unwrap();
+        assert!(fs.exists("test.txt"));
+    }
+
+    #[test]
+    fn test_memory_fs_list_files() {
+        let mut fs = MemoryFS::new();
+
+        assert!(fs.list_files().is_empty());
+
+        fs.add_file_string("file1.txt", "content1").unwrap();
+        fs.add_file_string("file2.txt", "content2").unwrap();
+        fs.add_file_string("dir/file3.txt", "content3").unwrap();
+
+        let files = fs.list_files();
+        assert_eq!(files.len(), 3);
+        assert!(files.contains(&PathBuf::from("file1.txt")));
+        assert!(files.contains(&PathBuf::from("file2.txt")));
+        assert!(files.contains(&PathBuf::from("dir/file3.txt")));
+    }
+
+    #[test]
+    fn test_memory_fs_list_files_glob() {
+        let mut fs = MemoryFS::new();
+
+        fs.add_file_string("test.txt", "content").unwrap();
+        fs.add_file_string("test.rs", "code").unwrap();
+        fs.add_file_string("other.txt", "other").unwrap();
+        fs.add_file_string("dir/test.txt", "nested").unwrap();
+
+        let txt_files = fs.list_files_glob("*.txt").unwrap();
+        assert_eq!(txt_files.len(), 3); // Matches test.txt, other.txt, and dir/test.txt
+        assert!(txt_files.contains(&PathBuf::from("test.txt")));
+        assert!(txt_files.contains(&PathBuf::from("other.txt")));
+        assert!(txt_files.contains(&PathBuf::from("dir/test.txt")));
+
+        let rs_files = fs.list_files_glob("*.rs").unwrap();
+        assert_eq!(rs_files.len(), 1);
+        assert!(rs_files.contains(&PathBuf::from("test.rs")));
+
+        let all_nested = fs.list_files_glob("**/test.txt").unwrap();
+        assert_eq!(all_nested.len(), 2);
+        assert!(all_nested.contains(&PathBuf::from("test.txt")));
+        assert!(all_nested.contains(&PathBuf::from("dir/test.txt")));
+    }
+
+    #[test]
+    fn test_memory_fs_rename_file() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("old.txt", "content").unwrap();
+
+        fs.rename_file("old.txt", "new.txt").unwrap();
+
+        assert!(!fs.exists("old.txt"));
+        assert!(fs.exists("new.txt"));
+        let content = fs.get_file("new.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(content.content.clone()).unwrap(),
+            "content"
+        );
+    }
+
+    #[test]
+    fn test_memory_fs_rename_file_nonexistent() {
+        let mut fs = MemoryFS::new();
+
+        let result = fs.rename_file("nonexistent.txt", "new.txt");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_memory_fs_copy_file() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("source.txt", "content").unwrap();
+
+        fs.copy_file("source.txt", "dest.txt").unwrap();
+
+        assert!(fs.exists("source.txt"));
+        assert!(fs.exists("dest.txt"));
+
+        let source = fs.get_file("source.txt").unwrap();
+        let dest = fs.get_file("dest.txt").unwrap();
+        assert_eq!(source.content, dest.content);
+    }
+
+    #[test]
+    fn test_memory_fs_copy_file_nonexistent() {
+        let mut fs = MemoryFS::new();
+
+        let result = fs.copy_file("nonexistent.txt", "dest.txt");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_memory_fs_len_and_is_empty() {
+        let mut fs = MemoryFS::new();
+
+        assert_eq!(fs.len(), 0);
+        assert!(fs.is_empty());
+
+        fs.add_file_string("file1.txt", "content").unwrap();
+        assert_eq!(fs.len(), 1);
+        assert!(!fs.is_empty());
+
+        fs.add_file_string("file2.txt", "content").unwrap();
+        assert_eq!(fs.len(), 2);
+        assert!(!fs.is_empty());
+
+        fs.clear();
+        assert_eq!(fs.len(), 0);
+        assert!(fs.is_empty());
+    }
+
+    #[test]
+    fn test_memory_fs_clear() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("file1.txt", "content1").unwrap();
+        fs.add_file_string("file2.txt", "content2").unwrap();
+
+        assert_eq!(fs.len(), 2);
+        fs.clear();
+        assert_eq!(fs.len(), 0);
+    }
+
+    #[test]
+    fn test_memory_fs_merge() {
+        let mut fs1 = MemoryFS::new();
+        fs1.add_file_string("file1.txt", "content1").unwrap();
+
+        let mut fs2 = MemoryFS::new();
+        fs2.add_file_string("file2.txt", "content2").unwrap();
+        fs2.add_file_string("file1.txt", "overwritten").unwrap(); // Should overwrite
+
+        fs1.merge(&fs2);
+
+        assert_eq!(fs1.len(), 2);
+        assert!(fs1.exists("file1.txt"));
+        assert!(fs1.exists("file2.txt"));
+
+        let file1 = fs1.get_file("file1.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(file1.content.clone()).unwrap(),
+            "overwritten"
+        );
+
+        let file2 = fs1.get_file("file2.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(file2.content.clone()).unwrap(),
+            "content2"
+        );
+    }
+
+    #[test]
+    fn test_memory_fs_files_iterator() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("file1.txt", "content1").unwrap();
+        fs.add_file_string("file2.txt", "content2").unwrap();
+
+        let mut files: Vec<_> = fs.files().collect();
+        files.sort_by(|a, b| a.0.cmp(b.0));
+
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].0, &PathBuf::from("file1.txt"));
+        assert_eq!(files[1].0, &PathBuf::from("file2.txt"));
+
+        assert_eq!(
+            String::from_utf8(files[0].1.content.clone()).unwrap(),
+            "content1"
+        );
+        assert_eq!(
+            String::from_utf8(files[1].1.content.clone()).unwrap(),
+            "content2"
+        );
+    }
+
+    #[test]
+    fn test_file_modified_time() {
+        let file = File::new(vec![1, 2, 3]);
+        // Just check that modified_time is set to some reasonable time
+        // We can't test exact time without mocking, but we can ensure it's not ancient
+        let now = SystemTime::now();
+        let file_time = file.modified_time;
+
+        // File time should be close to now (within a few seconds)
+        let duration = now
+            .duration_since(file_time)
+            .unwrap_or_else(|_| file_time.duration_since(now).unwrap());
+        assert!(duration.as_secs() < 10); // Should be very recent
+    }
+}
