@@ -59,10 +59,11 @@ A repo can be pure consumer (no exports), pure producer (no inheritance), or bot
 7. If any clone fails and no cache exists: abort with error
 8. Detect cycles in the inheritance tree and abort if found
 
-**Cache Structure**: `~/.common-repo/cache/{url}/{ref}/`
-- URL is the repo URL path-encoded (e.g., `github.com/common-repo/rust-cli`)
-- Ref is the git ref string (e.g., `v1.2.3`, `main`, `abc123`)
-- Example: `~/.common-repo/cache/github.com/common-repo/rust-cli/v1.2.3/`
+**Cache Structure**: `~/.common-repo/cache/{hash-of-url}-{ref}/`
+- URL is hashed (64-bit hex) to produce filesystem-safe directory names
+- Ref is the git ref string with `/` replaced by `-` (e.g., `main`, `feature-some-branch`)
+- Example: `~/.common-repo/cache/3f2c9ab4d1e6a8b0-main/`
+- (Future enhancement: optionally expose human-readable directory names if needed)
 
 **Important**: Multiple branches of the inheritance tree can reference the same repo. This is allowed and not considered a cycle.
 
