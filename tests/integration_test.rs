@@ -333,12 +333,13 @@ fn test_basic_inheritance_pipeline() {
 
     println!("✓ Parsed configuration with {} operations", config.len());
 
-    // Execute the inheritance pipeline (Phases 1-5)
+    // Execute the inheritance pipeline (Phases 1-6, but don't write to disk)
     let result = orchestrator::execute_pull(
         &config,
         &manager,
         &cache,
         std::env::current_dir().unwrap().as_path(),
+        None, // Don't write to disk for this test
     );
 
     match result {

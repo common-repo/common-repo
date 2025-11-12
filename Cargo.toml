@@ -8,7 +8,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1.0"
 toml = "0.8"
-ini = "1.3"
 pulldown-cmark = "0.10"
 glob = "0.3"
 regex = "1.10"
@@ -17,13 +16,27 @@ anyhow = "1.0"
 url = "2.5"
 semver = "1.0"
 walkdir = "2.5"
+rust-ini = "0.21.3"
+
+# CLI dependencies
+clap = { version = "4.5", features = ["derive", "cargo", "env"] }
+indicatif = "0.17"
+console = "0.15"
 
 [dev-dependencies]
 tempfile = "3.0"
 datatest-stable = "0.1"
+# CLI E2E testing dependencies
+assert_cmd = "2.0"
+predicates = "3.1"
+assert_fs = "1.1"
 
 [features]
 integration-tests = []
+
+[[bin]]
+name = "common-repo"
+path = "src/main.rs"
 
 [[test]]
 name = "schema_parsing_test"
