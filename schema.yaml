@@ -10,6 +10,14 @@
 # producers, inheritance can be achieved by using 'repo:' to pull in an
 # inherited repository (parent or ancestor), then applying further operators
 # to add or mutate files from the current repository.
+#
+# This schema shows the user-friendly "original" format with compact syntax.
+# The parser supports both this format and the more structured format used internally.
+# For example, rename operations can use either:
+# - Compact: [{"regex": "replacement"}]
+# - Structured: [{from: "regex", to: "replacement"}]
+#
+# All examples in this file are automatically tested to ensure they parse correctly.
 
 #########
 # Core Operators
