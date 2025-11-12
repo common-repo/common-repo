@@ -28,7 +28,26 @@ cargo build
 
 # Run tests
 cargo test
+
+### Testing
+
+This project includes both unit tests and integration tests:
+
+```bash
+# Run unit tests only (default)
+cargo test
+
+# Run all tests including integration tests (requires network)
+cargo test --features integration-tests
+
+# Run only integration tests
+cargo test --test integration_test --features integration-tests
+
+# Skip network-dependent tests
+SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 ```
+
+**Integration tests** verify end-to-end functionality with real repositories and are disabled by default since they require network access.
 
 ## Development Workflow
 
