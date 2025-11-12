@@ -28,6 +28,7 @@ cargo build
 
 # Run tests
 cargo test
+```
 
 ### Testing
 
@@ -78,9 +79,38 @@ SKIP_NETWORK_TESTS=1 cargo test --test integration_test --features integration-t
 - Disabled by default since they require network access
 
 **Test Coverage:**
-- **72 unit tests** covering all core functionality
+- **93 unit tests** covering all core functionality
 - **5 integration tests** validating end-to-end workflows
-- **100% test coverage** on critical code paths
+- **14 doctests** providing executable examples in documentation
+- **Test coverage analysis** available via cargo-tarpaulin
+
+#### Test Coverage Analysis
+
+This project uses [cargo-tarpaulin](https://github.com/xd009642/tarpaulin) for test coverage metrics:
+
+```bash
+# Install tarpaulin (if not already installed)
+cargo install cargo-tarpaulin
+
+# Generate HTML coverage report
+cargo tarpaulin --out Html
+
+# Generate terminal coverage report
+cargo tarpaulin
+
+# Generate coverage report for CI integration
+cargo tarpaulin --out Xml
+
+# Set minimum coverage threshold
+cargo tarpaulin --fail-under 80
+
+# Generate detailed HTML report
+cargo tarpaulin --out Html --output-dir target/tarpaulin
+```
+
+Coverage reports are saved to `target/tarpaulin/`. Open `target/tarpaulin/tarpaulin-report.html` in a browser to view the HTML report.
+
+For detailed coverage analysis and areas for improvement, see `TEST_COVERAGE_ANALYSIS.md`.
 
 ## Development Workflow
 
