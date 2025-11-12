@@ -188,6 +188,7 @@ Caching happens automatically during Phase 1 (Discovery and Cloning):
 - repo:
     url: https://github.com/common-repo/rust-cli
     ref: v1.2.3
+    path: src  # Optional: only load files under this sub-directory
     with:
       - include: [.*]
       - exclude: [.gitignore]
@@ -196,9 +197,27 @@ Caching happens automatically during Phase 1 (Discovery and Cloning):
 
 - **url**: Repository URL (GitHub, GitLab, any git URL)
 - **ref**: Git reference (tag, branch, commit SHA) - pinned for determinism
+- **path**: Optional sub-directory path within the repository to use as the effective root (enables multiple configurations per repository)
 - **with**: Optional inline operations to apply to this repo's files before merging
 
 The `with:` operations are syntactic sugar - they're applied to this specific repo's intermediate filesystem before merging into the composite filesystem.
+
+**Path filtering example**:
+```yaml
+# Load only Python UV config from a monorepo
+- repo:
+    url: https://github.com/common-repo/python
+    ref: main
+    path: uv
+
+# Load only Django config from the same monorepo
+- repo:
+    url: https://github.com/common-repo/python
+    ref: main
+    path: django
+```
+
+This enables powerful reuse patterns where a single repository can contain multiple specialized configurations.
 
 #### `include:`
 ```yaml
