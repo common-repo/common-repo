@@ -122,6 +122,7 @@ This document tracks current implementation status against the implementation pl
 
 ### Layer 2: Operators (Partial)
 **Status**: 🔄 PARTIALLY COMPLETE
+- **2.1 Repo Operator**: ✅ ENHANCED (now supports optional sub-path filtering for multiple configs per repo)
 - **2.3 Template Operators**: Variable substitution (Phase 2)
 - **2.4 Merge Operators**: YAML/JSON/TOML/INI/Markdown (Phase 2-3)
 - **2.5 Tool Validation**: Version checking (Phase 3)
@@ -238,6 +239,14 @@ The design document describes 9 phases, but the implementation consolidates thes
 
 ### Files Removed
 - `docs/alignment-summary.md` - Consolidated into implementation plan
+
+### Design Change: Sub-Path Support in Repositories (November 12, 2025)
+- **Schema Enhancement**: Added optional `path:` field to repo operations in `schema.yaml`
+- **Configuration Update**: Extended `RepoOp` struct in `config.rs` with optional sub-path filtering
+- **Implementation Ready**: Schema parsing and data structures updated to support repository sub-paths
+- **Use Cases**: Enables multiple configurations within single repositories (e.g., `github.com/common-repo/python/uv`, `github.com/common-repo/python/django`)
+- **Backward Compatibility**: Path field is optional, existing configurations continue to work unchanged
+- **Testing**: All existing tests pass, schema parsing correctly handles optional path field
 
 ### Recent Fixes (November 12, 2025)
 - Fixed rename operation format inconsistency: config test now uses `$1` format matching path.rs implementation
