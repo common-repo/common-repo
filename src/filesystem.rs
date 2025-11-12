@@ -16,6 +16,8 @@ pub struct File {
     pub permissions: u32,
     /// File modification time
     pub modified_time: SystemTime,
+    /// Whether this file is a template that needs processing
+    pub is_template: bool,
 }
 
 #[allow(dead_code)]
@@ -39,6 +41,7 @@ impl File {
             content,
             permissions: 0o644, // Default permissions
             modified_time: SystemTime::now(),
+            is_template: false,
         }
     }
 
@@ -136,6 +139,10 @@ impl MemoryFS {
     /// Get a file by path
     pub fn get_file<P: AsRef<Path>>(&self, path: P) -> Option<&File> {
         self.files.get(path.as_ref())
+    }
+
+    pub fn get_file_mut<P: AsRef<Path>>(&mut self, path: P) -> Option<&mut File> {
+        self.files.get_mut(path.as_ref())
     }
 
     /// Remove a file

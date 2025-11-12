@@ -1158,3 +1158,318 @@ mod tests {
         }
     }
 }
+
+/// Template operators - mark files as templates and process variable substitution
+pub mod template {
+    use super::*;
+    use crate::error::Error;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    /// Apply the template operation to mark files as templates
+    ///
+    /// This marks files matching the glob patterns that contain template variables
+    /// as templates that will be processed during the template processing phase.
+    ///
+    /// # Arguments
+    /// * `op` - The template operation configuration
+    /// * `fs` - The filesystem to mark templates in
+    ///
+    /// # Returns
+    /// Result indicating success or failure
+    pub fn mark(op: &crate::config::TemplateOp, fs: &mut MemoryFS) -> Result<()> {
+        for pattern in &op.patterns {
+            let matching_files = fs.list_files_glob(pattern)?;
+
+            for path in matching_files {
+                if let Some(file) = fs.get_file_mut(&path) {
+                    // Check if the file contains template variables
+                    if let Ok(content) = String::from_utf8(file.content.clone()) {
+                        // Simple check for ${VAR} patterns
+                        if content.contains("${") {
+                            file.is_template = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Process templates with variable substitution
+    ///
+    /// This processes all marked template files by substituting variables in the format ${VAR}
+    /// with values from the provided context. Environment variables are resolved at runtime.
+    ///
+    /// # Arguments
+    /// * `fs` - The filesystem containing template files to process
+    /// * `vars` - Variable context for substitution
+    ///
+    /// # Returns
+    /// Result indicating success or failure
+    pub fn process(fs: &mut MemoryFS, vars: &HashMap<String, String>) -> Result<()> {
+        // Find all template files
+        let template_files: Vec<PathBuf> = fs
+            .list_files()
+            .into_iter()
+            .filter(|path| {
+                fs.get_file(path)
+                    .map(|file| file.is_template)
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        for path in template_files {
+            if let Some(file) = fs.get_file_mut(&path) {
+                // Convert content to string for processing
+                let content =
+                    String::from_utf8(file.content.clone()).map_err(|e| Error::Template {
+                        message: format!(
+                            "Invalid UTF-8 in template file {}: {}",
+                            path.display(),
+                            e
+                        ),
+                    })?;
+
+                // Process variable substitution
+                let processed_content = substitute_variables(&content, vars)?;
+
+                // Update the file content
+                file.content = processed_content.into_bytes();
+                file.is_template = false; // Mark as processed
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Substitute variables in template content
+    ///
+    /// Replaces ${VAR} and ${VAR:-default} patterns with values from the context.
+    /// Environment variables are resolved at runtime.
+    ///
+    /// # Arguments
+    /// * `content` - Template content to process
+    /// * `vars` - Variable context
+    ///
+    /// # Returns
+    /// Result containing processed content
+    fn substitute_variables(content: &str, vars: &HashMap<String, String>) -> Result<String> {
+        use regex::Regex;
+
+        // Regex to match ${VAR} and ${VAR:-default} patterns
+        let re = Regex::new(r"\$\{([^:}]+)(?::-(.+?))?\}").map_err(|e| Error::Template {
+            message: format!("Invalid regex pattern: {}", e),
+        })?;
+
+        let mut result = content.to_string();
+
+        for capture in re.captures_iter(content) {
+            let var_name = capture.get(1).unwrap().as_str();
+            let default_value = capture.get(2).map(|m| m.as_str());
+
+            // First check template vars, then environment variables
+            let replacement = if let Some(value) = vars.get(var_name) {
+                value.clone()
+            } else if let Ok(env_value) = std::env::var(var_name) {
+                env_value
+            } else if let Some(default) = default_value {
+                default.to_string()
+            } else {
+                return Err(Error::Template {
+                    message: format!("Undefined variable: {}", var_name),
+                });
+            };
+
+            // Replace the match with the value
+            let match_str = capture.get(0).unwrap().as_str();
+            result = result.replace(match_str, &replacement);
+        }
+
+        Ok(result)
+    }
+}
+
+/// Template variables operator - collect unified variable context
+pub mod template_vars {
+    use super::*;
+    use std::collections::HashMap;
+
+    /// Apply the template_vars operation to collect variables
+    ///
+    /// This collects template variables from the operation, later definitions
+    /// override earlier ones, and environment variables provide values.
+    ///
+    /// # Arguments
+    /// * `op` - The template_vars operation configuration
+    /// * `context` - Existing variable context to extend
+    ///
+    /// # Returns
+    /// Result indicating success or failure
+    pub fn collect(
+        op: &crate::config::TemplateVars,
+        context: &mut HashMap<String, String>,
+    ) -> Result<()> {
+        // Add/override variables from this operation
+        for (key, value) in &op.vars {
+            context.insert(key.clone(), value.clone());
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod template_tests {
+    use super::*;
+    use crate::error::Error;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_template_mark() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("template.txt", "Hello ${NAME}!")
+            .unwrap();
+        fs.add_file_string("regular.txt", "Not a template").unwrap();
+
+        let op = crate::config::TemplateOp {
+            patterns: vec!["*.txt".to_string()],
+        };
+
+        template::mark(&op, &mut fs).unwrap();
+
+        // Check that template.txt is marked as template
+        let template_file = fs.get_file("template.txt").unwrap();
+        assert!(template_file.is_template);
+
+        // Check that regular.txt is not marked as template
+        let regular_file = fs.get_file("regular.txt").unwrap();
+        assert!(!regular_file.is_template);
+    }
+
+    #[test]
+    fn test_template_process_simple() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("template.txt", "Hello ${NAME}!")
+            .unwrap();
+
+        // Mark as template
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.txt".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        // Process with variables
+        let mut vars = HashMap::new();
+        vars.insert("NAME".to_string(), "World".to_string());
+
+        template::process(&mut fs, &vars).unwrap();
+
+        // Check result
+        let file = fs.get_file("template.txt").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(content, "Hello World!");
+        assert!(!file.is_template); // Should be unmarked after processing
+    }
+
+    #[test]
+    fn test_template_process_with_default() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("template.txt", "Hello ${NAME:-Anonymous}!")
+            .unwrap();
+
+        // Mark as template
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.txt".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        // Process without NAME variable (should use default)
+        let vars = HashMap::new();
+
+        template::process(&mut fs, &vars).unwrap();
+
+        // Check result
+        let file = fs.get_file("template.txt").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(content, "Hello Anonymous!");
+    }
+
+    #[test]
+    fn test_template_process_env_var() {
+        // Set an environment variable for testing
+        std::env::set_var("TEST_VAR", "from_env");
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("template.txt", "Value: ${TEST_VAR}")
+            .unwrap();
+
+        // Mark as template
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.txt".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        // Process without TEST_VAR in vars (should use env var)
+        let vars = HashMap::new();
+
+        template::process(&mut fs, &vars).unwrap();
+
+        // Check result
+        let file = fs.get_file("template.txt").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(content, "Value: from_env");
+
+        // Clean up
+        std::env::remove_var("TEST_VAR");
+    }
+
+    #[test]
+    fn test_template_process_undefined_var() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("template.txt", "Hello ${UNDEFINED_VAR}!")
+            .unwrap();
+
+        // Mark as template
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.txt".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        // Process without the variable
+        let vars = HashMap::new();
+
+        // Should fail with undefined variable error
+        let result = template::process(&mut fs, &vars);
+        assert!(result.is_err());
+
+        if let Err(Error::Template { message }) = result {
+            assert!(message.contains("Undefined variable"));
+        } else {
+            panic!("Expected Template error");
+        }
+    }
+
+    #[test]
+    fn test_template_vars_collect() {
+        let mut context = HashMap::new();
+        context.insert("existing".to_string(), "old_value".to_string());
+
+        let op = crate::config::TemplateVars {
+            vars: {
+                let mut vars = HashMap::new();
+                vars.insert("new_var".to_string(), "new_value".to_string());
+                vars.insert("existing".to_string(), "updated_value".to_string());
+                vars
+            },
+        };
+
+        template_vars::collect(&op, &mut context).unwrap();
+
+        // Check new variable was added
+        assert_eq!(context.get("new_var"), Some(&"new_value".to_string()));
+        // Check existing variable was updated
+        assert_eq!(context.get("existing"), Some(&"updated_value".to_string()));
+    }
+}
