@@ -64,8 +64,47 @@ SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 - **Run integration tests before major changes** - they verify real-world functionality
 - **Integration tests are disabled by default** to avoid network dependencies
 - **All tests must pass** for CI/CD to succeed (both unit and integration tests)
-- **93 unit tests** cover individual components and functions (including repository sub-path filtering)
+- **183+ unit tests** cover individual components and functions (including repository sub-path filtering)
 - **5 integration tests** validate end-to-end repository inheritance workflows
+- **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
+
+#### Test Coverage (Tarpaulin)
+
+This project uses [cargo-tarpaulin](https://github.com/xd009642/tarpaulin) for test coverage analysis:
+
+```bash
+# Install tarpaulin (if not already installed)
+cargo install cargo-tarpaulin
+
+# Generate coverage report (HTML output)
+cargo tarpaulin --out Html
+
+# Generate coverage report (terminal output)
+cargo tarpaulin
+
+# Generate coverage report with specific output format
+cargo tarpaulin --out Xml  # For CI integration
+cargo tarpaulin --out Stdout  # Terminal output
+
+# Exclude integration tests from coverage
+cargo tarpaulin --tests
+
+# Generate coverage for specific modules
+cargo tarpaulin --tests --lib
+
+# Set minimum coverage threshold (fails if below threshold)
+cargo tarpaulin --fail-under 80
+
+# Generate detailed coverage report
+cargo tarpaulin --out Html --output-dir target/tarpaulin
+```
+
+Coverage reports are generated in `target/tarpaulin/` directory. HTML reports can be viewed by opening `target/tarpaulin/tarpaulin-report.html` in a browser.
+
+**Coverage Goals:**
+- Target: 80%+ line coverage for all modules
+- Critical modules: 90%+ coverage (phases, operators, repository)
+- See `TEST_COVERAGE_ANALYSIS.md` for detailed coverage analysis and improvement areas
 
 ### Code Quality
 ```bash
