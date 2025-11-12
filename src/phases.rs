@@ -1625,23 +1625,26 @@ pub mod phase5 {
         use serde_yaml::{Mapping, Value};
 
         if path.is_empty() {
-            // Merge at root level
             merge_yaml_values(dest, source, append);
             return Ok(());
         }
 
-        // Navigate to the path in the destination
         let path_parts: Vec<&str> = path.split('.').collect();
-        let mut current = dest;
 
-        for (i, part) in path_parts.iter().enumerate() {
-            let is_last = i == path_parts.len() - 1;
+        fn recurse(
+            current: &mut Value,
+            remaining: &[&str],
+            source: &Value,
+            append: bool,
+            full_path: &str,
+        ) -> Result<()> {
+            let (part, rest) = remaining.split_first().expect("remaining path not empty");
+            let is_last = rest.is_empty();
 
             match current {
-                Value::Mapping(ref mut map) => {
+                Value::Mapping(map) => {
                     let key = Value::String(part.to_string());
                     if is_last {
-                        // This is where we merge
                         if append {
                             if let Some(existing) = map.get_mut(&key) {
                                 merge_yaml_values(existing, source, true);
@@ -1651,51 +1654,43 @@ pub mod phase5 {
                         } else {
                             map.insert(key, source.clone());
                         }
-                        return Ok(());
+                        Ok(())
                     } else {
-                        // Navigate deeper - ensure intermediate mapping exists
                         if !map.contains_key(&key) {
                             map.insert(key.clone(), Value::Mapping(Mapping::new()));
                         }
-                        // Safe to unwrap since we just ensured it exists
-                        current = map.get_mut(&key).unwrap();
+                        let entry = map.get_mut(&key).unwrap();
+                        recurse(entry, rest, source, append, full_path)
                     }
                 }
-                Value::Sequence(ref mut seq) => {
+                Value::Sequence(seq) => {
                     let index = part.parse::<usize>().map_err(|_| Error::Merge {
                         operation: "YAML merge".to_string(),
-                        message: format!("Invalid array index '{}' in path '{}'", part, path),
+                        message: format!("Invalid array index '{}' in path '{}'", part, full_path),
                     })?;
 
+                    if index >= seq.len() {
+                        seq.resize(index + 1, Value::Null);
+                    }
+
                     if is_last {
-                        // Merge into sequence at index
-                        if index >= seq.len() {
-                            // Extend sequence if needed
-                            seq.resize(index + 1, Value::Null);
-                        }
                         merge_yaml_values(&mut seq[index], source, append);
-                        return Ok(());
+                        Ok(())
                     } else {
-                        // Navigate into sequence element
-                        if index >= seq.len() {
-                            seq.resize(index + 1, Value::Null);
-                        }
-                        current = &mut seq[index];
+                        recurse(&mut seq[index], rest, source, append, full_path)
                     }
                 }
-                _ => {
-                    return Err(Error::Merge {
-                        operation: "YAML merge".to_string(),
-                        message: format!(
-                            "Cannot navigate into non-container at path segment '{}' in '{}'",
-                            part, path
-                        ),
-                    });
-                }
+                _ => Err(Error::Merge {
+                    operation: "YAML merge".to_string(),
+                    message: format!(
+                        "Cannot navigate into non-container at path segment '{}' in '{}'",
+                        part, full_path
+                    ),
+                }),
             }
         }
 
-        Ok(())
+        recurse(dest, &path_parts, source, append, path)
     }
 
     /// Merge two YAML values
@@ -1798,23 +1793,26 @@ pub mod phase5 {
         use serde_json::Value;
 
         if path.is_empty() {
-            // Merge at root level
             merge_json_values(dest, source, append);
             return Ok(());
         }
 
-        // Navigate to the path in the destination
         let path_parts: Vec<&str> = path.split('.').collect();
-        let mut current = dest;
 
-        for (i, part) in path_parts.iter().enumerate() {
-            let is_last = i == path_parts.len() - 1;
+        fn recurse(
+            current: &mut Value,
+            remaining: &[&str],
+            source: &Value,
+            append: bool,
+            full_path: &str,
+        ) -> Result<()> {
+            let (part, rest) = remaining.split_first().expect("remaining path not empty");
+            let is_last = rest.is_empty();
 
             match current {
-                Value::Object(ref mut map) => {
+                Value::Object(map) => {
                     let key = part.to_string();
                     if is_last {
-                        // This is where we merge
                         if append {
                             if let Some(existing) = map.get_mut(&key) {
                                 merge_json_values(existing, source, true);
@@ -1824,51 +1822,43 @@ pub mod phase5 {
                         } else {
                             map.insert(key, source.clone());
                         }
-                        return Ok(());
+                        Ok(())
                     } else {
-                        // Navigate deeper - ensure intermediate object exists
                         if !map.contains_key(&key) {
                             map.insert(key.clone(), Value::Object(serde_json::Map::new()));
                         }
-                        // Safe to unwrap since we just ensured it exists
-                        current = map.get_mut(&key).unwrap();
+                        let entry = map.get_mut(&key).unwrap();
+                        recurse(entry, rest, source, append, full_path)
                     }
                 }
-                Value::Array(ref mut arr) => {
+                Value::Array(arr) => {
                     let index = part.parse::<usize>().map_err(|_| Error::Merge {
                         operation: "JSON merge".to_string(),
-                        message: format!("Invalid array index '{}' in path '{}'", part, path),
+                        message: format!("Invalid array index '{}' in path '{}'", part, full_path),
                     })?;
 
+                    if index >= arr.len() {
+                        arr.resize(index + 1, Value::Null);
+                    }
+
                     if is_last {
-                        // Merge into array at index
-                        if index >= arr.len() {
-                            // Extend array if needed
-                            arr.resize(index + 1, Value::Null);
-                        }
                         merge_json_values(&mut arr[index], source, append);
-                        return Ok(());
+                        Ok(())
                     } else {
-                        // Navigate into array element
-                        if index >= arr.len() {
-                            arr.resize(index + 1, Value::Null);
-                        }
-                        current = &mut arr[index];
+                        recurse(&mut arr[index], rest, source, append, full_path)
                     }
                 }
-                _ => {
-                    return Err(Error::Merge {
-                        operation: "JSON merge".to_string(),
-                        message: format!(
-                            "Cannot navigate into non-container at path segment '{}' in '{}'",
-                            part, path
-                        ),
-                    });
-                }
+                _ => Err(Error::Merge {
+                    operation: "JSON merge".to_string(),
+                    message: format!(
+                        "Cannot navigate into non-container at path segment '{}' in '{}'",
+                        part, full_path
+                    ),
+                }),
             }
         }
 
-        Ok(())
+        recurse(dest, &path_parts, source, append, path)
     }
 
     /// Merge two JSON values
@@ -1948,11 +1938,16 @@ pub mod phase5 {
         let mut dest_toml: Value = if dest_content.is_empty() {
             Value::Table(toml::map::Map::new())
         } else {
-            let dest_str = String::from_utf8(dest_content).map_err(|_| Error::Merge {
-                operation: "TOML merge".to_string(),
-                message: format!("Invalid UTF-8 in destination TOML '{}'", toml_op.dest),
-            })?;
-            toml::from_str(&dest_str).map_err(|e| Error::Merge {
+            let dest_str = match std::str::from_utf8(&dest_content) {
+                Ok(s) => s,
+                Err(_) => {
+                    return Err(Error::Merge {
+                        operation: "TOML merge".to_string(),
+                        message: format!("Invalid UTF-8 in destination TOML '{}'", toml_op.dest),
+                    })
+                }
+            };
+            toml::from_str(dest_str).map_err(|e| Error::Merge {
                 operation: "TOML merge".to_string(),
                 message: format!("Failed to parse destination TOML '{}': {}", toml_op.dest, e),
             })?
@@ -1982,72 +1977,68 @@ pub mod phase5 {
         use toml::Value;
 
         if path.is_empty() {
-            // Merge at root level
             merge_toml_values(dest, source, append);
             return Ok(());
         }
 
-        // Navigate to the path in the destination
         let path_parts: Vec<&str> = path.split('.').collect();
-        let mut current = dest;
 
-        for (i, part) in path_parts.iter().enumerate() {
-            let is_last = i == path_parts.len() - 1;
+        fn recurse(
+            current: &mut Value,
+            remaining: &[&str],
+            source: &Value,
+            append: bool,
+            full_path: &str,
+        ) -> Result<()> {
+            use std::str::FromStr;
+
+            let (part, rest) = remaining.split_first().expect("remaining path not empty");
+            let is_last = rest.is_empty();
 
             match current {
-                Value::Table(ref mut table) => {
+                Value::Table(table) => {
                     if is_last {
-                        // This is where we merge
                         if let Some(existing) = table.get_mut(*part) {
                             merge_toml_values(existing, source, append);
                         } else {
-                            table.insert(part.to_string(), source.clone());
+                            table.insert((*part).to_string(), source.clone());
                         }
-                        return Ok(());
+                        Ok(())
                     } else {
-                        // Navigate deeper - ensure intermediate table exists
-                        if !table.contains_key(*part) {
-                            table.insert(part.to_string(), Value::Table(toml::map::Map::new()));
-                        }
-                        // Safe to unwrap since we just ensured it exists
-                        current = table.get_mut(*part).unwrap();
+                        let entry = table
+                            .entry((*part).to_string())
+                            .or_insert_with(|| Value::Table(toml::map::Map::new()));
+                        recurse(entry, rest, source, append, full_path)
                     }
                 }
-                Value::Array(ref mut array) => {
-                    let index = part.parse::<usize>().map_err(|_| Error::Merge {
+                Value::Array(array) => {
+                    let index = usize::from_str(part).map_err(|_| Error::Merge {
                         operation: "TOML merge".to_string(),
-                        message: format!("Invalid array index '{}' in path '{}'", part, path),
+                        message: format!("Invalid array index '{}' in path '{}'", part, full_path),
                     })?;
 
+                    if index >= array.len() {
+                        array.resize(index + 1, Value::String(String::new()));
+                    }
+
                     if is_last {
-                        // Merge into array at index
-                        if index >= array.len() {
-                            // Extend array if needed
-                            array.resize(index + 1, Value::String("".to_string()));
-                        }
                         merge_toml_values(&mut array[index], source, append);
-                        return Ok(());
+                        Ok(())
                     } else {
-                        // Navigate into array element
-                        if index >= array.len() {
-                            array.resize(index + 1, Value::String("".to_string()));
-                        }
-                        current = &mut array[index];
+                        recurse(&mut array[index], rest, source, append, full_path)
                     }
                 }
-                _ => {
-                    return Err(Error::Merge {
-                        operation: "TOML merge".to_string(),
-                        message: format!(
-                            "Cannot navigate into non-container at path segment '{}' in '{}'",
-                            part, path
-                        ),
-                    });
-                }
+                _ => Err(Error::Merge {
+                    operation: "TOML merge".to_string(),
+                    message: format!(
+                        "Cannot navigate into non-container at path segment '{}' in '{}'",
+                        part, full_path
+                    ),
+                }),
             }
         }
 
-        Ok(())
+        recurse(dest, &path_parts, source, append, path)
     }
 
     /// Merge two TOML values
@@ -2128,11 +2119,16 @@ pub mod phase5 {
         let mut dest_ini = if dest_content.is_empty() {
             Ini::new()
         } else {
-            let dest_str = String::from_utf8(dest_content).map_err(|_| Error::Merge {
-                operation: "INI merge".to_string(),
-                message: format!("Invalid UTF-8 in destination INI '{}'", ini_op.dest),
-            })?;
-            Ini::load_from_str(&dest_str).map_err(|e| Error::Merge {
+            let dest_str = match std::str::from_utf8(&dest_content) {
+                Ok(s) => s,
+                Err(_) => {
+                    return Err(Error::Merge {
+                        operation: "INI merge".to_string(),
+                        message: format!("Invalid UTF-8 in destination INI '{}'", ini_op.dest),
+                    })
+                }
+            };
+            Ini::load_from_str(dest_str).map_err(|e| Error::Merge {
                 operation: "INI merge".to_string(),
                 message: format!("Failed to parse destination INI '{}': {}", ini_op.dest, e),
             })?
@@ -2247,13 +2243,18 @@ pub mod phase5 {
         let dest_md = if dest_content.is_empty() {
             String::new()
         } else {
-            String::from_utf8(dest_content).map_err(|_| Error::Merge {
-                operation: "Markdown merge".to_string(),
-                message: format!(
-                    "Invalid UTF-8 in destination Markdown '{}'",
-                    markdown_op.dest
-                ),
-            })?
+            match std::str::from_utf8(&dest_content) {
+                Ok(s) => s.to_string(),
+                Err(_) => {
+                    return Err(Error::Merge {
+                        operation: "Markdown merge".to_string(),
+                        message: format!(
+                            "Invalid UTF-8 in destination Markdown '{}'",
+                            markdown_op.dest
+                        ),
+                    })
+                }
+            }
         };
 
         // Perform the merge
