@@ -133,8 +133,9 @@ pub mod repo {
     /// # Returns
     /// Result containing the processed MemoryFS with repository contents
     pub fn apply(op: &RepoOp, repo_manager: &RepositoryManager) -> Result<MemoryFS> {
-        // Fetch the repository
-        let mut fs = repo_manager.fetch_repository(&op.url, &op.r#ref)?;
+        // Fetch the repository with optional path filtering
+        let mut fs =
+            repo_manager.fetch_repository_with_path(&op.url, &op.r#ref, op.path.as_deref())?;
 
         // Apply inline with: operations if present
         if !op.with.is_empty() {
@@ -442,7 +443,12 @@ mod tests {
         }
 
         impl MockCacheOps {
+            #[allow(dead_code)]
             fn new(filesystem: MemoryFS) -> Self {
+                Self { filesystem }
+            }
+
+            fn with_filesystem(filesystem: MemoryFS) -> Self {
                 Self { filesystem }
             }
         }
@@ -456,8 +462,49 @@ mod tests {
                 std::path::PathBuf::from("/mock/cache/path")
             }
 
+            fn get_cache_path_with_path(
+                &self,
+                _url: &str,
+                _ref_name: &str,
+                _path: Option<&str>,
+            ) -> std::path::PathBuf {
+                std::path::PathBuf::from("/mock/cache/path")
+            }
+
             fn load_from_cache(&self, _cache_path: &std::path::Path) -> Result<MemoryFS> {
                 Ok(self.filesystem.clone())
+            }
+
+            fn load_from_cache_with_path(
+                &self,
+                _cache_path: &std::path::Path,
+                path: Option<&str>,
+            ) -> Result<MemoryFS> {
+                if let Some(path_filter) = path {
+                    // Apply path filtering to the stored filesystem
+                    let mut filtered_fs = MemoryFS::new();
+                    let filter_prefix = format!("{}/", path_filter.trim_matches('/'));
+
+                    for (file_path, file) in self.filesystem.files() {
+                        if file_path.starts_with(&filter_prefix) {
+                            // Calculate the relative path from the filter
+                            let relative_path =
+                                file_path.strip_prefix(&filter_prefix).unwrap_or(file_path);
+
+                            // Skip empty paths (directories themselves)
+                            if relative_path.as_os_str().is_empty() {
+                                continue;
+                            }
+
+                            filtered_fs.add_file(relative_path, file.clone())?;
+                        }
+                    }
+
+                    Ok(filtered_fs)
+                } else {
+                    // No path filter - return full filesystem
+                    Ok(self.filesystem.clone())
+                }
             }
 
             fn save_to_cache(&self, _cache_path: &std::path::Path, _fs: &MemoryFS) -> Result<()> {
@@ -477,7 +524,7 @@ mod tests {
             // Create repository manager with mock operations
             let repo_manager = RepositoryManager::with_operations(
                 Box::new(MockGitOps),
-                Box::new(MockCacheOps::new(mock_fs)),
+                Box::new(MockCacheOps::with_filesystem(mock_fs)),
             );
 
             // Create repo operation
@@ -513,7 +560,7 @@ mod tests {
             // Create repository manager with mock operations
             let repo_manager = RepositoryManager::with_operations(
                 Box::new(MockGitOps),
-                Box::new(MockCacheOps::new(mock_fs)),
+                Box::new(MockCacheOps::with_filesystem(mock_fs)),
             );
 
             // Create repo operation with with: clause that excludes .rs files
@@ -553,7 +600,7 @@ mod tests {
             // Create repository manager with mock operations
             let repo_manager = RepositoryManager::with_operations(
                 Box::new(MockGitOps),
-                Box::new(MockCacheOps::new(mock_fs)),
+                Box::new(MockCacheOps::with_filesystem(mock_fs)),
             );
 
             // Create repo operation with complex with: clause
@@ -700,6 +747,119 @@ mod tests {
                     .to_string()
                     .contains("Operation not yet implemented")
             );
+        }
+
+        #[test]
+        fn test_repo_apply_with_path_filter() {
+            // Create a mock repository with files in different directories
+            let mut mock_fs = MemoryFS::new();
+            mock_fs
+                .add_file_string("README.md", "# Root Readme")
+                .unwrap();
+            mock_fs
+                .add_file_string("uv/main.py", "uv main code")
+                .unwrap();
+            mock_fs.add_file_string("uv/lib.py", "uv lib code").unwrap();
+            mock_fs
+                .add_file_string("django/models.py", "django models")
+                .unwrap();
+
+            // Create repository manager with mock operations
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps),
+                Box::new(MockCacheOps::with_filesystem(mock_fs)),
+            );
+
+            // Create repo operation with path filter
+            let op = RepoOp {
+                url: "https://github.com/test/repo.git".to_string(),
+                r#ref: "main".to_string(),
+                path: Some("uv".to_string()),
+                with: vec![], // No with clause
+            };
+
+            // Apply the repo operation
+            let result = repo::apply(&op, &repo_manager).unwrap();
+
+            // Should contain only files from uv directory, with paths relative to uv/
+            assert!(result.exists("main.py"));
+            assert!(result.exists("lib.py"));
+            assert!(!result.exists("README.md"));
+            assert!(!result.exists("django/models.py"));
+
+            // Verify content
+            let main_content = result.get_file("main.py").unwrap();
+            assert_eq!(main_content.content, b"uv main code");
+        }
+
+        #[test]
+        fn test_repo_apply_with_path_filter_and_with_clause() {
+            // Create a mock repository with files in uv directory
+            let mut mock_fs = MemoryFS::new();
+            mock_fs
+                .add_file_string("uv/main.py", "uv main code")
+                .unwrap();
+            mock_fs
+                .add_file_string("uv/test.py", "uv test code")
+                .unwrap();
+            mock_fs.add_file_string("uv/lib.py", "uv lib code").unwrap();
+
+            // Create repository manager with mock operations
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps),
+                Box::new(MockCacheOps::with_filesystem(mock_fs)),
+            );
+
+            // Create repo operation with path filter and with: clause to exclude test files
+            let op = RepoOp {
+                url: "https://github.com/test/repo.git".to_string(),
+                r#ref: "main".to_string(),
+                path: Some("uv".to_string()),
+                with: vec![Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*test*".to_string()],
+                    },
+                }],
+            };
+
+            // Apply the repo operation
+            let result = repo::apply(&op, &repo_manager).unwrap();
+
+            // Should contain main.py and lib.py but not test.py
+            assert!(result.exists("main.py"));
+            assert!(result.exists("lib.py"));
+            assert!(!result.exists("test.py"));
+        }
+
+        #[test]
+        fn test_repo_apply_without_path_backward_compatibility() {
+            // Create a mock repository with some files
+            let mut mock_fs = MemoryFS::new();
+            mock_fs.add_file_string("README.md", "# Test Repo").unwrap();
+            mock_fs
+                .add_file_string("src/main.rs", "fn main() {}")
+                .unwrap();
+
+            // Create repository manager with mock operations
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps),
+                Box::new(MockCacheOps::with_filesystem(mock_fs)),
+            );
+
+            // Create repo operation without path (backward compatibility)
+            let op = RepoOp {
+                url: "https://github.com/test/repo.git".to_string(),
+                r#ref: "main".to_string(),
+                path: None,
+                with: vec![], // No with clause
+            };
+
+            // Apply the repo operation
+            let result = repo::apply(&op, &repo_manager).unwrap();
+
+            // Should contain all files from the repository
+            assert!(result.exists("README.md"));
+            assert!(result.exists("src/main.rs"));
         }
     }
 }
