@@ -1,0 +1,16 @@
+# Cross-repository integration configuration
+# This tests inheritance by including both simulated repos
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: implementing-the-plan
+    path: tests/testdata/simulated-repo-1
+    with:
+      - include: ["**/*"]
+      - exclude: [".git/**"]
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: implementing-the-plan
+    path: tests/testdata/simulated-repo-2
+    with:
+      - include: ["**/*"]
+      - exclude: [".git/**"]
