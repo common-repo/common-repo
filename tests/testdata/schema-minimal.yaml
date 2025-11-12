@@ -1,0 +1,9 @@
+######################
+# CommonRepo v2 schema - Minimal Edge Case
+#
+# This is a minimal valid schema with only a single repo operation.
+# Tests that the parser handles the simplest possible valid schema.
+
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: main

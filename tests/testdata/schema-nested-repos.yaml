@@ -1,0 +1,59 @@
+######################
+# CommonRepo v2 schema - Nested Repos Edge Case
+#
+# This schema tests deeply nested repo operations with multiple levels
+# of 'with' clauses. This is an edge case that tests the parser's
+# ability to handle complex nested structures.
+
+# Top-level repo with nested repos in its with clause
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: main
+    with:
+      # First nested repo operation
+      - repo:
+          url: https://github.com/common-repo/common-repo.git
+          ref: main
+          with:
+            # Deeply nested include
+            - include:
+                - "src/**"
+                - "Cargo.toml"
+            # Deeply nested exclude
+            - exclude:
+                - "target/**"
+                - ".git/**"
+      # Second operation in top-level with clause
+      - repo:
+          url: https://github.com/common-repo/common-repo.git
+          ref: main
+          with:
+            # Another level of nesting
+            - include:
+                - "README.md"
+            - rename:
+                - "(.+)": "renamed/%[1]s"
+      # Include operation at top-level with clause
+      - include:
+          - "docs/**"
+      # Exclude operation at top-level with clause
+      - exclude:
+          - "*.tmp"
+          - "*.log"
+
+# Additional top-level operations
+- include:
+    - "tests/**"
+- exclude:
+    - "**/*.swp"
+- template:
+    - "config/*.template"
+- rename:
+    - "^old/(.*)": "new/%[1]s"
+    - "(.+)\\.bak$": "%[1]s"
+- tools:
+    - rustc: ">=1.70"
+    - cargo: "*"
+- template-vars:
+    project_name: test-project
+    version: 1.0.0
