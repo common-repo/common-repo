@@ -58,6 +58,36 @@ pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Opti
 ///
 /// This converts URL characters that are problematic for filesystems
 /// into safe alternatives.
+///
+/// # Examples
+///
+/// ```
+/// use common_repo::path::encode_url_path;
+///
+/// // URL with protocol and slashes
+/// assert_eq!(
+///     encode_url_path("https://github.com/user/repo.git"),
+///     "https_--github.com-user-repo.git"
+/// );
+///
+/// // File URL with multiple slashes
+/// assert_eq!(
+///     encode_url_path("file:///path/to/repo"),
+///     "file_---path-to-repo"
+/// );
+///
+/// // Special characters are replaced with underscores
+/// assert_eq!(
+///     encode_url_path("test*file?name"),
+///     "test_file_name"
+/// );
+///
+/// // Alphanumeric and safe chars are preserved
+/// assert_eq!(
+///     encode_url_path("normal_file.txt"),
+///     "normal_file.txt"
+/// );
+/// ```
 #[allow(dead_code)]
 pub fn encode_url_path(url: &str) -> String {
     url.chars()

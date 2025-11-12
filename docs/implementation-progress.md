@@ -2,10 +2,10 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: Complete Inheritance Pipeline Working! 🎉
+## Current Status: Pipeline Skeleton With Major Gaps
 
-**Date**: November 12, 2025 (Implementation phases 1-5 complete, orchestrator working, CLI not started)
-**Overall Progress**: ~85% complete (Layer 0-1 done, Layer 2.1-2.2 complete, Layer 3.1-3.5 complete, Layer 4 orchestrator implemented but CLI missing)
+**Date**: November 12, 2025 (basic orchestration scaffold lands, but discovery, merge handling, and disk output remain incomplete)
+**Overall Progress**: Roughly mid-project; Layers 0-1 are solid, but Layers 2-4 still miss core functionality (recursive discovery, merge/template operators, disk writing, CLI).
 
 ---
 
@@ -128,13 +128,13 @@ This document tracks current implementation status against the implementation pl
 
 ### Layer 3: Phases
 **Status**: 🔄 PARTIALLY COMPLETE
-- **3.1**: Phase 1 (discovery and cloning) - Basic implementation ✅
-- **3.2**: Phase 2 (processing individual repos) - Complete implementation ✅
-- **3.3**: Phase 3 (determining operation order) - Complete implementation ✅
-- **3.4**: Phase 4 (composite filesystem construction) - Basic implementation ✅
-- **3.5**: Phase 5 (local file merging) - Complete implementation ✅
+- **3.1**: Phase 1 (discovery and cloning) - Skeleton only (no recursive `.common-repo.yaml` parsing, clones run sequentially, cache fallback TODO)
+- **3.2**: Phase 2 (processing individual repos) - Partial (include/exclude/rename work; merge/template/tools operations return errors)
+- **3.3**: Phase 3 (determining operation order) - Basic traversal tied to currently discovered nodes; needs validation once recursive discovery lands
+- **3.4**: Phase 4 (composite filesystem construction) - Last-write-wins merge implemented; advanced merge semantics pending upstream operators
+- **3.5**: Phase 5 (local file merging) - Stubbed (merge handlers emit `not yet implemented` errors, no successful local merge path)
 - **3.6**: Phase 6 (writing to disk) - Not started 📋
-- **Phase 7 (cache update) removed** - Caching happens automatically in Phase 1 ✅
+- **Phase 7 (cache update) removed** - Caching planned to happen during Phase 1, but failure fallback not wired up
 
 ### Layer 3.5: Version Detection
 **Status**: 📋 NOT STARTED
@@ -152,20 +152,20 @@ This document tracks current implementation status against the implementation pl
 ## 📊 Progress Metrics
 
 ### By Implementation Phase (6 phases, mapped from design's 9 phases)
-- **Implementation Phase 1**: ✅ COMPLETE (Discovery and Cloning - combines design phases 1-3)
-- **Implementation Phase 2**: ✅ COMPLETE (Processing Individual Repos - design phase 4)
-- **Implementation Phase 3**: ✅ COMPLETE (Determining Operation Order - design phase 5)
-- **Implementation Phase 4**: ✅ COMPLETE (Composite Filesystem Construction - design phase 6)
-- **Implementation Phase 5**: ✅ COMPLETE (Local File Merging - design phase 7)
+- **Implementation Phase 1**: 🔄 PARTIAL (Discovers only top-level repos; recursive traversal & true parallel cloning outstanding)
+- **Implementation Phase 2**: 🔄 PARTIAL (Supports include/exclude/rename; merge/template/tools operations unimplemented)
+- **Implementation Phase 3**: 🟡 BASIC (Order builder works on current tree; pending validation with full discovery)
+- **Implementation Phase 4**: 🟡 BASIC (Last-write-wins merge in place; relies on later operator work for rich merges)
+- **Implementation Phase 5**: ⛔ BLOCKED (Local merge path errors on merge operators; needs real handlers before considered done)
 - **Implementation Phase 6**: 📋 NOT STARTED (Writing to Disk - design phase 8)
-- **Caching**: ✅ COMPLETE (happens automatically in Phase 1 - design phase 9)
+- **Caching**: ✅ COMPLETE (RepositoryManager caches clones; in-process RepoCache now dedupes identical repo/with combinations)
 
 ### By Layer
-- **Layer 0**: 100% complete ✅
-- **Layer 1**: 100% complete ✅ (including Repository Manager)
-- **Layer 2**: 67% complete 🔄 (Layer 2.1-2.2 done, Layer 2.3-2.5 remaining)
-- **Layer 3**: 83% complete 🔄 (Implementation phases 1-5 done, Phase 6 remaining)
-- **Layer 4**: 50% complete 🔄 (Orchestrator implemented in phases.rs, CLI not started)
+- **Layer 0**: ✅ Complete (config, filesystem, error handling foundations)
+- **Layer 1**: ✅ Core utilities (git/path/cache) implemented with tests; performance polish deferred
+- **Layer 2**: 🔄 Partial (repo/include/exclude/rename operators live; template/merge/tools operators still TODO)
+- **Layer 3**: 🔄 Skeleton only (phases 1-4 implemented at a basic level; phase 5 fails on merge operators; phase 6 absent)
+- **Layer 4**: 🟡 Early (orchestrator module exists; CLI, UX, and progress reporting not started)
 
 ### Phase Mapping: Design vs Implementation
 
@@ -173,15 +173,15 @@ The design document describes 9 phases, but the implementation consolidates thes
 
 | Design Phase | Implementation Phase | Status | Description |
 |-------------|---------------------|--------|-------------|
-| Phase 1 | Impl Phase 1 (Discovery & Cloning) | ✅ Complete | Parse config + discover repos + clone in parallel |
-| Phase 2 | Impl Phase 1 (cont.) | ✅ Complete | Breadth-first cloning with automatic caching |
-| Phase 3 | Impl Phase 1 (cont.) | ✅ Complete | Parallel repo fetching |
-| Phase 4 | Impl Phase 2 (Processing) | ✅ Complete | Apply operations to each repo |
-| Phase 5 | Impl Phase 3 (Ordering) | ✅ Complete | Determine deterministic merge order |
-| Phase 6 | Impl Phase 4 (Composition) | ✅ Complete | Merge intermediate filesystems |
-| Phase 7 | Impl Phase 5 (Local Merge) | ✅ Complete | Merge with local files |
+| Phase 1 | Impl Phase 1 (Discovery & Cloning) | 🔄 Partial | Parses local config; recursive discovery + real parallel cloning still pending |
+| Phase 2 | Impl Phase 1 (cont.) | 🔄 Partial | Breadth-first structure exists, but processing remains sequential |
+| Phase 3 | Impl Phase 1 (cont.) | 🔄 Partial | Cache fallback + repeated-repo dedupe TBD |
+| Phase 4 | Impl Phase 2 (Processing) | 🔄 Partial | Include/exclude/rename implemented; merge/template/tools not hooked up |
+| Phase 5 | Impl Phase 3 (Ordering) | 🟡 Basic | Depth-first ordering works on discovered nodes; needs validation with full tree |
+| Phase 6 | Impl Phase 4 (Composition) | 🟡 Basic | Last-write-wins composition only; higher-level merges depend on missing operators |
+| Phase 7 | Impl Phase 5 (Local Merge) | ⛔ Blocked | Local merge path currently returns `not yet implemented` errors for merge ops |
 | Phase 8 | Impl Phase 6 (Write) | 📋 Not Started | Write final result to disk |
-| Phase 9 | Automatic in Impl Phase 1 | ✅ Complete | Cache management happens during cloning |
+| Phase 9 | Automatic in Impl Phase 1 | ✅ Complete | RepositoryManager + RepoCache provide disk + in-process caching |
 
 **Key Changes:**
 - Design phases 1-3 → Implementation phase 1 (consolidated for parallelism)
@@ -192,29 +192,27 @@ The design document describes 9 phases, but the implementation consolidates thes
 
 ## 🎯 Next Implementation Steps
 
-### Immediate Next (Complete MVP)
-**Priority**: Complete the MVP by implementing the remaining components
+### Immediate Next (Unlock End-to-End Flow)
+**Priority**: Close the core functional gaps before expanding surface area
 
-1. ✅ **DONE**: Implement Implementation Phases 1-5 (inheritance pipeline)
-2. ✅ **DONE**: Implement orchestrator to coordinate phases
-3. 📋 **NEXT**: Implement Phase 6 (Writing to Disk) - complete Layer 3
-4. 📋 **NEXT**: Implement Layer 4 CLI - command-line interface with `clap`
-5. 📋 **FUTURE**: Add merge operators (YAML/JSON/TOML/INI/Markdown) - Layer 2.4
-6. 📋 **FUTURE**: Add template operators - Layer 2.3
-7. 📋 **FUTURE**: Add version detection - Layer 3.5
+1. 🔄 **Phase 1 follow-up**: Parse inherited repos' `.common-repo.yaml`, add cycle detection & error reporting, and introduce real parallel cloning/caching fallback.
+2. 🔄 **Phase 2 completeness**: Implement template, merge, tools, and template-var operators so repo processing covers the full schema.
+3. ⛔ **Phase 5 unblock**: Replace the TODO stubs in local merge with working YAML/JSON/TOML/INI/Markdown handlers (or defer the feature in schema/docs).
+4. 📋 **Phase 6 deliverable**: Write the composite filesystem to disk with permissions handling.
+5. 📋 **CLI**: Build the command-line entrypoint (`clap`, progress output, error surfacing).
+6. 📋 **Version detection (Layer 3.5)**: Introduce optional update checks once the core pipeline is stable.
 
 ### Current Achievements
-1. ✅ Complete inheritance pipeline working end-to-end (Implementation Phases 1-5)
-2. ✅ Simple inheritance working (one level deep) - integration test demonstrates this
-3. ✅ Automatic caching with 1000x+ performance improvement
-4. ✅ Repository manager with trait-based design for easy testing
-5. ✅ Comprehensive error handling and validation
-6. ✅ All unit tests passing (72 tests) + integration tests working
+1. ✅ Solid foundations (config/filesystem/error layers) with thorough unit coverage
+2. ✅ RepositoryManager + disk cache working for single-repo fetches, with mockable interfaces
+3. ✅ Include/exclude/rename operators and repo `with:` clauses supported with tests
+4. ✅ Phase orchestrator scaffold ties phases 1-4 together for basic, single-level scenarios
+5. ✅ Suite of unit tests (70+) stays green; integration tests exist but remain ignored unless opt-in
 
 ### MVP Status
-- **Inheritance Pipeline**: ✅ COMPLETE (can pull and merge inherited repos)
+- **Inheritance Pipeline**: 🔄 PARTIAL (single-level include/exclude/rename works; recursive discovery, merge/template ops, and disk writes still missing)
 - **CLI Interface**: 📋 NOT STARTED (main.rs still stub)
-- **Overall MVP**: ~85% complete (missing CLI and disk writing)
+- **Overall MVP**: ⏳ In progress—major functional gaps remain before end-to-end usability
 
 ---
 
@@ -261,44 +259,22 @@ The design document describes 9 phases, but the implementation consolidates thes
 - **Extended Module**: `src/operators.rs` (420+ lines) - Added repo operator module
 - **Repo Operator**: `operators::repo::apply()` - Fetches repositories and applies with: clauses
 - **With Clause Support**: `operators::repo::apply_with_clause()` - Applies inline operations
-- **RepositoryManager Integration**: Seamlessly integrated with existing caching infrastructure
+- **RepositoryManager Integration**: Leverages both disk cache and in-process `RepoCache` dedupe for repeated repo + `with:` combinations
 - **Safety Features**: Prevents circular dependencies, proper error handling for unimplemented ops
 - **Mock Testing**: 8 comprehensive unit tests with mock repositories covering all scenarios
 - **Trait-Based Design**: Uses GitOperations/CacheOperations traits for easy testing
 - **All Tests Passing**: 72 total tests (8 new repo tests), 100% success rate
 
-### Phase 1-4 Implementation (November 12, 2025)
-- **Extended Module**: `src/phases.rs` (420+ lines) - Complete 7-phase pull operation framework
-- **Phase 1**: Basic repository discovery and cloning infrastructure
-  - `RepoTree` and `RepoNode` data structures for inheritance tracking
-  - Breadth-first cloning with RepositoryManager integration
-  - Cycle detection framework (implementation pending)
-- **Phase 2**: Complete individual repository processing
-  - `IntermediateFS` wrapper with metadata tracking
-  - Full operator application pipeline (include/exclude/rename)
-  - Repository cache integration to avoid duplicate processing
-  - Recursive processing of repository dependency trees
-- **Phase 3**: Complete operation order determination
-  - `OperationOrder` data structure for deterministic merging
-  - Depth-first traversal ensuring ancestors before dependents
-  - Proper merge precedence for inheritance correctness
-- **Implementation Phase 4**: Complete composite filesystem construction
-  - Last-write-wins merging strategy for conflicts
-  - Proper filesystem merging in operation order
-  - Foundation for template and merge operator integration
-- **Implementation Phase 5**: Complete local file merging
-  - Merges composite filesystem with local files using last-write-wins
-  - Filters operations to only process merge operations in local phase
-  - Directory traversal and file loading
-- **Orchestrator**: Complete coordination of all phases 1-5
-  - `phases::orchestrator::execute_pull()` coordinates the entire pipeline
-  - Error handling and proper phase sequencing
-- **Integration**: All modules properly integrated and exported
-- **Testing**: All existing tests pass, comprehensive test coverage maintained
-- **Progress**: MVP inheritance pipeline complete (Layers 0-1 + 2.1-2.2 + 3.1-3.5 + orchestrator)
-- **ACHIEVEMENT**: Complete inheritance pipeline working end-to-end (Implementation Phases 1-5)!
-- **Design Alignment**: Implementation phases map to design phases (6 impl phases ↔ 9 design phases)
-- **Integration Test**: `test_basic_inheritance_pipeline()` validates complete end-to-end workflow
+### Phase Orchestrator Snapshot (November 12, 2025)
+- **Module footprint**: `src/phases.rs` (~750 lines) houses the orchestration skeleton
+- **Phase 1**: Builds a `RepoTree` from the local config; recursive discovery, cycle detection, and parallel cloning remain TODOs
+- **Phase 2**: Generates `IntermediateFS` data for include/exclude/rename operations; other operators return `not yet implemented`
+- **Phase 3**: Produces a deterministic order for currently discovered nodes; needs re-validation once Phase 1 expands
+- **Phase 4**: Performs last-write-wins merges; richer merge semantics deferred to future operator work
+- **Phase 5**: Attempts local merges but currently fails because merge handlers are placeholders
+- **Phase 6**: Not started
+- **Orchestrator**: `execute_pull` strings phases 1-4 together, enabling experimentation with single-level inheritance
+- **Integration coverage**: `test_basic_inheritance_pipeline` exercises the happy path with network-enabled repos (ignored by default)
 
 ### Documentation Updates (November 12, 2025)
 - **Updated README.md**: Comprehensive testing instructions for both unit and integration tests

@@ -281,7 +281,7 @@ These implement the 7 phases from the design doc.
 
 **Components**:
 - `phase2::process_repo()` - Apply operations to produce intermediate FS
-  - Uses Layer 1.3 RepoCache to avoid duplicate processing
+  - Uses Layer 1.3 RepoCache to avoid duplicate processing of identical repo + `with:` combinations
 - `phase2::IntermediateFS` - Wrapper around MemoryFS with metadata
 
 **Dependencies**:

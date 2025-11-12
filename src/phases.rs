@@ -17,7 +17,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::cache::RepoCache;
+use crate::cache::{CacheKey, RepoCache};
 use crate::config::{Operation, Schema};
 use crate::error::{Error, Result};
 use crate::filesystem::MemoryFS;
@@ -287,11 +287,15 @@ impl IntermediateFS {
 pub mod phase2 {
     use super::*;
     use crate::operators;
+    use serde_yaml;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
 
     /// Execute Phase 2: Process each repository into intermediate filesystem
     ///
     /// Takes the repository tree from Phase 1 and applies each repository's operations
-    /// to produce intermediate filesystems. Uses the repo cache to avoid duplicate processing.
+    /// to produce intermediate filesystems, using the in-process `RepoCache` to avoid
+    /// re-processing identical (repo + operations) combinations.
     pub fn execute(
         tree: &RepoTree,
         repo_manager: &RepositoryManager,
@@ -332,22 +336,54 @@ pub mod phase2 {
     fn process_single_repo(
         node: &RepoNode,
         repo_manager: &RepositoryManager,
-        _cache: &RepoCache,
+        cache: &RepoCache,
     ) -> Result<IntermediateFS> {
-        let mut fs = if node.url == "local" {
-            // For local config, start with empty filesystem
-            MemoryFS::new()
-        } else {
-            // For real repositories, load from cache
-            repo_manager.fetch_repository(&node.url, &node.ref_)?
-        };
+        if let Some(cache_key) = cache_key_for_node(node)? {
+            let fs = cache.get_or_process(cache_key, || -> Result<MemoryFS> {
+                let mut fs = repo_manager.fetch_repository(&node.url, &node.ref_)?;
+                for operation in &node.operations {
+                    apply_operation(&mut fs, operation)?;
+                }
+                Ok(fs)
+            })?;
 
-        // Apply all operations to the filesystem
+            return Ok(IntermediateFS::new(fs, node.url.clone(), node.ref_.clone()));
+        }
+
+        // Local repository: process directly without caching
+        let mut fs = MemoryFS::new();
         for operation in &node.operations {
             apply_operation(&mut fs, operation)?;
         }
 
         Ok(IntermediateFS::new(fs, node.url.clone(), node.ref_.clone()))
+    }
+
+    /// Build a cache key for a repository node (includes operations fingerprint)
+    fn cache_key_for_node(node: &RepoNode) -> Result<Option<CacheKey>> {
+        if node.url == "local" {
+            return Ok(None);
+        }
+
+        if node.operations.is_empty() {
+            return Ok(Some(CacheKey::new(&node.url, &node.ref_)));
+        }
+
+        let serialized_ops = serde_yaml::to_string(&node.operations).map_err(|err| {
+            Error::Generic(format!(
+                "Failed to serialize operations for cache key ({}@{}): {}",
+                node.url, node.ref_, err
+            ))
+        })?;
+
+        let mut hasher = DefaultHasher::new();
+        serialized_ops.hash(&mut hasher);
+        let fingerprint = format!("ops-{:016x}", hasher.finish());
+
+        Ok(Some(CacheKey::new(
+            &format!("{}#{}", node.url, fingerprint),
+            &node.ref_,
+        )))
     }
 
     /// Apply a single operation to a filesystem
@@ -393,6 +429,136 @@ pub mod phase2 {
             Operation::Markdown { markdown: _ } => Err(Error::Generic(
                 "Markdown merge operations not yet implemented".to_string(),
             )),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::config::{ExcludeOp, Operation};
+        use crate::filesystem::MemoryFS;
+        use crate::repository::{CacheOperations, GitOperations, RepositoryManager};
+        use std::path::{Path, PathBuf};
+        use std::sync::{Arc, Mutex};
+
+        struct MockGitOps {
+            clone_calls: Arc<Mutex<usize>>,
+            cached_flag: Arc<Mutex<bool>>,
+        }
+
+        impl MockGitOps {
+            fn new(clone_calls: Arc<Mutex<usize>>, cached_flag: Arc<Mutex<bool>>) -> Self {
+                Self {
+                    clone_calls,
+                    cached_flag,
+                }
+            }
+        }
+
+        impl GitOperations for MockGitOps {
+            fn clone_shallow(&self, _url: &str, _ref_name: &str, _path: &Path) -> Result<()> {
+                *self.clone_calls.lock().unwrap() += 1;
+                *self.cached_flag.lock().unwrap() = true;
+                Ok(())
+            }
+
+            fn list_tags(&self, _url: &str) -> Result<Vec<String>> {
+                Ok(vec![])
+            }
+        }
+
+        struct MockCacheOps {
+            cached_flag: Arc<Mutex<bool>>,
+            filesystem: MemoryFS,
+        }
+
+        impl MockCacheOps {
+            fn new(cached_flag: Arc<Mutex<bool>>) -> Self {
+                let mut filesystem = MemoryFS::new();
+                filesystem.add_file_string("keep.txt", "important").unwrap();
+                filesystem.add_file_string("temp.tmp", "remove me").unwrap();
+
+                Self {
+                    cached_flag,
+                    filesystem,
+                }
+            }
+        }
+
+        impl CacheOperations for MockCacheOps {
+            fn exists(&self, _cache_path: &Path) -> bool {
+                *self.cached_flag.lock().unwrap()
+            }
+
+            fn get_cache_path(&self, _url: &str, _ref_name: &str) -> PathBuf {
+                PathBuf::from("/mock/cache/path")
+            }
+
+            fn load_from_cache(&self, _cache_path: &Path) -> Result<MemoryFS> {
+                Ok(self.filesystem.clone())
+            }
+
+            fn save_to_cache(&self, _cache_path: &Path, _fs: &MemoryFS) -> Result<()> {
+                *self.cached_flag.lock().unwrap() = true;
+                Ok(())
+            }
+        }
+
+        fn build_tree_with_children(children: Vec<RepoNode>) -> RepoTree {
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            for child in children {
+                root.add_child(child);
+            }
+            RepoTree::new(root)
+        }
+
+        #[test]
+        fn reuses_processed_repo_when_operations_match() {
+            let clone_calls = Arc::new(Mutex::new(0));
+            let cached_flag = Arc::new(Mutex::new(false));
+
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps::new(clone_calls.clone(), cached_flag.clone())),
+                Box::new(MockCacheOps::new(cached_flag.clone())),
+            );
+
+            let cache = RepoCache::new();
+
+            let operations = vec![Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            }];
+
+            let child1 = RepoNode::new(
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                operations.clone(),
+            );
+            let child2 = RepoNode::new(
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                operations,
+            );
+
+            let tree = build_tree_with_children(vec![child1, child2]);
+
+            let intermediate = execute(&tree, &repo_manager, &cache).expect("phase2 execute");
+
+            // One cloned repo (due to cache) and two entries (local + repo)
+            assert_eq!(
+                *clone_calls.lock().unwrap(),
+                1,
+                "expected repo to be processed only once"
+            );
+            assert_eq!(cache.len().unwrap(), 1);
+            assert_eq!(intermediate.len(), 2);
+
+            // Ensure the cached filesystem respected the exclude operation
+            let repo_key = "https://example.com/repo.git@main";
+            let repo_fs = &intermediate.get(repo_key).unwrap().fs;
+            assert!(repo_fs.exists("keep.txt"));
+            assert!(!repo_fs.exists("temp.tmp"));
         }
     }
 }
