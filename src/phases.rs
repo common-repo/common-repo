@@ -498,10 +498,12 @@ pub mod phase2 {
         }
 
         let serialized_ops = serde_yaml::to_string(&node.operations).map_err(|err| {
-            Error::Generic(format!(
-                "Failed to serialize operations for cache key ({}@{}): {}",
-                node.url, node.ref_, err
-            ))
+            Error::Serialization {
+                message: format!(
+                    "Failed to serialize operations for cache key ({}@{}): {}",
+                    node.url, node.ref_, err
+                )
+            }
         })?;
 
         let mut hasher = DefaultHasher::new();
@@ -533,30 +535,30 @@ pub mod phase2 {
                 Ok(())
             }
             // TODO: Implement other operators when they're available
-            Operation::Template { template: _ } => Err(Error::Generic(
-                "Template operations not yet implemented".to_string(),
-            )),
-            Operation::TemplateVars { template_vars: _ } => Err(Error::Generic(
-                "TemplateVars operations not yet implemented".to_string(),
-            )),
-            Operation::Tools { tools: _ } => Err(Error::Generic(
-                "Tools operations not yet implemented".to_string(),
-            )),
-            Operation::Yaml { yaml: _ } => Err(Error::Generic(
-                "YAML merge operations not yet implemented".to_string(),
-            )),
-            Operation::Json { json: _ } => Err(Error::Generic(
-                "JSON merge operations not yet implemented".to_string(),
-            )),
-            Operation::Toml { toml: _ } => Err(Error::Generic(
-                "TOML merge operations not yet implemented".to_string(),
-            )),
-            Operation::Ini { ini: _ } => Err(Error::Generic(
-                "INI merge operations not yet implemented".to_string(),
-            )),
-            Operation::Markdown { markdown: _ } => Err(Error::Generic(
-                "Markdown merge operations not yet implemented".to_string(),
-            )),
+            Operation::Template { template: _ } => Err(Error::NotImplemented {
+                feature: "Template operations".to_string(),
+            }),
+            Operation::TemplateVars { template_vars: _ } => Err(Error::NotImplemented {
+                feature: "TemplateVars operations".to_string(),
+            }),
+            Operation::Tools { tools: _ } => Err(Error::NotImplemented {
+                feature: "Tools operations".to_string(),
+            }),
+            Operation::Yaml { yaml: _ } => Err(Error::NotImplemented {
+                feature: "YAML merge operations".to_string(),
+            }),
+            Operation::Json { json: _ } => Err(Error::NotImplemented {
+                feature: "JSON merge operations".to_string(),
+            }),
+            Operation::Toml { toml: _ } => Err(Error::NotImplemented {
+                feature: "TOML merge operations".to_string(),
+            }),
+            Operation::Ini { ini: _ } => Err(Error::NotImplemented {
+                feature: "INI merge operations".to_string(),
+            }),
+            Operation::Markdown { markdown: _ } => Err(Error::NotImplemented {
+                feature: "Markdown merge operations".to_string(),
+            }),
         }
     }
 
@@ -652,10 +654,10 @@ pub mod phase2 {
             fn load_from_cache(&self, cache_path: &Path) -> Result<MemoryFS> {
                 let mut fs = MemoryFS::new();
 
-                if let Some(repo_url) = self.get_repo_key(cache_path)
-                    && let Some(config_content) = self.repo_configs.get(&repo_url)
-                {
-                    fs.add_file_string(".common-repo.yaml", config_content)?;
+                if let Some(repo_url) = self.get_repo_key(cache_path) {
+                    if let Some(config_content) = self.repo_configs.get(&repo_url) {
+                        fs.add_file_string(".common-repo.yaml", config_content)?;
+                    }
                 }
 
                 Ok(fs)
@@ -1351,10 +1353,12 @@ pub mod phase4 {
                 merge_filesystem(&mut composite_fs, &intermediate_fs.fs)?;
             } else {
                 // This shouldn't happen if Phase 2 and Phase 3 are implemented correctly
-                return Err(Error::Generic(format!(
-                    "Missing intermediate filesystem for repository: {}",
-                    repo_key
-                )));
+                return Err(Error::Filesystem {
+                    message: format!(
+                        "Missing intermediate filesystem for repository: {}",
+                        repo_key
+                    )
+                });
             }
         }
 
@@ -1466,10 +1470,12 @@ pub mod phase5 {
 
             // Get relative path from working directory
             let relative_path = file_path.strip_prefix(working_dir).map_err(|_| {
-                Error::Generic(format!(
-                    "Failed to make path relative: {}",
-                    file_path.display()
-                ))
+                Error::Path {
+                    message: format!(
+                        "Failed to make path relative: {}",
+                        file_path.display()
+                    )
+                }
             })?;
 
             // Skip common-repo config file and hidden files/directories
@@ -1483,11 +1489,13 @@ pub mod phase5 {
 
             // Read file content
             let content = std::fs::read(file_path).map_err(|e| {
-                Error::Generic(format!(
-                    "Failed to read local file {}: {}",
-                    file_path.display(),
-                    e
-                ))
+                Error::Filesystem {
+                    message: format!(
+                        "Failed to read local file {}: {}",
+                        file_path.display(),
+                        e
+                    )
+                }
             })?;
 
             // Add to filesystem with relative path
@@ -1548,9 +1556,9 @@ pub mod phase5 {
                 }
                 // Template operations would go here when implemented
                 Operation::Template { .. } | Operation::TemplateVars { .. } => {
-                    return Err(Error::Generic(
-                        "Template operations not yet implemented".to_string(),
-                    ));
+                    return Err(Error::NotImplemented {
+                        feature: "Template operations".to_string(),
+                    });
                 }
                 // This should never happen due to filtering above
                 _ => unreachable!("Filtered operations should only include merge operations"),
@@ -1562,33 +1570,33 @@ pub mod phase5 {
     /// Apply a YAML merge operation to the filesystem
     fn apply_yaml_merge_operation(_fs: &mut MemoryFS, _yaml_op: &YamlMergeOp) -> Result<()> {
         // TODO: Implement YAML merge operations
-        Err(Error::Generic(
-            "YAML merge operations not yet implemented".to_string(),
-        ))
+        Err(Error::NotImplemented {
+            feature: "YAML merge operations".to_string(),
+        })
     }
 
     /// Apply a JSON merge operation to the filesystem
     fn apply_json_merge_operation(_fs: &mut MemoryFS, _json_op: &JsonMergeOp) -> Result<()> {
         // TODO: Implement JSON merge operations
-        Err(Error::Generic(
-            "JSON merge operations not yet implemented".to_string(),
-        ))
+        Err(Error::NotImplemented {
+            feature: "JSON merge operations".to_string(),
+        })
     }
 
     /// Apply a TOML merge operation to the filesystem
     fn apply_toml_merge_operation(_fs: &mut MemoryFS, _toml_op: &TomlMergeOp) -> Result<()> {
         // TODO: Implement TOML merge operations
-        Err(Error::Generic(
-            "TOML merge operations not yet implemented".to_string(),
-        ))
+        Err(Error::NotImplemented {
+            feature: "TOML merge operations".to_string(),
+        })
     }
 
     /// Apply an INI merge operation to the filesystem
     fn apply_ini_merge_operation(_fs: &mut MemoryFS, _ini_op: &IniMergeOp) -> Result<()> {
         // TODO: Implement INI merge operations
-        Err(Error::Generic(
-            "INI merge operations not yet implemented".to_string(),
-        ))
+        Err(Error::NotImplemented {
+            feature: "INI merge operations".to_string(),
+        })
     }
 
     /// Apply a Markdown merge operation to the filesystem
@@ -1597,9 +1605,9 @@ pub mod phase5 {
         _markdown_op: &MarkdownMergeOp,
     ) -> Result<()> {
         // TODO: Implement Markdown merge operations
-        Err(Error::Generic(
-            "Markdown merge operations not yet implemented".to_string(),
-        ))
+        Err(Error::NotImplemented {
+            feature: "Markdown merge operations".to_string(),
+        })
     }
 }
 
@@ -1608,7 +1616,9 @@ pub mod phase6 {
 
     pub fn execute(_final_fs: &MemoryFS, _output_path: &std::path::Path) -> Result<()> {
         // TODO: Implement Phase 6 - Writing to Disk
-        Err(Error::Generic("Phase 6 not yet implemented".to_string()))
+        Err(Error::NotImplemented {
+            feature: "Phase 6 - Writing to Disk".to_string(),
+        })
     }
 }
 
@@ -1880,10 +1890,10 @@ mod phase_tests {
 
             let result = phase4::execute(&order, &intermediate_fss);
             assert!(result.is_err());
-            if let Err(Error::Generic(msg)) = result {
+            if let Err(Error::Filesystem { message: msg }) = result {
                 assert!(msg.contains("Missing intermediate filesystem"));
             } else {
-                panic!("Expected Generic error");
+                panic!("Expected Filesystem error");
             }
         }
     }

@@ -61,16 +61,17 @@ pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Opti
         let mut chars = replacement.chars().peekable();
 
         while let Some(ch) = chars.next() {
-            if ch == '$'
-                && let Some(digit_char) = chars.peek()
-                && digit_char.is_ascii_digit()
-            {
-                let digit = digit_char.to_digit(10).unwrap() as usize;
-                chars.next(); // consume the digit
-                if let Some(capture) = captures.get(digit) {
-                    expanded_replacement.push_str(capture.as_str());
+            if ch == '$' {
+                if let Some(digit_char) = chars.peek() {
+                    if digit_char.is_ascii_digit() {
+                        let digit = digit_char.to_digit(10).unwrap() as usize;
+                        chars.next(); // consume the digit
+                        if let Some(capture) = captures.get(digit) {
+                            expanded_replacement.push_str(capture.as_str());
+                        }
+                        continue;
+                    }
                 }
-                continue;
             }
             expanded_replacement.push(ch);
         }

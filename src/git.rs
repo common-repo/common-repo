@@ -120,9 +120,21 @@ pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result
                     let metadata = entry.metadata()?;
 
                     // Create File with basic metadata
+                    let permissions = {
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::fs::PermissionsExt;
+                            metadata.permissions().mode()
+                        }
+                        #[cfg(not(unix))]
+                        {
+                            0o644 // Default permissions on non-Unix systems
+                        }
+                    };
+
                     let file = File {
                         content,
-                        permissions: 0o644, // Default permissions, TODO: Check actual permissions
+                        permissions,
                         modified_time: metadata
                             .modified()
                             .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
@@ -136,9 +148,21 @@ pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result
                     let metadata = entry.metadata()?;
 
                     // Create File with basic metadata
+                    let permissions = {
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::fs::PermissionsExt;
+                            metadata.permissions().mode()
+                        }
+                        #[cfg(not(unix))]
+                        {
+                            0o644 // Default permissions on non-Unix systems
+                        }
+                    };
+
                     let file = File {
                         content,
-                        permissions: 0o644, // Default permissions, TODO: Check actual permissions
+                        permissions,
                         modified_time: metadata
                             .modified()
                             .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
@@ -174,8 +198,13 @@ pub fn save_to_cache(cache_dir: &Path, fs: &MemoryFS) -> Result<(), Error> {
 
         fs::write(&full_path, &file.content)?;
 
-        // TODO: Set file permissions based on file.permissions
-        // Currently we don't set permissions, just write the content
+        // Set file permissions based on file.permissions
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(file.permissions);
+            std::fs::set_permissions(&full_path, perms)?;
+        }
     }
 
     Ok(())
@@ -726,10 +755,19 @@ mod tests {
 
         let file_path = cache_dir.join("test.txt");
         assert!(file_path.exists());
-        // Note: File permissions are not currently set by save_to_cache
-        // This test verifies the file is written correctly
-        let content = fs::read_to_string(file_path).unwrap();
+
+        // Verify file content
+        let content = fs::read_to_string(&file_path).unwrap();
         assert_eq!(content, "content");
+
+        // Verify file permissions are set correctly on Unix systems
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let metadata = fs::metadata(&file_path).unwrap();
+            let permissions = metadata.permissions().mode();
+            assert_eq!(permissions & 0o777, 0o755); // Check permission bits
+        }
     }
 
     #[test]

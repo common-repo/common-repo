@@ -172,10 +172,10 @@ impl MemoryFS {
         let mut matches = Vec::new();
 
         for path in self.files.keys() {
-            if let Some(path_str) = path.to_str()
-                && pattern.matches(path_str)
-            {
-                matches.push(path.clone());
+            if let Some(path_str) = path.to_str() {
+                if pattern.matches(path_str) {
+                    matches.push(path.clone());
+                }
             }
         }
 

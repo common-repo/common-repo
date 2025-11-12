@@ -246,9 +246,9 @@ pub fn parse_original_format(yaml_content: &str) -> Result<Schema> {
             let operation = convert_yaml_mapping_to_operation(map)?;
             operations.push(operation);
         } else {
-            return Err(Error::Generic(
-                "Expected YAML mapping for operation".to_string(),
-            ));
+            return Err(Error::ConfigParse {
+                message: "Expected YAML mapping for operation".to_string(),
+            });
         }
     }
 
@@ -260,11 +260,15 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
     let mut iter = map.into_iter();
     let (key, value) = iter
         .next()
-        .ok_or_else(|| Error::Generic("Empty operation mapping".to_string()))?;
+        .ok_or_else(|| Error::ConfigParse {
+            message: "Empty operation mapping".to_string(),
+        })?;
 
     let op_type = key
         .as_str()
-        .ok_or_else(|| Error::Generic("Operation key must be string".to_string()))?;
+        .ok_or_else(|| Error::ConfigParse {
+            message: "Operation key must be string".to_string(),
+        })?;
 
     match op_type {
         "repo" => {
@@ -273,21 +277,25 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             let mut repo_map = match value {
                 serde_yaml::Value::Mapping(m) => m,
                 _ => {
-                    return Err(Error::Generic(
-                        "Repo operation must be a mapping".to_string(),
-                    ));
+                    return Err(Error::ConfigParse {
+                        message: "Repo operation must be a mapping".to_string(),
+                    });
                 }
             };
 
             let url = repo_map
                 .remove(serde_yaml::Value::String("url".to_string()))
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .ok_or_else(|| Error::Generic("Repo operation missing url".to_string()))?;
+                .ok_or_else(|| Error::ConfigParse {
+                    message: "Repo operation missing url".to_string(),
+                })?;
 
             let r#ref = repo_map
                 .remove(serde_yaml::Value::String("ref".to_string()))
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .ok_or_else(|| Error::Generic("Repo operation missing ref".to_string()))?;
+                .ok_or_else(|| Error::ConfigParse {
+                    message: "Repo operation missing ref".to_string(),
+                })?;
 
             let path = repo_map
                 .remove(serde_yaml::Value::String("path".to_string()))
@@ -304,14 +312,16 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                                 let op = convert_yaml_mapping_to_operation(map)?;
                                 with_ops.push(op);
                             } else {
-                                return Err(Error::Generic(
-                                    "With clause items must be mappings".to_string(),
-                                ));
+                                return Err(Error::ConfigParse {
+                                    message: "With clause items must be mappings".to_string(),
+                                });
                             }
                         }
                         with_ops
                     }
-                    _ => return Err(Error::Generic("With clause must be a sequence".to_string())),
+                    _ => return Err(Error::ConfigParse {
+                        message: "With clause must be a sequence".to_string(),
+                    }),
                 }
             } else {
                 Vec::new()
@@ -361,7 +371,9 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                         .map(|map| {
                             let mut iter = map.into_iter();
                             let (from, to) = iter.next().ok_or_else(|| {
-                                Error::Generic("Empty rename mapping".to_string())
+                                Error::ConfigParse {
+                                    message: "Empty rename mapping".to_string(),
+                                }
                             })?;
                             Ok(RenameMapping { from, to })
                         })
@@ -390,7 +402,9 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                         .map(|map| {
                             let mut iter = map.into_iter();
                             let (name, version) = iter.next().ok_or_else(|| {
-                                Error::Generic("Empty tool specification".to_string())
+                                Error::ConfigParse {
+                                    message: "Empty tool specification".to_string(),
+                                }
                             })?;
                             Ok(Tool { name, version })
                         })
@@ -437,10 +451,9 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             let markdown: MarkdownMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Markdown { markdown })
         }
-        _ => Err(Error::Generic(format!(
-            "Unknown operation type: {}",
-            op_type
-        ))),
+        _ => Err(Error::ConfigParse {
+            message: format!("Unknown operation type: {}", op_type),
+        }),
     }
 }
 
