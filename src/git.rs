@@ -1,3 +1,36 @@
+//! # Git Operations
+//!
+//! This module provides functionality for interacting with Git repositories. It
+//! is designed as a thin wrapper around the system's `git` command-line tool,
+//! which allows it to seamlessly integrate with the user's existing Git
+//! configuration, including authentication methods like SSH keys and credential
+//! helpers.
+//!
+//! ## Key Functions
+//!
+//! - **`clone_shallow`**: Performs a shallow clone of a repository at a specific
+//!   branch, tag, or commit. This is optimized for speed and disk space by
+//!   only fetching the most recent commit.
+//!
+//! - **`load_from_cache`**: Loads the contents of a cached repository from the
+//!   filesystem into an in-memory `MemoryFS`, which can then be manipulated by
+//!   the application.
+//!
+//! - **`save_to_cache`**: Saves the contents of a `MemoryFS` to a directory on
+//!   the host filesystem, which is used for caching repositories.
+//!
+//! - **`url_to_cache_path`**: Generates a unique, filesystem-safe path for a
+//!   cached repository based on its URL, reference, and any optional sub-path.
+//!
+//! - **`list_tags`**: Queries a remote repository to get a list of all its tags,
+//!   which is used for version checking and updates.
+//!
+//! - **`parse_semver_tag`**: A utility function for parsing Git tags into
+//!   semantic versions, which is crucial for the update-checking functionality.
+//!
+//! By using the system's `git` command, this module avoids the need to
+//! re-implement complex Git logic and ensures that it can handle a wide variety
+//! of repository configurations and authentication setups.
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -67,16 +100,20 @@ pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(),
     Ok(())
 }
 
-/// Load a cached repository into MemoryFS
+/// Loads the contents of a cached repository from a directory on the host
+/// filesystem into an in-memory `MemoryFS`.
 #[allow(dead_code)]
 pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
     load_from_cache_with_path(cache_dir, None)
 }
 
-/// Load a cached repository into MemoryFS with optional path filtering
+/// Loads a cached repository into a `MemoryFS`, with an option to filter by
+/// a sub-path.
 ///
-/// When a path is specified, only files under that sub-directory are loaded,
-/// and the specified path becomes the effective filesystem root.
+/// If a `path` is specified, only the files within that sub-directory of the
+/// repository will be loaded. Additionally, the paths of the loaded files
+/// will be remapped to be relative to the specified `path`, effectively making
+/// it the new root of the in-memory filesystem.
 #[allow(dead_code)]
 pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result<MemoryFS, Error> {
     let mut fs = MemoryFS::new();
@@ -181,7 +218,11 @@ pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result
     Ok(fs)
 }
 
-/// Save repository to cache directory
+/// Saves the contents of a `MemoryFS` to a directory on the host filesystem.
+///
+/// This function is used to cache the contents of a repository after it has
+/// been cloned and processed. It will create the necessary directory structure
+/// and preserve the file permissions (on Unix-like systems).
 #[allow(dead_code)]
 pub fn save_to_cache(cache_dir: &Path, fs: &MemoryFS) -> Result<(), Error> {
     // Create cache directory if it doesn't exist
@@ -212,13 +253,18 @@ pub fn save_to_cache(cache_dir: &Path, fs: &MemoryFS) -> Result<(), Error> {
     Ok(())
 }
 
-/// Convert URL and ref to cache path
+/// Generates a filesystem-safe cache path for a repository based on its URL
+/// and Git reference.
 #[allow(dead_code)]
 pub fn url_to_cache_path(cache_root: &Path, url: &str, ref_name: &str) -> PathBuf {
     url_to_cache_path_with_path(cache_root, url, ref_name, None)
 }
 
-/// Convert URL, ref, and optional sub-path to cache path
+/// Generates a filesystem-safe cache path that uniquely identifies a repository
+/// by its URL, Git reference, and an optional sub-path.
+///
+/// This ensures that different sub-paths from the same repository and reference
+/// are cached separately.
 #[allow(dead_code)]
 pub fn url_to_cache_path_with_path(
     cache_root: &Path,
@@ -253,7 +299,9 @@ pub fn url_to_cache_path_with_path(
     cache_root.join(cache_key)
 }
 
-/// List all tags from a remote repository
+/// Retrieves a list of all tags from a remote Git repository.
+///
+/// This is used to check for available updates for a repository.
 #[allow(dead_code)]
 pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
     let output = Command::new("git")
@@ -295,7 +343,11 @@ pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
     Ok(tags)
 }
 
-/// Parse a tag string into a semantic version
+/// Parses a Git tag string into a `semver::Version`.
+///
+/// This function is designed to handle common tag formats, such as `v1.2.3`
+/// and `1.2.3`. It will return `None` if the tag does not conform to a
+/// semantic versioning format.
 ///
 /// # Examples
 ///

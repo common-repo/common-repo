@@ -1,4 +1,17 @@
-//! CLI argument parsing and command dispatch
+//! # CLI Argument Parsing and Command Dispatch
+//!
+//! This module defines the command-line interface for the `common-repo` tool
+//! using the `clap` library. It is responsible for:
+//!
+//! - Defining the top-level CLI structure, including global arguments like
+//!   `--color` and `--log-level`.
+//! - Defining the available subcommands (e.g., `apply`, `check`, `update`).
+//! - Parsing the command-line arguments provided by the user.
+//! - Dispatching to the appropriate command implementation based on the
+//!   parsed arguments.
+//!
+//! Each subcommand is implemented in its own module under `src/commands/` to
+//! keep the code organized and maintainable.
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -45,10 +58,11 @@ enum Commands {
 }
 
 impl Cli {
-    /// Execute the CLI command
+    /// Execute the parsed CLI command
     pub fn execute(self) -> Result<()> {
-        // TODO: Set up logging based on log_level
-        // TODO: Set up color output based on color flag
+        // TODO: Initialize a logger (e.g., env_logger) based on `self.log_level`.
+        // TODO: Configure color output for the terminal using a library like `termcolor`
+        //       based on `self.color`.
 
         match self.command {
             Commands::Apply(args) => commands::apply::execute(args),

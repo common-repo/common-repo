@@ -1,4 +1,35 @@
-//! In-memory filesystem implementation for file manipulation
+//! # In-Memory Filesystem
+//!
+//! This module provides an in-memory filesystem implementation that is used
+//! throughout the `common-repo` application to stage and manipulate files
+//! before writing them to the host filesystem. This approach allows for
+//! complex file operations, dry runs, and consistent behavior across different
+//! operating systems.
+//!
+//! ## Key Components
+//!
+//! - **`MemoryFS`**: The main struct that represents the in-memory filesystem.
+//!   It stores files in a `HashMap` where the keys are `PathBuf`s representing
+//!   the file paths and the values are `File` structs.
+//!
+//! - **`File`**: A struct that represents a single file, containing its content
+//!   as a `Vec<u8>` and associated metadata like permissions and modification
+//!   time.
+//!
+//! ## Functionality
+//!
+//! The `MemoryFS` provides a comprehensive set of methods for file manipulation,
+//! including:
+//!
+//! - Adding, retrieving, and removing files.
+//! - Checking for the existence of a file.
+//! - Listing all files or a subset of files that match a glob pattern.
+//! - Renaming and copying files.
+//! - Merging one filesystem into another.
+//!
+//! This in-memory representation is a crucial component of the multi-phase
+//! pipeline, as it allows each phase to operate on a consistent and isolated
+//! view of the filesystem.
 
 use crate::error::{Error, Result};
 use glob::Pattern;
@@ -10,19 +41,22 @@ use std::time::SystemTime;
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct File {
-    /// File content as bytes
+    /// The raw byte content of the file.
     pub content: Vec<u8>,
-    /// File permissions (simplified as u32)
+    /// The file's permissions, represented in a Unix-like mode format.
     pub permissions: u32,
-    /// File modification time
+    /// The last modification time of the file.
     pub modified_time: SystemTime,
-    /// Whether this file is a template that needs processing
+    /// A flag indicating whether this file should be processed as a template.
     pub is_template: bool,
 }
 
 #[allow(dead_code)]
 impl File {
-    /// Create a new file with content
+    /// Creates a new `File` with the given content.
+    ///
+    /// By default, the file is created with `0o644` permissions and the current
+    /// system time as the modification time.
     ///
     /// # Examples
     ///
@@ -39,13 +73,15 @@ impl File {
     pub fn new(content: Vec<u8>) -> Self {
         Self {
             content,
-            permissions: 0o644, // Default permissions
+            permissions: 0o644, // Default to standard file permissions
             modified_time: SystemTime::now(),
             is_template: false,
         }
     }
 
-    /// Create a new file from string content
+    /// Creates a new `File` from a string slice.
+    ///
+    /// The string is converted to bytes using UTF-8 encoding.
     ///
     /// # Examples
     ///
@@ -61,7 +97,7 @@ impl File {
         Self::new(content.as_bytes().to_vec())
     }
 
-    /// Get file size in bytes
+    /// Returns the size of the file's content in bytes.
     ///
     /// # Examples
     ///
@@ -79,7 +115,11 @@ impl File {
     }
 }
 
-/// In-memory filesystem for fast file manipulation
+/// An in-memory filesystem that stores files and their content.
+///
+/// This struct provides a virtual filesystem that can be manipulated without
+/// affecting the host filesystem, which is essential for staging changes and
+/// performing dry runs.
 #[derive(Debug, Clone, Default)]
 #[allow(dead_code)]
 pub struct MemoryFS {
@@ -89,7 +129,7 @@ pub struct MemoryFS {
 
 #[allow(dead_code)]
 impl MemoryFS {
-    /// Create a new empty filesystem
+    /// Creates a new, empty `MemoryFS`.
     ///
     /// # Examples
     ///
@@ -104,19 +144,21 @@ impl MemoryFS {
         Self::default()
     }
 
-    /// Add or update a file
+    /// Adds a file to the filesystem.
+    ///
+    /// If a file already exists at the given path, it will be overwritten.
     pub fn add_file<P: AsRef<Path>>(&mut self, path: P, file: File) -> Result<()> {
         let path = path.as_ref().to_path_buf();
         self.files.insert(path, file);
         Ok(())
     }
 
-    /// Add a file with content
+    /// A convenience method to add a file with raw byte content.
     pub fn add_file_content<P: AsRef<Path>>(&mut self, path: P, content: Vec<u8>) -> Result<()> {
         self.add_file(path, File::new(content))
     }
 
-    /// Add a file with string content
+    /// A convenience method to add a file with string content.
     ///
     /// # Examples
     ///
@@ -136,21 +178,22 @@ impl MemoryFS {
         self.add_file(path, File::from_string(content))
     }
 
-    /// Get a file by path
+    /// Retrieves a reference to a file in the filesystem.
     pub fn get_file<P: AsRef<Path>>(&self, path: P) -> Option<&File> {
         self.files.get(path.as_ref())
     }
 
+    /// Retrieves a mutable reference to a file in the filesystem.
     pub fn get_file_mut<P: AsRef<Path>>(&mut self, path: P) -> Option<&mut File> {
         self.files.get_mut(path.as_ref())
     }
 
-    /// Remove a file
+    /// Removes a file from the filesystem, returning it if it existed.
     pub fn remove_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Option<File>> {
         Ok(self.files.remove(path.as_ref()))
     }
 
-    /// Check if a file exists
+    /// Checks if a file exists at the given path.
     ///
     /// # Examples
     ///
@@ -168,12 +211,12 @@ impl MemoryFS {
         self.files.contains_key(path.as_ref())
     }
 
-    /// List all files
+    /// Returns a list of all file paths in the filesystem.
     pub fn list_files(&self) -> Vec<PathBuf> {
         self.files.keys().cloned().collect()
     }
 
-    /// List files matching a glob pattern
+    /// Returns a list of file paths that match the given glob pattern.
     pub fn list_files_glob(&self, pattern: &str) -> Result<Vec<PathBuf>> {
         let pattern = Pattern::new(pattern).map_err(Error::Glob)?;
         let mut matches = Vec::new();
@@ -189,7 +232,10 @@ impl MemoryFS {
         Ok(matches)
     }
 
-    /// Rename a file
+    /// Renames a file from one path to another.
+    ///
+    /// Returns an error if the `from` path does not exist. If the `to` path
+    /// already exists, it will be overwritten.
     ///
     /// # Examples
     ///
@@ -218,7 +264,10 @@ impl MemoryFS {
         }
     }
 
-    /// Copy a file
+    /// Copies a file from one path to another.
+    ///
+    /// Returns an error if the `from` path does not exist. If the `to` path
+    /// already exists, it will be overwritten.
     pub fn copy_file<P: AsRef<Path>, Q: AsRef<Path>>(&mut self, from: P, to: Q) -> Result<()> {
         let from_path = from.as_ref();
         let to_path = to.as_ref();
@@ -233,22 +282,25 @@ impl MemoryFS {
         }
     }
 
-    /// Get the number of files
+    /// Returns the number of files in the filesystem.
     pub fn len(&self) -> usize {
         self.files.len()
     }
 
-    /// Check if filesystem is empty
+    /// Returns `true` if the filesystem contains no files.
     pub fn is_empty(&self) -> bool {
         self.files.is_empty()
     }
 
-    /// Clear all files
+    /// Removes all files from the filesystem.
     pub fn clear(&mut self) {
         self.files.clear();
     }
 
-    /// Merge another filesystem into this one (last-write-wins)
+    /// Merges another `MemoryFS` into this one.
+    ///
+    /// If a file exists in both filesystems, the one from `other` will
+    /// overwrite the one in `self` (last-write-wins).
     ///
     /// # Examples
     ///
@@ -260,6 +312,7 @@ impl MemoryFS {
     ///
     /// let mut fs2 = MemoryFS::new();
     /// fs2.add_file_string("file2.txt", "content2").unwrap();
+    /// fs2.add_file_string("file1.txt", "overwritten").unwrap(); // Should overwrite
     ///
     /// fs1.merge(&fs2);
     ///
@@ -273,7 +326,7 @@ impl MemoryFS {
         }
     }
 
-    /// Iterate over all files as (path, file) pairs
+    /// Returns an iterator over the `(path, file)` pairs in the filesystem.
     pub fn files(&self) -> impl Iterator<Item = (&PathBuf, &File)> {
         self.files.iter()
     }

@@ -1,4 +1,33 @@
-//! In-process caching of processed repositories
+//! # In-Process Caching
+//!
+//! This module provides an in-process, thread-safe cache for storing processed
+//! repositories. The primary goal of this cache is to avoid redundant processing
+//! of the same repository (with the same operations) within a single run of the
+//! `common-repo` application.
+//!
+//! ## Caching Strategy
+//!
+//! This in-process cache is one of two caching layers in the application:
+//!
+//! 1.  **Disk Cache (`.common-repo/cache`)**: This is the primary, persistent
+//!     cache that stores the cloned contents of repositories on the filesystem.
+//!     It is managed by the `RepositoryManager`.
+//!
+//! 2.  **In-Process Cache (`RepoCache`)**: This is a secondary, in-memory cache
+//!     that stores the `MemoryFS` of a repository *after* its operations have
+//!     been applied. This is useful in complex inheritance scenarios where the
+//!     same repository might be referenced multiple times with the same set of
+//!     `with:` clause operations.
+//!
+//! The `RepoCache` is implemented using a `HashMap` wrapped in an `Arc<Mutex>`,
+//! which allows it to be shared safely across multiple threads.
+//!
+//! ## Key Components
+//!
+//! - **`RepoCache`**: The main struct that provides the caching functionality.
+//!
+//! - **`CacheKey`**: A struct that uniquely identifies a cached item based on
+//!   the repository's URL and Git reference.
 
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -11,13 +40,15 @@ use crate::filesystem::MemoryFS;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 pub struct CacheKey {
+    /// The URL of the repository.
     pub url: String,
+    /// The Git reference (e.g., branch, tag, commit hash).
     pub r#ref: String,
 }
 
 #[allow(dead_code)]
 impl CacheKey {
-    /// Create a new cache key from a URL and reference
+    /// Creates a new `CacheKey` from a URL and a Git reference.
     ///
     /// # Examples
     ///
@@ -41,7 +72,11 @@ impl CacheKey {
     }
 }
 
-/// In-process cache for processed repositories
+/// A thread-safe, in-process cache for storing processed repositories as
+/// `MemoryFS` instances.
+///
+/// This cache is used to avoid re-processing the same repository with the same
+/// operations within a single application run.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct RepoCache {
@@ -50,14 +85,19 @@ pub struct RepoCache {
 
 #[allow(dead_code)]
 impl RepoCache {
-    /// Create a new empty repository cache
+    /// Creates a new, empty `RepoCache`.
     pub fn new() -> Self {
         Self {
             cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    /// Get a cached repository, or compute and cache it if not present
+    /// Retrieves a `MemoryFS` from the cache. If it's not present, the
+    /// `processor` closure is executed to generate it, and the result is
+    /// then stored in the cache before being returned.
+    ///
+    /// This ensures that the expensive processing of a repository is only
+    /// performed once for each unique `CacheKey`.
     pub fn get_or_process<F>(&self, key: CacheKey, processor: F) -> Result<MemoryFS>
     where
         F: FnOnce() -> Result<MemoryFS>,
@@ -86,7 +126,9 @@ impl RepoCache {
         Ok(result)
     }
 
-    /// Manually insert a value into the cache
+    /// Inserts a `MemoryFS` into the cache for a given `CacheKey`.
+    ///
+    /// If an entry for the key already exists, it will be overwritten.
     pub fn insert(&self, key: CacheKey, value: MemoryFS) -> Result<()> {
         let mut cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
             context: "Cache lock".to_string(),
@@ -95,7 +137,8 @@ impl RepoCache {
         Ok(())
     }
 
-    /// Get a value from cache without computing
+    /// Retrieves a `MemoryFS` from the cache for a given `CacheKey`, if it
+    /// exists.
     pub fn get(&self, key: &CacheKey) -> Result<Option<MemoryFS>> {
         let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
             context: "Cache lock".to_string(),
@@ -103,7 +146,7 @@ impl RepoCache {
         Ok(cache.get(key).cloned())
     }
 
-    /// Check if a key exists in cache
+    /// Checks if the cache contains an entry for the given `CacheKey`.
     pub fn contains(&self, key: &CacheKey) -> Result<bool> {
         let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
             context: "Cache lock".to_string(),
@@ -111,7 +154,7 @@ impl RepoCache {
         Ok(cache.contains_key(key))
     }
 
-    /// Clear all cached entries
+    /// Removes all entries from the cache.
     pub fn clear(&self) -> Result<()> {
         let mut cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
             context: "Cache lock".to_string(),
@@ -120,7 +163,7 @@ impl RepoCache {
         Ok(())
     }
 
-    /// Get the number of cached entries
+    /// Returns the number of entries currently in the cache.
     pub fn len(&self) -> Result<usize> {
         let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
             context: "Cache lock".to_string(),
@@ -128,7 +171,7 @@ impl RepoCache {
         Ok(cache.len())
     }
 
-    /// Check if cache is empty
+    /// Returns `true` if the cache contains no entries.
     pub fn is_empty(&self) -> Result<bool> {
         let cache = self.cache.lock().map_err(|_| Error::LockPoisoned {
             context: "Cache lock".to_string(),

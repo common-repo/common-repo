@@ -1,4 +1,22 @@
-//! Path manipulation utilities for common-repo
+//! # Path Manipulation Utilities
+//!
+//! This module provides a set of utility functions for path manipulation,
+//! including glob matching, regex-based renaming, and URL encoding for
+//! filesystem-safe paths. These utilities are used throughout the application,
+//! particularly in the implementation of the various operators.
+//!
+//! ## Key Functions
+//!
+//! - **`glob_match`**: A simple wrapper around the `glob` crate to check if a
+//!   given path matches a glob pattern.
+//!
+//! - **`regex_rename`**: A powerful function for renaming files using regular
+//!   expressions with capture groups. It supports a `$1`, `$2`, etc., syntax for
+//!   referencing captured parts of the path in the replacement string.
+//!
+//! - **`encode_url_path`**: A function to convert a URL into a string that is
+//!   safe to use as a directory or file name on the filesystem. This is
+//!   important for creating predictable and safe cache directory names.
 
 use crate::error::{Error, Result};
 use glob::Pattern;
@@ -21,13 +39,14 @@ pub fn glob_match(pattern: &str, path: &str) -> Result<bool> {
     Ok(pattern.matches(path))
 }
 
-/// Apply a regex-based rename operation with capture groups
+/// Renames a path using a regular expression with capture groups.
 ///
-/// The `pattern` is a regex that may contain capture groups.
-/// The `replacement` is a string that can reference capture groups using $1, $2, etc.
-/// The matched portion of the path is replaced with the expanded replacement string.
+/// The `pattern` is a regular expression that is matched against the `path`.
+/// The `replacement` string can reference capture groups from the pattern
+/// using a `$1`, `$2`, etc., syntax.
 ///
-/// Returns the new path if the pattern matches, None if it doesn't match.
+/// If the pattern matches the path, the function returns `Some` with the new,
+/// renamed path. If the pattern does not match, it returns `None`.
 ///
 /// # Examples
 ///
@@ -89,10 +108,11 @@ pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Opti
     }
 }
 
-/// Encode a URL path to be filesystem-safe
+/// Encodes a URL into a filesystem-safe string.
 ///
-/// This converts URL characters that are problematic for filesystems
-/// into safe alternatives.
+/// This function replaces characters that are problematic in file paths (such as
+/// `/`, `:`, `*`, etc.) with safe alternatives (`-` or `_`). This is crucial
+/// for creating consistent and valid cache directory names from repository URLs.
 ///
 /// # Examples
 ///

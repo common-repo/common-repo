@@ -1,12 +1,29 @@
-//! Apply command implementation
+//! # Apply Command Implementation
 //!
-//! The apply command executes the full 6-phase pipeline:
-//! 1. Discovery and cloning of inherited repos
-//! 2. Processing individual repos into intermediate filesystems
-//! 3. Determining operation order
-//! 4. Constructing composite filesystem
-//! 5. Merging with local files
-//! 6. Writing to disk
+//! This module implements the `apply` subcommand, which is the primary command
+//! for the `common-repo` tool. It orchestrates the entire multi-phase process
+//! of fetching, processing, and merging repository configurations.
+//!
+//! ## Execution Flow
+//!
+//! The `apply` command executes the full 6-phase pipeline:
+//!
+//! 1.  **Discovery and Cloning**: Fetches all inherited repositories in parallel,
+//!     leveraging a cache to avoid redundant downloads.
+//! 2.  **Processing Individual Repos**: Applies operations (e.g., include, exclude,
+//!     rename) to each repository to create an intermediate filesystem.
+//! 3.  **Determining Operation Order**: Calculates a deterministic merge order to
+//!     ensure consistent results.
+//! 4.  **Composite Filesystem Construction**: Merges all intermediate filesystems
+//!     into a single composite view.
+//! 5.  **Local File Merging**: Merges the composite filesystem with any local files,
+//!     with local files taking precedence.
+//! 6.  **Writing to Disk**: Writes the final, merged filesystem to the target
+//!     output directory.
+//!
+//! The `execute` function handles argument parsing, sets up the necessary
+//! components (like the `RepositoryManager` and `RepoCache`), and invokes the
+//! main orchestrator from the `common_repo` library.
 
 use anyhow::Result;
 use clap::Args;
@@ -15,40 +32,56 @@ use std::path::PathBuf;
 /// Arguments for the apply command
 #[derive(Args, Debug)]
 pub struct ApplyArgs {
-    /// Path to config file
+    /// Path to the configuration file.
+    ///
+    /// If not provided, it defaults to `.common-repo.yaml` in the current directory.
+    /// Can also be set with the `COMMON_REPO_CONFIG` environment variable.
     #[arg(short, long, value_name = "PATH", env = "COMMON_REPO_CONFIG")]
     pub config: Option<PathBuf>,
 
-    /// Output directory (defaults to current directory)
+    /// The directory where the final files will be written.
+    ///
+    /// If not provided, it defaults to the current working directory.
     #[arg(short, long, value_name = "PATH")]
     pub output: Option<PathBuf>,
 
-    /// Cache root directory
+    /// The root directory for the repository cache.
+    ///
+    /// If not provided, it defaults to `~/.common-repo/cache`.
+    /// Can also be set with the `COMMON_REPO_CACHE` environment variable.
     #[arg(long, value_name = "PATH", env = "COMMON_REPO_CACHE")]
     pub cache_root: Option<PathBuf>,
 
-    /// Show what would be done without making changes
+    /// If set, the command will show what would be done without making any
+    /// actual changes to the filesystem.
     #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    /// Overwrite files without confirmation
+    /// If set, the command will overwrite existing files without prompting.
+    /// (Currently, there is no prompting, so this is reserved for future use).
     #[arg(short, long)]
     pub force: bool,
 
-    /// Show detailed progress information
+    /// If set, the command will show detailed progress information during
+    /// execution.
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Bypass cache and fetch fresh clones
+    /// If set, the command will bypass the repository cache and fetch fresh
+    /// clones of all repositories.
     #[arg(long)]
     pub no_cache: bool,
 
-    /// Suppress all output except errors
+    /// If set, the command will suppress all output except for errors.
     #[arg(short, long)]
     pub quiet: bool,
 }
 
-/// Execute the apply command
+/// Execute the `apply` command.
+///
+/// This function orchestrates the entire `apply` process, from parsing arguments
+/// and setting up the environment to invoking the main pipeline and reporting
+/// the results.
 pub fn execute(args: ApplyArgs) -> Result<()> {
     use common_repo::cache::RepoCache;
     use common_repo::config::from_file;

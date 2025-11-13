@@ -1,4 +1,36 @@
-//! Configuration schema and parsing for .common-repo.yaml files
+//! # Configuration Schema and Parsing
+//!
+//! This module defines the data structures that represent the `.common-repo.yaml`
+//! configuration file, as well as the logic for parsing it. The schema is
+//! designed to be flexible and expressive, supporting a wide range of operations
+//! for managing repository configurations.
+//!
+//! ## Key Components
+//!
+//! - **`Schema`**: A type alias for `Vec<Operation>`, representing the entire
+//!   configuration as a sequence of operations.
+//!
+//! - **`Operation`**: An enum that encompasses all possible actions that can be
+//!   defined in the configuration, such as `Repo`, `Include`, `Exclude`, `Rename`,
+//!   and various merge operations.
+//!
+//! - **Operator Structs**: Each variant of the `Operation` enum has a corresponding
+//!   struct (e.g., `RepoOp`, `IncludeOp`) that holds its specific configuration.
+//!
+//! ## Parsing
+//!
+//! The `parse` function is the main entry point for parsing a YAML string into a
+//! `Schema`. It is designed to be backward compatible and supports two formats:
+//!
+//! 1.  **Current Format**: A more structured format where each operation is
+//!     explicitly defined with its parameters. This is the recommended format.
+//!
+//! 2.  **Original Format**: A more concise, user-friendly format that is supported
+//!     for backward compatibility.
+//!
+//! The parser will first attempt to parse the input using the current format, and
+//! if that fails, it will fall back to the original format parser. This ensures
+//! that older configuration files continue to work without modification.
 
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
@@ -23,15 +55,19 @@ pub struct TemplateVars {
 /// Repo operator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoOp {
-    /// Repository URL
+    /// The URL of the Git repository to inherit from.
     pub url: String,
-    /// Git reference (branch, tag, commit)
+    /// The Git reference (e.g., a branch name, tag, or commit hash) to use.
     pub r#ref: String,
-    /// Optional sub-path within the repository to use as effective root
-    /// Only files under this path will be loaded into the filesystem
+    /// An optional sub-path within the repository.
+    ///
+    /// If specified, this path will be treated as the effective root of the
+    /// repository, and only files under this path will be included.
     #[serde(default)]
     pub path: Option<String>,
-    /// Optional inline operations to apply to this repo
+    /// A list of optional inline operations to apply to this repository before
+    /// it is merged. This allows for fine-grained control over the inherited
+    /// content.
     #[serde(default)]
     pub with: Vec<Operation>,
 }
@@ -39,30 +75,31 @@ pub struct RepoOp {
 /// Include operator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IncludeOp {
-    /// Glob patterns to include
+    /// A list of glob patterns specifying the files to include.
     pub patterns: Vec<String>,
 }
 
 /// Exclude operator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExcludeOp {
-    /// Glob patterns to exclude
+    /// A list of glob patterns specifying the files to exclude.
     pub patterns: Vec<String>,
 }
 
 /// Template operator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateOp {
-    /// Glob patterns for template files
+    /// A list of glob patterns specifying the files to mark as templates.
     pub patterns: Vec<String>,
 }
 
 /// Rename operation mapping
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenameMapping {
-    /// Regex pattern to match
+    /// A regular expression used to match file paths.
     pub from: String,
-    /// Replacement pattern with %[N] placeholders
+    /// A replacement pattern that can include capture groups from the `from`
+    /// regex (e.g., `$1`, `$2`).
     pub to: String,
 }
 
@@ -76,7 +113,7 @@ pub struct RenameOp {
 /// Tools operator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsOp {
-    /// List of required tools
+    /// A list of required tools and their version constraints.
     pub tools: Vec<Tool>,
 }
 
@@ -187,37 +224,46 @@ pub fn default_header_level() -> u8 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Operation {
-    /// Pull files from an inherited repository
+    /// Inherit from another repository. This is the core operation for sharing
+    /// configurations.
     Repo { repo: RepoOp },
-    /// Include files from current repository
+    /// Include a set of files in the final output.
     Include { include: IncludeOp },
-    /// Exclude files from filesystem
+    /// Exclude a set of files from the final output.
     Exclude { exclude: ExcludeOp },
-    /// Mark files as templates
+    /// Mark a set of files as templates to be processed for variable
+    /// substitution.
     Template { template: TemplateOp },
-    /// Rename files using regex patterns
+    /// Rename files based on regular expression patterns.
     Rename { rename: RenameOp },
-    /// Declare required tools
+    /// Declare required tools and their versions, which can be validated.
     Tools { tools: ToolsOp },
-    /// Set template variables
+    /// Define variables to be used in template substitution.
     TemplateVars { template_vars: TemplateVars },
-    /// Merge YAML fragments
+    /// Merge the content of two YAML files.
     Yaml { yaml: YamlMergeOp },
-    /// Merge JSON fragments
+    /// Merge the content of two JSON files.
     Json { json: JsonMergeOp },
-    /// Merge TOML fragments
+    /// Merge the content of two TOML files.
     Toml { toml: TomlMergeOp },
-    /// Merge INI fragments
+    /// Merge the content of two INI files.
     Ini { ini: IniMergeOp },
-    /// Merge Markdown fragments
+    /// Merge fragments of two Markdown files.
     Markdown { markdown: MarkdownMergeOp },
 }
 
-/// The complete configuration schema (list of operations)
+/// The complete configuration schema, represented as a list of operations.
+///
+/// The operations are executed in the order they are defined in the file.
 #[allow(dead_code)]
 pub type Schema = Vec<Operation>;
 
-/// Parse a YAML string into a Schema (supports both current and original formats)
+/// Parses a YAML string into a `Schema`.
+///
+/// This function supports both the current, more structured format and the
+/// original, more concise format for backward compatibility. It will first
+/// attempt to parse as the current format, and if that fails, it will fall back
+/// to the original format parser.
 #[allow(dead_code)]
 pub fn parse(yaml_content: &str) -> Result<Schema> {
     // First try parsing as the current format

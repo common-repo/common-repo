@@ -1,4 +1,31 @@
-//! Update command - Update repository refs to newer versions
+//! # Update Command Implementation
+//!
+//! This module implements the `update` subcommand, which provides functionality
+//! for updating the Git references (e.g., tags, branches) of inherited
+//! repositories in the `.common-repo.yaml` configuration file.
+//!
+//! ## Functionality
+//!
+//! - **Update Checking**: The command first checks for available updates by
+//!   querying the remote Git repositories, similar to the `check --updates`
+//!   command.
+//!
+//! - **Update Modes**:
+//!   - By default, or with the `--compatible` flag, it only considers updates
+//!     that are compatible (minor or patch version increases).
+//!   - With the `--latest` flag, it will also include updates with breaking
+//!     changes (major version increases).
+//!
+//! - **Interactive Confirmation**: Before making any changes, it presents a
+//!   summary of the proposed updates and prompts the user for confirmation.
+//!   This can be bypassed with the `--yes` flag.
+//!
+//! - **Configuration Modification**: If confirmed, the command modifies the
+//!   `.common-repo.yaml` file in place, updating the `ref` for each repository
+//!   to the selected newer version.
+//!
+//! - **Dry Run**: A `--dry-run` mode is available to show what would be updated
+//!   without actually modifying the configuration file.
 
 use anyhow::Result;
 use clap::Args;
@@ -12,31 +39,43 @@ use common_repo::version;
 /// Update repository refs to newer versions
 #[derive(Args, Debug)]
 pub struct UpdateArgs {
-    /// Path to .common-repo.yaml configuration file
+    /// Path to the .common-repo.yaml configuration file to update.
     #[arg(short, long, value_name = "FILE", default_value = ".common-repo.yaml")]
     config: PathBuf,
 
-    /// Cache directory for repositories
+    /// The root directory for the repository cache.
+    ///
+    /// If not provided, it defaults to the system's cache directory.
+    /// Can also be set with the `COMMON_REPO_CACHE` environment variable.
     #[arg(long, value_name = "DIR", env = "COMMON_REPO_CACHE")]
     cache_root: Option<PathBuf>,
 
-    /// Update to latest compatible versions (minor/patch updates only)
+    /// If set, the command will update to the latest compatible versions
+    /// (minor and patch updates only). This is the default behavior.
     #[arg(long)]
     compatible: bool,
 
-    /// Update to latest versions including breaking changes
+    /// If set, the command will update to the latest available versions,
+    /// including those with breaking changes (major version updates).
     #[arg(long)]
     latest: bool,
 
-    /// Don't ask for confirmation, update all eligible repositories
+    /// If set, the command will not ask for confirmation before updating all
+    /// eligible repositories.
     #[arg(long)]
     yes: bool,
 
-    /// Dry run - show what would be updated without making changes
+    /// If set, the command will show what would be updated without making any
+    /// changes to the configuration file.
     #[arg(long)]
     dry_run: bool,
 }
 
+/// Execute the `update` command.
+///
+/// This function handles the logic for the `update` subcommand. It checks for
+/// repository updates, prompts the user for confirmation, and then modifies the
+/// `.common-repo.yaml` file to update the repository references.
 pub fn execute(args: UpdateArgs) -> Result<()> {
     // Load configuration
     let config_path = &args.config;
