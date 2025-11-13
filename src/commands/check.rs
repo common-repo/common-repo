@@ -1,4 +1,23 @@
-//! Check command - Check for repository updates and configuration validity
+//! # Check Command Implementation
+//!
+//! This module implements the `check` subcommand, which provides functionality
+//! for validating the `.common-repo.yaml` configuration file and checking for
+//! available updates in the inherited repositories.
+//!
+//! ## Functionality
+//!
+//! - **Configuration Validation**: By default, the command parses the configuration
+//!   file to ensure it is syntactically correct and conforms to the defined
+//!   schema. It reports a summary of the loaded configuration, including the
+//!   number of repositories and other operations.
+//!
+//! - **Update Checking**: When the `--updates` flag is provided, the command
+//!   queries the remote Git repositories to check for newer versions (tags)
+//!   that are compatible with semantic versioning. It then displays a summary
+//!   of available updates, categorizing them as either compatible or containing
+//!   breaking changes.
+//!
+//! This command is a safe, read-only operation that does not modify any files.
 
 use anyhow::Result;
 use clap::Args;
@@ -11,19 +30,29 @@ use common_repo::version;
 /// Check for repository updates and configuration validity
 #[derive(Args, Debug)]
 pub struct CheckArgs {
-    /// Path to .common-repo.yaml configuration file
+    /// Path to the .common-repo.yaml configuration file to check.
     #[arg(short, long, value_name = "FILE", default_value = ".common-repo.yaml")]
     config: PathBuf,
 
-    /// Cache directory for repositories
+    /// The root directory for the repository cache.
+    ///
+    /// If not provided, it defaults to the system's cache directory
+    /// (e.g., `~/.cache/common-repo` on Linux).
+    /// Can also be set with the `COMMON_REPO_CACHE` environment variable.
     #[arg(long, value_name = "DIR", env = "COMMON_REPO_CACHE")]
     cache_root: Option<PathBuf>,
 
-    /// Check for repository updates
+    /// If set, the command will check for newer versions of the inherited
+    /// repositories.
     #[arg(long)]
     updates: bool,
 }
 
+/// Execute the `check` command.
+///
+/// This function handles the logic for the `check` subcommand. It either
+/// performs a basic configuration validation or, if the `--updates` flag is
+/// present, checks for newer versions of the repositories defined in the config.
 pub fn execute(args: CheckArgs) -> Result<()> {
     // Load configuration
     let config_path = &args.config;

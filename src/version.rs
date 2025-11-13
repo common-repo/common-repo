@@ -1,7 +1,36 @@
-//! Version detection and update checking functionality
+//! # Version Detection and Update Checking
 //!
-//! This module provides functionality to detect when inherited repositories
-//! have newer versions available by comparing current refs against available tags.
+//! This module provides the core functionality for detecting when inherited
+//! repositories have newer versions available. It is used by the `check` and
+//! `update` subcommands to inform the user about available updates.
+//!
+//! ## Process
+//!
+//! 1.  **Repository Collection**: The process begins by collecting all the `repo`
+//!     operations from the configuration, including any nested `repo` operations
+//!     within `with:` clauses.
+//!
+//! 2.  **Tag Fetching**: For each repository, it queries the remote Git repository
+//!     to get a list of all available tags.
+//!
+//! 3.  **Semantic Version Filtering**: The list of tags is filtered to include
+//!     only those that conform to the semantic versioning (semver) specification.
+//!
+//! 4.  **Version Comparison**: If the current `ref` for a repository is also a
+//!     valid semantic version, it is compared against the latest available
+//!     semver tag.
+//!
+//! 5.  **Update Categorization**: Any available updates are categorized as either:
+//!     - **Breaking Changes**: If the major version number has increased (e.g.,
+//!       `v1.2.3` to `v2.0.0`).
+//!     - **Compatible Updates**: If the minor or patch version number has
+//!       increased (e.g., `v1.2.3` to `v1.3.0` or `v1.2.4`).
+//!
+//! ## `UpdateInfo`
+//!
+//! The results of the update check are returned in a `Vec<UpdateInfo>`, where
+//! each `UpdateInfo` struct contains detailed information about the updates
+//! available for a single repository.
 
 use crate::config::{RepoOp, Schema};
 use crate::error::Result;
@@ -11,21 +40,29 @@ use semver::Version;
 /// Information about available updates for a repository
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpdateInfo {
-    /// Repository URL
+    /// The URL of the repository that was checked.
     pub url: String,
-    /// Current reference being used
+    /// The current Git reference (e.g., tag, branch) being used for the
+    /// repository.
     pub current_ref: String,
-    /// Latest available version tag
+    /// The latest semantic version tag found for the repository, if any.
     pub latest_version: Option<String>,
-    /// Whether there are breaking changes available (major version bump)
+    /// A flag indicating whether the latest version includes breaking changes
+    /// (i.e., a major version bump).
     pub breaking_changes: bool,
-    /// Whether there are compatible updates available (minor/patch)
+    /// A flag indicating whether the latest version is a compatible update
+    /// (i.e., a minor or patch version bump).
     pub compatible_updates: bool,
-    /// All available semantic version tags (sorted newest first)
+    /// A list of all the tags from the repository that were identified as valid
+    /// semantic versions.
     pub available_versions: Vec<String>,
 }
 
-/// Check all inherited repos in a configuration for newer versions
+/// Checks all inherited repositories in a configuration for newer versions.
+///
+/// This function serves as the main entry point for the update-checking
+/// process. It collects all the `repo` operations from the given `Schema` and
+/// then checks each one for available updates.
 pub fn check_updates(config: &Schema, repo_manager: &RepositoryManager) -> Result<Vec<UpdateInfo>> {
     let mut results = Vec::new();
 

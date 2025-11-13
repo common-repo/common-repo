@@ -2,10 +2,10 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: Core Systems Implemented with Pipeline Gaps
+## Current Status: Template Processing End-to-End Complete
 
 **Date**: November 13, 2025
-**Overall Progress**: Core layers (0-4) are implemented and exercised, but template substitution, merge operator execution, and richer `repo: with:` handling still require integration work before the pipeline is truly end-to-end.
+**Overall Progress**: Core layers (0-4) are implemented and exercised. Template processing now works end-to-end through the pipeline, but merge operator execution and richer `repo: with:` handling still require integration work before the pipeline supports all planned operators.
 
 **Traceability**
 - Plan: [Implementation Strategy](implementation-plan.md#implementation-strategy)
@@ -113,7 +113,7 @@ This document tracks current implementation status against the implementation pl
   - **Repo Operator**: Full repo inheritance with sub-path filtering.
     - **Current Behaviour**: The `with:` clause only applies `exclude` and `rename`; `include` is a documented no-op, and `template`, `merge`, `tools`, or nested `repo` ops are rejected with errors.
   - **Basic File Operators**: `include`, `exclude`, `rename` are fully functional outside of the `with:` clause limitations.
-  - **Template Operators**: Marking works, but collected template variables are discarded and template files are never processed during Phase 4/5, so `${VAR}` substitution is not yet realized.
+  - **Template Operators**: ✅ **END-TO-END COMPLETE** - Template marking, variable collection, and processing all work through the pipeline. `${VAR}` substitution is fully functional for both repository and local files.
   - **Tool Validation**: `tools` operator executes and validates tool presence/versions.
   - **Merge Operators**: YAML/JSON/TOML/INI/Markdown merge helpers exist in Phase 5, but Phase 2 still returns `NotImplemented` errors when these operators appear in repo configs, preventing end-to-end execution.
 - **Testing**: Unit tests exercise the individual operator modules; end-to-end coverage will remain limited until the above gaps are closed.
@@ -130,10 +130,10 @@ This document tracks current implementation status against the implementation pl
 - **Files**: `src/phases.rs` (3451 lines)
 - **Features**: The 6-phase pipeline scaffolding is in place with extensive unit tests, but some stages defer key behaviour.
   - **Phase 1 (Discovery & Cloning)**: ✅ ENHANCED (Recursive discovery, cycle detection, cache fallback).
-  - **Phase 2 (Processing Repos)**: ⚠ Pending (Template variables ignored; merge operators return `NotImplemented`, blocking downstream phases when present).
+  - **Phase 2 (Processing Repos)**: ⚠ Pending (merge operators return `NotImplemented`, blocking downstream phases when present).
   - **Phase 3 (Operation Order)**: ✅ COMPLETE (Depth-first ordering).
-  - **Phase 4 (Composition)**: ✅ COMPLETE (Last-write-wins merge).
-  - **Phase 5 (Local Merging)**: ⚠ Pending (Merge helpers are implemented but cannot be reached until Phase 2 emits merged inputs; template processing is still stubbed).
+  - **Phase 4 (Composition)**: ✅ ENHANCED (Last-write-wins merge and template processing).
+  - **Phase 5 (Local Merging)**: ⚠ Pending (Merge helpers are implemented but cannot be reached until Phase 2 emits merged inputs).
   - **Phase 6 (Writing to Disk)**: ✅ COMPLETE (Writes final filesystem to disk, including permissions).
 - **Testing**: Unit and integration-style tests cover each phase in isolation; holistic scenarios involving template or merge operators remain TODO.
 
@@ -176,39 +176,40 @@ This document tracks current implementation status against the implementation pl
 ### By Layer
 - **Layer 0 (Foundation)**: ✅ Complete
 - **Layer 1 (Core Utilities)**: ✅ Complete
-- **Layer 2 (Operators)**: ⚠ Mostly implemented (template processing, merge operators, and `repo: with:` enhancements still pending)
-- **Layer 3 (Phases)**: ⚠ Pipeline assembled with outstanding work in Phases 2 & 5 to enable template/merge flows
+- **Layer 2 (Operators)**: ⚠ Mostly implemented (merge operators and `repo: with:` enhancements still pending)
+- **Layer 3 (Phases)**: ⚠ Pipeline assembled with outstanding work in Phases 2 & 5 to enable merge flows
 - **Layer 4 (CLI)**: ✅ Complete
 
-**Conclusion**: The core architecture and CLI are in place, but the pipeline still needs follow-through on template substitution, merge operator execution, and richer `repo: with:` support before it can be considered functionally complete. Focus should remain on closing these gaps and then expanding the remaining CLI surface area from the design plan.
+**Conclusion**: The core architecture, CLI, and template processing are in place. The pipeline still needs follow-through on merge operator execution and richer `repo: with:` support before it can be considered functionally complete. Focus should now shift to implementing the merge operators.
 
 ---
 
 ## 🎯 Next Implementation Steps
 
-With the core pipeline complete, the next priorities are to address the remaining feature gaps and enhance the user experience.
+With template processing now complete, the next priorities are to unlock the merge operators and expand `repo: with:` support.
 
-1.  **Enable template processing end-to-end**:
-    - Persist collected `template_vars` through the pipeline and wire `template::process` into Phase 4/5 so `${VAR}` substitution is applied to marked files.
+1.  **Unlock merge operators during repo processing**:
+    - **Current State**: Phase 2 returns `NotImplemented` for any merge operator (`yaml`, `json`, etc.), blocking repositories that use them. Phase 5 contains the merge logic, but it's unreachable for inherited repos.
+    - **Task**: Modify Phase 2 to handle merge operators by preparing the necessary data for Phase 5. This may involve creating intermediate representations of merge fragments.
+    - **Goal**: Allow repositories using merge operators to be processed successfully through the entire pipeline.
 
-2.  **Unlock merge operators during repo processing**:
-    - Allow Phase 2 to accept merge operations, ensure the intermediate filesystems carry required inputs, and verify Phase 5 merge helpers cover the integrated scenarios.
+2.  **Complete `repo: with:` clause support**:
+    - **Current State**: The `with:` clause only supports `exclude` and `rename`. Other operators are rejected.
+    - **Task**: Implement support for `include`, `template`, `merge`, and `tool` operations inside `with:` clauses.
+    - **Goal**: Enable fine-grained control over inherited repositories using inline operations.
 
-3.  **Complete `repo: with:` clause support**:
-    - Implement non-destructive handling for `include` and add support for `template`, `merge`, and `tool` operations inside `with:` clauses.
-
-4.  **Expand CLI Functionality**:
+3.  **Expand CLI Functionality**:
     - Implement the remaining CLI commands as planned in `implementation-plan.md`:
       - `common-repo validate`
       - `common-repo init`
       - `common-repo cache` (list, clean)
       - `common-repo diff`, `tree`, `info`, `ls`
 
-5.  **Enhance Testing**:
+4.  **Enhance Testing**:
     - Increase test coverage, especially for end-to-end CLI scenarios and complex multi-repository inheritance.
     - Add performance benchmarks.
 
-6.  **Improve Documentation**:
+5.  **Improve Documentation**:
     - Write user-facing documentation for all CLI commands and configuration options.
     - Generate API documentation for the library crates.
 

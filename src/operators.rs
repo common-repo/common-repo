@@ -1,6 +1,31 @@
-//! Operator implementations for common-repo operations
+//! # Operator Implementations
 //!
-//! This module contains implementations for all operator types defined in the configuration schema.
+//! This module provides the concrete implementations for all the operations
+//! that can be defined in a `.common-repo.yaml` configuration file. Each
+//! operator is defined in its own submodule and is responsible for a specific
+//! type of manipulation of the in-memory filesystem (`MemoryFS`).
+//!
+//! ## Overview
+//!
+//! Operators are the building blocks of the configuration inheritance logic.
+//! They are applied in a defined order during the processing phases to transform
+//! the filesystem of each repository and, ultimately, to construct the final,
+//! merged filesystem.
+//!
+//! ## Available Operators
+//!
+//! The following operators are implemented in this module:
+//!
+//! - **`include`**: Adds files to the `MemoryFS` based on glob patterns.
+//! - **`exclude`**: Removes files from the `MemoryFS` based on glob patterns.
+//! - **`rename`**: Renames files using regular expressions with capture groups.
+//! - **`repo`**: Fetches and processes an inherited repository, including any
+//!   inline `with:` operations.
+//! - **`template`**: Marks files as templates for variable substitution and
+//!   processes them.
+//! - **`template_vars`**: Collects variables for use in template processing.
+//! - **`tools`**: Validates that required command-line tools are installed and
+//!   meet version constraints.
 
 use crate::config::{ExcludeOp, IncludeOp, Operation, RenameOp, RepoOp};
 use crate::error::Result;
@@ -13,12 +38,14 @@ use std::path::Path;
 pub mod include {
     use super::*;
 
-    /// Apply the include operation to a filesystem
+    /// Applies the `include` operation to a filesystem.
     ///
-    /// This adds files from the source filesystem that match the given glob patterns
-    /// to the target filesystem.
+    /// This function takes a source `MemoryFS` and a target `MemoryFS`, and it
+    /// copies files from the source to the target if they match the glob patterns
+    /// defined in the `IncludeOp`.
     ///
     /// # Arguments
+    ///
     /// * `op` - The include operation configuration
     /// * `source` - Source filesystem to include files from
     /// * `target` - Target filesystem to add files to
@@ -45,11 +72,13 @@ pub mod include {
 pub mod exclude {
     use super::*;
 
-    /// Apply the exclude operation to a filesystem
+    /// Applies the `exclude` operation to a filesystem.
     ///
-    /// This removes files from the target filesystem that match the given glob patterns.
+    /// This function removes files from the target `MemoryFS` that match the glob
+    /// patterns defined in the `ExcludeOp`.
     ///
     /// # Arguments
+    ///
     /// * `op` - The exclude operation configuration
     /// * `target` - Target filesystem to remove files from
     ///
@@ -72,12 +101,14 @@ pub mod exclude {
 pub mod rename {
     use super::*;
 
-    /// Apply the rename operation to a filesystem
+    /// Applies the `rename` operation to a filesystem.
     ///
-    /// This renames files in the target filesystem according to the regex mappings.
-    /// Each mapping consists of a regex pattern and a replacement string.
+    /// This function renames files within the target `MemoryFS` based on a list
+    /// of regex-based mappings. Each mapping defines a `from` pattern and a `to`
+    /// replacement string, which can include capture groups.
     ///
     /// # Arguments
+    ///
     /// * `op` - The rename operation configuration
     /// * `target` - Target filesystem to rename files in
     ///
@@ -121,12 +152,15 @@ pub mod rename {
 pub mod repo {
     use super::*;
 
-    /// Apply the repo operation to fetch and process a repository
+    /// Applies the `repo` operation to fetch and process an inherited repository.
     ///
-    /// This fetches the specified repository using the RepositoryManager and applies
-    /// any inline `with:` operations to the repository's filesystem.
+    /// This function uses the `RepositoryManager` to fetch the specified
+    /// repository (from cache or by cloning). It then applies any inline `with:`
+    /// operations to the repository's filesystem before returning the processed
+    /// `MemoryFS`.
     ///
     /// # Arguments
+    ///
     /// * `op` - The repo operation configuration
     /// * `repo_manager` - RepositoryManager for fetching repositories
     ///
@@ -1166,12 +1200,14 @@ pub mod template {
     use std::collections::HashMap;
     use std::path::PathBuf;
 
-    /// Apply the template operation to mark files as templates
+    /// Applies the `template` operation to mark files as templates.
     ///
-    /// This marks files matching the glob patterns that contain template variables
-    /// as templates that will be processed during the template processing phase.
+    /// This function iterates through the files in the `MemoryFS` that match the
+    /// provided glob patterns. If a file's content contains a template variable
+    /// pattern (e.g., `${VAR}`), it is marked as a template for later processing.
     ///
     /// # Arguments
+    ///
     /// * `op` - The template operation configuration
     /// * `fs` - The filesystem to mark templates in
     ///
@@ -1199,10 +1235,13 @@ pub mod template {
 
     /// Process templates with variable substitution
     ///
-    /// This processes all marked template files by substituting variables in the format ${VAR}
-    /// with values from the provided context. Environment variables are resolved at runtime.
+    /// This function finds all files that have been marked as templates and
+    /// performs variable substitution on their content. It supports `${VAR}`
+    /// syntax, default values with `${VAR:-default}`, and resolution from
+    /// environment variables.
     ///
     /// # Arguments
+    ///
     /// * `fs` - The filesystem containing template files to process
     /// * `vars` - Variable context for substitution
     ///
@@ -1296,12 +1335,14 @@ pub mod template_vars {
     use super::*;
     use std::collections::HashMap;
 
-    /// Apply the template_vars operation to collect variables
+    /// Applies the `template_vars` operation to collect variables into a context.
     ///
-    /// This collects template variables from the operation, later definitions
-    /// override earlier ones, and environment variables provide values.
+    /// This function merges the variables defined in the `TemplateVars` operation
+    /// into an existing `HashMap`. If a variable already exists in the context,
+    /// its value will be overwritten.
     ///
     /// # Arguments
+    ///
     /// * `op` - The template_vars operation configuration
     /// * `context` - Existing variable context to extend
     ///
@@ -1481,7 +1522,7 @@ pub mod tools {
     use semver::{Version, VersionReq};
     use std::process::Command;
 
-    /// Apply tool validation operation
+    /// Applies the `tools` operation to validate required tools.
     pub fn apply(op: &ToolsOp) -> Result<()> {
         for tool in &op.tools {
             check_tool(tool)?;
