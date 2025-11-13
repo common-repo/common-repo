@@ -417,9 +417,9 @@ fn test_repository_sub_path_filtering_integration() {
     // Create repository manager with real implementations using temp cache
     let manager = RepositoryManager::new(cache_dir.clone());
 
-    // Repository details - using this project's repository with implementing-the-plan branch
+    // Repository details - using this project's repository with main branch
     let repo_url = "https://github.com/common-repo/common-repo.git";
-    let ref_name = "implementing-the-plan";
+    let ref_name = "main";
 
     println!("Testing repository sub-path filtering with real git operations...");
 
@@ -603,9 +603,9 @@ fn test_deep_repository_reference_chain() {
     // Create repository manager with real implementations using temp cache
     let manager = RepositoryManager::new(cache_dir.clone());
 
-    // Repository details - using this project's repository with implementing-the-plan branch
+    // Repository details - using this project's repository with main branch
     let repo_url = "https://github.com/common-repo/common-repo.git";
-    let ref_name = "implementing-the-plan";
+    let ref_name = "main";
 
     println!("Testing deep repository reference chain...");
 
