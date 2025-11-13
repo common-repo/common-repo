@@ -543,9 +543,7 @@ pub mod phase2 {
                 // For now, skip this operation
                 Ok(())
             }
-            Operation::Tools { tools: _ } => Err(Error::NotImplemented {
-                feature: "Tools operations".to_string(),
-            }),
+            Operation::Tools { tools } => operators::tools::apply(tools),
             // Merge operations are handled in Phase 5, not Phase 2
             Operation::Yaml { yaml: _ } => Err(Error::NotImplemented {
                 feature: "YAML merge operations".to_string(),

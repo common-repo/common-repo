@@ -2,10 +2,10 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: MVP COMPLETE - End-to-End Pipeline Functional
+## Current Status: PHASE 3 COMPLETE - Full Feature Set with Version Management
 
-**Date**: November 12, 2025 (CLI implementation complete with full 6-phase pipeline execution; End-to-end testing verified; All core operators working)
-**Overall Progress**: Major milestone achieved! Complete working MVP with full repository configuration inheritance, merge operations, and CLI interface. All layers functional with comprehensive testing.
+**Date**: November 13, 2025 (Phase 3 features complete: tool validation, version detection, enhanced CLI with check/update commands; All merge operators implemented; Comprehensive testing coverage)
+**Overall Progress**: Major milestone achieved! Complete working implementation with repository configuration inheritance, all merge operations, tool validation, version detection, and enhanced CLI. All layers functional with comprehensive testing.
 
 **Traceability**
 - Plan: [Implementation Strategy ▸ Phase 2 Milestone](implementation-plan.md#phase-2-operators--version-detection)
@@ -191,7 +191,7 @@ This document tracks current implementation status against the implementation pl
 - **2.2 Basic File Operators**: ✅ COMPLETE (include/exclude/rename operations)
 - **2.3 Template Operators**: ✅ COMPLETE (marking and processing with variable substitution)
 - **2.4 Merge Operators**: ✅ COMPLETE (YAML/JSON/TOML/INI/Markdown all implemented with comprehensive tests)
-- **2.5 Tool Validation**: 📋 NOT STARTED (Phase 3)
+- **2.5 Tool Validation**: ✅ COMPLETE
 
 **Traceability**
 - Plan: [Layer 2 ▸ Operators Overview](implementation-plan.md#layer-2-operators-depends-on-layers-0-1)
@@ -248,8 +248,11 @@ This document tracks current implementation status against the implementation pl
 - Design: [Execution Model ▸ Phases 1-6](design.md#execution-model)
 
 ### Layer 3.5: Version Detection
-**Status**: 📋 NOT STARTED
+**Status**: ✅ COMPLETE
 - **Components**: Version checking, update info, CLI integration
+- **Files**: `src/version.rs` (307 lines), `src/commands/check.rs` (72 lines)
+- **Features**: Full version detection with semantic version comparison, breaking change detection, CLI check command
+- **Testing**: 8 comprehensive unit tests covering all version detection scenarios
 - **Note**: Core feature, not deferred
 
 **Traceability**
@@ -257,9 +260,12 @@ This document tracks current implementation status against the implementation pl
 - Design: [Version Detection and Updates (Future)](design.md#version-detection-and-updates-future)
 
 ### Layer 4: CLI & Orchestration
-**Status**: ✅ COMPLETE
+**Status**: ✅ ENHANCED
 - **Completed**: Full CLI implementation with `clap` integration, orchestrator module, and end-to-end pipeline execution
 - **Features**: `common-repo apply` command with all options (--config, --output, --cache-root, --dry-run, --force, --verbose, --quiet, --no-cache)
+- **Phase 3 CLI**: Added `common-repo check` and `common-repo update` commands for version management
+- **Check Command**: Validates configuration and checks for repository updates with detailed reporting
+- **Update Command**: Updates repository refs to newer versions with safety options (--compatible, --latest, --dry-run, --yes)
 - **Testing**: Comprehensive e2e tests covering all CLI functionality and error scenarios
 - **Verified**: End-to-end pipeline tested and working (processed 22,258 files successfully)
 

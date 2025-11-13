@@ -27,6 +27,12 @@ pub struct Cli {
 enum Commands {
     /// Apply the .common-repo.yaml configuration to the current repository
     Apply(commands::apply::ApplyArgs),
+
+    /// Check configuration validity and check for repository updates
+    Check(commands::check::CheckArgs),
+
+    /// Update repository refs to newer versions
+    Update(commands::update::UpdateArgs),
     // Future commands will be added here:
     // /// Validate a .common-repo.yaml configuration file
     // Validate(commands::validate::ValidateArgs),
@@ -46,6 +52,8 @@ impl Cli {
 
         match self.command {
             Commands::Apply(args) => commands::apply::execute(args),
+            Commands::Check(args) => commands::check::execute(args),
+            Commands::Update(args) => commands::update::execute(args),
         }
     }
 }
