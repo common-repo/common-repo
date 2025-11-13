@@ -1,0 +1,32 @@
+# Nextest configuration for common-repo
+# Documentation: https://nexte.st/docs/configuration/
+
+[profile.default]
+# Slow test detection thresholds
+slow-timeout = { period = "5s", terminate-after = 6, grace-period = "30s" }
+
+# Test execution settings
+retries = 0
+fail-fast = false
+
+[profile.ci]
+# CI profile with stricter slow test thresholds
+slow-timeout = { period = "3s", terminate-after = 10, grace-period = "30s" }
+
+# Fail fast in CI to save time
+fail-fast = false
+
+# Show output for all tests in CI
+success-output = "immediate"
+failure-output = "immediate"
+
+# Retries for flaky tests (disabled by default)
+retries = 0
+
+[profile.default.junit]
+# JUnit output configuration (for CI integration)
+path = "target/nextest/default/junit.xml"
+
+[profile.ci.junit]
+# JUnit output for CI profile
+path = "target/nextest/ci/junit.xml"

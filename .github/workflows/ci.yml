@@ -59,8 +59,17 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo nextest run --verbose --all-features
+
+      - name: Report slow tests
+        if: always()
+        run: cargo nextest run --verbose --all-features --profile ci
 
   fmt:
     name: Rustfmt

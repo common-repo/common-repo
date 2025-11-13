@@ -1595,12 +1595,60 @@ pub mod phase5 {
     /// Load local files from the working directory into a MemoryFS
     ///
     /// Recursively walks the directory and loads all files, preserving relative paths.
+    /// Skips common build/artifact directories and hidden files to avoid loading
+    /// unnecessary data into memory.
     fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
         let mut local_fs = MemoryFS::new();
 
-        // Use walkdir to recursively find all files
+        // Common directories to skip (build artifacts, dependencies, caches, etc.)
+        const SKIP_DIRS: &[&str] = &[
+            "target",        // Rust build artifacts
+            "node_modules",  // Node.js dependencies
+            ".git",          // Git repository data
+            ".svn",          // SVN repository data
+            ".hg",           // Mercurial repository data
+            "build",         // Generic build output
+            "dist",          // Distribution files
+            "__pycache__",   // Python bytecode cache
+            ".pytest_cache", // Pytest cache
+            ".mypy_cache",   // MyPy cache
+            ".tox",          // Tox environments
+            "venv",          // Python virtual environment
+            ".venv",         // Python virtual environment
+            "env",           // Generic environment
+            ".env",          // Environment files
+            ".idea",         // IntelliJ IDEA
+            ".vscode",       // VS Code
+            ".vs",           // Visual Studio
+            "bin",           // Binary output
+            "obj",           // Object files
+        ];
+
+        // Use walkdir to recursively find all files, filtering directories early
         for entry in walkdir::WalkDir::new(working_dir)
             .into_iter()
+            .filter_entry(|e| {
+                // Always allow the root directory (depth 0) to be processed
+                if e.depth() == 0 {
+                    return true;
+                }
+
+                // Get the file/directory name
+                let file_name = e.file_name().to_str().unwrap_or("");
+
+                // Skip if it's one of the common build directories
+                if SKIP_DIRS.contains(&file_name) {
+                    return false;
+                }
+
+                // Skip hidden files/directories (starting with .)
+                if file_name.starts_with('.') {
+                    return false;
+                }
+
+                // Allow everything else
+                true
+            })
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
         {
@@ -1613,11 +1661,11 @@ pub mod phase5 {
                     message: format!("Failed to make path relative: {}", file_path.display()),
                 })?;
 
-            // Skip hidden files/directories and .common-repo.yaml
+            // Skip .common-repo.yaml config file
             if relative_path
                 .to_str()
-                .map(|s| s.starts_with('.') || s == ".common-repo.yaml")
-                .unwrap_or(true)
+                .map(|s| s == ".common-repo.yaml" || s == ".commonrepo.yaml")
+                .unwrap_or(false)
             {
                 continue;
             }
