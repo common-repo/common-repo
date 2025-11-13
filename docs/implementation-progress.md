@@ -2,14 +2,14 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: PHASE 3 COMPLETE - Full Feature Set with Version Management
+## Current Status: Core Systems Implemented with Pipeline Gaps
 
-**Date**: November 13, 2025 (Phase 3 features complete: tool validation, version detection, enhanced CLI with check/update commands; All merge operators implemented; Comprehensive testing coverage)
-**Overall Progress**: Major milestone achieved! Complete working implementation with repository configuration inheritance, all merge operations, tool validation, version detection, and enhanced CLI. All layers functional with comprehensive testing.
+**Date**: November 13, 2025
+**Overall Progress**: Core layers (0-4) are implemented and exercised, but template substitution, merge operator execution, and richer `repo: with:` handling still require integration work before the pipeline is truly end-to-end.
 
 **Traceability**
-- Plan: [Implementation Strategy ▸ Phase 2 Milestone](implementation-plan.md#phase-2-operators--version-detection)
-- Design: [Execution Model ▸ Phases 2-5](design.md#execution-model)
+- Plan: [Implementation Strategy](implementation-plan.md#implementation-strategy)
+- Design: [Execution Model](design.md#execution-model)
 
 ---
 
@@ -21,10 +21,9 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.1 Configuration Schema & Parsing
 **Status**: ✅ COMPLETE
-- **Files**: `src/config.rs` (459 lines)
-- **Features**: Full schema with all operators (repo, include, exclude, rename, template, tools, template_vars, all merge types)
-- **Testing**: Unit tests for parsing and validation
-- **Dependencies**: `serde`, `serde_yaml` added to Cargo.toml
+- **Files**: `src/config.rs` (1037 lines)
+- **Features**: Full schema with all operators (repo, include, exclude, rename, template, tools, template_vars, all merge types).
+- **Testing**: Comprehensive unit tests for parsing and validation.
 
 **Traceability**
 - Plan: [Layer 0 ▸ 0.1 Configuration Schema & Parsing](implementation-plan.md#01-configuration-schema--parsing)
@@ -32,10 +31,9 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.2 In-Memory Filesystem
 **Status**: ✅ COMPLETE
-- **Files**: `src/filesystem.rs` (470 lines)
-- **Features**: Complete MemoryFS implementation with File struct, all operations (add/remove/rename/copy), glob matching, merge support
-- **Testing**: Ready for unit tests
-- **Dependencies**: `glob` added to Cargo.toml
+- **Files**: `src/filesystem.rs` (746 lines)
+- **Features**: Complete MemoryFS implementation with File struct, all operations (add/remove/rename/copy), glob matching, merge support.
+- **Testing**: Comprehensive unit tests for all filesystem operations.
 
 **Traceability**
 - Plan: [Layer 0 ▸ 0.2 In-Memory Filesystem](implementation-plan.md#02-in-memory-filesystem)
@@ -43,9 +41,9 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.3 Error Handling
 **Status**: ✅ COMPLETE
-- **Files**: `src/error.rs` (81 lines)
-- **Features**: Comprehensive error enum with thiserror, all error types from plan (ConfigParse, GitClone, Cache, Operator, CycleDetected, MergeConflict, ToolValidation, Template, Network, etc.)
-- **Dependencies**: `thiserror`, `anyhow`, `regex`, `glob`, `url`, `semver` added
+- **Files**: `src/error.rs` (258 lines)
+- **Features**: Comprehensive error enum with `thiserror`, covering all planned error types.
+- **Dependencies**: `thiserror`, `anyhow` used as planned.
 
 **Traceability**
 - Plan: [Layer 0 ▸ 0.3 Error Handling](implementation-plan.md#03-error-handling)
@@ -53,7 +51,7 @@ This document tracks current implementation status against the implementation pl
 
 ---
 
-## 🚧 IN PROGRESS: Layer 1 - Core Utilities
+## ✅ COMPLETED: Layer 1 - Core Utilities
 
 **Traceability**
 - Plan: [Layer 1 ▸ Core Utilities](implementation-plan.md#layer-1-core-utilities-depends-on-layer-0)
@@ -61,25 +59,21 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.1 Git Operations
 **Status**: ✅ COMPLETE
-- **Files**: `src/git.rs` (407 lines)
-- **Features**: All git operations implemented with shell commands
-  - `git::clone_shallow()` - Shallow clone with specific ref using `git clone --depth=1 --branch`
-  - `git::load_from_cache()` - Load cached repo into MemoryFS with file metadata
-  - `git::save_to_cache()` - Save MemoryFS to cache directory
-  - `git::url_to_cache_path()` - Convert url+ref to filesystem-safe cache path
-  - `git::list_tags()` - List remote tags using `git ls-remote --tags`
-  - `git::parse_semver_tag()` - Parse semantic version tags (v1.0.0, 1.0.0 formats)
-- **Testing**: Unit tests for path conversion and semver parsing
-- **Dependencies**: Shell command execution (no new crates needed)
+- **Files**: `src/git.rs` (845 lines)
+- **Features**: All git operations implemented with shell commands, including sub-path filtering support.
+  - `git::clone_shallow()`
+  - `git::load_from_cache_with_path()`
+  - `git::save_to_cache()`
+  - `git::url_to_cache_path_with_path()`
+  - `git::list_tags()`
+  - `git::parse_semver_tag()`
+- **Testing**: Unit tests for path conversion and semver parsing.
 
 ### 1.2 Path Operations
 **Status**: ✅ COMPLETE
-- **Files**: `src/path.rs` (121 lines)
-- **Features**: All path operations implemented
-  - `path::glob_match()` - Match paths against glob patterns using glob crate
-  - `path::regex_rename()` - Apply regex rename with capture groups ($1, $2, etc.)
-  - `path::encode_url_path()` - Encode URLs for filesystem-safe paths
-- **Testing**: Unit tests for all operations with various patterns
+- **Files**: `src/path.rs` (282 lines)
+- **Features**: All path operations implemented (`glob_match`, `regex_rename`, `encode_url_path`).
+- **Testing**: Unit tests for all operations with various patterns.
 
 **Traceability**
 - Plan: [Layer 1 ▸ 1.2 Path Operations](implementation-plan.md#12-path-operations)
@@ -87,43 +81,19 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.3 Repository Cache
 **Status**: ✅ COMPLETE
-- **Files**: `src/cache.rs` (188 lines)
-- **Features**: Thread-safe in-process repository cache implemented
-  - `cache::RepoCache` - Arc<Mutex<HashMap>> for thread-safe caching
-  - `cache::get_or_process()` - Cache hit/miss logic with lazy evaluation
-  - `CacheKey` - Composite key for (url, ref) pairs
-  - Additional methods: insert, get, contains, clear, len, is_empty
-- **Testing**: Comprehensive unit tests for all cache operations and thread safety
+- **Files**: `src/cache.rs` (234 lines)
+- **Features**: Thread-safe in-process repository cache (`RepoCache`) implemented.
+- **Testing**: Comprehensive unit tests for all cache operations and thread safety.
 
 **Traceability**
 - Plan: [Layer 1 ▸ 1.3 Repository Cache](implementation-plan.md#13-repository-cache)
 - Design: [Caching Strategy ▸ RepositoryManager Integration](design.md#caching-strategy)
 
----
-
-## ✅ COMPLETED: Repository Manager
-
-**Traceability**
-- Plan: [Layer 1 ▸ 1.2 Repository Manager](implementation-plan.md#12-repository-manager)
-- Design: [Core Concepts ▸ Inherited Repo & RepoTree](design.md#core-concepts)
-
-### High-Level Repository Management
+### 1.4 Repository Manager
 **Status**: ✅ COMPLETE
-- **Files**: `src/repository.rs` (354 lines with comprehensive tests)
-- **Features**: Complete clone/cache/load orchestration with trait-based design
-  - `RepositoryManager` - Main interface for fetching and caching repositories
-  - `GitOperations` trait - Abstraction for git operations (mockable)
-  - `CacheOperations` trait - Abstraction for cache operations (mockable)
-  - `fetch_repository()` - Smart fetch that uses cache if available
-  - `fetch_repository_fresh()` - Force fresh clone (bypass cache)
-  - `is_cached()` - Check if repository is already cached
-  - `list_repository_tags()` - List available tags from remote
-- **Testing**: Full unit test coverage with mocks demonstrating all scenarios
-- **Design Benefits**:
-  - Trait-based design enables easy mocking for tests
-  - Separates concerns (git operations vs cache operations)
-  - Thread-safe and ready for concurrent use
-  - Handles authentication automatically (uses system git)
+- **Files**: `src/repository.rs` (583 lines with comprehensive tests)
+- **Features**: Complete clone/cache/load orchestration with trait-based design (`GitOperations`, `CacheOperations`) for mockability and testability. Supports sub-path filtering.
+- **Testing**: Full unit test coverage with mocks demonstrating all scenarios.
 
 **Traceability**
 - Plan: [Layer 1 ▸ 1.2 Repository Manager](implementation-plan.md#12-repository-manager)
@@ -131,143 +101,69 @@ This document tracks current implementation status against the implementation pl
 
 ---
 
-## ✅ COMPLETED: Layer 2.2 Basic File Operators
-
-**Traceability**
-- Plan: [Layer 2 ▸ Operators Overview](implementation-plan.md#layer-2-operators-depends-on-layers-0-1)
-- Design: [Operator Implementation ▸ include/exclude/rename](design.md#operator-implementation-details)
-
-**Status**: ✅ COMPLETE
-- **Files**: `src/operators.rs` (701 lines)
-- **Features**: All basic file operators implemented with comprehensive tests
-  - `operators::include::apply()` - Add files matching glob patterns to MemoryFS
-  - `operators::exclude::apply()` - Remove files matching glob patterns from MemoryFS
-  - `operators::rename::apply()` - Rename files using regex patterns with capture groups
-- **Testing**: Full unit test coverage (8 tests, 27/27 lines covered)
-- **Dependencies**: Layer 0 (MemoryFS, Config, Error), Layer 1 (Path operations)
-
-### 📋 PLANNED: Layer 2.1 & 2.3-2.5 (Future Phases)
-
-## ✅ COMPLETED: Layer 2.1 Repo Operator
-
-**Traceability**
-- Plan: [Layer 2 ▸ 2.1 Repo Operator](implementation-plan.md#21-repo-operator)
-- Design: [Operator Implementation ▸ repo:](design.md#repo)
-
-**Status**: ✅ COMPLETE
-- **Files**: `src/operators.rs` (added repo module, 420+ lines total)
-- **Features**: Full repo inheritance with with: clause support
-  - `operators::repo::apply()` - Fetches repositories using RepositoryManager
-  - `operators::repo::apply_with_clause()` - Applies inline operations to repo contents
-  - Support for include/exclude/rename operations in `with:` clauses
-  - Prevents circular dependencies (repo operations in `with:` clauses)
-  - Proper error handling for unimplemented operations
-- **Testing**: Comprehensive unit tests with mock repositories (8 tests)
-- **Integration**: Seamlessly integrated with RepositoryManager and basic operators
-- **Dependencies**: Layer 0 (Config, Error), Layer 1 (RepositoryManager), Layer 2.2 (Basic operators)
-
-### ✅ COMPLETED: Layer 2.3 Template Operators
-
-**Status**: ✅ COMPLETE
-- **Files**: `src/operators.rs` (template module, 300+ lines)
-- **Features**: Complete template processing with variable substitution
-  - `template::mark()` - Marks files containing `${VAR}` patterns as templates
-  - `template::process()` - Processes templates with variable substitution supporting:
-    - Simple `${VAR}` syntax
-    - Default values `${VAR:-default}`
-    - Environment variable resolution
-    - Proper error handling for undefined variables
-  - `template_vars::collect()` - Collects unified variable context with override semantics
-- **Testing**: 7 comprehensive unit tests covering all scenarios including edge cases
-- **Integration**: Phase 2 processing now uses template marking operations
-
-**Traceability**
-- Plan: [Layer 2 ▸ 2.3 Template Operators](implementation-plan.md#23-template-operators)
-- Design: [Operator Implementation ▸ template / template-vars](design.md#template)
-
-### Layer 2: Operators (Complete)
-**Status**: ✅ COMPLETE
-- **2.1 Repo Operator**: ✅ COMPLETE (full sub-path filtering implementation with cache isolation)
-- **2.2 Basic File Operators**: ✅ COMPLETE (include/exclude/rename operations)
-- **2.3 Template Operators**: ✅ COMPLETE (marking and processing with variable substitution)
-- **2.4 Merge Operators**: ✅ COMPLETE (YAML/JSON/TOML/INI/Markdown all implemented with comprehensive tests)
-- **2.5 Tool Validation**: ✅ COMPLETE
+## ✅ COMPLETED: Layer 2 - Operators
 
 **Traceability**
 - Plan: [Layer 2 ▸ Operators Overview](implementation-plan.md#layer-2-operators-depends-on-layers-0-1)
 - Design: [Operator Implementation Details ▸ Overview](design.md#operator-implementation-details)
 
-### ✅ COMPLETED: YAML/JSON Merge Operators
+**Status**: ⚠ IN PROGRESS
+- **Files**: `src/operators.rs` (1652 lines)
+- **Features**: Core operators exist with broad unit test coverage, but several integration gaps remain.
+  - **Repo Operator**: Full repo inheritance with sub-path filtering.
+    - **Current Behaviour**: The `with:` clause only applies `exclude` and `rename`; `include` is a documented no-op, and `template`, `merge`, `tools`, or nested `repo` ops are rejected with errors.
+  - **Basic File Operators**: `include`, `exclude`, `rename` are fully functional outside of the `with:` clause limitations.
+  - **Template Operators**: Marking works, but collected template variables are discarded and template files are never processed during Phase 4/5, so `${VAR}` substitution is not yet realized.
+  - **Tool Validation**: `tools` operator executes and validates tool presence/versions.
+  - **Merge Operators**: YAML/JSON/TOML/INI/Markdown merge helpers exist in Phase 5, but Phase 2 still returns `NotImplemented` errors when these operators appear in repo configs, preventing end-to-end execution.
+- **Testing**: Unit tests exercise the individual operator modules; end-to-end coverage will remain limited until the above gaps are closed.
 
-**Status**: ✅ COMPLETE
-- **Files**: `src/phases.rs` (merge operations, 200+ lines)
-- **Features**: Full YAML and JSON fragment merging with path-based navigation
-  - YAML merge: `apply_yaml_merge_operation()` with path navigation (e.g., `metadata.labels.config`)
-  - JSON merge: `apply_json_merge_operation()` with identical path support
-  - Append vs replace modes for flexible merging strategies
-  - Deep object merging for nested structures
-  - Array indexing support in paths
-  - Automatic destination file creation
-- **Dependencies**: `serde_yaml`, `serde_json` added to Cargo.toml
-- **Integration**: Phase 5 local file merging now supports YAML/JSON merge operations
+---
 
-**Traceability**
-- Plan: [Layer 2 ▸ 2.4 Merge Operators](implementation-plan.md#24-merge-operators)
-- Design: [Fragment Merge Operators ▸ yaml / json](design.md#yaml)
-
-### ✅ COMPLETED: TOML/INI/Markdown Merge Operators
-
-**Status**: ✅ COMPLETE
-- **Files**: `src/phases.rs` (additional merge operations, 300+ lines total)
-- **Features**: Full TOML, INI, and Markdown fragment merging with format-specific handling
-  - TOML merge: `apply_toml_merge_operation()` with path-based navigation (dot-separated keys like `table.subtable.key`)
-  - INI merge: `apply_ini_merge_operation()` with section/key syntax (e.g., `section.key` or just `key` for root section)
-  - Markdown merge: `apply_markdown_merge_operation()` with section header matching and content insertion
-  - Append vs replace modes for all formats with appropriate semantics
-  - Auto-creation of intermediate structures (tables for TOML, sections for INI, headers for Markdown)
-- **Dependencies**: `toml`, `rust-ini` added to Cargo.toml (replaced old `ini` crate)
-- **Integration**: Phase 5 local file merging now supports all merge operation types
-- **Testing**: 7 comprehensive unit tests covering root-level, nested path, append mode, and section creation scenarios
-
-**Traceability**
-- Plan: [Layer 2 ▸ 2.4 Merge Operators](implementation-plan.md#24-merge-operators)
-- Design: [Fragment Merge Operators ▸ toml / ini / markdown](design.md#toml)
-
-### Layer 3: Phases
-**Status**: 🔄 PARTIALLY COMPLETE
-- **3.1**: Phase 1 (discovery and cloning) - ✅ FULLY ENHANCED (recursive `.common-repo.yaml` parsing, cycle detection, network failure fallback to cache, breadth-first cloning structure)
-- **3.2**: Phase 2 (processing individual repos) - ✅ ENHANCED (All operators working: include/exclude/rename/template/merge operations)
-- **3.3**: Phase 3 (determining operation order) - ✅ BASIC (Depth-first ordering works correctly)
-- **3.4**: Phase 4 (composite filesystem construction) - ✅ BASIC (Last-write-wins merge implemented)
-- **3.5**: Phase 5 (local file merging) - ✅ ENHANCED (All merge operations working: YAML/JSON/TOML/INI/Markdown)
-- **3.6**: Phase 6 (writing to disk) - ✅ COMPLETE (Full implementation with directory creation, file permissions, and comprehensive testing)
-- **Phase 7 (cache update) removed** - Caching planned to happen during Phase 1, but failure fallback not wired up
+## ✅ COMPLETED: Layer 3 - Phases & Orchestration
 
 **Traceability**
 - Plan: [Layer 3 ▸ Phases Overview](implementation-plan.md#layer-3-phases-depends-on-layers-0-2)
 - Design: [Execution Model ▸ Phases 1-6](design.md#execution-model)
 
-### Layer 3.5: Version Detection
+**Status**: ⚠ PARTIALLY COMPLETE
+- **Files**: `src/phases.rs` (3451 lines)
+- **Features**: The 6-phase pipeline scaffolding is in place with extensive unit tests, but some stages defer key behaviour.
+  - **Phase 1 (Discovery & Cloning)**: ✅ ENHANCED (Recursive discovery, cycle detection, cache fallback).
+  - **Phase 2 (Processing Repos)**: ⚠ Pending (Template variables ignored; merge operators return `NotImplemented`, blocking downstream phases when present).
+  - **Phase 3 (Operation Order)**: ✅ COMPLETE (Depth-first ordering).
+  - **Phase 4 (Composition)**: ✅ COMPLETE (Last-write-wins merge).
+  - **Phase 5 (Local Merging)**: ⚠ Pending (Merge helpers are implemented but cannot be reached until Phase 2 emits merged inputs; template processing is still stubbed).
+  - **Phase 6 (Writing to Disk)**: ✅ COMPLETE (Writes final filesystem to disk, including permissions).
+- **Testing**: Unit and integration-style tests cover each phase in isolation; holistic scenarios involving template or merge operators remain TODO.
+
+---
+
+## ✅ COMPLETED: Layer 3.5 - Version Detection
+
 **Status**: ✅ COMPLETE
-- **Components**: Version checking, update info, CLI integration
-- **Files**: `src/version.rs` (307 lines), `src/commands/check.rs` (72 lines)
-- **Features**: Full version detection with semantic version comparison, breaking change detection, CLI check command
-- **Testing**: 8 comprehensive unit tests covering all version detection scenarios
-- **Note**: Core feature, not deferred
+- **Files**: `src/version.rs` (304 lines)
+- **Features**: Full version detection with semantic version comparison, breaking change detection, and integration with CLI commands.
+- **Testing**: Unit coverage exercises version parsing, comparison, and update reporting scenarios.
 
 **Traceability**
 - Plan: [Layer 3.5 ▸ Version Detection](implementation-plan.md#layer-35-version-detection-depends-on-layers-0-1)
 - Design: [Version Detection and Updates (Future)](design.md#version-detection-and-updates-future)
 
-### Layer 4: CLI & Orchestration
-**Status**: ✅ ENHANCED
-- **Completed**: Full CLI implementation with `clap` integration, orchestrator module, and end-to-end pipeline execution
-- **Features**: `common-repo apply` command with all options (--config, --output, --cache-root, --dry-run, --force, --verbose, --quiet, --no-cache)
-- **Phase 3 CLI**: Added `common-repo check` and `common-repo update` commands for version management
-- **Check Command**: Validates configuration and checks for repository updates with detailed reporting
-- **Update Command**: Updates repository refs to newer versions with safety options (--compatible, --latest, --dry-run, --yes)
-- **Testing**: Comprehensive e2e tests covering all CLI functionality and error scenarios
-- **Verified**: End-to-end pipeline tested and working (processed 22,258 files successfully)
+---
+
+## ✅ COMPLETED: Layer 4 - CLI & Orchestration
+
+**Status**: ✅ COMPLETE
+- **Files**: `src/cli.rs` (59 lines), `src/main.rs` (14 lines), `src/commands/`
+  - `apply.rs` (240 lines)
+  - `check.rs` (133 lines)
+  - `update.rs` (189 lines)
+- **Features**: Full CLI implementation with `clap`.
+  - `common-repo apply`: Executes the entire 6-phase pipeline with all options.
+  - `common-repo check`: Validates configuration and checks for repository updates.
+  - `common-repo update`: Updates repository refs to newer versions.
+- **Testing**: End-to-end tests covering CLI functionality.
 
 **Traceability**
 - Plan: [Layer 4 ▸ CLI & Orchestration](implementation-plan.md#layer-4-cli--orchestration-depends-on-all-layers)
@@ -275,95 +171,46 @@ This document tracks current implementation status against the implementation pl
 
 ---
 
-## 📊 Progress Metrics
-
-### By Implementation Phase (6 phases, mapped from design's 9 phases)
-- **Implementation Phase 1**: ✅ ENHANCED (Truly recursive repo discovery with inherited `.common-repo.yaml` parsing, cycle detection, and network failure fallback)
-- **Implementation Phase 2**: ✅ COMPLETE (All operators implemented: include/exclude/rename/template/merge operations for YAML/JSON/TOML/INI/Markdown)
-- **Implementation Phase 3**: ✅ BASIC (Depth-first ordering works correctly for operation ordering)
-- **Implementation Phase 4**: ✅ BASIC (Last-write-wins merge implemented for composite filesystem construction)
-- **Implementation Phase 5**: ✅ ENHANCED (All merge operations working: YAML/JSON/TOML/INI/Markdown with comprehensive local file merging)
-- **Implementation Phase 6**: 📋 NOT STARTED (Writing to Disk - next priority to complete end-to-end pipeline)
-- **Caching**: ✅ COMPLETE (RepositoryManager caches clones; in-process RepoCache now dedupes identical repo/with combinations)
-
-**Traceability**
-- Plan: [Implementation Strategy ▸ Phases 1-3](implementation-plan.md#implementation-strategy)
-- Design: [Phase Mapping ▸ Execution Model Steps](design.md#execution-model)
+## 📊 Overall Progress Summary
 
 ### By Layer
-- **Layer 0**: ✅ Complete (config, filesystem, error handling foundations)
-- **Layer 1**: ✅ Complete (git/path/cache/repository manager implemented with comprehensive tests)
-- **Layer 2**: ✅ Complete (All operators implemented: repo/include/exclude/rename/template/merge operations for YAML/JSON/TOML/INI/Markdown)
-- **Layer 3**: ✅ Complete (All phases 1-6 fully functional with comprehensive testing)
-- **Layer 4**: ✅ Complete (Full CLI implementation with end-to-end pipeline execution)
+- **Layer 0 (Foundation)**: ✅ Complete
+- **Layer 1 (Core Utilities)**: ✅ Complete
+- **Layer 2 (Operators)**: ⚠ Mostly implemented (template processing, merge operators, and `repo: with:` enhancements still pending)
+- **Layer 3 (Phases)**: ⚠ Pipeline assembled with outstanding work in Phases 2 & 5 to enable template/merge flows
+- **Layer 4 (CLI)**: ✅ Complete
 
-**Traceability**
-- Plan: [Implementation Layers ▸ Overview Table](implementation-plan.md#implementation-layers)
-- Design: [Execution Model ▸ Layered Responsibilities](design.md#core-concepts)
-
-### Phase Mapping: Design vs Implementation
-
-The design document describes 9 phases, but the implementation consolidates these into 6 phases for efficiency:
-
-| Design Phase | Implementation Phase | Status | Description |
-|-------------|---------------------|--------|-------------|
-| Phase 1 | Impl Phase 1 (Discovery & Cloning) | ✅ Enhanced | Parses local + inherited `.common-repo.yaml` files recursively with cycle detection |
-| Phase 2 | Impl Phase 1 (cont.) | ✅ Enhanced | Breadth-first discovery with network failure fallback to cached clones |
-| Phase 3 | Impl Phase 1 (cont.) | ✅ Enhanced | Cache fallback implemented for network failures, repeated-repo deduplication via RepositoryManager |
-| Phase 4 | Impl Phase 2 (Processing) | 🔄 Partial | Include/exclude/rename implemented; merge/template/tools not hooked up |
-| Phase 5 | Impl Phase 3 (Ordering) | 🟡 Basic | Depth-first ordering works on discovered nodes; needs validation with full tree |
-| Phase 6 | Impl Phase 4 (Composition) | 🟡 Basic | Last-write-wins composition only; higher-level merges depend on missing operators |
-| Phase 7 | Impl Phase 5 (Local Merge) | ⛔ Blocked | Local merge path currently returns `not yet implemented` errors for merge ops |
-| Phase 8 | Impl Phase 6 (Write) | 📋 Not Started | Write final result to disk |
-| Phase 9 | Automatic in Impl Phase 1 | ✅ Complete | RepositoryManager + RepoCache provide disk + in-process caching |
-
-**Key Changes:**
-- Design phases 1-3 → Implementation phase 1 (consolidated for parallelism)
-- Design phase 9 (cache update) → Automatic during implementation phase 1
-- Implementation phase 6 (disk writing) not yet started
-
-**Traceability**
-- Plan: [Implementation Strategy ▸ Phase Consolidation](implementation-plan.md#implementation-strategy)
-- Design: [Execution Model ▸ High-Level Flow](design.md#high-level-flow)
+**Conclusion**: The core architecture and CLI are in place, but the pipeline still needs follow-through on template substitution, merge operator execution, and richer `repo: with:` support before it can be considered functionally complete. Focus should remain on closing these gaps and then expanding the remaining CLI surface area from the design plan.
 
 ---
 
 ## 🎯 Next Implementation Steps
 
-### Immediate Next (Unlock End-to-End Flow)
-**Priority**: Close the core functional gaps before expanding surface area
+With the core pipeline complete, the next priorities are to address the remaining feature gaps and enhance the user experience.
 
-1. 🔄 **Phase 1 follow-up**: Parse inherited repos' `.common-repo.yaml`, add cycle detection & error reporting, and introduce real parallel cloning/caching fallback.
-2. 🔄 **Phase 2 completeness**: Implement template, merge, tools, and template-var operators so repo processing covers the full schema.
-3. ⛔ **Phase 5 unblock**: Replace the TODO stubs in local merge with working YAML/JSON/TOML/INI/Markdown handlers (or defer the feature in schema/docs).
-4. 📋 **Phase 6 deliverable**: Write the composite filesystem to disk with permissions handling.
-5. 📋 **CLI**: Build the command-line entrypoint (`clap`, progress output, error surfacing).
-6. 📋 **Version detection (Layer 3.5)**: Introduce optional update checks once the core pipeline is stable.
+1.  **Enable template processing end-to-end**:
+    - Persist collected `template_vars` through the pipeline and wire `template::process` into Phase 4/5 so `${VAR}` substitution is applied to marked files.
 
-**Traceability**
-- Plan: [Implementation Strategy ▸ Phase 1-3 Goals](implementation-plan.md#implementation-strategy)
-- Design: [Execution Model ▸ High-Level Flow](design.md#high-level-flow)
+2.  **Unlock merge operators during repo processing**:
+    - Allow Phase 2 to accept merge operations, ensure the intermediate filesystems carry required inputs, and verify Phase 5 merge helpers cover the integrated scenarios.
 
-### Current Achievements
-1. ✅ Solid foundations (config/filesystem/error layers) with thorough unit coverage
-2. ✅ RepositoryManager + disk cache working for single-repo fetches, with mockable interfaces
-3. ✅ Include/exclude/rename operators and repo `with:` clauses supported with tests
-4. ✅ Phase orchestrator scaffold ties phases 1-4 together for basic, single-level scenarios
-5. ✅ Suite of unit tests (70+) stays green; integration tests exist but remain ignored unless opt-in
-6. ✅ Detailed CLI design is complete and ready for implementation.
+3.  **Complete `repo: with:` clause support**:
+    - Implement non-destructive handling for `include` and add support for `template`, `merge`, and `tool` operations inside `with:` clauses.
 
-**Traceability**
-- Plan: [Implementation Layers ▸ Completed Components](implementation-plan.md#implementation-layers)
-- Design: [Execution Model ▸ Steps 1-5 Complete](design.md#execution-model)
+4.  **Expand CLI Functionality**:
+    - Implement the remaining CLI commands as planned in `implementation-plan.md`:
+      - `common-repo validate`
+      - `common-repo init`
+      - `common-repo cache` (list, clean)
+      - `common-repo diff`, `tree`, `info`, `ls`
 
-### MVP Status
-- **Inheritance Pipeline**: ✅ COMPLETE (All phases 1-6 working with full operator support)
-- **CLI Interface**: ✅ COMPLETE (Full apply command with all options and error handling)
-- **Overall MVP**: ✅ COMPLETE (End-to-end functional with comprehensive testing)
+5.  **Enhance Testing**:
+    - Increase test coverage, especially for end-to-end CLI scenarios and complex multi-repository inheritance.
+    - Add performance benchmarks.
 
-**Traceability**
-- Plan: [Implementation Strategy ▸ Phase 1: MVP](implementation-plan.md#phase-1-mvp-minimum-viable-product)
-- Design: [Execution Model ▸ MVP Expectations](design.md#high-level-flow)
+6.  **Improve Documentation**:
+    - Write user-facing documentation for all CLI commands and configuration options.
+    - Generate API documentation for the library crates.
 
 ---
 
@@ -377,20 +224,20 @@ The design document describes 9 phases, but the implementation consolidates thes
 - **Fix 1: Optimized File Content Cloning**: Removed unnecessary `.clone()` calls in TOML, INI, and Markdown merge operations by using `std::str::from_utf8()` directly
 - **Fix 2: Refactored Path Navigation Logic**: Improved `merge_toml_at_path`, `merge_yaml_at_path`, and `merge_json_at_path` functions with clearer borrowing patterns and better error handling
 - **Fix 3: Code Quality Improvements**: Removed unused variables (including `current_path` in YAML function), standardized error message formatting, verified all functions have proper documentation
-- **Result**: All tests pass (167 tests), no clippy warnings, improved performance and maintainability
+- **Result**: `cargo test` passes, clippy is clean, and performance/maintainability improved
 - **Files Modified**: `src/phases.rs` (all merge operations)
 
 **Traceability**
 - Reference: `code-review-fixes.md` for detailed issue descriptions and fixes
 
 ### CLI Implementation Complete (November 12, 2025)
-- **Phase 6 Implementation**: Complete disk writing functionality with directory creation, file permissions, and comprehensive testing (7 tests, all passing)
+- **Phase 6 Implementation**: Complete disk writing functionality with directory creation, file permissions, and supporting tests
 - **CLI Apply Command**: Full implementation replacing stub with real 6-phase pipeline execution
 - **Progress Reporting**: User-friendly output with timing, file counts, and success/error messages
 - **Dry-run Mode**: Complete support for previewing changes without writing files
 - **Error Handling**: Proper error propagation and user-friendly error messages
 - **All CLI Options**: Support for --config, --output, --cache-root, --dry-run, --force, --verbose, --quiet, --no-cache
-- **End-to-End Testing**: CLI e2e tests updated and all 16 tests passing
+- **End-to-End Testing**: CLI e2e suite updated and passing
 - **Binary Verification**: Release binary tested and confirmed working (processed 22,258 files successfully)
 
 ### Files Added/Modified (All tracked)
@@ -456,8 +303,7 @@ The design document describes 9 phases, but the implementation consolidates thes
 - **Include Operator**: `operators::include::apply()` - Adds files matching glob patterns to MemoryFS
 - **Exclude Operator**: `operators::exclude::apply()` - Removes files matching glob patterns from MemoryFS
 - **Rename Operator**: `operators::rename::apply()` - Renames files using regex patterns with capture groups
-- **Comprehensive Testing**: 8 unit tests covering all operators with various scenarios
-- **Full Coverage**: 27/27 lines covered (100% test coverage)
+- **Testing**: Added targeted unit coverage spanning success paths and edge cases
 - **Updated Library**: Added `operators` module to `lib.rs` exports
 - **Clean Code**: Removed unused imports, no compiler warnings
 
@@ -471,9 +317,8 @@ The design document describes 9 phases, but the implementation consolidates thes
 - **With Clause Support**: `operators::repo::apply_with_clause()` - Applies inline operations
 - **RepositoryManager Integration**: Leverages both disk cache and in-process `RepoCache` dedupe for repeated repo + `with:` combinations
 - **Safety Features**: Prevents circular dependencies, proper error handling for unimplemented ops
-- **Mock Testing**: 8 comprehensive unit tests with mock repositories covering all scenarios
+- **Testing**: Mock-based coverage validates repo fetching, with-clause application, and error paths
 - **Trait-Based Design**: Uses GitOperations/CacheOperations traits for easy testing
-- **All Tests Passing**: 72 total tests (8 new repo tests), 100% success rate
 
 **Traceability**
 - Plan: [Layer 2 ▸ 2.1 Repo Operator](implementation-plan.md#21-repo-operator)
@@ -511,7 +356,7 @@ The design document describes 9 phases, but the implementation consolidates thes
 ### Documentation Updates (November 12, 2025)
 - **Updated README.md**: Comprehensive testing instructions for both unit and integration tests
 - **Updated CLAUDE.md**: Detailed testing commands and guidance for LLMs working with the codebase
-- **Test Coverage Documentation**: 72 unit tests + 5 integration tests clearly documented
+- **Testing Guidance**: Documented how to run the current unit and integration suites
 
 **Traceability**
 - Plan: [Testing Strategy ▸ Documentation](implementation-plan.md#testing-strategy)
@@ -556,7 +401,7 @@ The design document describes 9 phases, but the implementation consolidates thes
 - **Git Operations**: Enhanced `load_from_cache_with_path()` and `url_to_cache_path_with_path()` functions
 - **Operator Integration**: Updated repo operator to pass path parameter from `RepoOp.path` field
 - **Path Normalization**: Handles edge cases (empty paths, ".", "/", trailing slashes) gracefully
-- **Comprehensive Testing**: 25+ new unit tests covering path filtering, cache isolation, and edge cases
+- **Testing**: Extensive unit coverage across path filtering, cache isolation, and edge cases
 - **Integration Testing**: End-to-end tests for repo operations with path filtering and `with:` clauses
 - **Backward Compatibility**: All existing repositories without paths work unchanged
 - **Performance**: No performance impact on repositories without path filtering
@@ -576,14 +421,11 @@ The design document describes 9 phases, but the implementation consolidates thes
 - Plan: [Layer 2 ▸ 2.1 Repo Operator Details](implementation-plan.md#21-repo-operator)
 - Design: [Fragment Operators ▸ Repo Path Filtering](design.md#repo)
 
-### Test Coverage Improvements (November 12, 2025)
-- Improved test coverage from 78.81% to 80.93% (+2.12% improvement)
-- Added test for `config::default_header_level()` function
-- Added test for `path::encode_url_path()` backslash character handling
-- Added test for `cache::Default` implementation
-- Added comprehensive RepositoryManager tests with mock scenarios
+### Testing Improvements (November 12, 2025)
+- Added coverage for `config::default_header_level()` and `path::encode_url_path()` edge cases
+- Supplemented cache and RepositoryManager scenarios with additional unit tests
 - Applied `cargo fmt` formatting across entire codebase
-- All 56 tests pass and clippy is clean
+- Test suite and clippy both run clean
 
 **Traceability**
 - Plan: [Testing Strategy ▸ Unit Tests](implementation-plan.md#testing-strategy)
@@ -620,38 +462,18 @@ The design document describes 9 phases, but the implementation consolidates thes
 - Plan: [Testing Strategy ▸ Overview](implementation-plan.md#testing-strategy)
 - Design: [Testing Strategy ▸ Overview](design.md#testing-strategy)
 
-### Test Coverage: 80.93% (Updated with template and merge operators)
-**Total Tests**: 167 passing ✅ (74 new tests added for template/merge operations)
-
-### Completed Tests
-- **Configuration Parsing**: Full schema validation with all operators
-- **MemoryFS Operations**: Complete filesystem simulation with all operations
-- **Error Handling**: Comprehensive error type coverage
-- **Git Operations**: Path conversion and semver parsing
-- **Path Operations**: Glob matching, regex rename, URL encoding
-- **Repository Cache**: Thread-safe caching with lazy evaluation
-- **Repository Manager**: Complete orchestration with mock-based testing
-- **Basic File Operators**: Include/exclude/rename operations with comprehensive scenarios
-- **Repo Operators**: Repository inheritance with with: clause support and mock testing
-- **Repository Sub-Path Filtering**: Complete path filtering implementation with cache isolation and path remapping
-- **Template Operators**: Complete template processing with variable substitution (7 tests covering all scenarios)
-- **YAML/JSON Merge Operations**: Full path-based merging with append/replace modes
-- **Git Operations Enhanced**: Path-aware caching and filesystem loading functions
-- **Repository Manager Enhanced**: Path parameter support with cache isolation
-- **Integration Testing**: End-to-end repo operations with path filtering and with: clauses
-- **Phase 1 Recursive Discovery**: Multi-level inheritance with cycle detection and network failure fallback
-- **Phase 2 Template Integration**: Template marking operations integrated into repo processing
-- **Test Coverage Improvements**: Added edge case tests for uncovered lines
+### Test Status
+- `cargo test` currently passes across unit tests, doc tests, and CLI end-to-end suites; integration tests remain gated behind the `integration-tests` feature flag.
+- Coverage spans configuration parsing, MemoryFS operations, error handling, git/path utilities, repository management, and CLI commands.
+- Template substitution and merge operator integration tests are deferred until the corresponding pipeline work is delivered.
 
 **Traceability**
 - Plan: [Testing Strategy ▸ Unit and Integration Coverage](implementation-plan.md#testing-strategy)
 - Design: [Testing Strategy ▸ Unit and Integration Coverage](design.md#testing-strategy)
 
-### Completed Integration Tests
-- End-to-end repository cloning, caching, and MemoryFS loading
-- Real repository testing with this project's repository
-- Cache performance verification (1000x speedup demonstrated)
-- Repository content verification and consistency checks
+### Integration Test Harness
+- Validates repository cloning, caching, and MemoryFS loading against this repository when the feature flag is enabled.
+- Provides cache performance smoke checks and content verification.
 - **Feature Flag Control**: Integration tests controlled by `integration-tests` Cargo feature
 - **Network-Aware**: Can be skipped with `SKIP_NETWORK_TESTS` environment variable
 - **Usage**: `cargo test --features integration-tests` to run integration tests
@@ -702,6 +524,8 @@ The design document describes 9 phases, but the implementation consolidates thes
 4. 📋 **Tool Validation Operator** (Layer 2.5)
    - Implement version checking for required tools
    - Validate tool availability and versions
+   - `common-repo update` command
+   - Update information display
 
 5. 📋 **Version Detection** (Layer 3.5)
    - Check for outdated repository refs
@@ -715,10 +539,9 @@ The design document describes 9 phases, but the implementation consolidates thes
 ### Current Achievements
 1. ✅ **Solid foundations** (config/filesystem/error layers with comprehensive testing)
 2. ✅ **Repository inheritance** with sub-path filtering and cache isolation
-3. ✅ **Template processing** with variable substitution and environment variable support
-4. ✅ **YAML/JSON merging** with advanced path-based navigation
-5. ✅ **Enhanced Phase 2** with template marking operations integrated
-6. ✅ **167 unit tests** passing with 80.93% code coverage
+3. ⚠ **Template infrastructure** (marking and variable collection implemented; processing still pending)
+4. ⚠ **Merge operator scaffolding** (Phase 5 helpers ready; Phase 2 integration remains)
+5. ⚠ **Phase 2 enhancements** (template marking wired, full operator support still in progress)
 
 **Traceability**
 - Plan: [Implementation Layers ▸ Completed Components](implementation-plan.md#implementation-layers)
@@ -738,13 +561,13 @@ The design document describes 9 phases, but the implementation consolidates thes
 ## 📝 Recent Changes Summary (Template and Merge Operators)
 
 ### Template Operators Implementation (November 12, 2025)
-- **New Module**: `src/operators.rs::template` (300+ lines) - Complete template processing system
+- **New Module**: `src/operators.rs::template` (300+ lines) - Provides template marking and substitution utilities
 - **Template Marking**: `template::mark()` detects files containing `${VAR}` patterns
-- **Variable Substitution**: `template::process()` supports `${VAR}`, `${VAR:-default}`, and environment variables
+- **Variable Substitution**: `template::process()` supports `${VAR}`, `${VAR:-default}`, and environment variables (pending orchestration wiring)
 - **Template Variables**: `template_vars::collect()` manages unified variable context
-- **Comprehensive Testing**: 7 unit tests covering all substitution scenarios and edge cases
+- **Testing**: Unit coverage verifies marking, substitution helpers, and variable collection edge cases
 - **Filesystem Enhancement**: Added `is_template` field to `File` struct for template tracking
-- **Phase 2 Integration**: Template marking operations now functional in repo processing
+- **Phase 2 Integration**: Template marking operations now functional in repo processing (processing deferred)
 
 **Traceability**
 - Plan: [Layer 2 ▸ 2.3 Template Operators](implementation-plan.md#23-template-operators)
@@ -765,7 +588,7 @@ The design document describes 9 phases, but the implementation consolidates thes
 
 ### Files Modified
 - `Cargo.toml` - Added merge operation dependencies (serde_json, toml, ini, pulldown-cmark)
-- `src/operators.rs` - Added template operators module with 7 comprehensive tests
+- `src/operators.rs` - Added template operators module with supporting unit tests
 - `src/filesystem.rs` - Added `is_template` field to File struct and `get_file_mut()` method
 - `src/git.rs` - Updated File struct literals to include `is_template: false`
 - `src/phases.rs` - Added YAML/JSON merge operations and integrated template marking into Phase 2
@@ -776,10 +599,8 @@ The design document describes 9 phases, but the implementation consolidates thes
 - Design: [Execution Model ▸ Merge Operator Dependencies](design.md#execution-model)
 
 ### Testing Improvements
-- **Test Coverage**: Increased from 77.41% to 80.93% (+3.52% improvement)
-- **New Tests**: 74 additional tests for template and merge operations
-- **Total Tests**: 167 passing tests with zero failures
-- **Documentation Tests**: 14 doc tests passing
+- Expanded unit coverage across template/merge helpers and supporting modules
+- Verified doc tests and CLI flows as part of the standard `cargo test` run
 
 **Traceability**
 - Plan: [Testing Strategy ▸ Coverage Goals](implementation-plan.md#testing-strategy)
@@ -800,10 +621,10 @@ The design document describes 9 phases, but the implementation consolidates thes
 
 ## 📚 Documentation Updates Needed
 
-- API documentation for config, filesystem, error modules
-- Git operations documentation when implemented
-- CLI documentation when Layer 4 is complete
-- Migration guide (if needed for breaking changes)
+- API documentation for all public modules.
+- User guide for CLI commands and configuration schema.
+- Examples of common use cases.
+- Migration guide (if needed for breaking changes).
 
 **Traceability**
 - Plan: [Documentation Updates ▸ Implementation Strategy](implementation-plan.md#implementation-strategy)
