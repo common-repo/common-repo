@@ -25,9 +25,40 @@ cargo run
 
 ### Testing
 
-This project has comprehensive testing with both unit tests and integration tests:
+This project has comprehensive testing with both unit tests and integration tests.
+
+**Recommended: Use cargo-nextest** for faster test execution and better reporting.
+
+#### Installing cargo-nextest
+```bash
+# Install cargo-nextest (one-time setup)
+cargo install cargo-nextest --locked
+
+# Or use cargo-binstall for faster installation
+cargo binstall cargo-nextest
+```
 
 #### Unit Tests (Recommended for development)
+
+**Using cargo-nextest (preferred):**
+```bash
+# Run unit tests only (fast, no network required)
+cargo nextest run
+
+# Run tests with verbose output
+cargo nextest run --verbose
+
+# Run a specific unit test
+cargo nextest run test_name
+
+# Run tests for a specific module
+cargo nextest run -E 'test(mod::test_name)'
+
+# Identify slow tests
+cargo nextest run --profile ci
+```
+
+**Using standard cargo test:**
 ```bash
 # Run unit tests only (fast, no network required)
 cargo test
@@ -45,6 +76,22 @@ cargo test mod::test_name
 #### Integration Tests (Requires network)
 Integration tests verify end-to-end functionality with real repositories:
 
+**Using cargo-nextest (preferred):**
+```bash
+# Run all tests including integration tests
+cargo nextest run --features integration-tests
+
+# Run only integration tests
+cargo nextest run --test integration_test --features integration-tests
+
+# Run integration tests with verbose output
+cargo nextest run --test integration_test --features integration-tests --verbose
+
+# Skip network-dependent integration tests
+SKIP_NETWORK_TESTS=1 cargo nextest run --features integration-tests
+```
+
+**Using standard cargo test:**
 ```bash
 # Run all tests including integration tests
 cargo test --features integration-tests
@@ -59,6 +106,23 @@ cargo test --test integration_test --features integration-tests -- --nocapture
 SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 ```
 
+#### Finding Slow Tests
+
+Cargo-nextest can identify tests that exceed configured slow test thresholds:
+
+```bash
+# Run tests with the CI profile to see slow test warnings
+cargo nextest run --profile ci
+
+# Run with specific slow test threshold
+cargo nextest run --profile default --slow-timeout 60s
+
+# Generate detailed timing report
+cargo nextest run --verbose
+```
+
+Configuration is in `.config/nextest.toml`. Slow tests will be highlighted in CI output.
+
 **Important Notes:**
 - **Use unit tests during development** - they're fast and don't require network
 - **Run integration tests before major changes** - they verify real-world functionality
@@ -67,6 +131,7 @@ SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 - **186 total tests** (167 unit, 5 integration, 14 datatest) cover individual components and full workflows
 - **5 integration tests** validate end-to-end repository inheritance workflows
 - **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
+- **cargo-nextest is used in CI** for faster execution and slow test detection
 
 #### Test Coverage (Tarpaulin)
 
