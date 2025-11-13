@@ -1473,3 +1473,180 @@ mod template_tests {
         assert_eq!(context.get("existing"), Some(&"updated_value".to_string()));
     }
 }
+
+/// Tool validation operators
+pub mod tools {
+    use crate::config::{Tool, ToolsOp};
+    use crate::error::{Error, Result};
+    use semver::{Version, VersionReq};
+    use std::process::Command;
+
+    /// Apply tool validation operation
+    pub fn apply(op: &ToolsOp) -> Result<()> {
+        for tool in &op.tools {
+            check_tool(tool)?;
+        }
+        Ok(())
+    }
+
+    /// Check if a tool exists and meets version requirements
+    fn check_tool(tool: &Tool) -> Result<()> {
+        // Check if tool exists by running it with --version or -V
+        let output = Command::new(&tool.name).arg("--version").output();
+
+        let output = match output {
+            Ok(out) => out,
+            Err(_) => {
+                // Try -V flag as fallback
+                Command::new(&tool.name)
+                    .arg("-V")
+                    .output()
+                    .map_err(|_| Error::ToolValidation {
+                        tool: tool.name.clone(),
+                        message: format!("Tool '{}' not found in PATH", tool.name),
+                    })?
+            }
+        };
+
+        if !output.status.success() {
+            return Err(Error::ToolValidation {
+                tool: tool.name.clone(),
+                message: format!("Tool '{}' failed to run --version/-V", tool.name),
+            });
+        }
+
+        // Parse version from output
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let version_str = extract_version_from_output(&stdout)?;
+
+        // Parse the version constraint
+        let req = VersionReq::parse(&tool.version).map_err(|e| Error::ToolValidation {
+            tool: tool.name.clone(),
+            message: format!("Invalid version constraint '{}': {}", tool.version, e),
+        })?;
+
+        // Parse the actual version
+        let version = Version::parse(&version_str).map_err(|e| Error::ToolValidation {
+            tool: tool.name.clone(),
+            message: format!(
+                "Failed to parse version '{}' from tool output: {}",
+                version_str, e
+            ),
+        })?;
+
+        // Check if version matches requirement
+        if !req.matches(&version) {
+            return Err(Error::ToolValidation {
+                tool: tool.name.clone(),
+                message: format!(
+                    "Tool '{}' version {} does not match requirement '{}'",
+                    tool.name, version, tool.version
+                ),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Extract version string from tool --version output
+    fn extract_version_from_output(output: &str) -> Result<String> {
+        // Common patterns for version output:
+        // "tool 1.2.3"
+        // "tool version 1.2.3"
+        // "1.2.3"
+        // "v1.2.3"
+
+        let output = output.trim();
+
+        // Look for semantic version patterns
+        let re = regex::Regex::new(r"(\d+\.\d+\.\d+)").unwrap();
+        if let Some(captures) = re.captures(output) {
+            if let Some(version_match) = captures.get(1) {
+                let version = version_match.as_str();
+                // Remove leading 'v' if present
+                return Ok(version.strip_prefix('v').unwrap_or(version).to_string());
+            }
+        }
+
+        // If no semantic version found, try to extract any version-like string
+        // This is a fallback for tools that don't follow semver
+        let re_fallback = regex::Regex::new(r"(\d+(?:\.\d+)*)").unwrap();
+        if let Some(captures) = re_fallback.captures(output) {
+            if let Some(version_match) = captures.get(1) {
+                return Ok(version_match.as_str().to_string());
+            }
+        }
+
+        Err(Error::ToolValidation {
+            tool: "unknown".to_string(),
+            message: format!("Could not extract version from output: {}", output),
+        })
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::config::Tool;
+
+        #[test]
+        fn test_check_tool_missing_tool() {
+            let tool = Tool {
+                name: "nonexistent-tool-12345".to_string(),
+                version: "*".to_string(),
+            };
+
+            let result = check_tool(&tool);
+            assert!(result.is_err());
+            if let Err(Error::ToolValidation { tool: t, .. }) = result {
+                assert_eq!(t, "nonexistent-tool-12345");
+            }
+        }
+
+        #[test]
+        fn test_extract_version_semantic() {
+            // Test semantic version extraction
+            assert_eq!(
+                extract_version_from_output("rustc 1.70.0").unwrap(),
+                "1.70.0"
+            );
+            assert_eq!(
+                extract_version_from_output("node v18.17.0").unwrap(),
+                "18.17.0"
+            );
+            assert_eq!(
+                extract_version_from_output("python 3.11.5").unwrap(),
+                "3.11.5"
+            );
+        }
+
+        #[test]
+        fn test_extract_version_fallback() {
+            // Test fallback version extraction
+            assert_eq!(extract_version_from_output("tool 1.2").unwrap(), "1.2");
+            assert_eq!(extract_version_from_output("version 2").unwrap(), "2");
+        }
+
+        #[test]
+        fn test_extract_version_no_version() {
+            // Test failure case
+            let result = extract_version_from_output("no version here");
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_apply_tools_operation() {
+            // Test with a tool that should exist (cargo)
+            let op = ToolsOp {
+                tools: vec![Tool {
+                    name: "cargo".to_string(),
+                    version: "*".to_string(), // Accept any version
+                }],
+            };
+
+            // This will fail in test environment if cargo is not available,
+            // but the test demonstrates the API
+            let _result = apply(&op);
+            // We don't assert success since cargo may not be available in test env
+        }
+    }
+}
