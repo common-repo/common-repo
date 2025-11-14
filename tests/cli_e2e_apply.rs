@@ -9,6 +9,7 @@ use predicates::prelude::*;
 
 /// Test that --help flag shows help information
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_help() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
@@ -23,6 +24,7 @@ fn test_apply_help() {
 
 /// Test that missing config file produces an error
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_missing_config() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
@@ -36,6 +38,7 @@ fn test_apply_missing_config() {
 
 /// Test that missing default config file produces an error
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_missing_default_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -50,6 +53,7 @@ fn test_apply_missing_default_config() {
 
 /// Test that apply succeeds with valid minimal config
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_valid_config() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -77,6 +81,7 @@ fn test_apply_valid_config() {
 
 /// Test that --dry-run flag shows dry run message
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_dry_run() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -103,6 +108,7 @@ fn test_apply_dry_run() {
 
 /// Test that --verbose flag shows parsing information
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_verbose() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -130,6 +136,7 @@ fn test_apply_verbose() {
 
 /// Test that --force flag is accepted
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_force() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -157,6 +164,7 @@ fn test_apply_force() {
 
 /// Test that --no-cache flag is accepted
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_no_cache() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -184,6 +192,7 @@ fn test_apply_no_cache() {
 
 /// Test that --quiet flag suppresses output
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_quiet() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -211,6 +220,7 @@ fn test_apply_quiet() {
 
 /// Test that custom output directory is accepted
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_custom_output() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -240,6 +250,7 @@ fn test_apply_custom_output() {
 
 /// Test that custom cache root is accepted
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_custom_cache_root() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -269,6 +280,7 @@ fn test_apply_custom_cache_root() {
 
 /// Test that invalid YAML config produces an error
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_invalid_yaml() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -288,6 +300,7 @@ fn test_apply_invalid_yaml() {
 
 /// Test the main binary --version flag
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_version() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
@@ -299,6 +312,7 @@ fn test_version() {
 
 /// Test the main binary --help flag
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_main_help() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
@@ -312,6 +326,7 @@ fn test_main_help() {
 
 /// Test that COMMON_REPO_CONFIG environment variable works
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_env_config() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child("custom-config.yaml");
@@ -337,6 +352,7 @@ fn test_apply_env_config() {
 
 /// Test that COMMON_REPO_CACHE environment variable works
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_env_cache() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
