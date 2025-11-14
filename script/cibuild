@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# script/cibuild: Setup environment for CI to run tests. This is primarily
+#                 designed to run on the continuous integration server.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> CI Build for common-repo..."
+
+# Update dependencies
+./script/update
+
+# Check code formatting
+echo "==> Checking code formatting..."
+cargo fmt --all -- --check
+
+# Run linting
+echo "==> Running clippy..."
+cargo clippy --all-targets --all-features -- -D warnings
+
+# Run tests
+echo "==> Running tests..."
+if command -v cargo-nextest >/dev/null 2>&1; then
+  cargo nextest run --all-features --verbose
+else
+  cargo test --all-features -- --nocapture
+fi
+
+echo "==> CI Build complete!"

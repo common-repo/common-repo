@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# script/update: Update application to run for its current checkout.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> Updating common-repo..."
+
+# Ensure all dependencies are installed
+./script/bootstrap
+
+# Fetch dependencies without modifying Cargo.lock
+echo "==> Fetching dependencies..."
+cargo fetch
+
+# Warm up the build cache
+echo "==> Building project to warm cache..."
+cargo build
+
+echo "==> Update complete!"
