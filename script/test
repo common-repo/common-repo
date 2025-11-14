@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# script/test: Run test suite for application. Optionally pass in a path to an
+#              individual test file to run a single test.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# Update dependencies if not in CI
+if [[ -z "${CI:-}" ]]; then
+  echo "==> Updating dependencies..."
+  ./script/update
+fi
+
+echo "==> Running tests..."
+
+# Use cargo-nextest if available, otherwise fall back to cargo test
+if command -v cargo-nextest >/dev/null 2>&1; then
+  cargo nextest run "$@"
+else
+  echo "Warning: cargo-nextest not found, falling back to cargo test"
+  echo "Install cargo-nextest with: cargo install cargo-nextest --locked"
+  cargo test "$@"
+fi

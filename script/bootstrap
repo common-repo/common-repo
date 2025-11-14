@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# script/bootstrap: Resolve all dependencies that the application requires to run.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> Bootstrapping common-repo..."
+
+# Check if Rust is installed
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "Error: Rust (cargo) not found. Install via https://rustup.rs/"
+  exit 1
+fi
+
+echo "==> Ensuring Rust toolchain is installed..."
+# Ensure toolchain installation happens (rust-toolchain.toml will pin the version)
+rustup show >/dev/null 2>&1 || true
+
+# Install cargo-nextest if not already installed
+if ! command -v cargo-nextest >/dev/null 2>&1; then
+  echo "==> Installing cargo-nextest..."
+  if command -v cargo-binstall >/dev/null 2>&1; then
+    echo "    Using cargo-binstall for faster installation..."
+    cargo binstall cargo-nextest --no-confirm
+  else
+    echo "    Installing via cargo install (this may take a few minutes)..."
+    cargo install cargo-nextest --locked
+  fi
+  echo "    cargo-nextest installed successfully!"
+else
+  echo "==> cargo-nextest is already installed ($(cargo nextest --version))"
+fi
+
+# Install pre-commit if available
+if ! command -v pre-commit >/dev/null 2>&1; then
+  echo "==> Installing pre-commit..."
+  if command -v pipx >/dev/null 2>&1; then
+    pipx install pre-commit
+  elif command -v pip >/dev/null 2>&1; then
+    pip install --user pre-commit
+  else
+    echo "    Warning: pre-commit not found (optional)."
+    echo "    Install with: pip install pre-commit"
+  fi
+else
+  echo "==> pre-commit is already installed ($(pre-commit --version))"
+fi
+
+echo "==> Bootstrap complete!"

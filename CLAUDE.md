@@ -17,17 +17,28 @@ This is a Rust project with automated tooling for code quality, conventional com
 
 ## Quick Setup
 
-For first-time setup, run the automated development environment setup script:
+This project follows the [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-them-all) pattern for a normalized development workflow.
+
+For first-time setup after cloning:
 
 ```bash
-# Run the setup script to install cargo-nextest and configure pre-commit hooks
-./scripts/dev-setup.sh
+# Set up the project (installs dependencies and configures environment)
+./script/setup
 ```
 
-This script will:
-- Verify your Rust installation
+This will:
+- Install Rust toolchain (via rust-toolchain.toml)
 - Install cargo-nextest (using cargo-binstall if available, otherwise cargo install)
-- Set up pre-commit hooks if pre-commit is installed
+- Install and configure pre-commit hooks
+- Build the project to warm the cache
+
+### Available Scripts
+
+- `./script/bootstrap` - Install all dependencies
+- `./script/setup` - Set up project for first-time use (calls bootstrap)
+- `./script/update` - Update project after pulling changes
+- `./script/test` - Run the test suite (uses cargo-nextest if available)
+- `./script/cibuild` - Run CI build locally (formatting, linting, tests)
 
 ## Development Commands
 
@@ -57,7 +68,7 @@ This project has comprehensive testing with both unit tests and integration test
 **Automated installation (recommended):**
 ```bash
 # Run the setup script (installs cargo-nextest and sets up pre-commit hooks)
-./scripts/dev-setup.sh
+./script/setup
 ```
 
 **Manual installation:**
@@ -68,6 +79,8 @@ cargo install cargo-nextest --locked
 # Or use cargo-binstall for faster installation (if available)
 cargo binstall cargo-nextest
 ```
+
+**Note:** The `./script/test` command will automatically use cargo-nextest if available, or fall back to `cargo test` with a helpful message.
 
 #### Unit Tests (Recommended for development)
 

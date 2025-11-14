@@ -34,26 +34,35 @@ Perfect for projects that need to compose shared configurations, templates, or c
 
 ### Installation
 
+This project follows the [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-them-all) pattern for a normalized development workflow.
+
 ```bash
 # Clone the repository
 git clone <your-repo-url>
 cd common-repo
 
-# Run the automated setup script (recommended for first-time setup)
-./scripts/dev-setup.sh
+# Run the setup script (recommended for first-time setup)
+# This installs dependencies, configures hooks, and builds the project
+./script/setup
 
-# Build the project
-cargo build
-
-# Run tests (using cargo-nextest, installed by setup script)
-cargo nextest run
+# Run tests (automatically uses cargo-nextest if available)
+./script/test
 ```
+
+**Available Scripts:**
+- `./script/bootstrap` - Install all dependencies (cargo-nextest, pre-commit, etc.)
+- `./script/setup` - Set up project for first-time use (calls bootstrap + configures environment)
+- `./script/update` - Update project after pulling changes
+- `./script/test` - Run the test suite (uses cargo-nextest if available, falls back to cargo test)
+- `./script/cibuild` - Run CI build locally (formatting, linting, tests)
 
 ### Testing
 
 This project includes comprehensive testing with both unit tests and integration tests.
 
-**Recommended: Use cargo-nextest** for faster test execution and better reporting. Install it via `./scripts/dev-setup.sh` or manually with `cargo install cargo-nextest --locked`.
+**Recommended: Use cargo-nextest** for faster test execution and better reporting. Install it via `./script/setup` or manually with `cargo install cargo-nextest --locked`.
+
+**Quick test command:** Use `./script/test` which automatically uses cargo-nextest if available, or falls back to `cargo test` with a helpful message.
 
 #### Unit Tests
 Unit tests verify individual components and functions:

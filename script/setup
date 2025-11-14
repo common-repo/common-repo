@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# script/setup: Set up application for the first time after cloning, or set it
+#               back to the initial first unused state.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> Setting up common-repo..."
+
+# Ensure all dependencies are installed
+./script/bootstrap
+
+# Install pre-commit hooks if pre-commit is available
+if command -v pre-commit >/dev/null 2>&1; then
+  echo "==> Installing pre-commit hooks..."
+  pre-commit install
+  pre-commit install --hook-type commit-msg
+  echo "    Pre-commit hooks installed successfully!"
+else
+  echo "==> Skipping pre-commit hooks (pre-commit not installed)"
+fi
+
+# Warm up the build cache
+echo "==> Building project to warm cache..."
+cargo build
+
+echo "==> Setup complete!"
+echo ""
+echo "Quick start commands:"
+echo "  ./script/test              # Run tests"
+echo "  ./script/update            # Update after pulling changes"
+echo "  cargo build --release      # Build release binary"
