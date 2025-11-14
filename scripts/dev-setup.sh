@@ -14,7 +14,7 @@ cargo --version
 
 if ! command -v cargo-nextest &> /dev/null; then
     echo "Installing cargo-nextest..."
-    
+
     if command -v cargo-binstall &> /dev/null; then
         echo "Using cargo-binstall for faster installation..."
         cargo binstall cargo-nextest --no-confirm
@@ -22,7 +22,7 @@ if ! command -v cargo-nextest &> /dev/null; then
         echo "Installing via cargo install (this may take a few minutes)..."
         cargo install cargo-nextest --locked
     fi
-    
+
     echo "cargo-nextest installed successfully!"
 else
     echo "cargo-nextest is already installed ($(cargo nextest --version))"
