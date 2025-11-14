@@ -25,8 +25,12 @@ Perfect for projects that need to compose shared configurations, templates, or c
 
 ### Prerequisites
 
-- Rust 1.90.0 or later
-- Python 3.7+ (for pre-commit hooks)
+- **Rust**: Stable channel (automatically managed via `rust-toolchain.toml`)
+  - Install from https://rustup.rs/
+  - The project requires Rust stable with support for edition 2024 features
+  - The toolchain file will automatically ensure you have the correct version
+- **cargo-nextest**: Required for running tests (installed via setup script)
+- **Python 3.7+**: Optional, for pre-commit hooks
 
 ### Installation
 
@@ -35,20 +39,41 @@ Perfect for projects that need to compose shared configurations, templates, or c
 git clone <your-repo-url>
 cd common-repo
 
+# Run the automated setup script (recommended for first-time setup)
+./scripts/dev-setup.sh
+
 # Build the project
 cargo build
 
-# Run tests
-cargo test
+# Run tests (using cargo-nextest, installed by setup script)
+cargo nextest run
 ```
 
 ### Testing
 
-This project includes comprehensive testing with both unit tests and integration tests:
+This project includes comprehensive testing with both unit tests and integration tests.
+
+**Recommended: Use cargo-nextest** for faster test execution and better reporting. Install it via `./scripts/dev-setup.sh` or manually with `cargo install cargo-nextest --locked`.
 
 #### Unit Tests
 Unit tests verify individual components and functions:
 
+**Using cargo-nextest (recommended):**
+```bash
+# Run unit tests only (default, no network required)
+cargo nextest run
+
+# Run tests with verbose output
+cargo nextest run --verbose
+
+# Run a specific unit test
+cargo nextest run test_name
+
+# Run tests for a specific module
+cargo nextest run -E 'test(mod::test_name)'
+```
+
+**Using standard cargo test:**
 ```bash
 # Run unit tests only (default, no network required)
 cargo test
@@ -66,6 +91,22 @@ cargo test mod::test_name
 #### Integration Tests
 Integration tests verify end-to-end functionality with real repositories and network operations:
 
+**Using cargo-nextest (recommended):**
+```bash
+# Run all tests including integration tests (requires network)
+cargo nextest run --features integration-tests
+
+# Run only integration tests
+cargo nextest run --test integration_test --features integration-tests
+
+# Run integration tests with verbose output
+cargo nextest run --test integration_test --features integration-tests --verbose
+
+# Skip network-dependent integration tests
+SKIP_NETWORK_TESTS=1 cargo nextest run --features integration-tests
+```
+
+**Using standard cargo test:**
 ```bash
 # Run all tests including integration tests (requires network)
 cargo test --features integration-tests
@@ -78,9 +119,6 @@ cargo test --test integration_test --features integration-tests -- --nocapture
 
 # Skip network-dependent integration tests
 SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
-
-# Run integration tests only (skip unit tests)
-SKIP_NETWORK_TESTS=1 cargo test --test integration_test --features integration-tests
 ```
 
 **Integration Tests Overview:**
