@@ -6,6 +6,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust project with automated tooling for code quality, conventional commits, and semantic versioning. The project is configured for modern development practices with comprehensive CI/CD automation.
 
+## Requirements
+
+- **Rust**: Stable channel (automatically managed via `rust-toolchain.toml`)
+  - The project requires Rust stable with support for edition 2024 features
+  - Install Rust from https://rustup.rs/
+  - The toolchain file will automatically ensure you have the correct version
+- **cargo-nextest**: Required for running tests (see setup instructions below)
+- **pre-commit**: Optional but recommended for commit hooks
+
+## Quick Setup
+
+For first-time setup, run the automated development environment setup script:
+
+```bash
+# Run the setup script to install cargo-nextest and configure pre-commit hooks
+./scripts/dev-setup.sh
+```
+
+This script will:
+- Verify your Rust installation
+- Install cargo-nextest (using cargo-binstall if available, otherwise cargo install)
+- Set up pre-commit hooks if pre-commit is installed
+
 ## Development Commands
 
 ### Building and Running
@@ -30,11 +53,19 @@ This project has comprehensive testing with both unit tests and integration test
 **Recommended: Use cargo-nextest** for faster test execution and better reporting.
 
 #### Installing cargo-nextest
+
+**Automated installation (recommended):**
+```bash
+# Run the setup script (installs cargo-nextest and sets up pre-commit hooks)
+./scripts/dev-setup.sh
+```
+
+**Manual installation:**
 ```bash
 # Install cargo-nextest (one-time setup)
 cargo install cargo-nextest --locked
 
-# Or use cargo-binstall for faster installation
+# Or use cargo-binstall for faster installation (if available)
 cargo binstall cargo-nextest
 ```
 
