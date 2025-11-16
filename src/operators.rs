@@ -193,17 +193,37 @@ pub mod repo {
     pub fn apply_with_clause(operations: &[Operation], fs: &mut MemoryFS) -> Result<()> {
         for operation in operations {
             match operation {
-                Operation::Include { .. } => {
-                    // Include operations in `with:` clauses are currently no-ops
-                    // since we're working with a single filesystem and files are
-                    // already present. This could be enhanced in the future to
-                    // support more complex include semantics.
+                Operation::Include { include } => {
+                    // In a `with:` clause, include filters the filesystem to keep only
+                    // files that match the patterns. This is different from the regular
+                    // include operator which copies files from source to target.
+
+                    // Collect all files that match any of the include patterns
+                    let mut files_to_keep = std::collections::HashSet::new();
+                    for pattern in &include.patterns {
+                        let matching_files = fs.list_files_glob(pattern)?;
+                        files_to_keep.extend(matching_files);
+                    }
+
+                    // Remove all files that don't match any include pattern
+                    let all_files = fs.list_files();
+                    for path in all_files {
+                        if !files_to_keep.contains(&path) {
+                            fs.remove_file(&path)?;
+                        }
+                    }
                 }
                 Operation::Exclude { exclude } => {
                     super::exclude::apply(exclude, fs)?;
                 }
                 Operation::Rename { rename } => {
                     super::rename::apply(rename, fs)?;
+                }
+                Operation::Template { template } => {
+                    super::template::mark(template, fs)?;
+                }
+                Operation::Tools { tools } => {
+                    super::tools::apply(tools)?;
                 }
                 // Note: Repo operations within `with:` clauses are not supported
                 // as they would create circular dependencies
@@ -213,18 +233,20 @@ pub mod repo {
                         message: "Repo operations not allowed in 'with:' clauses".to_string(),
                     });
                 }
-                // Template and merge operations are not implemented yet
-                Operation::Template { .. }
-                | Operation::TemplateVars { .. }
+                // Merge and template_vars operations don't make sense in `with:` clauses
+                // - Merge operators work during composition phase, not during repo loading
+                // - TemplateVars need to be collected globally across all repos
+                Operation::TemplateVars { .. }
                 | Operation::Yaml { .. }
                 | Operation::Json { .. }
                 | Operation::Toml { .. }
                 | Operation::Ini { .. }
-                | Operation::Markdown { .. }
-                | Operation::Tools { .. } => {
+                | Operation::Markdown { .. } => {
                     return Err(crate::error::Error::Operator {
-                        operator: "template/merge".to_string(),
-                        message: "Operation not yet implemented".to_string(),
+                        operator: "merge/template_vars".to_string(),
+                        message:
+                            "Merge and template_vars operations not supported in 'with:' clauses"
+                                .to_string(),
                     });
                 }
             }
@@ -684,11 +706,10 @@ mod tests {
 
             repo::apply_with_clause(&operations, &mut fs).unwrap();
 
-            // Include operations in `with:` clauses are currently no-ops
-            // Files should remain unchanged
+            // Include operations in `with:` clauses filter to keep only matching files
             assert!(fs.exists("src/main.rs"));
             assert!(fs.exists("src/lib.rs"));
-            assert!(fs.exists("README.md"));
+            assert!(!fs.exists("README.md")); // Should be removed
         }
 
         #[test]
@@ -758,7 +779,7 @@ mod tests {
         }
 
         #[test]
-        fn test_apply_with_clause_unimplemented_operation() {
+        fn test_apply_with_clause_merge_operation_not_supported() {
             let mut fs = MemoryFS::new();
             fs.add_file_string("test.txt", "test").unwrap();
 
@@ -776,7 +797,7 @@ mod tests {
             assert!(result
                 .unwrap_err()
                 .to_string()
-                .contains("Operation not yet implemented"));
+                .contains("not supported in 'with:' clauses"));
         }
 
         #[test]
@@ -905,48 +926,36 @@ mod tests {
         }
 
         #[test]
-        fn test_apply_with_clause_multiple_unimplemented_operations() {
+        fn test_apply_with_clause_template_operation() {
             let mut fs = MemoryFS::new();
-            fs.add_file_string("test.txt", "test").unwrap();
+            fs.add_file_string("template.txt", "Hello ${NAME}!")
+                .unwrap();
+            fs.add_file_string("regular.txt", "Not a template").unwrap();
 
-            let operations = vec![
-                Operation::Template {
-                    template: crate::config::TemplateOp {
-                        patterns: vec!["template.txt".to_string()],
-                    },
+            let operations = vec![Operation::Template {
+                template: crate::config::TemplateOp {
+                    patterns: vec!["template.txt".to_string()],
                 },
-                Operation::Json {
-                    json: crate::config::JsonMergeOp {
-                        source: "source.json".to_string(),
-                        dest: "dest.json".to_string(),
-                        path: "/".to_string(),
-                        append: false,
-                        position: "end".to_string(),
-                    },
-                },
-            ];
+            }];
 
-            let result = repo::apply_with_clause(&operations, &mut fs);
-            assert!(result.is_err());
-            if let Err(crate::error::Error::Operator { operator, .. }) = result {
-                assert!(operator.contains("template/merge"));
-            } else {
-                panic!("Expected Operator error");
-            }
+            repo::apply_with_clause(&operations, &mut fs).unwrap();
+
+            // Check that template.txt is marked as a template
+            let template_file = fs.get_file("template.txt").unwrap();
+            assert!(template_file.is_template);
+
+            // Check that regular.txt is not marked as a template
+            let regular_file = fs.get_file("regular.txt").unwrap();
+            assert!(!regular_file.is_template);
         }
 
         #[test]
-        fn test_apply_with_clause_all_unimplemented_operations() {
+        fn test_apply_with_clause_unsupported_operations() {
             let mut fs = MemoryFS::new();
             fs.add_file_string("test.txt", "test").unwrap();
 
-            // Test all unimplemented operation types
-            let unimplemented_ops = vec![
-                Operation::Template {
-                    template: crate::config::TemplateOp {
-                        patterns: vec!["t.txt".to_string()],
-                    },
-                },
+            // Test operations that are not supported in with: clauses
+            let unsupported_ops = vec![
                 Operation::TemplateVars {
                     template_vars: crate::config::TemplateVars {
                         vars: std::collections::HashMap::new(),
@@ -998,16 +1007,146 @@ mod tests {
                         create_section: false,
                     },
                 },
-                Operation::Tools {
-                    tools: crate::config::ToolsOp { tools: vec![] },
+            ];
+
+            for op in unsupported_ops {
+                let mut test_fs = fs.clone();
+                let result = repo::apply_with_clause(&[op], &mut test_fs);
+                assert!(result.is_err(), "Unsupported operation should error");
+                assert!(result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("not supported in 'with:' clauses"));
+            }
+        }
+
+        #[test]
+        fn test_apply_with_clause_tools_operation() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "test").unwrap();
+
+            // Test with empty tools list (should succeed as a no-op)
+            let operations = vec![Operation::Tools {
+                tools: crate::config::ToolsOp { tools: vec![] },
+            }];
+
+            let result = repo::apply_with_clause(&operations, &mut fs);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_apply_with_clause_include_multiple_patterns() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
+            fs.add_file_string("src/lib.rs", "pub fn lib() {}").unwrap();
+            fs.add_file_string("tests/test.rs", "mod test {}").unwrap();
+            fs.add_file_string("README.md", "# Project").unwrap();
+            fs.add_file_string("Cargo.toml", "[package]").unwrap();
+
+            // Include both src/*.rs and tests/*.rs
+            let operations = vec![Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["src/*.rs".to_string(), "tests/*.rs".to_string()],
+                },
+            }];
+
+            repo::apply_with_clause(&operations, &mut fs).unwrap();
+
+            // Should keep .rs files but remove others
+            assert!(fs.exists("src/main.rs"));
+            assert!(fs.exists("src/lib.rs"));
+            assert!(fs.exists("tests/test.rs"));
+            assert!(!fs.exists("README.md"));
+            assert!(!fs.exists("Cargo.toml"));
+        }
+
+        #[test]
+        fn test_apply_with_clause_combined_operations() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
+            fs.add_file_string("src/lib.rs", "pub fn lib() {}").unwrap();
+            fs.add_file_string("README.md", "# Project").unwrap();
+            fs.add_file_string("template.txt", "Hello ${NAME}!")
+                .unwrap();
+
+            // Combine include, exclude, rename, and template operations
+            let operations = vec![
+                // First include only src/ and template files
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["src/*".to_string(), "template.txt".to_string()],
+                    },
+                },
+                // Then rename src/ to rust/
+                Operation::Rename {
+                    rename: RenameOp {
+                        mappings: vec![RenameMapping {
+                            from: r"src/(.*)".to_string(),
+                            to: "rust/$1".to_string(),
+                        }],
+                    },
+                },
+                // Mark template for processing
+                Operation::Template {
+                    template: crate::config::TemplateOp {
+                        patterns: vec!["template.txt".to_string()],
+                    },
                 },
             ];
 
-            for op in unimplemented_ops {
-                let mut test_fs = fs.clone();
-                let result = repo::apply_with_clause(&[op], &mut test_fs);
-                assert!(result.is_err(), "Unimplemented operation should error");
-            }
+            repo::apply_with_clause(&operations, &mut fs).unwrap();
+
+            // Check results
+            assert!(!fs.exists("src/main.rs"));
+            assert!(!fs.exists("src/lib.rs"));
+            assert!(fs.exists("rust/main.rs"));
+            assert!(fs.exists("rust/lib.rs"));
+            assert!(!fs.exists("README.md"));
+            assert!(fs.exists("template.txt"));
+
+            // Check that template is marked
+            let template_file = fs.get_file("template.txt").unwrap();
+            assert!(template_file.is_template);
+        }
+
+        #[test]
+        fn test_apply_with_clause_include_no_matches() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("README.md", "# Project").unwrap();
+            fs.add_file_string("LICENSE", "MIT").unwrap();
+
+            // Include pattern that matches nothing
+            let operations = vec![Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["*.rs".to_string()],
+                },
+            }];
+
+            repo::apply_with_clause(&operations, &mut fs).unwrap();
+
+            // All files should be removed since nothing matched
+            assert!(!fs.exists("README.md"));
+            assert!(!fs.exists("LICENSE"));
+        }
+
+        #[test]
+        fn test_apply_with_clause_include_all_files() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("README.md", "# Project").unwrap();
+            fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
+
+            // Include all files
+            let operations = vec![Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["**/*".to_string()],
+                },
+            }];
+
+            repo::apply_with_clause(&operations, &mut fs).unwrap();
+
+            // All files should be kept
+            assert!(fs.exists("README.md"));
+            assert!(fs.exists("src/main.rs"));
         }
     }
 
