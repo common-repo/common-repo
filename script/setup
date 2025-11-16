@@ -11,14 +11,20 @@ echo "==> Setting up common-repo..."
 # Ensure all dependencies are installed
 ./script/bootstrap
 
-# Install pre-commit hooks if pre-commit is available
-if command -v pre-commit >/dev/null 2>&1; then
+# Install pre-commit hooks (prefer prek if available)
+if command -v prek >/dev/null 2>&1; then
+  echo "==> Installing pre-commit hooks with prek..."
+  prek install
+  prek install --hook-type commit-msg
+  echo "    Pre-commit hooks installed successfully with prek!"
+elif command -v pre-commit >/dev/null 2>&1; then
   echo "==> Installing pre-commit hooks..."
   pre-commit install
   pre-commit install --hook-type commit-msg
   echo "    Pre-commit hooks installed successfully!"
 else
-  echo "==> Skipping pre-commit hooks (pre-commit not installed)"
+  echo "==> Skipping pre-commit hooks (neither prek nor pre-commit installed)"
+  echo "    Run './script/bootstrap' to install prek"
 fi
 
 # Warm up the build cache

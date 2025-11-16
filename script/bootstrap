@@ -32,19 +32,33 @@ else
   echo "==> cargo-nextest is already installed ($(cargo nextest --version))"
 fi
 
-# Install pre-commit if available
-if ! command -v pre-commit >/dev/null 2>&1; then
-  echo "==> Installing pre-commit..."
+# Install prek (Rust-based pre-commit alternative) if not already installed
+if ! command -v prek >/dev/null 2>&1; then
+  echo "==> Installing prek (Rust-based pre-commit)..."
+  if command -v cargo-binstall >/dev/null 2>&1; then
+    echo "    Using cargo-binstall for faster installation..."
+    cargo binstall prek --no-confirm
+  else
+    echo "    Installing via cargo install..."
+    cargo install prek --locked
+  fi
+  echo "    prek installed successfully!"
+else
+  echo "==> prek is already installed ($(prek --version))"
+fi
+
+# Install pre-commit as fallback if prek is not available
+if ! command -v prek >/dev/null 2>&1 && ! command -v pre-commit >/dev/null 2>&1; then
+  echo "==> Installing pre-commit as fallback..."
   if command -v pipx >/dev/null 2>&1; then
     pipx install pre-commit
   elif command -v pip >/dev/null 2>&1; then
     pip install --user pre-commit
   else
-    echo "    Warning: pre-commit not found (optional)."
-    echo "    Install with: pip install pre-commit"
+    echo "    Warning: Neither prek nor pre-commit could be installed."
+    echo "    Install prek with: cargo install prek"
+    echo "    Or install pre-commit with: pip install pre-commit"
   fi
-else
-  echo "==> pre-commit is already installed ($(pre-commit --version))"
 fi
 
 echo "==> Bootstrap complete!"

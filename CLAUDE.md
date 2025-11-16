@@ -13,7 +13,8 @@ This is a Rust project with automated tooling for code quality, conventional com
   - Install Rust from https://rustup.rs/
   - The toolchain file will automatically ensure you have the correct version
 - **cargo-nextest**: Required for running tests (see setup instructions below)
-- **pre-commit**: Optional but recommended for commit hooks
+- **prek**: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
+  - Alternative: **pre-commit** (Python-based, works as fallback)
 
 ## Quick Setup
 
@@ -29,7 +30,7 @@ For first-time setup after cloning:
 This will:
 - Install Rust toolchain (via rust-toolchain.toml)
 - Install cargo-nextest (using cargo-binstall if available, otherwise cargo install)
-- Install and configure pre-commit hooks
+- Install prek (Rust-based pre-commit tool) and configure hooks
 - Build the project to warm the cache
 
 ### Available Scripts
@@ -246,6 +247,9 @@ cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
 # Run all CI checks locally
 ./script/cibuild
 
+# Or run pre-commit hooks on all files (recommended)
+prek run --all-files
+
 # Or run checks individually
 cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
@@ -287,11 +291,22 @@ Pre-commit hooks are configured in `.pre-commit-config.yaml` and will automatica
 - Trailing whitespace and YAML checks
 
 If pre-commit hooks are not installed, install them with:
+
+**Recommended (Rust-based, faster):**
+```bash
+cargo install prek --locked
+prek install
+prek install --hook-type commit-msg
+```
+
+**Alternative (Python-based):**
 ```bash
 pip install pre-commit
 pre-commit install
 pre-commit install --hook-type commit-msg
 ```
+
+**Note**: The `./script/setup` command automatically installs and configures prek if available.
 
 ## CI/CD Architecture
 
