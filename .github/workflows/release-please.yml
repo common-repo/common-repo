@@ -25,7 +25,6 @@ jobs:
 
       - uses: googleapis/release-please-action@v4
         with:
-          # Use manifest mode to read from release-please-config.json
-          # and .release-please-manifest.json
-          command: manifest
+          # Manifest mode is the default in v4 (reads release-please-config.json
+          # and .release-please-manifest.json)
           token: ${{ steps.authenticate.outputs.token }}
