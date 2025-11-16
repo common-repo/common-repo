@@ -22,7 +22,7 @@ jobs:
         with:
           app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
           private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
-      
+
       - uses: googleapis/release-please-action@v4
         with:
           # Use manifest mode to read from release-please-config.json
