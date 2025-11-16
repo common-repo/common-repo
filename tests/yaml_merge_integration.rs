@@ -1,4 +1,4 @@
-//!
+//! Integration tests for YAML merge operations in Phase 5.
 
 use common_repo::config::{ArrayMergeMode, YamlMergeOp};
 use common_repo::filesystem::MemoryFS;
