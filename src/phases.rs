@@ -4635,5 +4635,86 @@ Install instructions here.
             assert_eq!(items[0].as_str(), Some("old1"));
             assert_eq!(items[1].as_str(), Some("new1"));
         }
+
+        #[test]
+        fn test_yaml_merge_nested_path_array_mode() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("source.yaml", "items:\n  - new1\n  - new2")
+                .unwrap();
+            fs.add_file_string("dest.yaml", "config:\n  nested:\n    items:\n      - old1")
+                .unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: Some("config.nested".to_string()),
+                append: false,
+                array_mode: Some(crate::config::ArrayMergeMode::AppendUnique),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let items = value["config"]["nested"]["items"].as_sequence().unwrap();
+            assert_eq!(items.len(), 3);
+            assert_eq!(items[0].as_str(), Some("old1"));
+            assert_eq!(items[1].as_str(), Some("new1"));
+            assert_eq!(items[2].as_str(), Some("new2"));
+        }
+
+        #[test]
+        fn test_yaml_merge_type_mismatch_array_to_scalar() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("source.yaml", "value:\n  - item1\n  - item2")
+                .unwrap();
+            fs.add_file_string("dest.yaml", "value: scalar_string")
+                .unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(crate::config::ArrayMergeMode::Replace),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let items = value["value"].as_sequence().unwrap();
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0].as_str(), Some("item1"));
+            assert_eq!(items[1].as_str(), Some("item2"));
+        }
+
+        #[test]
+        fn test_yaml_merge_append_unique_non_string_items() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("source.yaml", "items:\n  - 1\n  - 2\n  - 3")
+                .unwrap();
+            fs.add_file_string("dest.yaml", "items:\n  - 1\n  - 4")
+                .unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(crate::config::ArrayMergeMode::AppendUnique),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let items = value["items"].as_sequence().unwrap();
+            assert_eq!(items.len(), 4);
+            assert_eq!(items[0].as_i64(), Some(1));
+            assert_eq!(items[1].as_i64(), Some(4));
+            assert_eq!(items[2].as_i64(), Some(2));
+            assert_eq!(items[3].as_i64(), Some(3));
+        }
     }
 }
