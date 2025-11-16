@@ -3316,6 +3316,77 @@ mod phase_tests {
             assert_eq!(json["name"], "test-package");
             assert_eq!(json["newKey"], "newValue");
         }
+
+        #[test]
+        fn test_phase4_execute_with_ini_merge_operations() {
+            // Test that INI merge operations are executed during Phase 4
+            use crate::config::{IniMergeOp, Operation};
+
+            // Create a filesystem with source and destination INI files
+            let mut fs1 = MemoryFS::new();
+            fs1.add_file_string(
+                "fragment.ini",
+                r#"
+[database]
+pool_size = 10
+timeout = 30
+"#,
+            )
+            .unwrap();
+            fs1.add_file_string(
+                "config.ini",
+                r#"
+[database]
+host = localhost
+port = 5432
+
+[server]
+port = 8080
+"#,
+            )
+            .unwrap();
+
+            // Create an INI merge operation
+            let ini_merge_op = IniMergeOp {
+                source: "fragment.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: "database".to_string(),
+                append: false,
+                allow_duplicates: false,
+            };
+
+            let merge_operations = vec![Operation::Ini { ini: ini_merge_op }];
+
+            let mut intermediate_fss = HashMap::new();
+            intermediate_fss.insert(
+                "https://github.com/repo-a.git@main".to_string(),
+                IntermediateFS::new_with_vars_and_merges(
+                    fs1,
+                    "https://github.com/repo-a.git".to_string(),
+                    "main".to_string(),
+                    HashMap::new(),
+                    merge_operations,
+                ),
+            );
+
+            let order = OperationOrder::new(vec!["https://github.com/repo-a.git@main".to_string()]);
+
+            let composite = phase4::execute(&order, &intermediate_fss).unwrap();
+
+            // Verify that the merge operation was executed
+            assert!(composite.exists("config.ini"));
+            let config_file = composite.get_file("config.ini").unwrap();
+            let content = String::from_utf8(config_file.content.clone()).unwrap();
+
+            // Verify INI content has both sections
+            assert!(content.contains("[database]"));
+            assert!(content.contains("host=localhost"));
+            assert!(content.contains("port=5432"));
+            assert!(content.contains("pool_size=10"));
+            assert!(content.contains("timeout=30"));
+            assert!(content.contains("[server]"));
+            assert!(content.contains("port=8080"));
+        }
     }
 
     mod phase5_tests {
