@@ -3719,7 +3719,7 @@ Install instructions here.
     }
 
     mod parse_path_tests {
-        use super::{parse_path, PathSegment};
+        use super::super::{parse_path, PathSegment};
 
         #[test]
         fn test_parse_path_empty() {
@@ -3860,7 +3860,7 @@ Install instructions here.
     }
 
     mod navigate_yaml_value_tests {
-        use super::{navigate_yaml_value, parse_path, PathSegment};
+        use super::super::{navigate_yaml_value, parse_path, PathSegment};
         use serde_yaml::Value as YamlValue;
 
         #[test]
@@ -3907,7 +3907,7 @@ Install instructions here.
     }
 
     mod yaml_merge_integration_tests {
-        use super::{apply_yaml_merge_operation, read_file_as_string};
+        use super::super::{apply_yaml_merge_operation, read_file_as_string};
         use crate::filesystem::MemoryFS;
         use serde_yaml::Value as YamlValue;
 
