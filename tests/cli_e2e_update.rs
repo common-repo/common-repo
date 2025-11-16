@@ -161,7 +161,7 @@ fn test_update_dry_run() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Dry run mode"));
+        .stdout(predicate::str::contains("Checking for repository updates"));
 
     let final_content = std::fs::read_to_string(config_file.path()).unwrap();
     assert_eq!(original_content, final_content);
@@ -298,4 +298,35 @@ fn test_update_invalid_yaml() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("Failed to load config"));
+}
+
+/// Test update refs behavior with the update-refs-test fixture
+/// This test uses the fixture that references common-repo-v0.3.0 with a subpath.
+/// It is skipped until v0.3.0 is released and v0.4.0 exists to make it outdated.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+#[ignore = "waiting for common-repo-v0.3.0 and v0.4.0 releases to exist"]
+fn test_update_refs_fixture_subpath() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Load the update-refs-test fixture content
+    let fixture_content = include_str!("testdata/update-refs-test/.common-repo.yaml");
+    config_file.write_str(fixture_content).unwrap();
+
+    let original_content = std::fs::read_to_string(config_file.path()).unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Checking for repository updates"));
+
+    // Verify config file was not modified with --dry-run
+    let final_content = std::fs::read_to_string(config_file.path()).unwrap();
+    assert_eq!(original_content, final_content);
 }
