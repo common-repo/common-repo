@@ -2,10 +2,10 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: All Core Functionality Complete
+## Current Status: Merge Operator Infrastructure Complete
 
 **Date**: November 16, 2025
-**Overall Progress**: All core layers (0-4) are fully implemented and operational. The complete 6-phase pipeline supports all operators including merge operations (YAML, JSON, TOML, INI, Markdown), template processing, repository inheritance with `repo: with:` clause support, and full CLI functionality. 220 tests passing.
+**Overall Progress**: All core layers (0-4) are fully implemented and operational. The 6-phase pipeline infrastructure supports all operators. Merge operator infrastructure is complete (collection in Phase 2, execution in Phase 4), with JSON merge verified end-to-end. YAML, TOML, INI, and Markdown merge operators need end-to-end testing through Phase 4. Template processing, repository inheritance with `repo: with:` clause support, and full CLI functionality are complete. 220 tests passing.
 
 **Traceability**
 - Plan: [Implementation Strategy](implementation-plan.md#implementation-strategy)
@@ -107,18 +107,18 @@ This document tracks current implementation status against the implementation pl
 - Plan: [Layer 2 ▸ Operators Overview](implementation-plan.md#layer-2-operators-depends-on-layers-0-1)
 - Design: [Operator Implementation Details ▸ Overview](design.md#operator-implementation-details)
 
-**Status**: ✅ COMPLETE
+**Status**: ⚠️ MOSTLY COMPLETE
 - **Files**: `src/operators.rs` (1652 lines)
-- **Features**: All core operators are fully functional with comprehensive test coverage.
+- **Features**: Core operators are functional with comprehensive test coverage.
   - **Repo Operator**: ✅ **COMPLETE** - Full repo inheritance with sub-path filtering and comprehensive `with:` clause support.
     - **Supported in `with:` clause**: `include` (filters files), `exclude`, `rename`, `template` (marks files), `tools` (validates requirements)
     - **Not supported in `with:` clause**: Merge operators (yaml, json, toml, ini, markdown) and `template_vars` - these don't fit the `with:` clause context as they operate during composition phase, not repo loading
     - **Prevented**: Nested `repo` operations (would create circular dependencies)
-  - **Basic File Operators**: `include`, `exclude`, `rename` are fully functional in all contexts.
+  - **Basic File Operators**: ✅ **COMPLETE** - `include`, `exclude`, `rename` are fully functional in all contexts.
   - **Template Operators**: ✅ **COMPLETE** - Template marking, variable collection, and processing all work through the pipeline. `${VAR}` substitution is fully functional for both repository and local files.
-  - **Tool Validation**: `tools` operator executes and validates tool presence/versions in all contexts.
-  - **Merge Operators**: ✅ **COMPLETE** - YAML/JSON/TOML/INI/Markdown merge operations are collected in Phase 2 and executed in Phase 4 composition. Full end-to-end functionality for inherited repositories.
-- **Testing**: 220 unit tests cover all operator modules including end-to-end merge operator scenarios.
+  - **Tool Validation**: ✅ **COMPLETE** - `tools` operator executes and validates tool presence/versions in all contexts.
+  - **Merge Operators**: ⚠️ **INFRASTRUCTURE COMPLETE** - Collection in Phase 2 and dispatcher in Phase 4 implemented for all 5 operators. JSON merge verified end-to-end. YAML/TOML/INI/Markdown need Phase 4 end-to-end tests (Phase 5 handlers already exist and are tested).
+- **Testing**: 220 unit tests; end-to-end Phase 4 testing needed for YAML/TOML/INI/Markdown merge operators.
 
 ---
 
@@ -128,16 +128,16 @@ This document tracks current implementation status against the implementation pl
 - Plan: [Layer 3 ▸ Phases Overview](implementation-plan.md#layer-3-phases-depends-on-layers-0-2)
 - Design: [Execution Model ▸ Phases 1-6](design.md#execution-model)
 
-**Status**: ✅ COMPLETE
+**Status**: ⚠️ MOSTLY COMPLETE
 - **Files**: `src/phases.rs` (3600+ lines)
-- **Features**: The complete 6-phase pipeline with full operator support.
+- **Features**: The 6-phase pipeline with full infrastructure for all operators.
   - **Phase 1 (Discovery & Cloning)**: ✅ COMPLETE - Recursive discovery, cycle detection, cache fallback.
   - **Phase 2 (Processing Repos)**: ✅ COMPLETE - Collects merge operations for execution in Phase 4, processes all other operators.
   - **Phase 3 (Operation Order)**: ✅ COMPLETE - Depth-first ordering.
-  - **Phase 4 (Composition)**: ✅ COMPLETE - Last-write-wins merge, template processing, and merge operator execution.
-  - **Phase 5 (Local Merging)**: ✅ COMPLETE - Merge helpers for local file operations.
+  - **Phase 4 (Composition)**: ⚠️ **INFRASTRUCTURE COMPLETE** - Last-write-wins merge, template processing, and merge operator dispatcher. JSON merge tested end-to-end. YAML/TOML/INI/Markdown need end-to-end tests.
+  - **Phase 5 (Local Merging)**: ✅ COMPLETE - Merge helpers for local file operations (all 5 operators tested).
   - **Phase 6 (Writing to Disk)**: ✅ COMPLETE - Writes final filesystem to disk, including permissions.
-- **Testing**: 220 unit and integration tests cover all phases including end-to-end merge operator scenarios.
+- **Testing**: 220 unit and integration tests; Phase 4 end-to-end testing needed for YAML/TOML/INI/Markdown.
 
 ---
 
@@ -178,19 +178,26 @@ This document tracks current implementation status against the implementation pl
 ### By Layer
 - **Layer 0 (Foundation)**: ✅ Complete
 - **Layer 1 (Core Utilities)**: ✅ Complete
-- **Layer 2 (Operators)**: ✅ Complete
-- **Layer 3 (Phases)**: ✅ Complete
+- **Layer 2 (Operators)**: ⚠️ Infrastructure complete; YAML/TOML/INI/Markdown merge operators need Phase 4 end-to-end tests
+- **Layer 3 (Phases)**: ⚠️ Infrastructure complete; Phase 4 needs end-to-end tests for YAML/TOML/INI/Markdown
 - **Layer 4 (CLI)**: ✅ Complete
 
-**Conclusion**: All core functionality is complete and fully operational. The entire 6-phase pipeline supports all operators including merge operations for YAML, JSON, TOML, INI, and Markdown. Template processing, repository inheritance, and the CLI are all fully functional with 220 passing tests.
+**Conclusion**: Core infrastructure is complete and operational. Merge operator infrastructure (collection and dispatch) is fully implemented for all 5 operators. JSON merge is verified end-to-end through Phase 4. YAML, TOML, INI, and Markdown merge operators need Phase 4 end-to-end tests to verify they work through the new collection/dispatch path (Phase 5 handlers already tested). Template processing, repository inheritance, and the CLI are fully functional with 220 passing tests.
 
 ---
 
 ## 🎯 Next Implementation Steps
 
-With all core functionality now complete, the next priorities are expanding CLI functionality and improving test coverage.
+With merge operator infrastructure complete, the next priorities are completing end-to-end testing and expanding CLI functionality.
 
-1.  **Expand CLI Functionality**:
+1.  **Complete Merge Operator Testing**:
+    - Add Phase 4 end-to-end tests for YAML merge operator (similar to JSON test)
+    - Add Phase 4 end-to-end tests for TOML merge operator
+    - Add Phase 4 end-to-end tests for INI merge operator
+    - Add Phase 4 end-to-end tests for Markdown merge operator
+    - Verify all operators work through the collection/dispatch path
+
+2.  **Expand CLI Functionality**:
     - Implement the remaining CLI commands as planned in `implementation-plan.md`:
       - `common-repo validate`
       - `common-repo init`
@@ -213,13 +220,14 @@ With all core functionality now complete, the next priorities are expanding CLI 
 - Plan: [Implementation Plan ▸ Change Log Highlights](implementation-plan.md#implementation-strategy)
 - Design: [Design Doc ▸ Execution Model & Operators](design.md#execution-model)
 
-### Merge Operators End-to-End Implementation (November 16, 2025)
+### Merge Operator Infrastructure Implementation (November 16, 2025)
 - **IntermediateFS Enhancement**: Added `merge_operations` field to store merge operations collected during Phase 2
-- **Phase 2 Collection**: Modified to collect merge operations (YAML, JSON, TOML, INI, Markdown) instead of returning `NotImplemented` errors
+- **Phase 2 Collection**: Modified to collect all merge operations (YAML, JSON, TOML, INI, Markdown) instead of returning `NotImplemented` errors
 - **Phase 4 Execution**: Added merge operation execution during composite filesystem construction, executing after each repository's filesystem is merged
-- **Operation Dispatcher**: Created `execute_merge_operation()` function to dispatch to appropriate Phase 5 merge handlers
+- **Operation Dispatcher**: Created `execute_merge_operation()` function to dispatch to appropriate Phase 5 merge handlers for all 5 operators
 - **End-to-End Testing**: Added comprehensive test for JSON merge operator verifying full pipeline functionality
-- **Result**: All 220 tests passing, clippy clean, all merge operators now functional for inherited repositories
+- **Remaining Work**: YAML, TOML, INI, and Markdown merge operators need Phase 4 end-to-end tests (infrastructure in place, Phase 5 handlers exist and are tested)
+- **Result**: All 220 tests passing, clippy clean, merge infrastructure complete
 - **Files Modified**: `src/phases.rs` (149 insertions, 18 deletions)
 - **Commit**: `feat: enable merge operators in Phase 4 composition`
 
