@@ -429,6 +429,8 @@ pub struct IntermediateFS {
     pub source_ref: String,
     /// Template variables collected from this repository's operations
     pub template_vars: HashMap<String, String>,
+    /// Merge operations to be applied during Phase 4 composition
+    pub merge_operations: Vec<Operation>,
 }
 
 impl IntermediateFS {
@@ -438,6 +440,7 @@ impl IntermediateFS {
             source_url,
             source_ref,
             template_vars: HashMap::new(),
+            merge_operations: Vec::new(),
         }
     }
 
@@ -452,6 +455,23 @@ impl IntermediateFS {
             source_url,
             source_ref,
             template_vars,
+            merge_operations: Vec::new(),
+        }
+    }
+
+    pub fn new_with_vars_and_merges(
+        fs: MemoryFS,
+        source_url: String,
+        source_ref: String,
+        template_vars: HashMap<String, String>,
+        merge_operations: Vec<Operation>,
+    ) -> Self {
+        Self {
+            fs,
+            source_url,
+            source_ref,
+            template_vars,
+            merge_operations,
         }
     }
 }
@@ -547,6 +567,8 @@ pub mod phase2 {
     ) -> Result<IntermediateFS> {
         // Collect template variables from operations
         let template_vars = collect_template_vars(&node.operations)?;
+        // Collect merge operations to be executed later in Phase 4
+        let merge_operations = collect_merge_operations(&node.operations);
 
         if let Some(cache_key) = cache_key_for_node(node)? {
             let fs = cache.get_or_process(cache_key, || -> Result<MemoryFS> {
@@ -557,11 +579,12 @@ pub mod phase2 {
                 Ok(fs)
             })?;
 
-            return Ok(IntermediateFS::new_with_vars(
+            return Ok(IntermediateFS::new_with_vars_and_merges(
                 fs,
                 node.url.clone(),
                 node.ref_.clone(),
                 template_vars,
+                merge_operations,
             ));
         }
 
@@ -571,11 +594,12 @@ pub mod phase2 {
             apply_operation(&mut fs, operation)?;
         }
 
-        Ok(IntermediateFS::new_with_vars(
+        Ok(IntermediateFS::new_with_vars_and_merges(
             fs,
             node.url.clone(),
             node.ref_.clone(),
             template_vars,
+            merge_operations,
         ))
     }
 
@@ -591,6 +615,27 @@ pub mod phase2 {
         }
 
         Ok(vars)
+    }
+
+    /// Collect merge operations from a list of operations
+    ///
+    /// Merge operations (yaml, json, toml, ini, markdown) are collected
+    /// during Phase 2 but executed later in Phase 4 during composition.
+    fn collect_merge_operations(operations: &[Operation]) -> Vec<Operation> {
+        operations
+            .iter()
+            .filter(|op| {
+                matches!(
+                    op,
+                    Operation::Yaml { .. }
+                        | Operation::Json { .. }
+                        | Operation::Toml { .. }
+                        | Operation::Ini { .. }
+                        | Operation::Markdown { .. }
+                )
+            })
+            .cloned()
+            .collect()
     }
 
     /// Build a cache key for a repository node (includes operations fingerprint)
@@ -650,22 +695,27 @@ pub mod phase2 {
                 Ok(())
             }
             Operation::Tools { tools } => operators::tools::apply(tools),
-            // Merge operations are handled in Phase 5, not Phase 2
-            Operation::Yaml { yaml: _ } => Err(Error::NotImplemented {
-                feature: "YAML merge operations".to_string(),
-            }),
-            Operation::Json { json: _ } => Err(Error::NotImplemented {
-                feature: "JSON merge operations".to_string(),
-            }),
-            Operation::Toml { toml: _ } => Err(Error::NotImplemented {
-                feature: "TOML merge operations".to_string(),
-            }),
-            Operation::Ini { ini: _ } => Err(Error::NotImplemented {
-                feature: "INI merge operations".to_string(),
-            }),
-            Operation::Markdown { markdown: _ } => Err(Error::NotImplemented {
-                feature: "Markdown merge operations".to_string(),
-            }),
+            // Merge operations are collected separately and executed in Phase 4
+            Operation::Yaml { yaml: _ } => {
+                // Collected in collect_merge_operations() and executed in Phase 4
+                Ok(())
+            }
+            Operation::Json { json: _ } => {
+                // Collected in collect_merge_operations() and executed in Phase 4
+                Ok(())
+            }
+            Operation::Toml { toml: _ } => {
+                // Collected in collect_merge_operations() and executed in Phase 4
+                Ok(())
+            }
+            Operation::Ini { ini: _ } => {
+                // Collected in collect_merge_operations() and executed in Phase 4
+                Ok(())
+            }
+            Operation::Markdown { markdown: _ } => {
+                // Collected in collect_merge_operations() and executed in Phase 4
+                Ok(())
+            }
         }
     }
 
@@ -1503,6 +1553,13 @@ pub mod phase4 {
         for repo_key in &order.order {
             if let Some(processed_fs) = processed_fss.get(repo_key) {
                 merge_filesystem(&mut composite_fs, processed_fs)?;
+
+                // Execute merge operations for this repository after its filesystem is merged
+                if let Some(intermediate_fs) = intermediate_fss.get(repo_key) {
+                    for merge_op in &intermediate_fs.merge_operations {
+                        execute_merge_operation(&mut composite_fs, merge_op)?;
+                    }
+                }
             } else {
                 // This shouldn't happen if Phase 2 and Phase 3 are implemented correctly
                 return Err(Error::Filesystem {
@@ -1527,6 +1584,28 @@ pub mod phase4 {
             target_fs.add_file(path, file.clone())?;
         }
         Ok(())
+    }
+
+    /// Execute a single merge operation on the composite filesystem
+    ///
+    /// This function dispatches to the appropriate merge operation handler
+    /// based on the operation type (YAML, JSON, TOML, INI, or Markdown).
+    fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
+        match operation {
+            Operation::Yaml { yaml } => phase5::apply_yaml_merge_operation(fs, yaml),
+            Operation::Json { json } => phase5::apply_json_merge_operation(fs, json),
+            Operation::Toml { toml } => phase5::apply_toml_merge_operation(fs, toml),
+            Operation::Ini { ini } => phase5::apply_ini_merge_operation(fs, ini),
+            Operation::Markdown { markdown } => {
+                phase5::apply_markdown_merge_operation(fs, markdown)
+            }
+            _ => {
+                // Non-merge operations should not be passed to this function
+                Err(Error::Filesystem {
+                    message: format!("Unexpected non-merge operation: {:?}", operation),
+                })
+            }
+        }
     }
 }
 
@@ -3006,6 +3085,58 @@ mod phase_tests {
             // Both should be unmarked as templates
             assert!(!greeting_file.is_template);
             assert!(!version_file.is_template);
+        }
+
+        #[test]
+        fn test_phase4_execute_with_json_merge_operations() {
+            // Test that JSON merge operations are executed during Phase 4
+            use crate::config::{JsonMergeOp, Operation};
+
+            // Create a filesystem with source and destination JSON files
+            let mut fs1 = MemoryFS::new();
+            fs1.add_file_string("fragment.json", r#"{"newKey": "newValue"}"#)
+                .unwrap();
+            fs1.add_file_string("package.json", r#"{"name": "test-package"}"#)
+                .unwrap();
+
+            // Create a JSON merge operation
+            let json_merge_op = JsonMergeOp {
+                source: "fragment.json".to_string(),
+                dest: "package.json".to_string(),
+                path: "/".to_string(),
+                append: false,
+                position: "end".to_string(),
+            };
+
+            let merge_operations = vec![Operation::Json {
+                json: json_merge_op,
+            }];
+
+            let mut intermediate_fss = HashMap::new();
+            intermediate_fss.insert(
+                "https://github.com/repo-a.git@main".to_string(),
+                IntermediateFS::new_with_vars_and_merges(
+                    fs1,
+                    "https://github.com/repo-a.git".to_string(),
+                    "main".to_string(),
+                    HashMap::new(),
+                    merge_operations,
+                ),
+            );
+
+            let order = OperationOrder::new(vec!["https://github.com/repo-a.git@main".to_string()]);
+
+            let composite = phase4::execute(&order, &intermediate_fss).unwrap();
+
+            // Verify that the merge operation was executed
+            assert!(composite.exists("package.json"));
+            let package_file = composite.get_file("package.json").unwrap();
+            let content = String::from_utf8(package_file.content.clone()).unwrap();
+
+            // Parse the JSON to verify the merge
+            let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert_eq!(json["name"], "test-package");
+            assert_eq!(json["newKey"], "newValue");
         }
     }
 
