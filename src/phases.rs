@@ -2119,25 +2119,68 @@ pub mod phase5 {
         Ok(current)
     }
 
-    fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, append: bool) {
+    fn merge_yaml_values(
+        target: &mut YamlValue,
+        source: &YamlValue,
+        mode: crate::config::ArrayMergeMode,
+        path: &str,
+        src_file: &str,
+        dst_file: &str,
+    ) {
+        use crate::config::ArrayMergeMode;
+
         match target {
             YamlValue::Mapping(target_map) => {
                 if let YamlValue::Mapping(source_map) = source {
                     for (key, value) in source_map {
+                        let key_str = match key {
+                            YamlValue::String(s) => s.clone(),
+                            _ => format!("{:?}", key),
+                        };
+                        let new_path = if path.is_empty() {
+                            key_str.clone()
+                        } else {
+                            format!("{}.{}", path, key_str)
+                        };
+
                         if let Some(existing) = target_map.get_mut(key) {
                             if existing.as_mapping().is_some() && value.as_mapping().is_some() {
-                                merge_yaml_values(existing, value, append);
+                                merge_yaml_values(
+                                    existing, value, mode, &new_path, src_file, dst_file,
+                                );
                             } else if let Some(source_seq) = value.as_sequence() {
                                 if let Some(target_seq) = existing.as_sequence_mut() {
-                                    if append {
-                                        target_seq.extend(source_seq.iter().cloned());
-                                    } else {
-                                        *existing = YamlValue::Sequence(source_seq.clone());
+                                    match mode {
+                                        ArrayMergeMode::Append => {
+                                            target_seq.extend(source_seq.iter().cloned());
+                                        }
+                                        ArrayMergeMode::Replace => {
+                                            eprintln!(
+                                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                                                src_file, dst_file, new_path, target_seq.len(), source_seq.len()
+                                            );
+                                            *existing = YamlValue::Sequence(source_seq.clone());
+                                        }
+                                        ArrayMergeMode::AppendUnique => {
+                                            for item in source_seq {
+                                                if !target_seq.contains(item) {
+                                                    target_seq.push(item.clone());
+                                                }
+                                            }
+                                        }
                                     }
-                                } else if !append {
+                                } else {
+                                    eprintln!(
+                                        "Warning: {} -> {}: Type mismatch at path '{}': replacing {:?} with Sequence",
+                                        src_file, dst_file, new_path, get_yaml_type_name(existing)
+                                    );
                                     *existing = YamlValue::Sequence(source_seq.clone());
                                 }
-                            } else if !append {
+                            } else {
+                                eprintln!(
+                                    "Warning: {} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
+                                    src_file, dst_file, new_path, get_yaml_type_name(existing), get_yaml_type_name(value)
+                                );
                                 *existing = value.clone();
                             }
                         } else {
@@ -2145,21 +2188,65 @@ pub mod phase5 {
                         }
                     }
                 } else {
+                    eprintln!(
+                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Mapping with {:?}",
+                        src_file, dst_file, path, get_yaml_type_name(source)
+                    );
                     *target = source.clone();
                 }
             }
             YamlValue::Sequence(target_seq) => {
                 if let YamlValue::Sequence(source_seq) = source {
-                    if append {
-                        target_seq.extend(source_seq.clone());
-                    } else {
-                        *target = YamlValue::Sequence(source_seq.clone());
+                    match mode {
+                        ArrayMergeMode::Append => {
+                            target_seq.extend(source_seq.clone());
+                        }
+                        ArrayMergeMode::Replace => {
+                            eprintln!(
+                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                                src_file, dst_file, path, target_seq.len(), source_seq.len()
+                            );
+                            *target = YamlValue::Sequence(source_seq.clone());
+                        }
+                        ArrayMergeMode::AppendUnique => {
+                            for item in source_seq {
+                                if !target_seq.contains(item) {
+                                    target_seq.push(item.clone());
+                                }
+                            }
+                        }
                     }
                 } else {
+                    eprintln!(
+                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Sequence with {:?}",
+                        src_file, dst_file, path, get_yaml_type_name(source)
+                    );
                     *target = source.clone();
                 }
             }
-            _ => *target = source.clone(),
+            _ => {
+                eprintln!(
+                    "Warning: {} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
+                    src_file,
+                    dst_file,
+                    path,
+                    get_yaml_type_name(target),
+                    get_yaml_type_name(source)
+                );
+                *target = source.clone();
+            }
+        }
+    }
+
+    fn get_yaml_type_name(value: &YamlValue) -> &'static str {
+        match value {
+            YamlValue::Null => "Null",
+            YamlValue::Bool(_) => "Bool",
+            YamlValue::Number(_) => "Number",
+            YamlValue::String(_) => "String",
+            YamlValue::Sequence(_) => "Sequence",
+            YamlValue::Mapping(_) => "Mapping",
+            YamlValue::Tagged(_) => "Tagged",
         }
     }
 
@@ -2236,27 +2323,66 @@ pub mod phase5 {
         Ok(current)
     }
 
-    fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, append: bool) {
+    fn merge_toml_values(
+        target: &mut TomlValue,
+        source: &TomlValue,
+        mode: crate::config::ArrayMergeMode,
+        path: &str,
+        src_file: &str,
+        dst_file: &str,
+    ) {
+        use crate::config::ArrayMergeMode;
+
         match target {
             TomlValue::Table(target_table) => {
                 if let TomlValue::Table(source_table) = source {
                     for (key, value) in source_table {
+                        let new_path = if path.is_empty() {
+                            key.clone()
+                        } else {
+                            format!("{}.{}", path, key)
+                        };
+
                         if let Some(existing) = target_table.get_mut(key) {
                             if matches!(existing, TomlValue::Table(_))
                                 && matches!(value, TomlValue::Table(_))
                             {
-                                merge_toml_values(existing, value, append);
+                                merge_toml_values(
+                                    existing, value, mode, &new_path, src_file, dst_file,
+                                );
                             } else if let Some(source_array) = value.as_array() {
                                 if let Some(target_array) = existing.as_array_mut() {
-                                    if append {
-                                        target_array.extend(source_array.iter().cloned());
-                                    } else {
-                                        *existing = TomlValue::Array(source_array.clone());
+                                    match mode {
+                                        ArrayMergeMode::Append => {
+                                            target_array.extend(source_array.iter().cloned());
+                                        }
+                                        ArrayMergeMode::Replace => {
+                                            eprintln!(
+                                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                                                src_file, dst_file, new_path, target_array.len(), source_array.len()
+                                            );
+                                            *existing = TomlValue::Array(source_array.clone());
+                                        }
+                                        ArrayMergeMode::AppendUnique => {
+                                            for item in source_array {
+                                                if !target_array.contains(item) {
+                                                    target_array.push(item.clone());
+                                                }
+                                            }
+                                        }
                                     }
-                                } else if !append {
+                                } else {
+                                    eprintln!(
+                                        "Warning: {} -> {}: Type mismatch at path '{}': replacing {:?} with Array",
+                                        src_file, dst_file, new_path, get_toml_type_name(existing)
+                                    );
                                     *existing = TomlValue::Array(source_array.clone());
                                 }
-                            } else if !append {
+                            } else {
+                                eprintln!(
+                                    "Warning: {} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
+                                    src_file, dst_file, new_path, get_toml_type_name(existing), get_toml_type_name(value)
+                                );
                                 *existing = value.clone();
                             }
                         } else {
@@ -2264,21 +2390,71 @@ pub mod phase5 {
                         }
                     }
                 } else {
+                    eprintln!(
+                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Table with {:?}",
+                        src_file,
+                        dst_file,
+                        path,
+                        get_toml_type_name(source)
+                    );
                     *target = source.clone();
                 }
             }
             TomlValue::Array(target_array) => {
                 if let TomlValue::Array(source_array) = source {
-                    if append {
-                        target_array.extend(source_array.clone());
-                    } else {
-                        *target = TomlValue::Array(source_array.clone());
+                    match mode {
+                        ArrayMergeMode::Append => {
+                            target_array.extend(source_array.clone());
+                        }
+                        ArrayMergeMode::Replace => {
+                            eprintln!(
+                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                                src_file, dst_file, path, target_array.len(), source_array.len()
+                            );
+                            *target = TomlValue::Array(source_array.clone());
+                        }
+                        ArrayMergeMode::AppendUnique => {
+                            for item in source_array {
+                                if !target_array.contains(item) {
+                                    target_array.push(item.clone());
+                                }
+                            }
+                        }
                     }
                 } else {
+                    eprintln!(
+                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Array with {:?}",
+                        src_file,
+                        dst_file,
+                        path,
+                        get_toml_type_name(source)
+                    );
                     *target = source.clone();
                 }
             }
-            _ => *target = source.clone(),
+            _ => {
+                eprintln!(
+                    "Warning: {} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
+                    src_file,
+                    dst_file,
+                    path,
+                    get_toml_type_name(target),
+                    get_toml_type_name(source)
+                );
+                *target = source.clone();
+            }
+        }
+    }
+
+    fn get_toml_type_name(value: &TomlValue) -> &'static str {
+        match value {
+            TomlValue::String(_) => "String",
+            TomlValue::Integer(_) => "Integer",
+            TomlValue::Float(_) => "Float",
+            TomlValue::Boolean(_) => "Boolean",
+            TomlValue::Datetime(_) => "Datetime",
+            TomlValue::Array(_) => "Array",
+            TomlValue::Table(_) => "Table",
         }
     }
 
@@ -2346,7 +2522,8 @@ pub mod phase5 {
         let path_str = op.path.as_deref().unwrap_or("");
         let path = parse_path(path_str);
         let target = navigate_yaml_value(&mut dest_value, &path)?;
-        merge_yaml_values(target, &source_value, op.append);
+        let mode = op.get_array_mode();
+        merge_yaml_values(target, &source_value, mode, path_str, &op.source, &op.dest);
 
         let serialized = serde_yaml::to_string(&dest_value).map_err(|err| Error::Merge {
             operation: "yaml merge".to_string(),
@@ -2395,7 +2572,8 @@ pub mod phase5 {
 
         let path = parse_toml_path(&op.path);
         let target = navigate_toml_value(&mut dest_value, &path)?;
-        merge_toml_values(target, &source_value, op.append);
+        let mode = op.get_array_mode();
+        merge_toml_values(target, &source_value, mode, &op.path, &op.source, &op.dest);
 
         let serialized = toml::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
             operation: "toml merge".to_string(),
@@ -3322,6 +3500,7 @@ serde = "1.0"
                 path: "".to_string(), // root level
                 append: false,
                 preserve_comments: false,
+                array_mode: None,
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -3363,6 +3542,7 @@ name = "mydb"
                 path: "server".to_string(),
                 append: false,
                 preserve_comments: false,
+                array_mode: None,
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -3378,6 +3558,150 @@ name = "mydb"
             // Should still have database section
             assert!(result_str.contains("[database]"));
             assert!(result_str.contains("name = \"mydb\""));
+        }
+
+        #[test]
+        fn test_toml_merge_array_mode_replace() {
+            let mut fs = MemoryFS::new();
+            let source_toml = r#"
+[package]
+items = ["new1", "new2"]
+"#;
+            fs.add_file_string("source.toml", source_toml).unwrap();
+
+            let dest_toml = r#"
+[package]
+items = ["old1", "old2"]
+"#;
+            fs.add_file_string("dest.toml", dest_toml).unwrap();
+
+            let toml_op = crate::config::TomlMergeOp {
+                source: "source.toml".to_string(),
+                dest: "dest.toml".to_string(),
+                path: "".to_string(),
+                append: false,
+                preserve_comments: false,
+                array_mode: Some(crate::config::ArrayMergeMode::Replace),
+            };
+
+            apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
+
+            let result = fs.get_file("dest.toml").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+            let value: toml::Value = result_str.parse().unwrap();
+            let items = value["package"]["items"].as_array().unwrap();
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0].as_str(), Some("new1"));
+            assert_eq!(items[1].as_str(), Some("new2"));
+        }
+
+        #[test]
+        fn test_toml_merge_array_mode_append() {
+            let mut fs = MemoryFS::new();
+            let source_toml = r#"
+[package]
+items = ["new1", "new2"]
+"#;
+            fs.add_file_string("source.toml", source_toml).unwrap();
+
+            let dest_toml = r#"
+[package]
+items = ["old1", "old2"]
+"#;
+            fs.add_file_string("dest.toml", dest_toml).unwrap();
+
+            let toml_op = crate::config::TomlMergeOp {
+                source: "source.toml".to_string(),
+                dest: "dest.toml".to_string(),
+                path: "".to_string(),
+                append: false,
+                preserve_comments: false,
+                array_mode: Some(crate::config::ArrayMergeMode::Append),
+            };
+
+            apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
+
+            let result = fs.get_file("dest.toml").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+            let value: toml::Value = result_str.parse().unwrap();
+            let items = value["package"]["items"].as_array().unwrap();
+            assert_eq!(items.len(), 4);
+            assert_eq!(items[0].as_str(), Some("old1"));
+            assert_eq!(items[1].as_str(), Some("old2"));
+            assert_eq!(items[2].as_str(), Some("new1"));
+            assert_eq!(items[3].as_str(), Some("new2"));
+        }
+
+        #[test]
+        fn test_toml_merge_array_mode_append_unique() {
+            let mut fs = MemoryFS::new();
+            let source_toml = r#"
+[package]
+items = ["item1", "item2", "item3"]
+"#;
+            fs.add_file_string("source.toml", source_toml).unwrap();
+
+            let dest_toml = r#"
+[package]
+items = ["item1", "item4"]
+"#;
+            fs.add_file_string("dest.toml", dest_toml).unwrap();
+
+            let toml_op = crate::config::TomlMergeOp {
+                source: "source.toml".to_string(),
+                dest: "dest.toml".to_string(),
+                path: "".to_string(),
+                append: false,
+                preserve_comments: false,
+                array_mode: Some(crate::config::ArrayMergeMode::AppendUnique),
+            };
+
+            apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
+
+            let result = fs.get_file("dest.toml").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+            let value: toml::Value = result_str.parse().unwrap();
+            let items = value["package"]["items"].as_array().unwrap();
+            assert_eq!(items.len(), 4);
+            assert_eq!(items[0].as_str(), Some("item1"));
+            assert_eq!(items[1].as_str(), Some("item4"));
+            assert_eq!(items[2].as_str(), Some("item2"));
+            assert_eq!(items[3].as_str(), Some("item3"));
+        }
+
+        #[test]
+        fn test_toml_merge_backward_compatibility_append_bool() {
+            let mut fs = MemoryFS::new();
+            let source_toml = r#"
+[package]
+items = ["new1"]
+"#;
+            fs.add_file_string("source.toml", source_toml).unwrap();
+
+            let dest_toml = r#"
+[package]
+items = ["old1"]
+"#;
+            fs.add_file_string("dest.toml", dest_toml).unwrap();
+
+            let toml_op = crate::config::TomlMergeOp {
+                source: "source.toml".to_string(),
+                dest: "dest.toml".to_string(),
+                path: "".to_string(),
+                append: true,
+                preserve_comments: false,
+                array_mode: None,
+            };
+
+            apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
+
+            let result = fs.get_file("dest.toml").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+            let value: toml::Value = result_str.parse().unwrap();
+            let items = value["package"]["items"].as_array().unwrap();
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0].as_str(), Some("old1"));
+            assert_eq!(items[1].as_str(), Some("new1"));
         }
 
         #[test]
@@ -4054,6 +4378,7 @@ Install instructions here.
                 dest: "dest.yaml".to_string(),
                 path: None,
                 append: false,
+                array_mode: None,
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -4091,6 +4416,7 @@ Install instructions here.
                 dest: "dest.yaml".to_string(),
                 path: Some("metadata.labels".to_string()),
                 append: false,
+                array_mode: None,
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -4133,6 +4459,7 @@ Install instructions here.
                 dest: "dest.yaml".to_string(),
                 path: Some(r#"metadata["app.kubernetes.io/name"]"#.to_string()),
                 append: false,
+                array_mode: None,
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -4163,6 +4490,7 @@ Install instructions here.
                 dest: "new.yaml".to_string(),
                 path: None,
                 append: false,
+                array_mode: None,
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -4175,6 +4503,137 @@ Install instructions here.
                     .and_then(|v| v.as_str()),
                 Some("value")
             );
+        }
+
+        #[test]
+        fn test_yaml_merge_array_mode_replace() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("source.yaml", "items:\n  - new1\n  - new2")
+                .unwrap();
+            fs.add_file_string("dest.yaml", "items:\n  - old1\n  - old2")
+                .unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(crate::config::ArrayMergeMode::Replace),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let items = value
+                .as_mapping()
+                .unwrap()
+                .get(YamlValue::String("items".into()))
+                .unwrap()
+                .as_sequence()
+                .unwrap();
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0].as_str(), Some("new1"));
+            assert_eq!(items[1].as_str(), Some("new2"));
+        }
+
+        #[test]
+        fn test_yaml_merge_array_mode_append() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("source.yaml", "items:\n  - new1\n  - new2")
+                .unwrap();
+            fs.add_file_string("dest.yaml", "items:\n  - old1\n  - old2")
+                .unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(crate::config::ArrayMergeMode::Append),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let items = value
+                .as_mapping()
+                .unwrap()
+                .get(YamlValue::String("items".into()))
+                .unwrap()
+                .as_sequence()
+                .unwrap();
+            assert_eq!(items.len(), 4);
+            assert_eq!(items[0].as_str(), Some("old1"));
+            assert_eq!(items[1].as_str(), Some("old2"));
+            assert_eq!(items[2].as_str(), Some("new1"));
+            assert_eq!(items[3].as_str(), Some("new2"));
+        }
+
+        #[test]
+        fn test_yaml_merge_array_mode_append_unique() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("source.yaml", "items:\n  - item1\n  - item2\n  - item3")
+                .unwrap();
+            fs.add_file_string("dest.yaml", "items:\n  - item1\n  - item4")
+                .unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(crate::config::ArrayMergeMode::AppendUnique),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let items = value
+                .as_mapping()
+                .unwrap()
+                .get(YamlValue::String("items".into()))
+                .unwrap()
+                .as_sequence()
+                .unwrap();
+            assert_eq!(items.len(), 4);
+            assert_eq!(items[0].as_str(), Some("item1"));
+            assert_eq!(items[1].as_str(), Some("item4"));
+            assert_eq!(items[2].as_str(), Some("item2"));
+            assert_eq!(items[3].as_str(), Some("item3"));
+        }
+
+        #[test]
+        fn test_yaml_merge_backward_compatibility_append_bool() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("source.yaml", "items:\n  - new1")
+                .unwrap();
+            fs.add_file_string("dest.yaml", "items:\n  - old1").unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: true,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let items = value
+                .as_mapping()
+                .unwrap()
+                .get(YamlValue::String("items".into()))
+                .unwrap()
+                .as_sequence()
+                .unwrap();
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0].as_str(), Some("old1"));
+            assert_eq!(items[1].as_str(), Some("new1"));
         }
     }
 }
