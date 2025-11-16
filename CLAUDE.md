@@ -236,12 +236,16 @@ cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
 
 **IMPORTANT**: Always follow this checklist before committing to avoid CI failures:
 
-1. **Format code**: Run `cargo fmt` to ensure consistent code formatting
-2. **Run linting**: Run `cargo clippy --all-targets --all-features -- -D warnings` to catch warnings
-3. **Run tests**: Run `./script/test` or `cargo test` to ensure all tests pass
-4. **Update documentation**: If you've completed a feature, update `docs/implementation-progress.md`
-5. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
-6. **Check branch name**: For claude/agent branches, ensure name ends with session ID (e.g., `claude/feature-018evyqR5BZFzuZW5AuM9XRR`)
+1. **Run prek (RECOMMENDED)**: Run `prek run --all-files` to automatically format, lint, and validate all files
+   - This runs cargo fmt, cargo clippy, and all other pre-commit hooks automatically
+   - Catches issues before committing
+2. **Alternative - Run checks individually**:
+   - **Format code**: Run `cargo fmt` to ensure consistent code formatting
+   - **Run linting**: Run `cargo clippy --all-targets --all-features -- -D warnings` to catch warnings
+   - **Run tests**: Run `./script/test` or `cargo test` to ensure all tests pass
+3. **Update documentation**: If you've completed a feature, update `docs/implementation-progress.md`
+4. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
+5. **Check branch name**: For claude/agent branches, ensure name ends with session ID (e.g., `claude/feature-018evyqR5BZFzuZW5AuM9XRR`)
 
 **Quick verification before push**:
 ```bash
@@ -259,8 +263,9 @@ cargo test
 
 **Common CI failures to avoid**:
 - ❌ Commit message too long (>100 chars) → Use concise conventional commit format
-- ❌ Code not formatted → Run `cargo fmt` before committing
-- ❌ Clippy warnings → Fix all warnings with `cargo clippy`
+- ❌ Code not formatted → Run `prek run --all-files` or `cargo fmt` before committing
+- ❌ Clippy warnings → Run `prek run --all-files` or fix with `cargo clippy`
+- ❌ Pre-commit hooks failed → Always run `prek run --all-files` before committing
 - ❌ Branch name doesn't end with session ID → Rename branch to include session ID
 
 ## Commit Message Requirements
