@@ -304,7 +304,6 @@ fn test_update_invalid_yaml() {
 /// This test uses the fixture that references common-repo-v0.3.0 with a subpath.
 /// It is skipped until v0.3.0 is released and v0.4.0 exists to make it outdated.
 #[test]
-#[cfg_attr(not(feature = "integration-tests"), ignore)]
 #[ignore = "waiting for common-repo-v0.3.0 and v0.4.0 releases to exist"]
 fn test_update_refs_fixture_subpath() {
     let temp = assert_fs::TempDir::new().unwrap();
