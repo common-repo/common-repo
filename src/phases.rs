@@ -696,10 +696,7 @@ pub mod phase2 {
             }
             Operation::Tools { tools } => operators::tools::apply(tools),
             // Merge operations are collected separately and executed in Phase 4
-            Operation::Yaml { yaml: _ } => {
-                // Collected in collect_merge_operations() and executed in Phase 4
-                Ok(())
-            }
+            Operation::Yaml { yaml } => phase5::apply_yaml_merge_operation(fs, yaml),
             Operation::Json { json: _ } => {
                 // Collected in collect_merge_operations() and executed in Phase 4
                 Ok(())
