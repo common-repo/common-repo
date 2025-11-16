@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: release-please
+
 permissions:
   contents: write
   pull-requests: write
@@ -14,8 +17,15 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - id: authenticate
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
+      
       - uses: googleapis/release-please-action@v4
         with:
           # Use manifest mode to read from release-please-config.json
           # and .release-please-manifest.json
           command: manifest
+          token: ${{ steps.authenticate.outputs.token }}
