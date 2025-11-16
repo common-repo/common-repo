@@ -23,16 +23,30 @@ This project follows the [Scripts to Rule Them All](https://github.com/github/sc
 
 For first-time setup after cloning:
 
+**Option 1: Manual installation (RECOMMENDED to avoid timeouts):**
 ```bash
-# Set up the project (installs dependencies and configures environment)
+# Install development tools individually to avoid compilation timeouts
+cargo install cargo-nextest --locked
+cargo install --git https://github.com/j178/prek --locked
+
+# Then run setup to configure hooks and build the project
 ./script/setup
 ```
 
-This will:
+**Option 2: Automated setup (may timeout during compilation):**
+```bash
+# Set up the project (installs dependencies and configures environment)
+# WARNING: This compiles cargo-nextest and prek, which may timeout in resource-constrained environments
+./script/setup
+```
+
+The setup process will:
 - Install Rust toolchain (via rust-toolchain.toml)
 - Install cargo-nextest (using cargo-binstall if available, otherwise cargo install)
 - Install prek (Rust-based pre-commit tool) and configure hooks
 - Build the project to warm the cache
+
+**Note**: If `./script/setup` times out during cargo-nextest or prek installation, use Option 1 to install these tools individually first.
 
 ### Available Scripts
 
