@@ -1720,7 +1720,7 @@ pub mod phase5 {
         Ok(())
     }
 
-    fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
+    pub(crate) fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
         match fs.get_file(path) {
             Some(file) => String::from_utf8(file.content.clone()).map_err(|_| Error::Merge {
                 operation: format!("read {}", path),
@@ -1853,12 +1853,12 @@ pub mod phase5 {
     }
 
     #[derive(Clone, Debug)]
-    enum PathSegment {
+    pub(crate) enum PathSegment {
         Key(String),
         Index(usize),
     }
 
-    fn parse_path(path: &str) -> Vec<PathSegment> {
+    pub(crate) fn parse_path(path: &str) -> Vec<PathSegment> {
         if path.trim().is_empty() || path == "/" {
             return Vec::new();
         }
@@ -1944,7 +1944,7 @@ pub mod phase5 {
         segments
     }
 
-    fn navigate_yaml_value<'a>(
+    pub(crate) fn navigate_yaml_value<'a>(
         value: &'a mut YamlValue,
         path: &[PathSegment],
     ) -> Result<&'a mut YamlValue> {
