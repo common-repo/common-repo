@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/common-repo/common-repo/compare/common-repo-v0.2.0...common-repo-v0.2.1) (2025-11-16)
+
+
+### Bug Fixes
+
+* **test:** make test_update_dry_run more robust and add ignored fixture test ([015150a](https://github.com/common-repo/common-repo/commit/015150a0b7944060df9862b591bcb97e08bb359c))
+
 ## [0.2.0](https://github.com/common-repo/common-repo/compare/common-repo-v0.1.0...common-repo-v0.2.0) (2025-11-16)
 
 
