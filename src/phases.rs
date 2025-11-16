@@ -3860,7 +3860,7 @@ Install instructions here.
     }
 
     mod navigate_yaml_value_tests {
-        use crate::phases::phase5::{navigate_yaml_value, parse_path, PathSegment};
+        use crate::phases::phase5::{navigate_yaml_value, parse_path};
         use serde_yaml::Value as YamlValue;
 
         #[test]
@@ -3931,17 +3931,17 @@ Install instructions here.
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
             let map = value.as_mapping().unwrap();
             assert_eq!(
-                map.get(&YamlValue::String("key".into()))
+                map.get(YamlValue::String("key".into()))
                     .and_then(|v| v.as_str()),
                 Some("value")
             );
             assert_eq!(
-                map.get(&YamlValue::String("other".into()))
+                map.get(YamlValue::String("other".into()))
                     .and_then(|v| v.as_str()),
                 Some("data")
             );
             assert_eq!(
-                map.get(&YamlValue::String("existing".into()))
+                map.get(YamlValue::String("existing".into()))
                     .and_then(|v| v.as_str()),
                 Some("field")
             );
@@ -3968,24 +3968,24 @@ Install instructions here.
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
             let map = value.as_mapping().unwrap();
             let metadata = map
-                .get(&YamlValue::String("metadata".into()))
+                .get(YamlValue::String("metadata".into()))
                 .unwrap()
                 .as_mapping()
                 .unwrap();
             let labels = metadata
-                .get(&YamlValue::String("labels".into()))
+                .get(YamlValue::String("labels".into()))
                 .unwrap()
                 .as_mapping()
                 .unwrap();
             assert_eq!(
                 labels
-                    .get(&YamlValue::String("app".into()))
+                    .get(YamlValue::String("app".into()))
                     .and_then(|v| v.as_str()),
                 Some("myapp")
             );
             assert_eq!(
                 labels
-                    .get(&YamlValue::String("version".into()))
+                    .get(YamlValue::String("version".into()))
                     .and_then(|v| v.as_str()),
                 Some("1.0")
             );
@@ -3994,7 +3994,7 @@ Install instructions here.
         #[test]
         fn test_yaml_merge_with_escaped_dots() {
             let mut fs = MemoryFS::new();
-            fs.add_file_string("source.yaml", "value: test").unwrap();
+            fs.add_file_string("source.yaml", "test").unwrap();
             fs.add_file_string("dest.yaml", "metadata: {}").unwrap();
 
             let op = crate::config::YamlMergeOp {
@@ -4010,13 +4010,13 @@ Install instructions here.
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
             let map = value.as_mapping().unwrap();
             let metadata = map
-                .get(&YamlValue::String("metadata".into()))
+                .get(YamlValue::String("metadata".into()))
                 .unwrap()
                 .as_mapping()
                 .unwrap();
             assert_eq!(
                 metadata
-                    .get(&YamlValue::String("app.kubernetes.io/name".into()))
+                    .get(YamlValue::String("app.kubernetes.io/name".into()))
                     .and_then(|v| v.as_str()),
                 Some("test")
             );
@@ -4040,7 +4040,7 @@ Install instructions here.
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
             let map = value.as_mapping().unwrap();
             assert_eq!(
-                map.get(&YamlValue::String("key".into()))
+                map.get(YamlValue::String("key".into()))
                     .and_then(|v| v.as_str()),
                 Some("value")
             );

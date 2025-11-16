@@ -897,7 +897,7 @@ mod tests {
             Operation::Yaml { yaml } => {
                 assert_eq!(yaml.source, "fragment.yml");
                 assert_eq!(yaml.dest, "config.yml");
-                assert_eq!(yaml.path, "metadata.labels");
+                assert_eq!(yaml.path.as_deref(), Some("metadata.labels"));
                 assert!(yaml.append);
             }
             _ => panic!("Expected Yaml operation"),
