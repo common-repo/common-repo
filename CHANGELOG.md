@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0](https://github.com/common-repo/common-repo/compare/v0.5.0...v0.6.0) (2025-11-16)
+
+
+### Features
+
+* add optional path field and escaping support for YAML merge operator ([7915b95](https://github.com/common-repo/common-repo/commit/7915b95fe379eacf4d2dcc098822a5c3f7f80f6c))
+* **dev:** add prek as recommended pre-commit tool ([982c091](https://github.com/common-repo/common-repo/commit/982c091b742bb4dca48006c3117b1c2fe0b76105))
+* enable merge operators in Phase 4 composition ([896d31b](https://github.com/common-repo/common-repo/commit/896d31bcd23171386964e317b21014313bd900b2))
+
+
+### Bug Fixes
+
+* correct integration test API usage for MemoryFS and serde_yaml ([9908eb3](https://github.com/common-repo/common-repo/commit/9908eb32c6a3132aba4c65e676810afc985ad568))
+* correct test assertions and remove clippy warnings ([609b6c9](https://github.com/common-repo/common-repo/commit/609b6c950a484d7d3042bce815390f3a33f16891))
+* correct test module imports for visibility ([f6b4678](https://github.com/common-repo/common-repo/commit/f6b4678afee0205ca69c8d660846248946506d8e))
+* correct test module imports to use crate::phases::phase5 path ([42be728](https://github.com/common-repo/common-repo/commit/42be728f6183902a18d29b5d6f73483c87bc706c))
+* **dev:** install prek from git to get latest version ([8883295](https://github.com/common-repo/common-repo/commit/88832952c365a52210f83b586cbbc85f84fcfcf7))
+* make test helper functions pub(crate) for test visibility ([a3605fa](https://github.com/common-repo/common-repo/commit/a3605faca118d0f60482046313981ead268053c5))
+* use super::super:: for nested test module imports ([0ef3ee1](https://github.com/common-repo/common-repo/commit/0ef3ee1367026a15eabdb46faa6a3075ade23b83))
+
 ## [0.5.0](https://github.com/common-repo/common-repo/compare/v0.4.0...v0.5.0) (2025-11-16)
 
 
