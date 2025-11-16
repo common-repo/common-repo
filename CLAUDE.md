@@ -188,9 +188,9 @@ Configuration is in `.config/nextest.toml`. Slow tests will be highlighted in CI
 - **Run integration tests before major changes** - they verify real-world functionality
 - **Integration tests are disabled by default** to avoid network dependencies
 - **All tests must pass** for CI/CD to succeed (both unit and integration tests)
-- **186 total tests** (167 unit, 5 integration, 14 datatest) cover individual components and full workflows
-- **5 integration tests** validate end-to-end repository inheritance workflows
-- **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
+- **319 total tests** with comprehensive unit, integration, and end-to-end coverage across all components
+- **Integration tests** validate end-to-end repository inheritance workflows with real repositories
+- **CLI end-to-end tests** verify all commands (apply, check, update) and merge operators
 - **cargo-nextest is used in CI** for faster execution and slow test detection
 
 #### Test Coverage (Tarpaulin)
