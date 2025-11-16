@@ -567,8 +567,13 @@ pub mod phase2 {
     ) -> Result<IntermediateFS> {
         // Collect template variables from operations
         let template_vars = collect_template_vars(&node.operations)?;
+
         // Collect merge operations to be executed later in Phase 4
-        let merge_operations = collect_merge_operations(&node.operations);
+        let merge_operations = if node.url == "local" {
+            Vec::new()
+        } else {
+            collect_merge_operations(&node.operations)
+        };
 
         if let Some(cache_key) = cache_key_for_node(node)? {
             let fs = cache.get_or_process(cache_key, || -> Result<MemoryFS> {
@@ -696,7 +701,10 @@ pub mod phase2 {
             }
             Operation::Tools { tools } => operators::tools::apply(tools),
             // Merge operations are collected separately and executed in Phase 4
-            Operation::Yaml { yaml } => phase5::apply_yaml_merge_operation(fs, yaml),
+            Operation::Yaml { yaml: _ } => {
+                // Collected in collect_merge_operations() and executed in Phase 4
+                Ok(())
+            }
             Operation::Json { json: _ } => {
                 // Collected in collect_merge_operations() and executed in Phase 4
                 Ok(())
@@ -1768,7 +1776,7 @@ pub mod phase5 {
     /// Apply operations to the local filesystem before merging
     ///
     /// Applies template operations (marking and variable collection) to local files,
-    /// then processes templates with collected variables.
+    /// then processes templates with collected variables, and finally applies
     fn apply_local_operations_to_local_fs(
         local_fs: &mut MemoryFS,
         local_config: &Schema,
@@ -1792,6 +1800,27 @@ pub mod phase5 {
 
         // Process templates in local files
         crate::operators::template::process(local_fs, &local_template_vars)?;
+
+        for operation in local_config {
+            match operation {
+                Operation::Yaml { yaml } => {
+                    apply_yaml_merge_operation(local_fs, yaml)?;
+                }
+                Operation::Json { json } => {
+                    apply_json_merge_operation(local_fs, json)?;
+                }
+                Operation::Toml { toml } => {
+                    apply_toml_merge_operation(local_fs, toml)?;
+                }
+                Operation::Ini { ini } => {
+                    apply_ini_merge_operation(local_fs, ini)?;
+                }
+                Operation::Markdown { markdown } => {
+                    apply_markdown_merge_operation(local_fs, markdown)?;
+                }
+                _ => {}
+            }
+        }
 
         Ok(())
     }
