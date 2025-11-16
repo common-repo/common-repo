@@ -789,6 +789,7 @@ mod tests {
                     dest: "merged.yml".to_string(),
                     path: Some("/".to_string()),
                     append: false,
+                    array_mode: None,
                 },
             }];
 
@@ -967,6 +968,7 @@ mod tests {
                         dest: "d.yaml".to_string(),
                         path: Some("/".to_string()),
                         append: false,
+                        array_mode: None,
                     },
                 },
                 Operation::Json {
@@ -985,6 +987,7 @@ mod tests {
                         path: "/".to_string(),
                         append: false,
                         preserve_comments: false,
+                        array_mode: None,
                     },
                 },
                 Operation::Ini {

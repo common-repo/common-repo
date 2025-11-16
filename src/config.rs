@@ -119,6 +119,27 @@ pub struct ToolsOp {
 
 ////// CONVERSION IMPLEMENTATIONS //////
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ArrayMergeMode {
+    #[default]
+    Replace,
+    Append,
+    #[serde(rename = "append_unique")]
+    AppendUnique,
+}
+
+impl ArrayMergeMode {
+    /// Convert from legacy append boolean to ArrayMergeMode
+    pub fn from_append_bool(append: bool) -> Self {
+        if append {
+            ArrayMergeMode::Append
+        } else {
+            ArrayMergeMode::Replace
+        }
+    }
+}
+
 /// YAML merge operator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YamlMergeOp {
@@ -129,9 +150,19 @@ pub struct YamlMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Whether to append (true) or replace (false)
+    /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
     #[serde(default)]
     pub append: bool,
+    #[serde(default, rename = "array_mode")]
+    pub array_mode: Option<ArrayMergeMode>,
+}
+
+impl YamlMergeOp {
+    /// Get the effective array merge mode, considering both array_mode and append fields
+    pub fn get_array_mode(&self) -> ArrayMergeMode {
+        self.array_mode
+            .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
+    }
 }
 
 /// JSON merge operator configuration
@@ -160,12 +191,22 @@ pub struct TomlMergeOp {
     pub dest: String,
     /// Path within the destination to merge at
     pub path: String,
-    /// Whether to append (true) or replace (false)
+    /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
     #[serde(default)]
     pub append: bool,
     /// Whether to preserve comments
     #[serde(default, rename = "preserve-comments")]
     pub preserve_comments: bool,
+    #[serde(default, rename = "array_mode")]
+    pub array_mode: Option<ArrayMergeMode>,
+}
+
+impl TomlMergeOp {
+    /// Get the effective array merge mode, considering both array_mode and append fields
+    pub fn get_array_mode(&self) -> ArrayMergeMode {
+        self.array_mode
+            .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
+    }
 }
 
 /// INI merge operator configuration
