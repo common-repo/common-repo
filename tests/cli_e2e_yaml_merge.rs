@@ -4,7 +4,6 @@
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
-use predicates::prelude::*;
 
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
