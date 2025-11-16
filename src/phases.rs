@@ -1866,9 +1866,19 @@ pub mod phase5 {
         let mut segments = Vec::new();
         let mut current = String::new();
         let mut chars = path.chars().peekable();
+        let mut escaped = false;
 
         while let Some(ch) = chars.next() {
+            if escaped {
+                current.push(ch);
+                escaped = false;
+                continue;
+            }
+
             match ch {
+                '\\' => {
+                    escaped = true;
+                }
                 '.' => {
                     if !current.is_empty() {
                         segments.push(PathSegment::Key(current.clone()));
@@ -1881,17 +1891,46 @@ pub mod phase5 {
                         current.clear();
                     }
 
-                    let mut index_str = String::new();
-                    while let Some(&next_ch) = chars.peek() {
-                        chars.next();
-                        if next_ch == ']' {
-                            break;
-                        }
-                        index_str.push(next_ch);
-                    }
+                    let first_char = chars.peek().copied();
 
-                    if let Ok(idx) = index_str.parse::<usize>() {
-                        segments.push(PathSegment::Index(idx));
+                    if first_char == Some('"') || first_char == Some('\'') {
+                        let quote_char = chars.next().unwrap();
+                        let mut key = String::new();
+                        let mut bracket_escaped = false;
+
+                        while let Some(ch) = chars.next() {
+                            if bracket_escaped {
+                                key.push(ch);
+                                bracket_escaped = false;
+                            } else if ch == '\\' {
+                                bracket_escaped = true;
+                            } else if ch == quote_char {
+                                if chars.peek() == Some(&']') {
+                                    chars.next();
+                                    break;
+                                }
+                                key.push(ch);
+                            } else {
+                                key.push(ch);
+                            }
+                        }
+
+                        segments.push(PathSegment::Key(key));
+                    } else {
+                        let mut bracket_content = String::new();
+                        while let Some(&next_ch) = chars.peek() {
+                            chars.next();
+                            if next_ch == ']' {
+                                break;
+                            }
+                            bracket_content.push(next_ch);
+                        }
+
+                        if let Ok(idx) = bracket_content.trim().parse::<usize>() {
+                            segments.push(PathSegment::Index(idx));
+                        } else if !bracket_content.trim().is_empty() {
+                            segments.push(PathSegment::Key(bracket_content.trim().to_string()));
+                        }
                     }
                 }
                 _ => current.push(ch),
@@ -2225,7 +2264,8 @@ pub mod phase5 {
                 message: format!("Failed to parse source YAML: {}", err),
             })?;
 
-        let path = parse_path(&op.path);
+        let path_str = op.path.as_deref().unwrap_or("");
+        let path = parse_path(path_str);
         let target = navigate_yaml_value(&mut dest_value, &path)?;
         merge_yaml_values(target, &source_value, op.append);
 
@@ -3675,6 +3715,293 @@ Install instructions here.
             // Check if repo exists
             assert!(tree.would_create_cycle("https://github.com/repo.git", "main"));
             assert!(!tree.would_create_cycle("https://github.com/other.git", "main"));
+        }
+    }
+
+    mod parse_path_tests {
+        use super::*;
+
+        #[test]
+        fn test_parse_path_empty() {
+            assert_eq!(parse_path("").len(), 0);
+            assert_eq!(parse_path("  ").len(), 0);
+            assert_eq!(parse_path("/").len(), 0);
+        }
+
+        #[test]
+        fn test_parse_path_simple_dots() {
+            let segments = parse_path("metadata.labels");
+            assert_eq!(segments.len(), 2);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "metadata"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "labels"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_numeric_index() {
+            let segments = parse_path("items[0]");
+            assert_eq!(segments.len(), 2);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "items"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Index(i) => assert_eq!(*i, 0),
+                _ => panic!("Expected Index segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_quoted_bracket_double() {
+            let segments = parse_path(r#"metadata["labels.with.dot"]"#);
+            assert_eq!(segments.len(), 2);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "metadata"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "labels.with.dot"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_quoted_bracket_single() {
+            let segments = parse_path("metadata['labels.with.dot']");
+            assert_eq!(segments.len(), 2);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "metadata"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "labels.with.dot"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_backslash_escape() {
+            let segments = parse_path(r"metadata\.labels");
+            assert_eq!(segments.len(), 1);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "metadata.labels"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_complex_mixed() {
+            let segments = parse_path(r#"items[0].metadata["labels.app"].value"#);
+            assert_eq!(segments.len(), 5);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "items"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Index(i) => assert_eq!(*i, 0),
+                _ => panic!("Expected Index segment"),
+            }
+            match &segments[2] {
+                PathSegment::Key(k) => assert_eq!(k, "metadata"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[3] {
+                PathSegment::Key(k) => assert_eq!(k, "labels.app"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[4] {
+                PathSegment::Key(k) => assert_eq!(k, "value"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_unquoted_bracket_key() {
+            let segments = parse_path("[key]");
+            assert_eq!(segments.len(), 1);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "key"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_escaped_quote_in_bracket() {
+            let segments = parse_path(r#"["key\"with\"quotes"]"#);
+            assert_eq!(segments.len(), 1);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, r#"key"with"quotes"#),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_path_multiple_indices() {
+            let segments = parse_path("items[0][1]");
+            assert_eq!(segments.len(), 3);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "items"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Index(i) => assert_eq!(*i, 0),
+                _ => panic!("Expected Index segment"),
+            }
+            match &segments[2] {
+                PathSegment::Index(i) => assert_eq!(*i, 1),
+                _ => panic!("Expected Index segment"),
+            }
+        }
+    }
+
+    mod navigate_yaml_value_tests {
+        use super::*;
+        use serde_yaml::Value as YamlValue;
+
+        #[test]
+        fn test_navigate_creates_missing_keys() {
+            let mut value = YamlValue::Mapping(Default::default());
+            let path = parse_path("metadata.labels");
+            let target = navigate_yaml_value(&mut value, &path).unwrap();
+            *target = YamlValue::String("test".to_string());
+
+            assert!(value.get("metadata").is_some());
+            assert!(value.get("metadata").unwrap().get("labels").is_some());
+        }
+
+        #[test]
+        fn test_navigate_array_index() {
+            let mut value =
+                serde_yaml::from_str("items:\n  - name: first\n  - name: second").unwrap();
+            let path = parse_path("items[1].name");
+            let target = navigate_yaml_value(&mut value, &path).unwrap();
+            *target = YamlValue::String("modified".to_string());
+
+            let items = value.get("items").unwrap().as_sequence().unwrap();
+            assert_eq!(items[1].get("name").unwrap().as_str().unwrap(), "modified");
+        }
+
+        #[test]
+        fn test_navigate_creates_null_to_mapping() {
+            let mut value = YamlValue::Null;
+            let path = parse_path("metadata.labels");
+            let target = navigate_yaml_value(&mut value, &path).unwrap();
+            *target = YamlValue::String("test".to_string());
+
+            assert!(value.is_mapping());
+            assert!(value.get("metadata").is_some());
+        }
+
+        #[test]
+        fn test_navigate_error_on_non_mapping() {
+            let mut value = YamlValue::String("not a mapping".to_string());
+            let path = parse_path("metadata.labels");
+            let result = navigate_yaml_value(&mut value, &path);
+            assert!(result.is_err());
+        }
+    }
+
+    mod yaml_merge_integration_tests {
+        use super::*;
+        use crate::filesystem::MemoryFS;
+
+        #[test]
+        fn test_yaml_merge_at_root() {
+            let mut fs = MemoryFS::new();
+            fs.write_file("source.yaml", b"key: value\nother: data")
+                .unwrap();
+            fs.write_file("dest.yaml", b"existing: field").unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = fs.read_file_as_string("dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            assert_eq!(value.get("key").unwrap().as_str().unwrap(), "value");
+            assert_eq!(value.get("other").unwrap().as_str().unwrap(), "data");
+            assert_eq!(value.get("existing").unwrap().as_str().unwrap(), "field");
+        }
+
+        #[test]
+        fn test_yaml_merge_at_path() {
+            let mut fs = MemoryFS::new();
+            fs.write_file("source.yaml", b"app: myapp\nversion: 1.0")
+                .unwrap();
+            fs.write_file("dest.yaml", b"metadata:\n  name: test")
+                .unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: Some("metadata.labels".to_string()),
+                append: false,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = fs.read_file_as_string("dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let labels = value.get("metadata").unwrap().get("labels").unwrap();
+            assert_eq!(labels.get("app").unwrap().as_str().unwrap(), "myapp");
+            assert_eq!(labels.get("version").unwrap().as_str().unwrap(), "1.0");
+        }
+
+        #[test]
+        fn test_yaml_merge_with_escaped_dots() {
+            let mut fs = MemoryFS::new();
+            fs.write_file("source.yaml", b"value: test").unwrap();
+            fs.write_file("dest.yaml", b"metadata: {}").unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: Some(r#"metadata["app.kubernetes.io/name"]"#.to_string()),
+                append: false,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = fs.read_file_as_string("dest.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            let metadata = value.get("metadata").unwrap();
+            assert_eq!(
+                metadata
+                    .get("app.kubernetes.io/name")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+                "test"
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_creates_dest_if_missing() {
+            let mut fs = MemoryFS::new();
+            fs.write_file("source.yaml", b"key: value").unwrap();
+
+            let op = crate::config::YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "new.yaml".to_string(),
+                path: None,
+                append: false,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let content = fs.read_file_as_string("new.yaml").unwrap();
+            let value: YamlValue = serde_yaml::from_str(&content).unwrap();
+            assert_eq!(value.get("key").unwrap().as_str().unwrap(), "value");
         }
     }
 }

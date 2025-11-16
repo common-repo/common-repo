@@ -126,8 +126,9 @@ pub struct YamlMergeOp {
     pub source: String,
     /// Destination file to merge into
     pub dest: String,
-    /// Path within the destination to merge at
-    pub path: String,
+    /// Path within the destination to merge at (optional - merges at root if omitted)
+    #[serde(default)]
+    pub path: Option<String>,
     /// Whether to append (true) or replace (false)
     #[serde(default)]
     pub append: bool,
