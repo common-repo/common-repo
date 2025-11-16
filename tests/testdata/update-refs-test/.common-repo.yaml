@@ -1,0 +1,7 @@
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: common-repo-v0.3.0
+    path: tests/testdata/simulated-repo-2
+    with:
+      - include: ["**/*"]
+      - exclude: [".git/**"]
