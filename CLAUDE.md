@@ -14,6 +14,7 @@ This is a Rust project with automated tooling for code quality, conventional com
   - The toolchain file will automatically ensure you have the correct version
 - **cargo-nextest**: Required for running tests (see setup instructions below)
 - **prek**: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
+  - **IMPORTANT**: Install from GitHub (`cargo install --git https://github.com/j178/prek`) as crates.io version is outdated
   - Alternative: **pre-commit** (Python-based, works as fallback)
 
 ## Quick Setup
@@ -294,7 +295,8 @@ If pre-commit hooks are not installed, install them with:
 
 **Recommended (Rust-based, faster):**
 ```bash
-cargo install prek --locked
+# Install latest version from GitHub (crates.io version is outdated)
+cargo install --git https://github.com/j178/prek --locked
 prek install
 prek install --hook-type commit-msg
 ```
@@ -330,4 +332,5 @@ pre-commit install --hook-type commit-msg
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
+- **Prek installation**: Always install prek from GitHub (`cargo install --git https://github.com/j178/prek`) as the crates.io version (0.0.1) is outdated. The bootstrap script handles this automatically.
 - Binary name is `common-repo` (matches the package name in Cargo.toml).

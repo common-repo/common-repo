@@ -35,13 +35,9 @@ fi
 # Install prek (Rust-based pre-commit alternative) if not already installed
 if ! command -v prek >/dev/null 2>&1; then
   echo "==> Installing prek (Rust-based pre-commit)..."
-  if command -v cargo-binstall >/dev/null 2>&1; then
-    echo "    Using cargo-binstall for faster installation..."
-    cargo binstall prek --no-confirm
-  else
-    echo "    Installing via cargo install..."
-    cargo install prek --locked
-  fi
+  # Install from git to get latest version (crates.io is outdated at 0.0.1)
+  echo "    Installing latest version from GitHub..."
+  cargo install --git https://github.com/j178/prek --locked
   echo "    prek installed successfully!"
 else
   echo "==> prek is already installed ($(prek --version))"
