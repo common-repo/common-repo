@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.1](https://github.com/common-repo/common-repo/compare/v0.7.0...v0.7.1) (2025-11-16)
+
+
+### Bug Fixes
+
+* add doc comment to yaml_merge_integration tests ([b995ed4](https://github.com/common-repo/common-repo/commit/b995ed4f810d20b779f0f64b9d10e4645f9cb0eb))
+* enable YAML merge operations in Phase 2 processing ([cd627f0](https://github.com/common-repo/common-repo/commit/cd627f0d2eeab78b99eee418bf7770acb58801f3))
+* execute local YAML merge operations in Phase 5 after loading local files ([dd9ffd4](https://github.com/common-repo/common-repo/commit/dd9ffd418505bc18fbca57ca0f3c1badb403b7c1))
+* remove unused predicates import from CLI e2e tests ([3c4bea8](https://github.com/common-repo/common-repo/commit/3c4bea871f9af7f5baa95710815eaa4b29855e81))
+
 ## [0.7.0](https://github.com/common-repo/common-repo/compare/v0.6.0...v0.7.0) (2025-11-16)
 
 
