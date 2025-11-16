@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/common-repo/common-repo/compare/v0.6.0...v0.7.0) (2025-11-16)
+
+
+### Features
+
+* implement Phase 2.4 YAML/TOML merge enhancements ([4afb087](https://github.com/common-repo/common-repo/commit/4afb087aaf67665a8ae87c195209b78b1f6f2208))
+
 ## [0.6.0](https://github.com/common-repo/common-repo/compare/v0.5.0...v0.6.0) (2025-11-16)
 
 
