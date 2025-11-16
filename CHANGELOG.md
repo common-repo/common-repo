@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/common-repo/common-repo/compare/v0.4.0...v0.5.0) (2025-11-16)
+
+
+### Features
+
+* **operators:** complete with: clause support for include, template, and tools ([debdb8c](https://github.com/common-repo/common-repo/commit/debdb8c142d01ae4a3b7bb51859f12ff495be6f2))
+
 ## [0.4.0](https://github.com/common-repo/common-repo/compare/v0.3.0...v0.4.0) (2025-11-16)
 
 
