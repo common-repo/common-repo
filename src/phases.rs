@@ -3860,7 +3860,7 @@ Install instructions here.
     }
 
     mod navigate_yaml_value_tests {
-        use super::{parse_path, navigate_yaml_value, PathSegment};
+        use super::{navigate_yaml_value, parse_path, PathSegment};
         use serde_yaml::Value as YamlValue;
 
         #[test]
