@@ -381,6 +381,8 @@ pub fn parse_semver_tag(tag: &str) -> Option<Version> {
     // Common tag formats: v1.0.0, 1.0.0, v1.0, 1.0
     let version_str = if let Some(stripped) = tag.strip_prefix('v') {
         stripped
+    } else if let Some(v_pos) = tag.rfind("-v") {
+        &tag[v_pos + 2..]
     } else {
         tag
     };
@@ -507,6 +509,15 @@ mod tests {
         // Note: semver crate requires patch version, so "1.0" is invalid
         assert_eq!(parse_semver_tag("v1.0"), None);
         assert_eq!(parse_semver_tag("2.0"), None);
+
+        assert_eq!(
+            parse_semver_tag("common-repo-v0.2.0"),
+            Some(Version::parse("0.2.0").unwrap())
+        );
+        assert_eq!(
+            parse_semver_tag("my-component-v1.2.3"),
+            Some(Version::parse("1.2.3").unwrap())
+        );
 
         // Test invalid formats
         assert_eq!(parse_semver_tag("not-a-version"), None);
