@@ -787,7 +787,7 @@ mod tests {
                 yaml: crate::config::YamlMergeOp {
                     source: "config.yml".to_string(),
                     dest: "merged.yml".to_string(),
-                    path: "/".to_string(),
+                    path: Some("/".to_string()),
                     append: false,
                 },
             }];
@@ -965,7 +965,7 @@ mod tests {
                     yaml: crate::config::YamlMergeOp {
                         source: "s.yaml".to_string(),
                         dest: "d.yaml".to_string(),
-                        path: "/".to_string(),
+                        path: Some("/".to_string()),
                         append: false,
                     },
                 },
