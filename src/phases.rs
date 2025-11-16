@@ -3913,9 +3913,9 @@ Install instructions here.
         #[test]
         fn test_yaml_merge_at_root() {
             let mut fs = MemoryFS::new();
-            fs.write_file("source.yaml", b"key: value\nother: data")
+            fs.add_file_string("source.yaml", "key: value\nother: data")
                 .unwrap();
-            fs.write_file("dest.yaml", b"existing: field").unwrap();
+            fs.add_file_string("dest.yaml", "existing: field").unwrap();
 
             let op = crate::config::YamlMergeOp {
                 source: "source.yaml".to_string(),
@@ -3926,19 +3926,32 @@ Install instructions here.
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
-            let content = fs.read_file_as_string("dest.yaml").unwrap();
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
-            assert_eq!(value.get("key").unwrap().as_str().unwrap(), "value");
-            assert_eq!(value.get("other").unwrap().as_str().unwrap(), "data");
-            assert_eq!(value.get("existing").unwrap().as_str().unwrap(), "field");
+            let map = value.as_mapping().unwrap();
+            assert_eq!(
+                map.get(&YamlValue::String("key".into()))
+                    .and_then(|v| v.as_str()),
+                Some("value")
+            );
+            assert_eq!(
+                map.get(&YamlValue::String("other".into()))
+                    .and_then(|v| v.as_str()),
+                Some("data")
+            );
+            assert_eq!(
+                map.get(&YamlValue::String("existing".into()))
+                    .and_then(|v| v.as_str()),
+                Some("field")
+            );
         }
 
         #[test]
         fn test_yaml_merge_at_path() {
             let mut fs = MemoryFS::new();
-            fs.write_file("source.yaml", b"app: myapp\nversion: 1.0")
+            fs.add_file_string("source.yaml", "app: myapp\nversion: \"1.0\"")
                 .unwrap();
-            fs.write_file("dest.yaml", b"metadata:\n  name: test")
+            fs.add_file_string("dest.yaml", "metadata:\n  name: test")
                 .unwrap();
 
             let op = crate::config::YamlMergeOp {
@@ -3950,18 +3963,38 @@ Install instructions here.
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
-            let content = fs.read_file_as_string("dest.yaml").unwrap();
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
-            let labels = value.get("metadata").unwrap().get("labels").unwrap();
-            assert_eq!(labels.get("app").unwrap().as_str().unwrap(), "myapp");
-            assert_eq!(labels.get("version").unwrap().as_str().unwrap(), "1.0");
+            let map = value.as_mapping().unwrap();
+            let metadata = map
+                .get(&YamlValue::String("metadata".into()))
+                .unwrap()
+                .as_mapping()
+                .unwrap();
+            let labels = metadata
+                .get(&YamlValue::String("labels".into()))
+                .unwrap()
+                .as_mapping()
+                .unwrap();
+            assert_eq!(
+                labels
+                    .get(&YamlValue::String("app".into()))
+                    .and_then(|v| v.as_str()),
+                Some("myapp")
+            );
+            assert_eq!(
+                labels
+                    .get(&YamlValue::String("version".into()))
+                    .and_then(|v| v.as_str()),
+                Some("1.0")
+            );
         }
 
         #[test]
         fn test_yaml_merge_with_escaped_dots() {
             let mut fs = MemoryFS::new();
-            fs.write_file("source.yaml", b"value: test").unwrap();
-            fs.write_file("dest.yaml", b"metadata: {}").unwrap();
+            fs.add_file_string("source.yaml", "value: test").unwrap();
+            fs.add_file_string("dest.yaml", "metadata: {}").unwrap();
 
             let op = crate::config::YamlMergeOp {
                 source: "source.yaml".to_string(),
@@ -3972,23 +4005,26 @@ Install instructions here.
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
-            let content = fs.read_file_as_string("dest.yaml").unwrap();
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
-            let metadata = value.get("metadata").unwrap();
+            let map = value.as_mapping().unwrap();
+            let metadata = map
+                .get(&YamlValue::String("metadata".into()))
+                .unwrap()
+                .as_mapping()
+                .unwrap();
             assert_eq!(
                 metadata
-                    .get("app.kubernetes.io/name")
-                    .unwrap()
-                    .as_str()
-                    .unwrap(),
-                "test"
+                    .get(&YamlValue::String("app.kubernetes.io/name".into()))
+                    .and_then(|v| v.as_str()),
+                Some("test")
             );
         }
 
         #[test]
         fn test_yaml_merge_creates_dest_if_missing() {
             let mut fs = MemoryFS::new();
-            fs.write_file("source.yaml", b"key: value").unwrap();
+            fs.add_file_string("source.yaml", "key: value").unwrap();
 
             let op = crate::config::YamlMergeOp {
                 source: "source.yaml".to_string(),
@@ -3999,9 +4035,14 @@ Install instructions here.
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
-            let content = fs.read_file_as_string("new.yaml").unwrap();
+            let content = read_file_as_string(&fs, "new.yaml").unwrap();
             let value: YamlValue = serde_yaml::from_str(&content).unwrap();
-            assert_eq!(value.get("key").unwrap().as_str().unwrap(), "value");
+            let map = value.as_mapping().unwrap();
+            assert_eq!(
+                map.get(&YamlValue::String("key".into()))
+                    .and_then(|v| v.as_str()),
+                Some("value")
+            );
         }
     }
 }
