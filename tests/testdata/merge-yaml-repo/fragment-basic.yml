@@ -1,0 +1,6 @@
+# Basic YAML fragment to merge at root level
+version: "2.0"
+added_field: "This field was added by merge"
+nested:
+  from_fragment: true
+  priority: high

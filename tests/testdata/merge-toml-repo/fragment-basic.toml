@@ -1,0 +1,7 @@
+# Basic TOML fragment
+version = "2.0.0"
+added_field = "This field was added by merge"
+
+[nested]
+from_fragment = true
+priority = "high"

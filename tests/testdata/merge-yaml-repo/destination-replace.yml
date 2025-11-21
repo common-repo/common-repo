@@ -1,0 +1,6 @@
+# Destination where config section will be replaced
+config:
+  enabled: true
+  timeout: 60
+other:
+  field: value

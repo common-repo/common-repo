@@ -1,0 +1,14 @@
+{
+  "app_name": "my-application",
+  "config": {
+    "database": {
+      "host": "localhost",
+      "port": 5432,
+      "ssl": false
+    },
+    "cache": {
+      "enabled": true,
+      "ttl": 3600
+    }
+  }
+}

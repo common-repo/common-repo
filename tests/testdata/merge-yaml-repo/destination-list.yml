@@ -1,0 +1,6 @@
+# Destination with list to append to
+items:
+  - name: existing-item
+    value: 50
+config:
+  enabled: true

@@ -1,0 +1,4 @@
+# Fragment to merge at nested path: metadata.labels
+app: my-application
+environment: production
+team: platform

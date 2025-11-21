@@ -1,0 +1,14 @@
+# This is an important comment at the top
+# It should be preserved during merge
+
+[package]
+# Package metadata
+name = "my-package"
+version = "1.0.0"
+# Original description
+description = "Original package description"
+authors = ["Author Name <author@example.com>"]
+
+[dependencies]
+# Core dependencies
+serde = "1.0"

@@ -1,0 +1,4 @@
+# Fragment with new metadata
+description = "Updated package description"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/example/repo"

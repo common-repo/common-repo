@@ -1,0 +1,7 @@
+# Basic TOML destination
+version = "1.0.0"
+existing_field = "This field was already here"
+
+[nested]
+original = true
+priority = "low"

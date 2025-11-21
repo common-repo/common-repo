@@ -1,0 +1,6 @@
+{
+  "host": "postgres.example.com",
+  "port": 5432,
+  "ssl": true,
+  "pool_size": 20
+}

@@ -1,0 +1,31 @@
+# TOML Merge Test Fixtures
+# This repo provides test fixtures for TOML merge operations
+
+- include:
+    patterns:
+      - "*.toml"
+
+# Test 1: Basic merge at root level
+- toml:
+    source: fragment-basic.toml
+    dest: destination-basic.toml
+
+# Test 2: Merge dependencies in Cargo.toml
+- toml:
+    source: fragment-deps.toml
+    dest: Cargo.toml
+    path: dependencies
+
+# Test 3: Append to array
+- toml:
+    source: fragment-members.toml
+    dest: workspace.toml
+    path: workspace.members
+    append: true
+
+# Test 4: Merge with comment preservation
+- toml:
+    source: fragment-with-comments.toml
+    dest: destination-with-comments.toml
+    path: package
+    preserve-comments: true
