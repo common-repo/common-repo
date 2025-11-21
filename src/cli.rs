@@ -46,10 +46,10 @@ enum Commands {
 
     /// Update repository refs to newer versions
     Update(commands::update::UpdateArgs),
+
+    /// Validate a .common-repo.yaml configuration file
+    Validate(commands::validate::ValidateArgs),
     // Future commands will be added here:
-    // /// Validate a .common-repo.yaml configuration file
-    // Validate(commands::validate::ValidateArgs),
-    //
     // /// Initialize a new .common-repo.yaml configuration
     // Init(commands::init::InitArgs),
     //
@@ -68,6 +68,7 @@ impl Cli {
             Commands::Apply(args) => commands::apply::execute(args),
             Commands::Check(args) => commands::check::execute(args),
             Commands::Update(args) => commands::update::execute(args),
+            Commands::Validate(args) => commands::validate::execute(args),
         }
     }
 }

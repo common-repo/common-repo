@@ -19,3 +19,4 @@
 pub mod apply;
 pub mod check;
 pub mod update;
+pub mod validate;
