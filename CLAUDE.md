@@ -405,3 +405,4 @@ pre-commit install --hook-type commit-msg
 - Binary name is `common-repo` (matches the package name in Cargo.toml).
 - When reviewing changes, always look for flimsy or axiomatic tests that don't really test anything.
 - When reviewing changes, always check for TODOs or other stubbed implementation items.
+- before you push a branch remember to rebase it on main and resolve and conflict
