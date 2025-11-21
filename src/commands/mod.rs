@@ -19,6 +19,7 @@
 pub mod apply;
 pub mod cache;
 pub mod check;
+pub mod info;
 pub mod init;
 pub mod update;
 pub mod validate;
