@@ -196,7 +196,7 @@ These implement the individual operations from the schema.
 **Components**:
 - `operators::template::mark()` - Mark files as templates
 - `operators::template::process()` - Process templates with variables
-  - Simple `${VAR}` substitution initially
+  - Supports `${VAR}` and `${VAR:-default}` syntax
   - Environment variables resolved at runtime
 - `operators::template_vars::collect()` - Build unified variable context
   - Later definitions override earlier ones
@@ -253,7 +253,7 @@ These implement the individual operations from the schema.
 
 ### Layer 3: Phases (Depends on Layers 0-2)
 
-These implement the 7 phases from the design doc.
+These implement the 6 phases from the design doc.
 
 #### 3.1 Phase 1: Discovery and Cloning
 **Purpose**: Fetch all repos in parallel using breadth-first traversal
