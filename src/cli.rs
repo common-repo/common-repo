@@ -21,7 +21,11 @@ use crate::commands;
 /// Common Repository - Manage repository configuration inheritance
 #[derive(Parser, Debug)]
 #[command(name = "common-repo")]
-#[command(version, about, long_about = None)]
+#[command(
+    version,
+    about,
+    long_about = "Common Repository - Manage repository configuration inheritance"
+)]
 pub struct Cli {
     /// Subcommand to execute
     #[command(subcommand)]
