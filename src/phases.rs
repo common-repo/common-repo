@@ -1803,26 +1803,10 @@ pub mod phase5 {
         // Process templates in local files
         crate::operators::template::process(local_fs, &local_template_vars)?;
 
-        for operation in local_config {
-            match operation {
-                Operation::Yaml { yaml } => {
-                    apply_yaml_merge_operation(local_fs, yaml)?;
-                }
-                Operation::Json { json } => {
-                    apply_json_merge_operation(local_fs, json)?;
-                }
-                Operation::Toml { toml } => {
-                    apply_toml_merge_operation(local_fs, toml)?;
-                }
-                Operation::Ini { ini } => {
-                    apply_ini_merge_operation(local_fs, ini)?;
-                }
-                Operation::Markdown { markdown } => {
-                    apply_markdown_merge_operation(local_fs, markdown)?;
-                }
-                _ => {}
-            }
-        }
+        // Note: Merge operations (yaml, json, toml, ini, markdown) are NOT applied here.
+        // They are applied later in apply_local_operations() after local files are
+        // merged into the final filesystem. Applying them twice would cause duplicate
+        // merges (e.g., arrays would be appended twice).
 
         Ok(())
     }
