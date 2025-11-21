@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/common-repo/common-repo/compare/v0.9.0...v0.10.0) (2025-11-21)
+
+
+### Features
+
+* **cache:** implement cache list and clean commands ([881bf25](https://github.com/common-repo/common-repo/commit/881bf253b801005662eccb178cfaa944572d8bab))
+
+
+### Bug Fixes
+
+* **tests:** update test expectations for v0.9.0 and context/ directory ([1fad196](https://github.com/common-repo/common-repo/commit/1fad1960489afa75647605fc4d5511f4f8555566))
+* **tests:** use dynamic version comparison in update test ([4abd79f](https://github.com/common-repo/common-repo/commit/4abd79f7cb8277d9a322c4ab113e37f808cf6883))
+
 ## [0.9.0](https://github.com/common-repo/common-repo/compare/v0.8.0...v0.9.0) (2025-11-21)
 
 
