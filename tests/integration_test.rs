@@ -77,8 +77,8 @@ fn test_clone_cache_and_load_repository() {
     assert!(fs1.exists("README.md"), "README.md should be present");
     assert!(fs1.exists("src/main.rs"), "src/main.rs should be present");
     assert!(
-        fs1.exists("docs/implementation-plan.md"),
-        "docs/implementation-plan.md should be present"
+        fs1.exists("context/implementation-plan.md"),
+        "context/implementation-plan.md should be present"
     );
     assert!(fs1.exists(".gitignore"), ".gitignore should be present");
 
