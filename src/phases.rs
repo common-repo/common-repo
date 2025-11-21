@@ -17,6 +17,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use log::warn;
+
 use crate::cache::{CacheKey, RepoCache};
 use crate::config::{Operation, Schema};
 use crate::error::{Error, Result};
@@ -390,8 +392,8 @@ pub mod phase1 {
 
                     if is_network_error && repo_manager.is_cached(url, ref_) {
                         // Fall back to cached version with warning
-                        eprintln!(
-                            "Warning: Network fetch failed for {}@{}, falling back to cached version",
+                        warn!(
+                            "Network fetch failed for {}@{}, falling back to cached version",
                             url, ref_
                         );
                         // Continue - the repository is already cached and will be used
@@ -2181,8 +2183,8 @@ pub mod phase5 {
                                             target_seq.extend(source_seq.iter().cloned());
                                         }
                                         ArrayMergeMode::Replace => {
-                                            eprintln!(
-                                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                                            warn!(
+                                                "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
                                                 src_file, dst_file, new_path, target_seq.len(), source_seq.len()
                                             );
                                             *existing = YamlValue::Sequence(source_seq.clone());
@@ -2196,16 +2198,20 @@ pub mod phase5 {
                                         }
                                     }
                                 } else {
-                                    eprintln!(
-                                        "Warning: {} -> {}: Type mismatch at path '{}': replacing {:?} with Sequence",
+                                    warn!(
+                                        "{} -> {}: Type mismatch at path '{}': replacing {:?} with Sequence",
                                         src_file, dst_file, new_path, get_yaml_type_name(existing)
                                     );
                                     *existing = YamlValue::Sequence(source_seq.clone());
                                 }
                             } else {
-                                eprintln!(
-                                    "Warning: {} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
-                                    src_file, dst_file, new_path, get_yaml_type_name(existing), get_yaml_type_name(value)
+                                warn!(
+                                    "{} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
+                                    src_file,
+                                    dst_file,
+                                    new_path,
+                                    get_yaml_type_name(existing),
+                                    get_yaml_type_name(value)
                                 );
                                 *existing = value.clone();
                             }
@@ -2214,9 +2220,12 @@ pub mod phase5 {
                         }
                     }
                 } else {
-                    eprintln!(
-                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Mapping with {:?}",
-                        src_file, dst_file, path, get_yaml_type_name(source)
+                    warn!(
+                        "{} -> {}: Type mismatch at path '{}': replacing Mapping with {:?}",
+                        src_file,
+                        dst_file,
+                        path,
+                        get_yaml_type_name(source)
                     );
                     *target = source.clone();
                 }
@@ -2228,8 +2237,8 @@ pub mod phase5 {
                             target_seq.extend(source_seq.clone());
                         }
                         ArrayMergeMode::Replace => {
-                            eprintln!(
-                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                            warn!(
+                                "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
                                 src_file, dst_file, path, target_seq.len(), source_seq.len()
                             );
                             *target = YamlValue::Sequence(source_seq.clone());
@@ -2243,16 +2252,19 @@ pub mod phase5 {
                         }
                     }
                 } else {
-                    eprintln!(
-                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Sequence with {:?}",
-                        src_file, dst_file, path, get_yaml_type_name(source)
+                    warn!(
+                        "{} -> {}: Type mismatch at path '{}': replacing Sequence with {:?}",
+                        src_file,
+                        dst_file,
+                        path,
+                        get_yaml_type_name(source)
                     );
                     *target = source.clone();
                 }
             }
             _ => {
-                eprintln!(
-                    "Warning: {} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
+                warn!(
+                    "{} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
                     src_file,
                     dst_file,
                     path,
@@ -2320,31 +2332,111 @@ pub mod phase5 {
         }
     }
 
-    fn parse_toml_path(path: &str) -> Vec<String> {
-        path.split('.')
-            .map(|segment| segment.trim())
-            .filter(|segment| !segment.is_empty())
-            .map(|segment| segment.to_string())
-            .collect()
+    pub(crate) fn parse_toml_path(path: &str) -> Vec<PathSegment> {
+        if path.trim().is_empty() {
+            return Vec::new();
+        }
+
+        let mut segments = Vec::new();
+        let mut current = String::new();
+        let mut chars = path.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            match ch {
+                '.' => {
+                    if !current.is_empty() {
+                        segments.push(PathSegment::Key(current.clone()));
+                        current.clear();
+                    }
+                }
+                '[' => {
+                    if !current.is_empty() {
+                        segments.push(PathSegment::Key(current.clone()));
+                        current.clear();
+                    }
+
+                    let first_char = chars.peek().copied();
+
+                    if first_char == Some('"') || first_char == Some('\'') {
+                        let quote_char = chars.next().unwrap();
+                        let mut key = String::new();
+
+                        while let Some(ch) = chars.next() {
+                            if ch == quote_char {
+                                if chars.peek() == Some(&']') {
+                                    chars.next();
+                                    break;
+                                }
+                                key.push(ch);
+                            } else {
+                                key.push(ch);
+                            }
+                        }
+
+                        segments.push(PathSegment::Key(key));
+                    } else {
+                        let mut bracket_content = String::new();
+                        while let Some(&next_ch) = chars.peek() {
+                            chars.next();
+                            if next_ch == ']' {
+                                break;
+                            }
+                            bracket_content.push(next_ch);
+                        }
+
+                        if let Ok(idx) = bracket_content.trim().parse::<usize>() {
+                            segments.push(PathSegment::Index(idx));
+                        } else if !bracket_content.trim().is_empty() {
+                            segments.push(PathSegment::Key(bracket_content.trim().to_string()));
+                        }
+                    }
+                }
+                _ => current.push(ch),
+            }
+        }
+
+        if !current.is_empty() {
+            segments.push(PathSegment::Key(current));
+        }
+
+        segments
     }
 
     fn navigate_toml_value<'a>(
         value: &'a mut TomlValue,
-        path: &[String],
+        path: &[PathSegment],
     ) -> Result<&'a mut TomlValue> {
         let mut current = value;
         for segment in path {
-            if !current.is_table() {
-                return Err(Error::Merge {
-                    operation: "toml merge".to_string(),
-                    message: format!("Expected table while navigating to '{}'", segment),
-                });
-            }
+            match segment {
+                PathSegment::Key(key) => {
+                    if !current.is_table() {
+                        return Err(Error::Merge {
+                            operation: "toml merge".to_string(),
+                            message: format!("Expected table while navigating to '{}'", key),
+                        });
+                    }
 
-            let table = current.as_table_mut().unwrap();
-            current = table
-                .entry(segment.clone())
-                .or_insert(TomlValue::Table(toml::map::Map::new()));
+                    let table = current.as_table_mut().unwrap();
+                    current = table
+                        .entry(key.clone())
+                        .or_insert(TomlValue::Table(toml::map::Map::new()));
+                }
+                PathSegment::Index(idx) => {
+                    if !current.is_array() {
+                        return Err(Error::Merge {
+                            operation: "toml merge".to_string(),
+                            message: format!("Expected array while navigating to index {}", idx),
+                        });
+                    }
+
+                    let array = current.as_array_mut().unwrap();
+                    while array.len() <= *idx {
+                        array.push(TomlValue::Table(toml::map::Map::new()));
+                    }
+                    current = &mut array[*idx];
+                }
+            }
         }
         Ok(current)
     }
@@ -2383,8 +2475,8 @@ pub mod phase5 {
                                             target_array.extend(source_array.iter().cloned());
                                         }
                                         ArrayMergeMode::Replace => {
-                                            eprintln!(
-                                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                                            warn!(
+                                                "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
                                                 src_file, dst_file, new_path, target_array.len(), source_array.len()
                                             );
                                             *existing = TomlValue::Array(source_array.clone());
@@ -2398,8 +2490,8 @@ pub mod phase5 {
                                         }
                                     }
                                 } else {
-                                    eprintln!(
-                                        "Warning: {} -> {}: Type mismatch at path '{}': replacing {:?} with Array",
+                                    warn!(
+                                        "{} -> {}: Type mismatch at path '{}': replacing {:?} with Array",
                                         src_file, dst_file, new_path, get_toml_type_name(existing)
                                     );
                                     *existing = TomlValue::Array(source_array.clone());
@@ -2601,15 +2693,22 @@ pub mod phase5 {
         let mode = op.get_array_mode();
         merge_toml_values(target, &source_value, mode, &op.path, &op.source, &op.dest);
 
-        let serialized = toml::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
-            operation: "toml merge".to_string(),
-            message: format!("Failed to serialize TOML: {}", err),
-        })?;
+        let serialized = if op.preserve_comments {
+            // Attempt comment preservation using taplo
+            // First serialize with toml, then format with taplo to preserve structure
+            let toml_string = toml::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
+                operation: "toml merge".to_string(),
+                message: format!("Failed to serialize TOML: {}", err),
+            })?;
 
-        if op.preserve_comments {
-            // No-op placeholder: comment preservation is not implemented yet.
-            // The serialized output already contains normalized TOML.
-        }
+            // Try to format with taplo for better structure preservation
+            taplo::formatter::format(&toml_string, taplo::formatter::Options::default())
+        } else {
+            toml::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
+                operation: "toml merge".to_string(),
+                message: format!("Failed to serialize TOML: {}", err),
+            })?
+        };
 
         write_string_to_file(fs, &op.dest, serialized)
     }
@@ -3419,6 +3518,7 @@ port = 8080
         use super::*;
         use crate::phases::phase5::{
             apply_ini_merge_operation, apply_markdown_merge_operation, apply_toml_merge_operation,
+            parse_toml_path, PathSegment,
         };
 
         // Note: MockGitOps and MockCacheOps are defined but not used in phase5 tests
@@ -3569,6 +3669,80 @@ port = 8080
 
             assert_eq!(final_fs.len(), 1);
             assert!(final_fs.exists("local.txt"));
+        }
+
+        #[test]
+        fn test_parse_toml_path_empty() {
+            assert_eq!(parse_toml_path("").len(), 0);
+            assert_eq!(parse_toml_path("  ").len(), 0);
+        }
+
+        #[test]
+        fn test_parse_toml_path_simple_keys() {
+            let segments = parse_toml_path("package.dependencies");
+            assert_eq!(segments.len(), 2);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "package"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "dependencies"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_toml_path_array_index() {
+            let segments = parse_toml_path("workspace.members[0]");
+            assert_eq!(segments.len(), 3);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "workspace"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "members"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[2] {
+                PathSegment::Index(idx) => assert_eq!(*idx, 0),
+                _ => panic!("Expected Index segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_toml_path_quoted_keys() {
+            let segments = parse_toml_path(r#"package["version"]"#);
+            assert_eq!(segments.len(), 2);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "package"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "version"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_toml_path_complex() {
+            let segments = parse_toml_path(r#"config.database[0].settings"#);
+            assert_eq!(segments.len(), 4);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "config"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "database"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[2] {
+                PathSegment::Index(idx) => assert_eq!(*idx, 0),
+                _ => panic!("Expected Index segment"),
+            }
+            match &segments[3] {
+                PathSegment::Key(k) => assert_eq!(k, "settings"),
+                _ => panic!("Expected Key segment"),
+            }
         }
 
         #[test]

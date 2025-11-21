@@ -15,6 +15,7 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use log::LevelFilter;
 
 use crate::commands;
 
@@ -64,15 +65,68 @@ enum Commands {
 impl Cli {
     /// Execute the parsed CLI command
     pub fn execute(self) -> Result<()> {
-        // TODO: Initialize a logger (e.g., env_logger) based on `self.log_level`.
-        // TODO: Configure color output for the terminal using a library like `termcolor`
-        //       based on `self.color`.
+        // Initialize logger based on log level
+        self.init_logger()?;
 
         match self.command {
             Commands::Apply(args) => commands::apply::execute(args),
             Commands::Check(args) => commands::check::execute(args),
             Commands::Update(args) => commands::update::execute(args),
             Commands::Validate(args) => commands::validate::execute(args),
+        }
+    }
+
+    /// Initialize the logger with the specified log level and color settings
+    fn init_logger(&self) -> Result<()> {
+        let log_level = self.parse_log_level()?;
+        let use_color = self.should_use_color();
+
+        env_logger::Builder::from_default_env()
+            .filter_level(log_level)
+            .write_style(if use_color {
+                env_logger::WriteStyle::Auto
+            } else {
+                env_logger::WriteStyle::Never
+            })
+            .format_timestamp(None)
+            .format_module_path(false)
+            .format_target(false)
+            .try_init()
+            .map_err(|e| anyhow::anyhow!("Failed to initialize logger: {}", e))?;
+
+        Ok(())
+    }
+
+    /// Parse the log level string into a LevelFilter
+    fn parse_log_level(&self) -> Result<LevelFilter> {
+        match self.log_level.to_lowercase().as_str() {
+            "error" => Ok(LevelFilter::Error),
+            "warn" => Ok(LevelFilter::Warn),
+            "info" => Ok(LevelFilter::Info),
+            "debug" => Ok(LevelFilter::Debug),
+            "trace" => Ok(LevelFilter::Trace),
+            "off" => Ok(LevelFilter::Off),
+            _ => Err(anyhow::anyhow!(
+                "Invalid log level: '{}'. Valid options are: error, warn, info, debug, trace, off",
+                self.log_level
+            )),
+        }
+    }
+
+    /// Determine whether to use color output based on the color setting
+    fn should_use_color(&self) -> bool {
+        match self.color.to_lowercase().as_str() {
+            "always" => true,
+            "never" => false,
+            "auto" => console::Term::stdout().features().colors_supported(),
+            _ => {
+                // Default to auto if invalid value provided
+                eprintln!(
+                    "Warning: Invalid color option '{}', using 'auto'. Valid options are: always, never, auto",
+                    self.color
+                );
+                console::Term::stdout().features().colors_supported()
+            }
         }
     }
 }

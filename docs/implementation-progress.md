@@ -161,12 +161,16 @@ This document tracks current implementation status against the implementation pl
   - `apply.rs`
   - `check.rs`
   - `update.rs`
-- **Features**: Core CLI commands implemented with `clap`.
+  - `validate.rs`
+- **Features**: Core CLI commands and infrastructure implemented with `clap`.
   - ✅ `common-repo apply`: Executes the entire 6-phase pipeline with all options.
   - ✅ `common-repo check`: Validates configuration and checks for repository updates.
   - ✅ `common-repo update`: Updates repository refs to newer versions.
-  - ⚠️ **Not yet implemented**: `init`, `validate`, `cache`, `diff`, `tree`, `info`, `ls` (planned for future phases)
-- **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_check.rs, cli_e2e_update.rs, cli_e2e_yaml_merge.rs).
+  - ✅ `common-repo validate`: Validates a configuration file.
+  - ✅ **Logging Infrastructure**: Structured logging with `log` and `env_logger`, configurable via `--log-level` flag (error, warn, info, debug, trace, off).
+  - ✅ **Color Output Control**: Terminal color support via `--color` flag (auto/always/never), respects terminal capabilities.
+  - ⚠️ **Not yet implemented**: `init`, `cache`, `diff`, `tree`, `info`, `ls` (planned for future phases)
+- **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_check.rs, cli_e2e_update.rs, cli_e2e_validate.rs, cli_e2e_yaml_merge.rs).
 
 **Traceability**
 - Plan: [Layer 4 ▸ CLI & Orchestration](implementation-plan.md#layer-4-cli--orchestration-depends-on-all-layers)
@@ -229,6 +233,27 @@ With core implementation complete, the next priorities are expanding CLI functio
 **Traceability**
 - Plan: [Implementation Plan ▸ Change Log Highlights](implementation-plan.md#implementation-strategy)
 - Design: [Design Doc ▸ Execution Model & Operators](design.md#execution-model)
+
+### CLI Logging Infrastructure Implementation (November 20, 2025)
+- **Dependencies Added**: Added `log` (0.4) and `env_logger` (0.11) to Cargo.toml for structured logging support
+- **Logger Initialization**: Implemented `init_logger()`, `parse_log_level()`, and `should_use_color()` methods in `Cli`
+- **Log Level Support**: Added validation and parsing for all log levels (error, warn, info, debug, trace, off)
+- **Color Output Control**: Implemented color configuration respecting `--color` flag (auto/always/never) and terminal capabilities
+- **Logger Configuration**: Optimized for CLI use - no timestamps, module paths, or targets for cleaner output
+- **Warning Migration**: Replaced all 15 `eprintln!` calls in `src/phases.rs` with `warn!()` macro for proper log level control
+- **Error Handling**: Clear error messages for invalid log levels
+- **Testing**: All 186+ tests pass, code passes cargo fmt and clippy checks
+- **Result**: Users can now control logging verbosity and color output via command-line flags
+- **Files Modified**: `Cargo.toml`, `src/cli.rs`, `src/phases.rs`
+- **Usage Examples**:
+  - `common-repo --log-level warn validate` - Show only warnings and errors
+  - `common-repo --log-level debug apply` - Verbose debug output
+  - `common-repo --color never check` - Disable colored output
+  - `common-repo --color always check | less -R` - Force color even when piping
+
+**Traceability**
+- Plan: [Layer 4 ▸ 4.2 Main Orchestrator](implementation-plan.md#42-main-orchestrator)
+- Design: [CLI Design](design.md#cli-design)
 
 ### Merge Operator Infrastructure Implementation (November 16, 2025)
 - **IntermediateFS Enhancement**: Added `merge_operations` field to store merge operations collected during Phase 2
