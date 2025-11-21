@@ -2720,41 +2720,68 @@ pub mod phase5 {
         let source_sections = parse_ini(&source_content);
         let mut dest_sections = parse_ini(&dest_content);
 
-        let source_section =
-            find_ini_section(&source_sections, &op.section).ok_or_else(|| Error::Merge {
-                operation: "ini merge".to_string(),
-                message: format!("Section '{}' not found in source INI", op.section),
-            })?;
-
-        let dest_section = find_ini_section_mut(&mut dest_sections, &op.section);
-
-        if op.append {
-            if op.allow_duplicates {
-                dest_section.entries.extend(source_section.entries.clone());
+        // Helper function to merge a source section into a destination section
+        fn merge_section(
+            source_section: &IniSection,
+            dest_section: &mut IniSection,
+            append: bool,
+            allow_duplicates: bool,
+        ) {
+            if append {
+                if allow_duplicates {
+                    dest_section.entries.extend(source_section.entries.clone());
+                } else {
+                    for entry in &source_section.entries {
+                        if !dest_section
+                            .entries
+                            .iter()
+                            .any(|existing| existing.key.eq_ignore_ascii_case(&entry.key))
+                        {
+                            dest_section.entries.push(entry.clone());
+                        }
+                    }
+                }
             } else {
-                for entry in &source_section.entries {
-                    if !dest_section
+                if !allow_duplicates {
+                    let keys: HashSet<String> = source_section
                         .entries
                         .iter()
-                        .any(|existing| existing.key.eq_ignore_ascii_case(&entry.key))
-                    {
-                        dest_section.entries.push(entry.clone());
+                        .map(|entry| entry.key.to_lowercase())
+                        .collect();
+                    dest_section
+                        .entries
+                        .retain(|entry| !keys.contains(&entry.key.to_lowercase()));
+                }
+
+                dest_section.entries.extend(source_section.entries.clone());
+            }
+        }
+
+        match &op.section {
+            Some(section_name) => {
+                // Merge into specific section
+                let dest_section = find_ini_section_mut(&mut dest_sections, section_name);
+
+                // If the source has the same section, merge it
+                if let Some(source_section) = find_ini_section(&source_sections, section_name) {
+                    merge_section(source_section, dest_section, op.append, op.allow_duplicates);
+                }
+
+                // Also merge any root-level entries from source into the target section
+                if let Some(root_section) = find_ini_section(&source_sections, "") {
+                    if !root_section.entries.is_empty() {
+                        merge_section(root_section, dest_section, op.append, op.allow_duplicates);
                     }
                 }
             }
-        } else {
-            if !op.allow_duplicates {
-                let keys: HashSet<String> = source_section
-                    .entries
-                    .iter()
-                    .map(|entry| entry.key.to_lowercase())
-                    .collect();
-                dest_section
-                    .entries
-                    .retain(|entry| !keys.contains(&entry.key.to_lowercase()));
+            None => {
+                // Merge all sections from source into destination
+                for source_section in &source_sections {
+                    let dest_section =
+                        find_ini_section_mut(&mut dest_sections, &source_section.name);
+                    merge_section(source_section, dest_section, op.append, op.allow_duplicates);
+                }
             }
-
-            dest_section.entries.extend(source_section.entries.clone());
         }
 
         let serialized = serialize_ini(&dest_sections);
@@ -3475,7 +3502,7 @@ port = 8080
             let ini_merge_op = IniMergeOp {
                 source: "fragment.ini".to_string(),
                 dest: "config.ini".to_string(),
-                section: "database".to_string(),
+                section: Some("database".to_string()),
                 append: false,
                 allow_duplicates: false,
             };
@@ -3999,7 +4026,7 @@ port = 8080
             let ini_op = crate::config::IniMergeOp {
                 source: "db.ini".to_string(),
                 dest: "config.ini".to_string(),
-                section: "database".to_string(),
+                section: Some("database".to_string()),
                 append: false,
                 allow_duplicates: false,
             };
@@ -4042,7 +4069,7 @@ host = localhost
             let ini_op = crate::config::IniMergeOp {
                 source: "new.ini".to_string(),
                 dest: "config.ini".to_string(),
-                section: "settings".to_string(),
+                section: Some("settings".to_string()),
                 append: true, // append mode
                 allow_duplicates: false,
             };
@@ -4058,6 +4085,136 @@ host = localhost
             assert!(result_str.contains("debug=true"));
             // In append mode, existing keys should not be overwritten
             assert!(result_str.contains("timeout=30"));
+        }
+
+        #[test]
+        fn test_ini_merge_operation_optional_section() {
+            // Test INI merge without section (merge all sections)
+            let mut fs = MemoryFS::new();
+
+            // Create source INI fragment with multiple sections
+            let source_ini = r#"
+[database]
+driver = postgresql
+port = 5432
+
+[cache]
+enabled = true
+ttl = 3600
+"#;
+            fs.add_file_string("multi.ini", source_ini).unwrap();
+
+            // Create destination INI file with existing section
+            let dest_ini = r#"
+[server]
+host = localhost
+port = 8080
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = crate::config::IniMergeOp {
+                source: "multi.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: None, // No specific section
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = fs.get_file("config.ini").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain all sections
+            assert!(result_str.contains("[server]"));
+            assert!(result_str.contains("host=localhost"));
+            assert!(result_str.contains("port=8080"));
+            assert!(result_str.contains("[database]"));
+            assert!(result_str.contains("driver=postgresql"));
+            assert!(result_str.contains("port=5432"));
+            assert!(result_str.contains("[cache]"));
+            assert!(result_str.contains("enabled=true"));
+            assert!(result_str.contains("ttl=3600"));
+        }
+
+        #[test]
+        fn test_ini_merge_operation_root_level_into_section() {
+            // Test merging root-level entries into a specific section
+            let mut fs = MemoryFS::new();
+
+            // Create source INI fragment with root-level entries and a section
+            let source_ini = r#"
+host = postgres.example.com
+port = 5432
+ssl_mode = require
+
+[advanced]
+pool_size = 20
+"#;
+            fs.add_file_string("db.ini", source_ini).unwrap();
+
+            // Create destination INI file
+            let dest_ini = r#"
+[database]
+driver = postgresql
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = crate::config::IniMergeOp {
+                source: "db.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: Some("database".to_string()), // Merge into database section
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = fs.get_file("config.ini").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain the database section with root-level entries merged in
+            assert!(result_str.contains("[database]"));
+            assert!(result_str.contains("driver=postgresql"));
+            assert!(result_str.contains("host=postgres.example.com"));
+            assert!(result_str.contains("port=5432"));
+            assert!(result_str.contains("ssl_mode=require"));
+            // pool_size should NOT be merged since it's in [advanced] section, not root level
+        }
+
+        #[test]
+        fn test_ini_merge_operation_empty_source() {
+            // Test INI merge with empty source file
+            let mut fs = MemoryFS::new();
+
+            // Create empty source INI fragment
+            fs.add_file_string("empty.ini", "").unwrap();
+
+            // Create destination INI file
+            let dest_ini = r#"
+[server]
+host = localhost
+port = 8080
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = crate::config::IniMergeOp {
+                source: "empty.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: None,
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = fs.get_file("config.ini").unwrap();
+            let result_str = String::from_utf8(result.content.clone()).unwrap();
+
+            // Should contain original content unchanged
+            assert!(result_str.contains("[server]"));
+            assert!(result_str.contains("host=localhost"));
+            assert!(result_str.contains("port=8080"));
         }
 
         #[test]

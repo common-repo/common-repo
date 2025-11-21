@@ -650,6 +650,36 @@ With core implementation complete, the next priorities are expanding CLI functio
 - Plan: [Layer 2 ▸ 2.4 Merge Operators](implementation-plan.md#24-merge-operators)
 - Design: [Fragment Merge Operators ▸ yaml / json](design.md#yaml)
 
+### INI Merge Operator Enhancements (November 21, 2025)
+- **Optional Section Field**: Made `section` field optional in `IniMergeOp` to support whole-file merges
+- **Multi-Section Merge**: When section is `None`, merges all sections from source into destination
+- **Root-Level Entry Handling**: When section is specified, root-level entries from source are merged into that section
+- **Refactored Merge Logic**: Extracted `merge_section()` helper function for cleaner code organization
+- **Enhanced Test Coverage**: Added 4 integration tests and 4 E2E CLI tests for comprehensive coverage
+- **Test Fixtures**: Comprehensive test data in `tests/testdata/merge-ini-repo/` for all merge scenarios
+- **Backward Compatibility**: Existing configurations with explicit section continue to work
+
+**New Use Cases Enabled:**
+1. Merge entire INI files (all sections) with `section` omitted
+2. Merge root-level INI parameters into specific sections
+3. Traditional section-specific merging (existing behavior)
+
+**Files Modified:**
+- `schema.yaml` - Updated comment to indicate section is optional
+- `src/config.rs` - Changed `IniMergeOp.section` to `Option<String>` with `#[serde(default)]`
+- `src/operators.rs` - Updated test fixtures to use `Some("section")`
+- `src/phases.rs` - Refactored merge logic with helper function, added optional section handling
+
+**New Test Files:**
+- `tests/ini_merge_integration.rs` - 4 integration tests using test fixtures
+- `tests/cli_e2e_ini_merge.rs` - 4 E2E tests invoking CLI binary
+
+**Test Results:** All 292 existing tests pass + 10 new INI tests added
+
+**Traceability**
+- Plan: [Layer 2 ▸ 2.4 Merge Operators](implementation-plan.md#24-merge-operators)
+- Design: [Fragment Merge Operators ▸ ini](design.md#ini)
+
 ### Files Modified
 - `Cargo.toml` - Added merge operation dependencies (serde_json, toml, ini, pulldown-cmark)
 - `src/operators.rs` - Added template operators module with supporting unit tests

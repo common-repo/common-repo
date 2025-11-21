@@ -994,7 +994,7 @@ mod tests {
                     ini: crate::config::IniMergeOp {
                         source: "s.ini".to_string(),
                         dest: "d.ini".to_string(),
-                        section: "main".to_string(),
+                        section: Some("main".to_string()),
                         append: false,
                         allow_duplicates: false,
                     },

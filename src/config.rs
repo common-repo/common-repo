@@ -216,8 +216,9 @@ pub struct IniMergeOp {
     pub source: String,
     /// Destination file to merge into
     pub dest: String,
-    /// Section to merge into
-    pub section: String,
+    /// Section to merge into (optional - if omitted, merge all sections)
+    #[serde(default)]
+    pub section: Option<String>,
     /// Whether to append (true) or replace (false)
     #[serde(default)]
     pub append: bool,
@@ -1003,7 +1004,7 @@ mod tests {
             Operation::Ini { ini } => {
                 assert_eq!(ini.source, "fragment.ini");
                 assert_eq!(ini.dest, "config.ini");
-                assert_eq!(ini.section, "database");
+                assert_eq!(ini.section, Some("database".to_string()));
                 assert!(ini.append);
                 assert!(!ini.allow_duplicates);
             }
