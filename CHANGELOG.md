@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.0](https://github.com/common-repo/common-repo/compare/v0.8.0...v0.9.0) (2025-11-21)
+
+
+### Features
+
+* **cli,toml:** add init command and fix TOML path escape handling ([f3be762](https://github.com/common-repo/common-repo/commit/f3be7620949a9308e383d1cb6b5aeb9c3363201b))
+* **cli,toml:** add logging infrastructure and enhance TOML path handling ([98e0bc6](https://github.com/common-repo/common-repo/commit/98e0bc6ccf628faaad2025ace0f5e6c68491bbcd))
+* **cursor:** spreading rules ([6b6135d](https://github.com/common-repo/common-repo/commit/6b6135dd74ec1b21ec7e0d40eaff74408c86b19f))
+* **gemini:** more context ([c425929](https://github.com/common-repo/common-repo/commit/c4259290bdea8a5eb047aabeff0d72963b71568b))
+* **ini:** make section optional and enhance merge capabilities ([b5d2b84](https://github.com/common-repo/common-repo/commit/b5d2b8442bd167beaf1f60dfdef82f3848a5ee82))
+
+
+### Bug Fixes
+
+* **merge:** prevent duplicate merge operations and update test expectations ([26f3ad2](https://github.com/common-repo/common-repo/commit/26f3ad2b2747b6660566cdfa01dff3691692bf72))
+
 ## [0.8.0](https://github.com/common-repo/common-repo/compare/v0.7.1...v0.8.0) (2025-11-21)
 
 
