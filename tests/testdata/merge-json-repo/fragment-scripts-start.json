@@ -1,0 +1,4 @@
+{
+  "name": "pre-task",
+  "command": "echo 'Starting task'"
+}

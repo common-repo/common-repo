@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crate-a",
+    "crate-b"
+]
+
+[workspace.dependencies]
+common-dep = "1.0"

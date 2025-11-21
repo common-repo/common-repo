@@ -1,0 +1,39 @@
+# JSON Merge Test Fixtures
+# This repo provides test fixtures for JSON merge operations
+
+- include:
+    patterns:
+      - "*.json"
+
+# Test 1: Basic merge at root level
+- json:
+    source: fragment-basic.json
+    dest: destination-basic.json
+
+# Test 2: Merge dependencies
+- json:
+    source: fragment-deps.json
+    dest: package.json
+    path: dependencies
+
+# Test 3: Append to array at start
+- json:
+    source: fragment-scripts-start.json
+    dest: destination-scripts.json
+    path: scripts
+    append: true
+    position: start
+
+# Test 4: Append to array at end
+- json:
+    source: fragment-scripts-end.json
+    dest: destination-scripts.json
+    path: scripts
+    append: true
+    position: end
+
+# Test 5: Replace nested object
+- json:
+    source: fragment-config.json
+    dest: destination-config.json
+    path: config.database

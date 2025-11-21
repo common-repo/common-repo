@@ -1,0 +1,5 @@
+# Fragment with list items to append
+- name: new-item-1
+  value: 100
+- name: new-item-2
+  value: 200

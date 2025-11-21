@@ -1,0 +1,4 @@
+# Fragment that will replace a section
+enabled: false
+timeout: 30
+retries: 3

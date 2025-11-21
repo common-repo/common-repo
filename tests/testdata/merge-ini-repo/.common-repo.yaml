@@ -1,0 +1,34 @@
+# INI Merge Test Fixtures
+# This repo provides test fixtures for INI merge operations
+
+- include:
+    patterns:
+      - "*.ini"
+      - "*.cfg"
+
+# Test 1: Basic merge at root level (no section specified)
+- ini:
+    source: fragment-basic.ini
+    dest: destination-basic.ini
+
+# Test 2: Merge into specific section
+- ini:
+    source: fragment-database.ini
+    dest: config.ini
+    section: database
+
+# Test 3: Append to section with duplicates allowed
+- ini:
+    source: fragment-logging.ini
+    dest: app.ini
+    section: logging
+    append: true
+    allow-duplicates: true
+
+# Test 4: Merge without allowing duplicates (default)
+- ini:
+    source: fragment-server.ini
+    dest: server.ini
+    section: server
+    append: true
+    allow-duplicates: false

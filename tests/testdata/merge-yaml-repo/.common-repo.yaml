@@ -1,0 +1,31 @@
+# YAML Merge Test Fixtures
+# This repo provides test fixtures for YAML merge operations
+
+- include:
+    patterns:
+      - "*.yml"
+      - "*.yaml"
+
+# Test 1: Basic merge at root level
+- yaml:
+    source: fragment-basic.yml
+    dest: destination-basic.yml
+
+# Test 2: Merge at specific path
+- yaml:
+    source: fragment-nested.yml
+    dest: destination-nested.yml
+    path: metadata.labels
+
+# Test 3: Append to list
+- yaml:
+    source: fragment-list.yml
+    dest: destination-list.yml
+    path: items
+    append: true
+
+# Test 4: Replace in list (default behavior)
+- yaml:
+    source: fragment-replace.yml
+    dest: destination-replace.yml
+    path: config

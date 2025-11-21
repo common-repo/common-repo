@@ -1,0 +1,45 @@
+# Markdown Merge Test Fixtures
+# This repo provides test fixtures for Markdown merge operations
+
+- include:
+    patterns:
+      - "*.md"
+
+# Test 1: Merge section content at end
+- markdown:
+    source: fragment-features.md
+    dest: README.md
+    section: "## Features"
+    append: true
+    position: end
+
+# Test 2: Merge section content at start
+- markdown:
+    source: fragment-prerequisites.md
+    dest: README.md
+    section: "## Installation"
+    append: true
+    position: start
+
+# Test 3: Create new section if it doesn't exist
+- markdown:
+    source: fragment-contributing.md
+    dest: README.md
+    section: "## Contributing"
+    level: 2
+    create-section: true
+
+# Test 4: Merge content before another section
+- markdown:
+    source: fragment-quickstart.md
+    dest: GUIDE.md
+    section: "## Getting Started"
+    position: before
+    reference-section: "## Advanced Usage"
+
+# Test 5: Replace section content (no append)
+- markdown:
+    source: fragment-license-updated.md
+    dest: README.md
+    section: "## License"
+    append: false
