@@ -490,10 +490,10 @@ fn test_update_modifies_config_file() {
     // Verify file was modified
     let updated_content = std::fs::read_to_string(config_file.path()).unwrap();
     assert_ne!(original_content, updated_content);
-    // Should be updated to v0.7.0 or v0.7.1
+    // Should be updated to v0.8.0 (current latest version)
     assert!(
-        updated_content.contains("v0.7.0") || updated_content.contains("v0.7.1"),
-        "Expected config to contain v0.7.0 or v0.7.1, got: {}",
+        updated_content.contains("v0.8.0"),
+        "Expected config to contain v0.8.0, got: {}",
         updated_content
     );
 }
