@@ -1,0 +1,98 @@
+---
+description: "Project Overview - LLM context files structure, setup, and requirements"
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Project Overview
+
+This is a Rust project with automated tooling for code quality, conventional commits, and semantic versioning. The project is configured for modern development practices with comprehensive CI/CD automation.
+
+## LLM Context Files
+
+The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans.
+
+### Permanent Context Files
+
+- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
+- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
+- `context/cli-design.md` - CLI architecture and command structure
+- `context/cli-implementation-plan.md` - CLI implementation roadmap
+- `context/cli-stub-implementation.md` - CLI stub tracking
+- `context/cli-testing-strategy.md` - CLI testing approach and coverage
+- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
+- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
+
+### Temporary Prompt Files
+
+- `context/prompt.md` - Manually invoked prompt file (temporary, will be removed)
+- `context/todo-prompt.md` - Manually invoked prompt file (temporary, will be removed)
+
+**Important Notes:**
+- Permanent context files are temporary and will be removed once the project reaches maturity
+- Temporary prompt files (`*prompt.md`) are manually invoked and should not be automatically included
+- For human-readable documentation, see `docs/purpose.md` and `docs/design.md`
+- Update `context/implementation-progress.md` when completing features
+- Use these files to understand project architecture, completed work, and future plans
+
+## Requirements
+
+- **Rust**: Stable channel (automatically managed via `rust-toolchain.toml`)
+  - The project requires Rust stable with support for edition 2024 features
+  - Install Rust from https://rustup.rs/
+  - The toolchain file will automatically ensure you have the correct version
+- **cargo-nextest**: Required for running tests (see setup instructions below)
+- **prek**: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
+  - **IMPORTANT**: Install from GitHub (`cargo install --git https://github.com/j178/prek`) as crates.io version is outdated
+  - Alternative: **pre-commit** (Python-based, works as fallback)
+
+## Quick Setup
+
+This project follows the [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-them-all) pattern for a normalized development workflow.
+
+For first-time setup after cloning:
+
+**Option 1: Manual installation (RECOMMENDED to avoid timeouts):**
+```bash
+# Install development tools individually to avoid compilation timeouts
+cargo install cargo-nextest --locked
+cargo install --git https://github.com/j178/prek --locked
+
+# Then run setup to configure hooks and build the project
+./script/setup
+```
+
+**Option 2: Automated setup (may timeout during compilation):**
+```bash
+# Set up the project (installs dependencies and configures environment)
+# WARNING: This compiles cargo-nextest and prek, which may timeout in resource-constrained environments
+./script/setup
+```
+
+The setup process will:
+- Install Rust toolchain (via rust-toolchain.toml)
+- Install cargo-nextest (using cargo-binstall if available, otherwise cargo install)
+- Install prek (Rust-based pre-commit tool) and configure hooks
+- Build the project to warm the cache
+
+**Note**: If `./script/setup` times out during cargo-nextest or prek installation, use Option 1 to install these tools individually first.
+
+### Available Scripts
+
+- `./script/bootstrap` - Install all dependencies
+- `./script/setup` - Set up project for first-time use (calls bootstrap)
+- `./script/update` - Update project after pulling changes
+- `./script/test` - Run the test suite (uses cargo-nextest if available)
+- `./script/cibuild` - Run CI build locally (formatting, linting, tests)
+
+## Project Structure
+
+This is primarily a library crate for managing repository inheritance and file composition across multiple Git repositories. The binary name is `common-repo` (matches the package name in Cargo.toml).
+
+Key directories:
+- `src/` - Source code (library crate)
+- `tests/` - Test files (unit and integration tests)
+- `context/` - LLM context files (temporary, for development)
+- `docs/` - Human-readable documentation
+- `.github/workflows/` - CI/CD workflows
