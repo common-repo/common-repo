@@ -63,6 +63,9 @@ enum Commands {
 
     /// Manage repository cache
     Cache(commands::cache::CacheArgs),
+
+    /// Display the repository inheritance tree
+    Tree(commands::tree::TreeArgs),
 }
 
 impl Cli {
@@ -79,6 +82,7 @@ impl Cli {
             Commands::Update(args) => commands::update::execute(args),
             Commands::Validate(args) => commands::validate::execute(args),
             Commands::Cache(args) => commands::cache::execute(args),
+            Commands::Tree(args) => commands::tree::execute(args),
         }
     }
 
