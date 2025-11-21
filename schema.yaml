@@ -99,7 +99,7 @@
     append: true
     preserve-comments: true
 
-# ini: Merge INI fragments (source, dest, section, append, allow-duplicates)
+# ini: Merge INI fragments (source, dest, section [optional], append, allow-duplicates)
 - ini:
     source: fragment.ini
     dest: config.ini
