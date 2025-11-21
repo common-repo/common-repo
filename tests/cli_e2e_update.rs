@@ -505,9 +505,16 @@ fn test_update_modifies_config_file() {
         .map(|m| m.as_str())
         .expect("Should find version in updated config");
 
-    // Simple check: version should be greater than 0.6.0
+    // Parse versions for proper semantic version comparison
+    let updated_ver: Vec<u32> = updated_version
+        .split('.')
+        .map(|s| s.parse().unwrap())
+        .collect();
+    let original_ver: Vec<u32> = vec![0, 6, 0];
+
+    // Compare major.minor.patch
     assert!(
-        updated_version > "0.6.0",
+        updated_ver > original_ver,
         "Updated version {} should be greater than 0.6.0",
         updated_version
     );
