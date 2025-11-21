@@ -55,6 +55,9 @@ enum Commands {
     /// Update repository refs to newer versions
     Update(commands::update::UpdateArgs),
 
+    /// Show information about a repository or the current configuration
+    Info(commands::info::InfoArgs),
+
     /// Validate a .common-repo.yaml configuration file
     Validate(commands::validate::ValidateArgs),
 
@@ -71,6 +74,7 @@ impl Cli {
         match self.command {
             Commands::Apply(args) => commands::apply::execute(args),
             Commands::Check(args) => commands::check::execute(args),
+            Commands::Info(args) => commands::info::execute(args),
             Commands::Init(args) => commands::init::execute(args),
             Commands::Update(args) => commands::update::execute(args),
             Commands::Validate(args) => commands::validate::execute(args),

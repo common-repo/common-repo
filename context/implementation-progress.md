@@ -159,7 +159,9 @@ This document tracks current implementation status against the implementation pl
 **Status**: ⚠️ PARTIALLY COMPLETE
 - **Files**: `src/cli.rs`, `src/main.rs`, `src/commands/`
   - `apply.rs`
+  - `cache.rs`
   - `check.rs`
+  - `info.rs`
   - `update.rs`
   - `validate.rs`
 - **Features**: Core CLI commands and infrastructure implemented with `clap`.
@@ -170,8 +172,10 @@ This document tracks current implementation status against the implementation pl
   - ✅ **Logging Infrastructure**: Structured logging with `log` and `env_logger`, configurable via `--log-level` flag (error, warn, info, debug, trace, off).
   - ✅ **Color Output Control**: Terminal color support via `--color` flag (auto/always/never), respects terminal capabilities.
   - ✅ `common-repo init`: Initialize new `.common-repo.yaml` configuration files with multiple modes (minimal, empty, template-based, interactive)
-  - ⚠️ **Not yet implemented**: `cache`, `diff`, `tree`, `info`, `ls` (planned for future phases)
-- **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_check.rs, cli_e2e_update.rs, cli_e2e_validate.rs, cli_e2e_yaml_merge.rs).
+  - ✅ `common-repo cache`: Manage repository cache (list and clean subcommands with comprehensive filtering options)
+  - ✅ `common-repo info`: Display configuration overview with repository and operation statistics
+  - ⚠️ **Not yet implemented**: `diff`, `tree`, `ls` (planned for future phases)
+- **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_cache.rs, cli_e2e_check.rs, cli_e2e_info.rs, cli_e2e_update.rs, cli_e2e_validate.rs, cli_e2e_yaml_merge.rs).
 
 **Traceability**
 - Plan: [Layer 4 ▸ CLI & Orchestration](implementation-plan.md#layer-4-cli--orchestration-depends-on-all-layers)
@@ -187,7 +191,7 @@ This document tracks current implementation status against the implementation pl
 - **Layer 2 (Operators)**: ✅ Complete
 - **Layer 3 (Phases)**: ✅ Complete (all 6 phases implemented)
 - **Layer 3.5 (Version Detection)**: ✅ Complete
-- **Layer 4 (CLI)**: ⚠️ Partially Complete (apply, check, update implemented; init, validate, cache, diff, tree, info, ls planned)
+- **Layer 4 (CLI)**: ⚠️ Partially Complete (apply, check, update, validate, init, cache, info implemented; diff, tree, ls planned)
 
 **Test Status**: See CLAUDE.md for canonical test counts and coverage targets.
 - Run with: `cargo test` (toolchain managed via rust-toolchain.toml)
@@ -204,12 +208,8 @@ With core implementation complete, the next priorities are expanding CLI functio
 
 1.  **Expand CLI Functionality**:
     - Implement the remaining CLI commands as planned in `implementation-plan.md`:
-      - `common-repo init` - Initialize a new `.common-repo.yaml` template
-      - `common-repo validate` - Validate configuration syntax
-      - `common-repo cache` - Manage local repository cache (list, clean)
       - `common-repo diff` - Preview changes without applying
       - `common-repo tree` - Display repository inheritance tree
-      - `common-repo info` - Show information about a repository or configuration
       - `common-repo ls` - List files that would be created/modified
 
 2.  **Performance Optimizations**:
