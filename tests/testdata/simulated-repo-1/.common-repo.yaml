@@ -2,7 +2,7 @@
 # This tests path filtering by referencing the simulated-repo-2 subdirectory
 - repo:
     url: https://github.com/common-repo/common-repo.git
-    ref: implementing-the-plan
+    ref: v0.7.1
     path: tests/testdata/simulated-repo-2
     with:
       - include: ["**/*"]

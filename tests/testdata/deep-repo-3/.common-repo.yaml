@@ -2,7 +2,7 @@
 # References level 4 in the chain (the final level with actual content)
 - repo:
     url: https://github.com/common-repo/common-repo.git
-    ref: implementing-the-plan
+    ref: v0.7.1
     path: tests/testdata/deep-repo-4
     with:
       - include: ["**/*"]

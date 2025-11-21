@@ -2,7 +2,7 @@
 # This tests path filtering by referencing the cross-repo-integration subdirectory
 - repo:
     url: https://github.com/common-repo/common-repo.git
-    ref: implementing-the-plan
+    ref: v0.7.1
     path: tests/testdata/cross-repo-integration
     with:
       - include: ["**/*"]
