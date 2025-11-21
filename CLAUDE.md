@@ -269,6 +269,33 @@ cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
 - Do not write specific call outs of line numbers like, "see fileblah.rs (line 123)", since they will change over time.
 - When you are done modifying a document, review it for consistency, and accuracy.
 
+## Committing and Pushing Guidelines for Claude Code
+
+**CRITICAL**: When working with Claude Code, follow these guidelines:
+
+1. **NEVER commit and push without explicit user approval**
+   - Always ask the user before committing changes
+   - Always ask the user before pushing to remote
+   - Exception: User explicitly says "commit and push" or similar
+
+2. **Avoid hardcoding ANY values in tests that will change over time**
+   - No specific version numbers (v0.9.0, v1.0.0, etc.)
+   - No specific dates or timestamps
+   - No major version assumptions (v0., v1., etc.)
+   - Use comparisons, regex parsing, or dynamic checks instead
+   - Parse from source files (Cargo.toml) if you need current values
+
+3. **When fixing tests**:
+   - Understand what behavior the test is validating
+   - Fix the underlying issue, not just update expectations
+   - If expectations need updating, make them flexible/dynamic
+   - Always run tests locally before claiming they're fixed
+
+4. **Keep summaries brief**:
+   - 1-2 sentences maximum
+   - No code samples in summaries unless explicitly requested
+   - Focus on what changed and why
+
 ## Pre-Commit Checklist
 
 **IMPORTANT**: Always follow this checklist before committing to avoid CI failures:
