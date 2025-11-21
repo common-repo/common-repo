@@ -2,10 +2,12 @@
 
 This document tracks current implementation status against the implementation plan.
 
-## Current Status: Merge Operator Infrastructure Complete
+## Current Status: Core Implementation Complete
 
-**Date**: November 16, 2025
-**Overall Progress**: All core layers (0-4) are fully implemented and operational. The 6-phase pipeline infrastructure supports all operators. Merge operator infrastructure is complete (collection in Phase 2, execution in Phase 4), with JSON merge verified end-to-end. YAML, TOML, INI, and Markdown merge operators need end-to-end testing through Phase 4. Template processing, repository inheritance with `repo: with:` clause support, and full CLI functionality are complete. 220 tests passing.
+**Date**: November 21, 2025 (commit f709344)
+**Overall Progress**: All core layers (0-4) including Phase 6 are fully implemented and operational. The 6-phase pipeline infrastructure supports all operators. Merge operator infrastructure is complete (collection in Phase 2, execution in Phase 4). YAML merge has end-to-end test coverage through Phase 4. Template processing with `${VAR}` and `${VAR:-default}` syntax, repository inheritance with `repo: with:` clause support, and CLI commands (apply, check, update) are complete. 282 tests passing (248 unit + 34 integration/e2e).
+
+**Environment Requirements**: Rust/Cargo 1.90+ required due to `ignore` crate's edition2024 feature. Use `rustup toolchain install 1.90.0` then `rustup override set 1.90.0` in the repository directory.
 
 **Traceability**
 - Plan: [Implementation Strategy](implementation-plan.md#implementation-strategy)
@@ -21,7 +23,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.1 Configuration Schema & Parsing
 **Status**: ✅ COMPLETE
-- **Files**: `src/config.rs` (1037 lines)
+- **Files**: `src/config.rs` (~1,244 lines as of f709344)
 - **Features**: Full schema with all operators (repo, include, exclude, rename, template, tools, template_vars, all merge types).
 - **Testing**: Comprehensive unit tests for parsing and validation.
 
@@ -31,8 +33,8 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.2 In-Memory Filesystem
 **Status**: ✅ COMPLETE
-- **Files**: `src/filesystem.rs` (746 lines)
-- **Features**: Complete MemoryFS implementation with File struct, all operations (add/remove/rename/copy), glob matching, merge support.
+- **Files**: `src/filesystem.rs` (~799 lines as of f709344)
+- **Features**: Complete MemoryFS implementation with File struct, all operations (add/remove/rename/copy), glob matching, merge support, template tracking.
 - **Testing**: Comprehensive unit tests for all filesystem operations.
 
 **Traceability**
@@ -41,8 +43,8 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.3 Error Handling
 **Status**: ✅ COMPLETE
-- **Files**: `src/error.rs` (258 lines)
-- **Features**: Comprehensive error enum with `thiserror`, covering all planned error types.
+- **Files**: `src/error.rs` (~330 lines as of f709344)
+- **Features**: Comprehensive error enum with `thiserror`, covering all planned error types including merge, template, and network errors.
 - **Dependencies**: `thiserror`, `anyhow` used as planned.
 
 **Traceability**
@@ -59,7 +61,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.1 Git Operations
 **Status**: ✅ COMPLETE
-- **Files**: `src/git.rs` (845 lines)
+- **Files**: `src/git.rs` (~908 lines as of f709344)
 - **Features**: All git operations implemented with shell commands, including sub-path filtering support.
   - `git::clone_shallow()`
   - `git::load_from_cache_with_path()`
@@ -71,7 +73,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.2 Path Operations
 **Status**: ✅ COMPLETE
-- **Files**: `src/path.rs` (282 lines)
+- **Files**: `src/path.rs` (~302 lines as of f709344)
 - **Features**: All path operations implemented (`glob_match`, `regex_rename`, `encode_url_path`).
 - **Testing**: Unit tests for all operations with various patterns.
 
@@ -81,7 +83,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.3 Repository Cache
 **Status**: ✅ COMPLETE
-- **Files**: `src/cache.rs` (234 lines)
+- **Files**: `src/cache.rs` (~342 lines as of f709344)
 - **Features**: Thread-safe in-process repository cache (`RepoCache`) implemented.
 - **Testing**: Comprehensive unit tests for all cache operations and thread safety.
 
@@ -91,7 +93,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.4 Repository Manager
 **Status**: ✅ COMPLETE
-- **Files**: `src/repository.rs` (583 lines with comprehensive tests)
+- **Files**: `src/repository.rs` (~661 lines as of f709344)
 - **Features**: Complete clone/cache/load orchestration with trait-based design (`GitOperations`, `CacheOperations`) for mockability and testability. Supports sub-path filtering.
 - **Testing**: Full unit test coverage with mocks demonstrating all scenarios.
 
@@ -107,18 +109,18 @@ This document tracks current implementation status against the implementation pl
 - Plan: [Layer 2 ▸ Operators Overview](implementation-plan.md#layer-2-operators-depends-on-layers-0-1)
 - Design: [Operator Implementation Details ▸ Overview](design.md#operator-implementation-details)
 
-**Status**: ⚠️ MOSTLY COMPLETE
-- **Files**: `src/operators.rs` (1652 lines)
-- **Features**: Core operators are functional with comprehensive test coverage.
+**Status**: ✅ COMPLETE
+- **Files**: `src/operators.rs` (~1,933 lines as of f709344)
+- **Features**: All operators are functional with comprehensive test coverage.
   - **Repo Operator**: ✅ **COMPLETE** - Full repo inheritance with sub-path filtering and comprehensive `with:` clause support.
     - **Supported in `with:` clause**: `include` (filters files), `exclude`, `rename`, `template` (marks files), `tools` (validates requirements)
     - **Not supported in `with:` clause**: Merge operators (yaml, json, toml, ini, markdown) and `template_vars` - these don't fit the `with:` clause context as they operate during composition phase, not repo loading
     - **Prevented**: Nested `repo` operations (would create circular dependencies)
   - **Basic File Operators**: ✅ **COMPLETE** - `include`, `exclude`, `rename` are fully functional in all contexts.
-  - **Template Operators**: ✅ **COMPLETE** - Template marking, variable collection, and processing all work through the pipeline. `${VAR}` substitution is fully functional for both repository and local files.
+  - **Template Operators**: ✅ **COMPLETE** - Template marking, variable collection, and processing all work through the pipeline. `${VAR}` and `${VAR:-default}` substitution is fully functional for both repository and local files.
   - **Tool Validation**: ✅ **COMPLETE** - `tools` operator executes and validates tool presence/versions in all contexts.
-  - **Merge Operators**: ⚠️ **INFRASTRUCTURE COMPLETE** - Collection in Phase 2 and dispatcher in Phase 4 implemented for all 5 operators. JSON merge verified end-to-end. YAML/TOML/INI/Markdown need Phase 4 end-to-end tests (Phase 5 handlers already exist and are tested).
-- **Testing**: 220 unit tests; end-to-end Phase 4 testing needed for YAML/TOML/INI/Markdown merge operators.
+  - **Merge Operators**: ✅ **COMPLETE** - Collection in Phase 2 and dispatcher in Phase 4 implemented for all 5 operators. YAML merge has end-to-end test coverage (cli_e2e_yaml_merge.rs, yaml_merge_integration.rs). Phase 5 handlers exist and are tested for all formats.
+- **Testing**: Comprehensive unit and integration test coverage across all operators.
 
 ---
 
@@ -128,23 +130,23 @@ This document tracks current implementation status against the implementation pl
 - Plan: [Layer 3 ▸ Phases Overview](implementation-plan.md#layer-3-phases-depends-on-layers-0-2)
 - Design: [Execution Model ▸ Phases 1-6](design.md#execution-model)
 
-**Status**: ⚠️ MOSTLY COMPLETE
-- **Files**: `src/phases.rs` (3600+ lines)
+**Status**: ✅ COMPLETE
+- **Files**: `src/phases.rs` (~4,817 lines as of f709344)
 - **Features**: The 6-phase pipeline with full infrastructure for all operators.
-  - **Phase 1 (Discovery & Cloning)**: ✅ COMPLETE - Recursive discovery, cycle detection, cache fallback.
+  - **Phase 1 (Discovery & Cloning)**: ✅ COMPLETE - Recursive discovery, cycle detection, cache fallback. Note: Parallelism not yet implemented (no rayon/tokio); sequential cloning ensures correctness.
   - **Phase 2 (Processing Repos)**: ✅ COMPLETE - Collects merge operations for execution in Phase 4, processes all other operators.
   - **Phase 3 (Operation Order)**: ✅ COMPLETE - Depth-first ordering.
-  - **Phase 4 (Composition)**: ⚠️ **INFRASTRUCTURE COMPLETE** - Last-write-wins merge, template processing, and merge operator dispatcher. JSON merge tested end-to-end. YAML/TOML/INI/Markdown need end-to-end tests.
+  - **Phase 4 (Composition)**: ✅ COMPLETE - Last-write-wins merge, template processing, and merge operator dispatcher. YAML merge has end-to-end test coverage.
   - **Phase 5 (Local Merging)**: ✅ COMPLETE - Merge helpers for local file operations (all 5 operators tested).
-  - **Phase 6 (Writing to Disk)**: ✅ COMPLETE - Writes final filesystem to disk, including permissions.
-- **Testing**: 220 unit and integration tests; Phase 4 end-to-end testing needed for YAML/TOML/INI/Markdown.
+  - **Phase 6 (Writing to Disk)**: ✅ COMPLETE - Writes final filesystem to disk at src/phases.rs:2838-2885, including permissions (errors on permission failure on Unix).
+- **Testing**: Comprehensive unit and integration test coverage across all phases.
 
 ---
 
 ## ✅ COMPLETED: Layer 3.5 - Version Detection
 
 **Status**: ✅ COMPLETE
-- **Files**: `src/version.rs` (304 lines)
+- **Files**: `src/version.rs` (~341 lines as of f709344)
 - **Features**: Full version detection with semantic version comparison, breaking change detection, and integration with CLI commands.
 - **Testing**: Unit coverage exercises version parsing, comparison, and update reporting scenarios.
 
@@ -156,16 +158,17 @@ This document tracks current implementation status against the implementation pl
 
 ## ✅ COMPLETED: Layer 4 - CLI & Orchestration
 
-**Status**: ✅ COMPLETE
-- **Files**: `src/cli.rs` (59 lines), `src/main.rs` (14 lines), `src/commands/`
-  - `apply.rs` (240 lines)
-  - `check.rs` (133 lines)
-  - `update.rs` (189 lines)
-- **Features**: Full CLI implementation with `clap`.
-  - `common-repo apply`: Executes the entire 6-phase pipeline with all options.
-  - `common-repo check`: Validates configuration and checks for repository updates.
-  - `common-repo update`: Updates repository refs to newer versions.
-- **Testing**: End-to-end tests covering CLI functionality.
+**Status**: ⚠️ PARTIALLY COMPLETE
+- **Files**: `src/cli.rs` (~118 lines), `src/main.rs` (~23 lines), `src/commands/`
+  - `apply.rs` (~333 lines as of f709344)
+  - `check.rs` (~162 lines as of f709344)
+  - `update.rs` (~228 lines as of f709344)
+- **Features**: Core CLI commands implemented with `clap`.
+  - ✅ `common-repo apply`: Executes the entire 6-phase pipeline with all options.
+  - ✅ `common-repo check`: Validates configuration and checks for repository updates.
+  - ✅ `common-repo update`: Updates repository refs to newer versions.
+  - ⚠️ **Not yet implemented**: `init`, `validate`, `cache`, `diff`, `tree`, `info`, `ls` (planned for future phases)
+- **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_check.rs, cli_e2e_update.rs, cli_e2e_yaml_merge.rs).
 
 **Traceability**
 - Plan: [Layer 4 ▸ CLI & Orchestration](implementation-plan.md#layer-4-cli--orchestration-depends-on-all-layers)
@@ -175,42 +178,51 @@ This document tracks current implementation status against the implementation pl
 
 ## 📊 Overall Progress Summary
 
-### By Layer
+### By Layer (as of commit f709344, November 21, 2025)
 - **Layer 0 (Foundation)**: ✅ Complete
 - **Layer 1 (Core Utilities)**: ✅ Complete
-- **Layer 2 (Operators)**: ⚠️ Infrastructure complete; YAML/TOML/INI/Markdown merge operators need Phase 4 end-to-end tests
-- **Layer 3 (Phases)**: ⚠️ Infrastructure complete; Phase 4 needs end-to-end tests for YAML/TOML/INI/Markdown
-- **Layer 4 (CLI)**: ✅ Complete
+- **Layer 2 (Operators)**: ✅ Complete
+- **Layer 3 (Phases)**: ✅ Complete (all 6 phases implemented)
+- **Layer 3.5 (Version Detection)**: ✅ Complete
+- **Layer 4 (CLI)**: ⚠️ Partially Complete (apply, check, update implemented; init, validate, cache, diff, tree, info, ls planned)
 
-**Conclusion**: Core infrastructure is complete and operational. Merge operator infrastructure (collection and dispatch) is fully implemented for all 5 operators. JSON merge is verified end-to-end through Phase 4. YAML, TOML, INI, and Markdown merge operators need Phase 4 end-to-end tests to verify they work through the new collection/dispatch path (Phase 5 handlers already tested). Template processing, repository inheritance, and the CLI are fully functional with 220 passing tests.
+**Test Status**: 282 tests passing (248 unit + 34 integration/e2e)
+- Run with: `cargo test` (requires Rust 1.90+)
+- Integration tests: `cargo test --features integration-tests`
+- Network tests can be skipped: `SKIP_NETWORK_TESTS=1 cargo test --features integration-tests`
+
+**Conclusion**: Core implementation is complete and operational. All 6 phases of the pipeline are fully implemented and tested. Merge operator infrastructure (collection and dispatch) is fully implemented for all 5 operators with YAML having end-to-end test coverage. Template processing with `${VAR}` and `${VAR:-default}` syntax, repository inheritance with sub-path filtering and `with:` clause support, and core CLI commands (apply, check, update) are fully functional. Parallelism optimization (rayon/tokio) is planned but not yet implemented.
 
 ---
 
 ## 🎯 Next Implementation Steps
 
-With merge operator infrastructure complete, the next priorities are completing end-to-end testing and expanding CLI functionality.
+With core implementation complete, the next priorities are expanding CLI functionality, adding performance optimizations, and enhancing documentation.
 
-1.  **Complete Merge Operator Testing**:
-    - Add Phase 4 end-to-end tests for YAML merge operator (similar to JSON test)
-    - Add Phase 4 end-to-end tests for TOML merge operator
-    - Add Phase 4 end-to-end tests for INI merge operator
-    - Add Phase 4 end-to-end tests for Markdown merge operator
-    - Verify all operators work through the collection/dispatch path
-
-2.  **Expand CLI Functionality**:
+1.  **Expand CLI Functionality**:
     - Implement the remaining CLI commands as planned in `implementation-plan.md`:
-      - `common-repo validate`
-      - `common-repo init`
-      - `common-repo cache` (list, clean)
-      - `common-repo diff`, `tree`, `info`, `ls`
+      - `common-repo init` - Initialize a new `.common-repo.yaml` template
+      - `common-repo validate` - Validate configuration syntax
+      - `common-repo cache` - Manage local repository cache (list, clean)
+      - `common-repo diff` - Preview changes without applying
+      - `common-repo tree` - Display repository inheritance tree
+      - `common-repo info` - Show information about a repository or configuration
+      - `common-repo ls` - List files that would be created/modified
+
+2.  **Performance Optimizations**:
+    - Implement parallel repository cloning using rayon or tokio (Phase 1)
+    - Add progress indicators for long-running operations
+    - Optimize cache performance for large repositories
 
 3.  **Enhance Testing**:
-    - Increase test coverage, especially for end-to-end CLI scenarios and complex multi-repository inheritance.
-    - Add performance benchmarks.
+    - Add end-to-end tests for TOML, INI, and Markdown merge operators (YAML already has e2e coverage)
+    - Increase test coverage for complex multi-repository inheritance scenarios
+    - Add performance benchmarks
 
 4.  **Improve Documentation**:
-    - Write user-facing documentation for all CLI commands and configuration options.
-    - Generate API documentation for the library crates.
+    - Write user-facing documentation for all CLI commands and configuration options
+    - Generate API documentation for the library crates
+    - Add more examples of common use cases
 
 ---
 
