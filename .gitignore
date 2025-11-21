@@ -7,3 +7,6 @@
 
 # IDE files
 .vscode/
+
+# LLM files
+*prompt.md
