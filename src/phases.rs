@@ -2360,9 +2360,15 @@ pub mod phase5 {
                     if first_char == Some('"') || first_char == Some('\'') {
                         let quote_char = chars.next().unwrap();
                         let mut key = String::new();
+                        let mut bracket_escaped = false;
 
                         while let Some(ch) = chars.next() {
-                            if ch == quote_char {
+                            if bracket_escaped {
+                                key.push(ch);
+                                bracket_escaped = false;
+                            } else if ch == '\\' {
+                                bracket_escaped = true;
+                            } else if ch == quote_char {
                                 if chars.peek() == Some(&']') {
                                     chars.next();
                                     break;
@@ -3746,6 +3752,37 @@ port = 8080
             }
             match &segments[1] {
                 PathSegment::Key(k) => assert_eq!(k, "version"),
+                _ => panic!("Expected Key segment"),
+            }
+        }
+
+        #[test]
+        fn test_parse_toml_path_escaped_quotes() {
+            // Test escaped quotes within quoted keys
+            let segments = parse_toml_path(r#"config["key\"with\"quotes"]"#);
+            assert_eq!(segments.len(), 2);
+            match &segments[0] {
+                PathSegment::Key(k) => assert_eq!(k, "config"),
+                _ => panic!("Expected Key segment"),
+            }
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, r#"key"with"quotes"#),
+                _ => panic!("Expected Key segment"),
+            }
+
+            // Test escaped backslash
+            let segments = parse_toml_path(r#"data["path\\with\\backslashes"]"#);
+            assert_eq!(segments.len(), 2);
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, r"path\with\backslashes"),
+                _ => panic!("Expected Key segment"),
+            }
+
+            // Test single quotes with escaped single quotes
+            let segments = parse_toml_path(r"config['key\'with\'quotes']");
+            assert_eq!(segments.len(), 2);
+            match &segments[1] {
+                PathSegment::Key(k) => assert_eq!(k, "key'with'quotes"),
                 _ => panic!("Expected Key segment"),
             }
         }
