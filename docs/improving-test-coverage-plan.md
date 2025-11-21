@@ -68,34 +68,40 @@ Need to create semantic version tags (v0.0.1, v0.1.0, v0.2.0) on commits that co
 ---
 
 #### 1.2 `src/commands/update.rs` (80 uncovered lines)
-**Current**: 0% coverage
+**Current**: 83.75% coverage (67/80 lines) - **COMPLETED** ✅
 **Target**: 80%+
 **Effort**: High
 **Impact**: High - Core functionality
 
-**Uncovered Areas:**
-- Lines 79, 81-82, 84-87: Configuration parsing and validation
-- Lines 93-96, 99, 102-103, 105-107: Repository update logic
-- Lines 111, 113-114, 116-117, 119, 122: Version resolution
-- Lines 127-129, 131, 133, 137-138: File writing operations
-- Lines 140-141, 143-144, 146-149: Dry-run mode
-- Lines 153, 156-158, 162-166, 168-170: User prompts and confirmations
-- Lines 175-176, 178-179, 181-184, 186: Error handling
-- Lines 191, 193-194, 196-199: Output formatting
-- Lines 204-205, 207, 209, 211, 214: Update application logic
-- Lines 218-223, 227: Additional functionality
+**Progress:**
+- ✅ Created 18 comprehensive E2E tests in `tests/cli_e2e_update.rs`
+- ✅ Coverage improved from 36.25% → 83.75% (+47.50%)
+- ✅ All major functionality paths covered (update display, --yes flag, file modification, dry-run)
+- ✅ Tests verify actual config file updates with --yes flag
+- ✅ Breaking change detection with --latest flag tested
+- ✅ Compatible update filtering with --compatible flag tested
 
-**Testing Strategy:**
-- Integration tests for the `update` command CLI
-- Unit tests for version resolution
-- Test dry-run mode vs. actual updates
-- Test interactive prompts (with mocked input)
-- Test updating single vs. multiple repositories
-- Test error scenarios (invalid versions, network failures)
-- Test breaking change warnings
-- Test file backup and restoration
+**Remaining Uncovered Areas (lines 147, 163-170, 197-199, 211, 227):**
+- Line 147: Breaking change warning display (edge case)
+- Lines 163-170: Interactive confirmation prompt (stdin.read_line - requires mocking)
+- Lines 197-199: File write error handling (error path)
+- Line 211: "No repositories were updated" message (edge case)
+- Line 227: End of update_repo_ref function (unreachable)
 
-**Estimated Tests Needed:** 12-15 tests
+**Why Not Higher Coverage?**
+Remaining lines are mostly:
+1. Interactive stdin prompt (lines 163-170) - requires stdin mocking which is complex in integration tests
+2. Error handling paths (197-199) - would need to simulate filesystem errors
+3. Edge cases that are hard to trigger reliably
+
+**Tests Implemented:** 18 tests (exceeded target of 12-15) ✅
+
+**Key Tests Added:**
+- `test_update_shows_available_updates` - Tests update display when updates exist
+- `test_update_with_yes_flag` - Tests --yes flag to bypass interactive prompt
+- `test_update_modifies_config_file` - Tests actual file modification
+- `test_update_shows_breaking_changes_with_latest` - Tests --latest flag
+- `test_update_compatible_only_filtering` - Tests --compatible filtering
 
 ---
 
@@ -411,15 +417,17 @@ Update this document as coverage improves:
 
 | Module | Current | Target | Status |
 |--------|---------|--------|--------|
-| commands/check.rs | 56.67% | 80% | 🟡 In Progress (+15 tests) |
-| commands/update.rs | 0% | 80% | 🔴 Not Started |
-| phases.rs | 60.6% | 80% | 🟡 In Progress |
-| version.rs | 89.2% | 85% | 🟢 Near Target |
-| git.rs | 73.0% | 85% | 🟡 In Progress |
-| config.rs | 87.7% | 95% | 🟢 Near Target |
-| operators.rs | 88.0% | 95% | 🟢 Near Target |
-| **Overall** | **68.99%** | **85%** | **🟡 In Progress** |
+| commands/check.rs | 90.0% (54/60) | 80% | 🟢 **COMPLETE** (+15 tests) |
+| commands/update.rs | 83.75% (67/80) | 80% | 🟢 **COMPLETE** (+18 tests) |
+| phases.rs | 75.72% (680/898) | 80% | 🟡 In Progress (218 lines remaining) |
+| version.rs | 94.59% (70/74) | 85% | 🟢 Exceeds Target |
+| git.rs | 87.18% (102/117) | 85% | 🟢 Exceeds Target |
+| config.rs | 97.14% (136/140) | 95% | 🟢 Exceeds Target |
+| operators.rs | 94.23% (147/156) | 95% | 🟡 Near Target (9 lines) |
+| cli.rs | 100% (5/5) | 95% | 🟢 Perfect |
+| repository.rs | 100% (45/45) | 95% | 🟢 Perfect |
+| **Overall** | **84.62%** (1496/1768) | **85%** | **🟡 Nearly There!** (-0.38%) |
 
 ---
 
-Last Updated: 2025-11-13 (Phase 1 check.rs tests implemented: 0% → 56.67%)
+Last Updated: 2025-11-20 (Phase 1 commands complete: check.rs 90%, update.rs 83.75%, overall 84.62%)

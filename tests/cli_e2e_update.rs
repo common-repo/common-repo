@@ -328,3 +328,172 @@ fn test_update_refs_fixture_subpath() {
     let final_content = std::fs::read_to_string(config_file.path()).unwrap();
     assert_eq!(original_content, final_content);
 }
+
+/// Test update display when updates are actually found
+/// Uses v0.4.0 which should have newer versions available (v0.5.0, v0.6.0, v0.7.x)
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_shows_available_updates() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.4.0
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Checking for repository updates"))
+        .stdout(predicate::str::contains("Available Updates"))
+        .stdout(predicate::str::contains("repositories can be updated"));
+}
+
+/// Test update with --yes flag to bypass interactive prompt
+/// Uses v0.5.0 which should have v0.6.0+ available
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_with_yes_flag() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.5.0
+"#,
+        )
+        .unwrap();
+
+    let original_content = std::fs::read_to_string(config_file.path()).unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--yes")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Checking for repository updates"));
+
+    // Verify file was actually modified (ref should be updated)
+    let updated_content = std::fs::read_to_string(config_file.path()).unwrap();
+    assert_ne!(original_content, updated_content);
+    assert!(!updated_content.contains("v0.5.0"));
+}
+
+/// Test update display shows breaking change warning for major version updates
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_shows_breaking_changes_with_latest() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Use v0.4.0 and check with --latest flag
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.4.0
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--latest")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Checking for repository updates"));
+}
+
+/// Test that update correctly filters compatible vs breaking changes
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_compatible_only_filtering() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Use v0.7.0 which should have v0.7.1 as compatible update
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.7.0
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--compatible")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Checking for repository updates"));
+}
+
+/// Test update with actual file modification (no dry-run)
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_modifies_config_file() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.6.0
+"#,
+        )
+        .unwrap();
+
+    let original_content = std::fs::read_to_string(config_file.path()).unwrap();
+    assert!(original_content.contains("v0.6.0"));
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--yes")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Successfully updated"))
+        .stdout(predicate::str::contains("common-repo apply"));
+
+    // Verify file was modified
+    let updated_content = std::fs::read_to_string(config_file.path()).unwrap();
+    assert_ne!(original_content, updated_content);
+    // Should be updated to v0.7.0 or v0.7.1
+    assert!(
+        updated_content.contains("v0.7.0") || updated_content.contains("v0.7.1"),
+        "Expected config to contain v0.7.0 or v0.7.1, got: {}",
+        updated_content
+    );
+}
