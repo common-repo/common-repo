@@ -12,9 +12,11 @@ The repository has been set up and is ready to use. All dependencies are install
 
 ### Prerequisites
 
-- Rust 1.90.0 or later (currently using 1.91.1)
-- Python 3.7+ (for pre-commit hooks)
-- cargo-nextest (optional but recommended for faster test execution)
+- Rust: Stable channel (automatically managed via `rust-toolchain.toml`)
+- cargo-nextest: Required for running tests (see CLAUDE.md for setup instructions)
+- prek: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
+  - Install from GitHub: `cargo install --git https://github.com/j178/prek`
+  - Alternative: pre-commit (Python-based, works as fallback)
 
 ## Development Commands
 
@@ -86,8 +88,7 @@ SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 - **Run integration tests before major changes** - they verify real-world functionality
 - **Integration tests are disabled by default** to avoid network dependencies
 - **All tests must pass** for CI/CD to succeed (both unit and integration tests)
-- **196 total unit tests** cover individual components and full workflows
-- **7 integration tests** validate end-to-end repository inheritance workflows
+- See CLAUDE.md for canonical test counts and coverage targets
 
 ### Code Quality
 
@@ -134,6 +135,16 @@ Pre-commit hooks are configured in `.pre-commit-config.yaml` and will automatica
 - Trailing whitespace and YAML checks
 
 The hooks are already installed. If you need to reinstall them:
+
+**Recommended (Rust-based, faster):**
+```bash
+# Install latest version from GitHub (crates.io version is outdated)
+cargo install --git https://github.com/j178/prek --locked
+prek install
+prek install --hook-type commit-msg
+```
+
+**Alternative (Python-based):**
 ```bash
 pre-commit install
 pre-commit install --hook-type commit-msg
@@ -161,7 +172,16 @@ pre-commit install --hook-type commit-msg
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
+- **Prek installation**: Always install prek from GitHub (`cargo install --git https://github.com/j178/prek`) as the crates.io version is outdated.
 - Binary name is `common-repo` (matches the package name in Cargo.toml).
+
+## Documentation Guidelines
+
+When updating documentation files:
+- Do not write specific numbers that will change, like line counts or percentages
+- Do not write specific call outs of line numbers, since they will change over time
+- When you are done modifying a document, review it for consistency and accuracy
+- See CLAUDE.md for canonical test counts, coverage targets, and tooling guidance
 
 ## Project Structure
 
@@ -257,9 +277,9 @@ Note: This is primarily a library crate. Use it by adding `common-repo` as a dep
 ## Troubleshooting
 
 ### Rust version issues
-If you encounter errors about missing features or edition requirements, update Rust:
+If you encounter errors about missing features or edition requirements, the project uses rust-toolchain.toml to manage the Rust version automatically. Ensure rustup respects the toolchain file, or run:
 ```bash
-rustup update stable
+./script/setup
 ```
 
 ### Pre-commit hook failures
@@ -271,7 +291,10 @@ cargo fmt
 # Fix clippy warnings
 cargo clippy --all-targets --all-features --fix
 
-# Re-run pre-commit
+# Re-run pre-commit (recommended)
+prek run --all-files
+
+# Or use Python pre-commit
 pre-commit run --all-files
 ```
 

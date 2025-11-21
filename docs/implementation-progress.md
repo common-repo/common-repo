@@ -4,10 +4,8 @@ This document tracks current implementation status against the implementation pl
 
 ## Current Status: Core Implementation Complete
 
-**Date**: November 21, 2025 (commit f709344)
-**Overall Progress**: All core layers (0-4) including Phase 6 are fully implemented and operational. The 6-phase pipeline infrastructure supports all operators. Merge operator infrastructure is complete (collection in Phase 2, execution in Phase 4). YAML merge has end-to-end test coverage through Phase 4. Template processing with `${VAR}` and `${VAR:-default}` syntax, repository inheritance with `repo: with:` clause support, and CLI commands (apply, check, update) are complete. 282 tests passing (248 unit + 34 integration/e2e).
-
-**Environment Requirements**: Rust/Cargo 1.90+ required due to `ignore` crate's edition2024 feature. Use `rustup toolchain install 1.90.0` then `rustup override set 1.90.0` in the repository directory.
+**Date**: November 21, 2025
+**Overall Progress**: All core layers (0-4) including Phase 6 are fully implemented and operational. The 6-phase pipeline infrastructure supports all operators. Merge operator infrastructure is complete (collection in Phase 2, execution in Phase 4). YAML merge has end-to-end test coverage through Phase 4. Template processing with `${VAR}` and `${VAR:-default}` syntax, repository inheritance with `repo: with:` clause support, and CLI commands (apply, check, update) are complete. See CLAUDE.md for canonical test counts and coverage targets.
 
 **Traceability**
 - Plan: [Implementation Strategy](implementation-plan.md#implementation-strategy)
@@ -23,7 +21,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.1 Configuration Schema & Parsing
 **Status**: ✅ COMPLETE
-- **Files**: `src/config.rs` (~1,244 lines as of f709344)
+- **Files**: `src/config.rs`
 - **Features**: Full schema with all operators (repo, include, exclude, rename, template, tools, template_vars, all merge types).
 - **Testing**: Comprehensive unit tests for parsing and validation.
 
@@ -33,7 +31,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.2 In-Memory Filesystem
 **Status**: ✅ COMPLETE
-- **Files**: `src/filesystem.rs` (~799 lines as of f709344)
+- **Files**: `src/filesystem.rs`
 - **Features**: Complete MemoryFS implementation with File struct, all operations (add/remove/rename/copy), glob matching, merge support, template tracking.
 - **Testing**: Comprehensive unit tests for all filesystem operations.
 
@@ -43,7 +41,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 0.3 Error Handling
 **Status**: ✅ COMPLETE
-- **Files**: `src/error.rs` (~330 lines as of f709344)
+- **Files**: `src/error.rs`
 - **Features**: Comprehensive error enum with `thiserror`, covering all planned error types including merge, template, and network errors.
 - **Dependencies**: `thiserror`, `anyhow` used as planned.
 
@@ -61,7 +59,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.1 Git Operations
 **Status**: ✅ COMPLETE
-- **Files**: `src/git.rs` (~908 lines as of f709344)
+- **Files**: `src/git.rs`
 - **Features**: All git operations implemented with shell commands, including sub-path filtering support.
   - `git::clone_shallow()`
   - `git::load_from_cache_with_path()`
@@ -73,7 +71,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.2 Path Operations
 **Status**: ✅ COMPLETE
-- **Files**: `src/path.rs` (~302 lines as of f709344)
+- **Files**: `src/path.rs`
 - **Features**: All path operations implemented (`glob_match`, `regex_rename`, `encode_url_path`).
 - **Testing**: Unit tests for all operations with various patterns.
 
@@ -83,7 +81,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.3 Repository Cache
 **Status**: ✅ COMPLETE
-- **Files**: `src/cache.rs` (~342 lines as of f709344)
+- **Files**: `src/cache.rs`
 - **Features**: Thread-safe in-process repository cache (`RepoCache`) implemented.
 - **Testing**: Comprehensive unit tests for all cache operations and thread safety.
 
@@ -93,7 +91,7 @@ This document tracks current implementation status against the implementation pl
 
 ### 1.4 Repository Manager
 **Status**: ✅ COMPLETE
-- **Files**: `src/repository.rs` (~661 lines as of f709344)
+- **Files**: `src/repository.rs`
 - **Features**: Complete clone/cache/load orchestration with trait-based design (`GitOperations`, `CacheOperations`) for mockability and testability. Supports sub-path filtering.
 - **Testing**: Full unit test coverage with mocks demonstrating all scenarios.
 
@@ -110,7 +108,7 @@ This document tracks current implementation status against the implementation pl
 - Design: [Operator Implementation Details ▸ Overview](design.md#operator-implementation-details)
 
 **Status**: ✅ COMPLETE
-- **Files**: `src/operators.rs` (~1,933 lines as of f709344)
+- **Files**: `src/operators.rs`
 - **Features**: All operators are functional with comprehensive test coverage.
   - **Repo Operator**: ✅ **COMPLETE** - Full repo inheritance with sub-path filtering and comprehensive `with:` clause support.
     - **Supported in `with:` clause**: `include` (filters files), `exclude`, `rename`, `template` (marks files), `tools` (validates requirements)
@@ -131,14 +129,14 @@ This document tracks current implementation status against the implementation pl
 - Design: [Execution Model ▸ Phases 1-6](design.md#execution-model)
 
 **Status**: ✅ COMPLETE
-- **Files**: `src/phases.rs` (~4,817 lines as of f709344)
+- **Files**: `src/phases.rs`
 - **Features**: The 6-phase pipeline with full infrastructure for all operators.
   - **Phase 1 (Discovery & Cloning)**: ✅ COMPLETE - Recursive discovery, cycle detection, cache fallback. Note: Parallelism not yet implemented (no rayon/tokio); sequential cloning ensures correctness.
   - **Phase 2 (Processing Repos)**: ✅ COMPLETE - Collects merge operations for execution in Phase 4, processes all other operators.
   - **Phase 3 (Operation Order)**: ✅ COMPLETE - Depth-first ordering.
   - **Phase 4 (Composition)**: ✅ COMPLETE - Last-write-wins merge, template processing, and merge operator dispatcher. YAML merge has end-to-end test coverage.
   - **Phase 5 (Local Merging)**: ✅ COMPLETE - Merge helpers for local file operations (all 5 operators tested).
-  - **Phase 6 (Writing to Disk)**: ✅ COMPLETE - Writes final filesystem to disk at src/phases.rs:2838-2885, including permissions (errors on permission failure on Unix).
+  - **Phase 6 (Writing to Disk)**: ✅ COMPLETE - Writes final filesystem to disk, including permissions (errors on permission failure on Unix).
 - **Testing**: Comprehensive unit and integration test coverage across all phases.
 
 ---
@@ -146,7 +144,7 @@ This document tracks current implementation status against the implementation pl
 ## ✅ COMPLETED: Layer 3.5 - Version Detection
 
 **Status**: ✅ COMPLETE
-- **Files**: `src/version.rs` (~341 lines as of f709344)
+- **Files**: `src/version.rs`
 - **Features**: Full version detection with semantic version comparison, breaking change detection, and integration with CLI commands.
 - **Testing**: Unit coverage exercises version parsing, comparison, and update reporting scenarios.
 
@@ -159,10 +157,10 @@ This document tracks current implementation status against the implementation pl
 ## ✅ COMPLETED: Layer 4 - CLI & Orchestration
 
 **Status**: ⚠️ PARTIALLY COMPLETE
-- **Files**: `src/cli.rs` (~118 lines), `src/main.rs` (~23 lines), `src/commands/`
-  - `apply.rs` (~333 lines as of f709344)
-  - `check.rs` (~162 lines as of f709344)
-  - `update.rs` (~228 lines as of f709344)
+- **Files**: `src/cli.rs`, `src/main.rs`, `src/commands/`
+  - `apply.rs`
+  - `check.rs`
+  - `update.rs`
 - **Features**: Core CLI commands implemented with `clap`.
   - ✅ `common-repo apply`: Executes the entire 6-phase pipeline with all options.
   - ✅ `common-repo check`: Validates configuration and checks for repository updates.
@@ -178,7 +176,7 @@ This document tracks current implementation status against the implementation pl
 
 ## 📊 Overall Progress Summary
 
-### By Layer (as of commit f709344, November 21, 2025)
+### By Layer (November 21, 2025)
 - **Layer 0 (Foundation)**: ✅ Complete
 - **Layer 1 (Core Utilities)**: ✅ Complete
 - **Layer 2 (Operators)**: ✅ Complete
@@ -186,8 +184,8 @@ This document tracks current implementation status against the implementation pl
 - **Layer 3.5 (Version Detection)**: ✅ Complete
 - **Layer 4 (CLI)**: ⚠️ Partially Complete (apply, check, update implemented; init, validate, cache, diff, tree, info, ls planned)
 
-**Test Status**: 282 tests passing (248 unit + 34 integration/e2e)
-- Run with: `cargo test` (requires Rust 1.90+)
+**Test Status**: See CLAUDE.md for canonical test counts and coverage targets.
+- Run with: `cargo test` (toolchain managed via rust-toolchain.toml)
 - Integration tests: `cargo test --features integration-tests`
 - Network tests can be skipped: `SKIP_NETWORK_TESTS=1 cargo test --features integration-tests`
 
