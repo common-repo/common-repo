@@ -254,22 +254,24 @@ This is the largest gap - extensive merge operator logic not covered:
 ---
 
 #### 3.3 `src/operators.rs` (17 uncovered lines)
-**Current**: 88.0% coverage
+**Current**: 99.36% coverage (155/156 lines) - **COMPLETED** ✅
 **Target**: 95%+
 **Effort**: Low
 **Impact**: Medium
 
-**Uncovered Areas:**
-- Lines 1267-1269, 1302: Template processing errors
-- Lines 1553-1555, 1565-1566: Operator application errors
-- Lines 1571-1573, 1580-1584: Edge cases
+**Progress:**
+- ✅ Added 2 new tests for tool validation error paths
+- ✅ Coverage improved from 94.23% → 99.36% (+5.13%)
+- ✅ All error paths now covered except one unreachable line
 
-**Testing Strategy:**
-- Test template variable edge cases
-- Test operator errors
-- Test complex template scenarios
+**Remaining Uncovered Area (1 line):**
+- Line 1444: Regex compilation error in template processing
+  - Essentially untestable since the regex pattern is hardcoded and valid
+  - Would only fail if the regex engine itself fails
 
-**Estimated Tests Needed:** 4-5 tests
+**Tests Added:**
+- `test_check_tool_nonzero_exit`: Tests tool that exists but exits with non-zero (uses `false` command)
+- `test_check_tool_actual_version_mismatch`: Tests real version mismatch (cargo with impossible version requirement)
 
 ---
 
@@ -419,15 +421,16 @@ Update this document as coverage improves:
 |--------|---------|--------|--------|
 | commands/check.rs | 90.0% (54/60) | 80% | 🟢 **COMPLETE** (+15 tests) |
 | commands/update.rs | 83.75% (67/80) | 80% | 🟢 **COMPLETE** (+18 tests) |
-| phases.rs | 75.72% (680/898) | 80% | 🟡 In Progress (218 lines remaining) |
+| operators.rs | **99.36% (155/156)** | 95% | 🟢 **COMPLETE** (+2 tests) |
+| config.rs | 97.14% (136/140) | 95% | 🟢 Exceeds Target |
 | version.rs | 94.59% (70/74) | 85% | 🟢 Exceeds Target |
 | git.rs | 87.18% (102/117) | 85% | 🟢 Exceeds Target |
-| config.rs | 97.14% (136/140) | 95% | 🟢 Exceeds Target |
-| operators.rs | 94.23% (147/156) | 95% | 🟡 Near Target (9 lines) |
 | cli.rs | 100% (5/5) | 95% | 🟢 Perfect |
 | repository.rs | 100% (45/45) | 95% | 🟢 Perfect |
-| **Overall** | **84.62%** (1496/1768) | **85%** | **🟡 Nearly There!** (-0.38%) |
+| cache.rs | 97.67% (42/43) | 95% | 🟢 Exceeds Target |
+| phases.rs | 75.72% (680/898) | 80% | 🟡 In Progress (218 lines remaining) |
+| **Overall** | **85.07%** (1504/1768) | **85%** | **🟢 TARGET ACHIEVED!** (+0.07%) |
 
 ---
 
-Last Updated: 2025-11-20 (Phase 1 commands complete: check.rs 90%, update.rs 83.75%, overall 84.62%)
+Last Updated: 2025-11-20 (🎉 **85% TARGET ACHIEVED!** operators.rs: 94.23% → 99.36%, overall: 85.07%)
