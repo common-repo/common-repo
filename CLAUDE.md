@@ -227,9 +227,8 @@ cargo tarpaulin --out Html --output-dir target/tarpaulin
 Coverage reports are generated in `target/tarpaulin/` directory. HTML reports can be viewed by opening `target/tarpaulin/tarpaulin-report.html` in a browser.
 
 **Coverage Goals:**
-- Target: 80%+ line coverage for all modules
-- Critical modules: 90%+ coverage (phases, operators, repository)
-- See `TEST_COVERAGE_ANALYSIS.md` for detailed coverage analysis and improvement areas
+- Target: 90%+ line coverage for all modules
+- See `docs/improving-test-coverage-plan.md` for detailed coverage analysis and improvement areas
 
 ### Code Quality
 ```bash
@@ -245,6 +244,15 @@ cargo clippy --all-targets --all-features -- -D warnings
 # Run all quality checks at once
 cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
 ```
+
+## Documentation style guide
+
+- Create documentation following the [Rustdoc guide](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html) and the [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/) as well as the [Rustdoc std-dev style guide](https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html).
+- Documentation should link to files or other documentation appropriately.
+- Do not use emojis or overly enthusiastic or hype language in documentation.
+- Do not write specific numbers that will change, like "with over 73.5% coverage".
+- Do not write specific call outs of line numbers like, "see fileblah.rs (line 123)", since they will change over time.
+- When you are done modifying a document, review it for consistency, and accuracy.
 
 ## Pre-Commit Checklist
 

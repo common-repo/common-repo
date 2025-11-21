@@ -825,9 +825,8 @@ jobs:
 
 ### Coverage Targets
 
-- **Command logic**: 90%+ coverage
-- **Error handling**: 100% coverage of error paths
-- **Output formatting**: 80%+ coverage
+- **All modules**: 90%+ coverage
+- **Error handling**: Comprehensive coverage of error paths
 - **Integration paths**: All major workflows covered
 
 ### Running Coverage
