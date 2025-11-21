@@ -1929,5 +1929,43 @@ pub mod tools {
             let version = Version::parse("1.0.0").unwrap();
             assert!(!req.matches(&version));
         }
+
+        #[test]
+        fn test_check_tool_nonzero_exit() {
+            // Test when tool exists but returns non-zero exit code (covers lines 1741-1743)
+            // The 'false' command is available on Unix-like systems and always exits with code 1
+            #[cfg(unix)]
+            {
+                let tool = Tool {
+                    name: "false".to_string(),
+                    version: "*".to_string(),
+                };
+
+                let result = check_tool(&tool);
+                assert!(result.is_err());
+                if let Err(Error::ToolValidation { tool: t, message }) = result {
+                    assert_eq!(t, "false");
+                    assert!(message.contains("failed to run"));
+                }
+            }
+        }
+
+        #[test]
+        fn test_check_tool_actual_version_mismatch() {
+            // Test when a real tool's version doesn't match requirement (covers lines 1768-1772)
+            // Use cargo which is guaranteed to exist in Rust projects
+            // We'll require an impossibly high version that won't match
+            let tool = Tool {
+                name: "cargo".to_string(),
+                version: ">=999.0.0".to_string(), // No cargo version will ever be this high
+            };
+
+            let result = check_tool(&tool);
+            assert!(result.is_err());
+            if let Err(Error::ToolValidation { tool: t, message }) = result {
+                assert_eq!(t, "cargo");
+                assert!(message.contains("does not match requirement"));
+            }
+        }
     }
 }
