@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/common-repo/common-repo/compare/v0.11.0...v0.12.0) (2025-11-21)
+
+
+### Features
+
+* **cli:** implement tree command with hierarchical display ([67f6e68](https://github.com/common-repo/common-repo/commit/67f6e68db9032eaac2ae613c9c1a46134e8a4c02))
+
 ## [0.11.0](https://github.com/common-repo/common-repo/compare/v0.10.0...v0.11.0) (2025-11-21)
 
 
