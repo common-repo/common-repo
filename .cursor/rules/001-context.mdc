@@ -1,0 +1,28 @@
+---
+description: "LLM Context Files - Implementation tracking and planning documents"
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# LLM Context Files
+
+The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans.
+
+## Key Context Files
+
+- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
+- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
+- `context/cli-design.md` - CLI architecture and command structure
+- `context/cli-implementation-plan.md` - CLI implementation roadmap
+- `context/cli-stub-implementation.md` - CLI stub tracking
+- `context/cli-testing-strategy.md` - CLI testing approach and coverage
+- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
+- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
+
+## Important Notes
+
+- These files are temporary and will be removed once the project reaches maturity
+- For human-readable documentation, see `docs/purpose.md` and `docs/design.md`
+- Update `context/implementation-progress.md` when completing features
+- Use these files to understand project architecture, completed work, and future plans

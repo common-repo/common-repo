@@ -6,6 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust project with automated tooling for code quality, conventional commits, and semantic versioning. The project is configured for modern development practices with comprehensive CI/CD automation.
 
+## LLM Context Files
+
+The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans:
+
+- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
+- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
+- `context/cli-*.md` - CLI design, implementation plans, and testing strategies
+- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
+- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
+
+These files are temporary and will be removed once the project reaches maturity. For human-readable documentation, see:
+- `docs/purpose.md` - Project purpose and goals
+- `docs/design.md` - Implementation architecture and design philosophy
+- `README.md` - User-facing documentation
+
 ## Requirements
 
 - **Rust**: Stable channel (automatically managed via `rust-toolchain.toml`)
@@ -228,7 +243,7 @@ Coverage reports are generated in `target/tarpaulin/` directory. HTML reports ca
 
 **Coverage Goals:**
 - Target: 90%+ line coverage for all modules
-- See `docs/improving-test-coverage-plan.md` for detailed coverage analysis and improvement areas
+- See `context/improving-test-coverage-plan.md` for detailed coverage analysis and improvement areas
 
 ### Code Quality
 ```bash
@@ -265,7 +280,7 @@ cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
    - **Format code**: Run `cargo fmt` to ensure consistent code formatting
    - **Run linting**: Run `cargo clippy --all-targets --all-features -- -D warnings` to catch warnings
    - **Run tests**: Run `./script/test` or `cargo test` to ensure all tests pass
-3. **Update documentation**: If you've completed a feature, update `docs/implementation-progress.md`
+3. **Update documentation**: If you've completed a feature, update `context/implementation-progress.md`
 4. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
 5. **Check branch name**: For claude/agent branches, ensure name ends with session ID (e.g., `claude/feature-018evyqR5BZFzuZW5AuM9XRR`)
 
