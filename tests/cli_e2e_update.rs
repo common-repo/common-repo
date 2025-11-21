@@ -490,10 +490,25 @@ fn test_update_modifies_config_file() {
     // Verify file was modified
     let updated_content = std::fs::read_to_string(config_file.path()).unwrap();
     assert_ne!(original_content, updated_content);
-    // Should be updated to v0.9.0 (current latest version)
+
+    // Verify the version was updated (should no longer contain v0.6.0)
     assert!(
-        updated_content.contains("v0.9.0"),
-        "Expected config to contain v0.9.0, got: {}",
-        updated_content
+        !updated_content.contains("v0.6.0"),
+        "Config should not contain old version v0.6.0 after update"
+    );
+
+    // Verify it was updated to a newer version (parse and compare)
+    let ref_regex = regex::Regex::new(r"ref:\s*v(\d+\.\d+\.\d+)").unwrap();
+    let updated_version = ref_regex
+        .captures(&updated_content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str())
+        .expect("Should find version in updated config");
+
+    // Simple check: version should be greater than 0.6.0
+    assert!(
+        updated_version > "0.6.0",
+        "Updated version {} should be greater than 0.6.0",
+        updated_version
     );
 }
