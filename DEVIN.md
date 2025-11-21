@@ -6,6 +6,21 @@ This file provides guidance to Devin when working with code in this repository.
 
 This is a Rust library for managing repository inheritance and file composition across multiple Git repositories. The project uses automated tooling for code quality, conventional commits, and semantic versioning with comprehensive CI/CD automation.
 
+## LLM Context Files
+
+The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans:
+
+- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
+- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
+- `context/cli-*.md` - CLI design, implementation plans, and testing strategies
+- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
+- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
+
+These files are temporary and will be removed once the project reaches maturity. For human-readable documentation, see:
+- `docs/purpose.md` - Project purpose and goals
+- `docs/design.md` - Implementation architecture and design philosophy
+- `README.md` - User-facing documentation
+
 ## Quick Start
 
 The repository has been set up and is ready to use. All dependencies are installed, tests pass, and pre-commit hooks are configured.
