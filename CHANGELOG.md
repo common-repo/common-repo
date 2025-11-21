@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/common-repo/common-repo/compare/v0.10.0...v0.11.0) (2025-11-21)
+
+
+### Features
+
+* **cli:** implement info command with comprehensive tests ([d988629](https://github.com/common-repo/common-repo/commit/d988629bf4c96e7fe4517c12383fee386b96c9e7))
+
+
+### Bug Fixes
+
+* **tests:** use semver comparison in update test ([fd127ba](https://github.com/common-repo/common-repo/commit/fd127ba7551a03791bed8788bc01e42cb07a83bb))
+
 ## [0.10.0](https://github.com/common-repo/common-repo/compare/v0.9.0...v0.10.0) (2025-11-21)
 
 
