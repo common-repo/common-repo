@@ -1,0 +1,203 @@
+---
+description: "Rust Development Practices - Building, testing, code quality"
+globs:
+  - "**/*.rs"
+alwaysApply: false
+---
+
+# Rust Development Practices
+
+## Building and Running
+
+```bash
+# Source cargo environment (if needed in new shells)
+. "$HOME/.cargo/env"
+
+# Build the project
+cargo build
+
+# Build release binary
+cargo build --release
+
+# Run the application
+cargo run
+```
+
+## Testing
+
+This project has comprehensive testing with both unit tests and integration tests.
+
+**Recommended: Use cargo-nextest** for faster test execution and better reporting.
+
+### Installing cargo-nextest
+
+**Automated installation (recommended):**
+```bash
+# Run the setup script (installs cargo-nextest and sets up pre-commit hooks)
+./script/setup
+```
+
+**Manual installation:**
+```bash
+# Install cargo-nextest (one-time setup)
+cargo install cargo-nextest --locked
+
+# Or use cargo-binstall for faster installation (if available)
+cargo binstall cargo-nextest
+```
+
+**Note:** The `./script/test` command will automatically use cargo-nextest if available, or fall back to `cargo test` with a helpful message.
+
+### Unit Tests (Recommended for development)
+
+**Using cargo-nextest (preferred):**
+```bash
+# Run unit tests only (fast, no network required)
+cargo nextest run
+
+# Run tests with verbose output
+cargo nextest run --verbose
+
+# Run a specific unit test
+cargo nextest run test_name
+
+# Run tests for a specific module
+cargo nextest run -E 'test(mod::test_name)'
+
+# Identify slow tests
+cargo nextest run --profile ci
+```
+
+**Using standard cargo test:**
+```bash
+# Run unit tests only (fast, no network required)
+cargo test
+
+# Run tests with verbose output
+cargo test -- --nocapture
+
+# Run a specific unit test
+cargo test test_name
+
+# Run tests for a specific module
+cargo test mod::test_name
+```
+
+### Integration Tests (Requires network)
+
+Integration tests verify end-to-end functionality with real repositories:
+
+**Using cargo-nextest (preferred):**
+```bash
+# Run all tests including integration tests
+cargo nextest run --features integration-tests
+
+# Run only integration tests
+cargo nextest run --test integration_test --features integration-tests
+
+# Run integration tests with verbose output
+cargo nextest run --test integration_test --features integration-tests --verbose
+
+# Skip network-dependent integration tests
+SKIP_NETWORK_TESTS=1 cargo nextest run --features integration-tests
+```
+
+**Using standard cargo test:**
+```bash
+# Run all tests including integration tests
+cargo test --features integration-tests
+
+# Run only integration tests
+cargo test --test integration_test --features integration-tests
+
+# Run integration tests with verbose output
+cargo test --test integration_test --features integration-tests -- --nocapture
+
+# Skip network-dependent integration tests
+SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
+```
+
+### Finding Slow Tests
+
+Cargo-nextest can identify tests that exceed configured slow test thresholds:
+
+```bash
+# Run tests with the CI profile to see slow test warnings
+cargo nextest run --profile ci
+
+# Run with specific slow test threshold
+cargo nextest run --profile default --slow-timeout 60s
+
+# Generate detailed timing report
+cargo nextest run --verbose
+```
+
+Configuration is in `.config/nextest.toml`. Slow tests will be highlighted in CI output.
+
+**Important Notes:**
+- **Use unit tests during development** - they're fast and don't require network
+- **Run integration tests before major changes** - they verify real-world functionality
+- **Integration tests are disabled by default** to avoid network dependencies
+- **All tests must pass** for CI/CD to succeed (both unit and integration tests)
+- **cargo-nextest is used in CI** for faster execution and slow test detection
+- See `context/improving-test-coverage-plan.md` for detailed coverage analysis
+
+### Test Coverage (Tarpaulin)
+
+This project uses [cargo-tarpaulin](https://github.com/xd009642/tarpaulin) for test coverage analysis:
+
+```bash
+# Install tarpaulin (if not already installed)
+cargo install cargo-tarpaulin
+
+# Generate coverage report (HTML output)
+cargo tarpaulin --out Html
+
+# Generate coverage report (terminal output)
+cargo tarpaulin
+
+# Generate coverage report with specific output format
+cargo tarpaulin --out Xml  # For CI integration
+cargo tarpaulin --out Stdout  # Terminal output
+
+# Exclude integration tests from coverage
+cargo tarpaulin --tests
+
+# Generate coverage for specific modules
+cargo tarpaulin --tests --lib
+
+# Set minimum coverage threshold (fails if below threshold)
+cargo tarpaulin --fail-under 80
+
+# Generate detailed coverage report
+cargo tarpaulin --out Html --output-dir target/tarpaulin
+```
+
+Coverage reports are generated in `target/tarpaulin/` directory. HTML reports can be viewed by opening `target/tarpaulin/tarpaulin-report.html` in a browser.
+
+**Coverage Goals:**
+- Target: 90%+ line coverage for all modules
+- See `context/improving-test-coverage-plan.md` for detailed coverage analysis and improvement areas
+
+## Code Quality
+
+```bash
+# Format code (must pass before committing)
+cargo fmt
+
+# Check formatting without modifying files
+cargo fmt -- --check
+
+# Run clippy linting (configured to fail on warnings)
+cargo clippy --all-targets --all-features -- -D warnings
+
+# Run all quality checks at once
+cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
+```
+
+## Important Notes for Development
+
+- **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
+- **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
+- **Binary name is `common-repo`** (matches the package name in Cargo.toml).
+- **Rust edition**: The project requires Rust stable with support for edition 2024 features (managed via rust-toolchain.toml).

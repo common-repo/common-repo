@@ -1,0 +1,41 @@
+---
+description: "Documentation Style Guide - Markdown and Rustdoc conventions"
+globs:
+  - "**/*.md"
+alwaysApply: false
+---
+
+# Documentation Style Guide
+
+## Rust Documentation
+
+Create documentation following the [Rustdoc guide](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html) and the [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/) as well as the [Rustdoc std-dev style guide](https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html).
+
+## General Documentation Principles
+
+- Documentation should link to files or other documentation appropriately
+- Do not use emojis or overly enthusiastic or hype language in documentation
+- Do not write specific numbers that will change, like "with over 73.5% coverage"
+- Do not write specific call outs of line numbers like, "see fileblah.rs (line 123)", since they will change over time
+- When you are done modifying a document, review it for consistency and accuracy
+
+## Markdown Conventions
+
+- Use standard markdown formatting
+- Link to related documentation files appropriately
+- Use code blocks with language tags for examples
+- Keep documentation focused and scannable
+
+## Documentation Structure
+
+For human-readable documentation, see:
+- `docs/purpose.md` - Project purpose and goals
+- `docs/design.md` - Implementation architecture and design philosophy
+- `README.md` - User-facing documentation
+
+## Context Files Documentation
+
+When updating `context/` directory files:
+- Update `context/implementation-progress.md` when completing features
+- Keep context files focused on implementation details and progress tracking
+- Remember that context files are temporary and will be removed once the project reaches maturity
