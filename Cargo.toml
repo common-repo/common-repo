@@ -8,6 +8,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1.0"
 toml = "0.8"
+taplo = "0.9"
 pulldown-cmark = "0.10"
 glob = "0.3"
 regex = "1.10"
@@ -23,6 +24,8 @@ dirs = "5.0"
 clap = { version = "4.5", features = ["derive", "cargo", "env"] }
 indicatif = "0.17"
 console = "0.15"
+log = "0.4"
+env_logger = "0.11"
 
 [dev-dependencies]
 tempfile = "3.0"
