@@ -41,34 +41,34 @@ use common_repo::version;
 pub struct UpdateArgs {
     /// Path to the .common-repo.yaml configuration file to update.
     #[arg(short, long, value_name = "FILE", default_value = ".common-repo.yaml")]
-    config: PathBuf,
+    pub config: PathBuf,
 
     /// The root directory for the repository cache.
     ///
     /// If not provided, it defaults to the system's cache directory.
     /// Can also be set with the `COMMON_REPO_CACHE` environment variable.
     #[arg(long, value_name = "DIR", env = "COMMON_REPO_CACHE")]
-    cache_root: Option<PathBuf>,
+    pub cache_root: Option<PathBuf>,
 
     /// If set, the command will update to the latest compatible versions
     /// (minor and patch updates only). This is the default behavior.
     #[arg(long)]
-    compatible: bool,
+    pub compatible: bool,
 
     /// If set, the command will update to the latest available versions,
     /// including those with breaking changes (major version updates).
     #[arg(long)]
-    latest: bool,
+    pub latest: bool,
 
     /// If set, the command will not ask for confirmation before updating all
     /// eligible repositories.
     #[arg(long)]
-    yes: bool,
+    pub yes: bool,
 
     /// If set, the command will show what would be updated without making any
     /// changes to the configuration file.
     #[arg(long)]
-    dry_run: bool,
+    pub dry_run: bool,
 }
 
 /// Execute the `update` command.

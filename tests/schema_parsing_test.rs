@@ -169,11 +169,13 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
         }
     }
 
+    /*
     println!(
         "✓ Successfully parsed schema from {} ({} operations)",
         path.display(),
         schema.len()
     );
+    */
     Ok(())
 }
 

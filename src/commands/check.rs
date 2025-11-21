@@ -32,7 +32,7 @@ use common_repo::version;
 pub struct CheckArgs {
     /// Path to the .common-repo.yaml configuration file to check.
     #[arg(short, long, value_name = "FILE", default_value = ".common-repo.yaml")]
-    config: PathBuf,
+    pub config: PathBuf,
 
     /// The root directory for the repository cache.
     ///
@@ -40,12 +40,12 @@ pub struct CheckArgs {
     /// (e.g., `~/.cache/common-repo` on Linux).
     /// Can also be set with the `COMMON_REPO_CACHE` environment variable.
     #[arg(long, value_name = "DIR", env = "COMMON_REPO_CACHE")]
-    cache_root: Option<PathBuf>,
+    pub cache_root: Option<PathBuf>,
 
     /// If set, the command will check for newer versions of the inherited
     /// repositories.
     #[arg(long)]
-    updates: bool,
+    pub updates: bool,
 }
 
 /// Execute the `check` command.
