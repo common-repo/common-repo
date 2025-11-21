@@ -17,6 +17,7 @@
 //! `common_repo` library to perform the core logic.
 
 pub mod apply;
+pub mod cache;
 pub mod check;
 pub mod init;
 pub mod update;

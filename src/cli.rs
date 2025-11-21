@@ -57,9 +57,9 @@ enum Commands {
 
     /// Validate a .common-repo.yaml configuration file
     Validate(commands::validate::ValidateArgs),
-    // Future commands will be added here:
-    // /// Manage repository cache
-    // Cache(commands::cache::CacheArgs),
+
+    /// Manage repository cache
+    Cache(commands::cache::CacheArgs),
 }
 
 impl Cli {
@@ -74,6 +74,7 @@ impl Cli {
             Commands::Init(args) => commands::init::execute(args),
             Commands::Update(args) => commands::update::execute(args),
             Commands::Validate(args) => commands::validate::execute(args),
+            Commands::Cache(args) => commands::cache::execute(args),
         }
     }
 

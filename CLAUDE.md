@@ -403,3 +403,5 @@ pre-commit install --hook-type commit-msg
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
 - **Prek installation**: Always install prek from GitHub (`cargo install --git https://github.com/j178/prek`) as the crates.io version (0.0.1) is outdated. The bootstrap script handles this automatically.
 - Binary name is `common-repo` (matches the package name in Cargo.toml).
+- When reviewing changes, always look for flimsy or axiomatic tests that don't really test anything.
+- When reviewing changes, always check for TODOs or other stubbed implementation items.
