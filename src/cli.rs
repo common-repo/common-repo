@@ -49,15 +49,15 @@ enum Commands {
     /// Check configuration validity and check for repository updates
     Check(commands::check::CheckArgs),
 
+    /// Initialize a new .common-repo.yaml configuration file
+    Init(commands::init::InitArgs),
+
     /// Update repository refs to newer versions
     Update(commands::update::UpdateArgs),
 
     /// Validate a .common-repo.yaml configuration file
     Validate(commands::validate::ValidateArgs),
     // Future commands will be added here:
-    // /// Initialize a new .common-repo.yaml configuration
-    // Init(commands::init::InitArgs),
-    //
     // /// Manage repository cache
     // Cache(commands::cache::CacheArgs),
 }
@@ -71,6 +71,7 @@ impl Cli {
         match self.command {
             Commands::Apply(args) => commands::apply::execute(args),
             Commands::Check(args) => commands::check::execute(args),
+            Commands::Init(args) => commands::init::execute(args),
             Commands::Update(args) => commands::update::execute(args),
             Commands::Validate(args) => commands::validate::execute(args),
         }

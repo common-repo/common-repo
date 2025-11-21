@@ -169,7 +169,8 @@ This document tracks current implementation status against the implementation pl
   - ✅ `common-repo validate`: Validates a configuration file.
   - ✅ **Logging Infrastructure**: Structured logging with `log` and `env_logger`, configurable via `--log-level` flag (error, warn, info, debug, trace, off).
   - ✅ **Color Output Control**: Terminal color support via `--color` flag (auto/always/never), respects terminal capabilities.
-  - ⚠️ **Not yet implemented**: `init`, `cache`, `diff`, `tree`, `info`, `ls` (planned for future phases)
+  - ✅ `common-repo init`: Initialize new `.common-repo.yaml` configuration files with multiple modes (minimal, empty, template-based, interactive)
+  - ⚠️ **Not yet implemented**: `cache`, `diff`, `tree`, `info`, `ls` (planned for future phases)
 - **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_check.rs, cli_e2e_update.rs, cli_e2e_validate.rs, cli_e2e_yaml_merge.rs).
 
 **Traceability**
@@ -679,6 +680,30 @@ With core implementation complete, the next priorities are expanding CLI functio
 **Traceability**
 - Plan: [Layer 2 ▸ 2.4 Merge Operators](implementation-plan.md#24-merge-operators)
 - Design: [Fragment Merge Operators ▸ ini](design.md#ini)
+
+### TOML Path Parser Escape Handling Fix (November 21, 2025)
+- **Security Fix**: Added proper escape handling to TOML path parser for quoted keys
+- **Escape Sequences**: Now correctly handles `\"` for escaped quotes and `\\` for escaped backslashes
+- **Single and Double Quotes**: Escape handling works for both `["key"]` and `['key']` syntax
+- **Comprehensive Testing**: Added `test_parse_toml_path_escaped_quotes` with 3 escape scenarios
+- **Vulnerability Fixed**: Paths like `["key\"with\"quotes"]` now parse correctly instead of terminating early
+
+**Security Context:**
+Previous implementation would incorrectly parse paths containing quotes, potentially allowing malformed path strings to break TOML merge operations. The fix adds the same escape handling used in the YAML path parser.
+
+**Files Modified:**
+- `src/phases.rs` - Added escape handling to `parse_toml_path()` quoted key parser
+
+**Test Coverage:**
+- Escaped double quotes: `config["key\"with\"quotes"]`
+- Escaped backslashes: `data["path\\with\\backslashes"]`
+- Escaped single quotes: `config['key\'with\'quotes']`
+
+**Test Results:** All 311 tests pass (302 previous + 1 new escape test + 8 init command tests)
+
+**Traceability**
+- Plan: [Layer 2 ▸ 2.4 Merge Operators](implementation-plan.md#24-merge-operators)
+- Design: [Fragment Merge Operators ▸ toml](design.md#toml)
 
 ### Files Modified
 - `Cargo.toml` - Added merge operation dependencies (serde_json, toml, ini, pulldown-cmark)
