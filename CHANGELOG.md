@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/common-repo/common-repo/compare/v0.7.1...v0.8.0) (2025-11-21)
+
+
+### Features
+
+* **cli:** stub out long description ([ceabdcb](https://github.com/common-repo/common-repo/commit/ceabdcbb3bbf53e800ca8f4b87cb2b13db2ae2d6))
+* **validate:** add validate command with comprehensive tests ([205b4e5](https://github.com/common-repo/common-repo/commit/205b4e5b8bf54097484f3d4e986c89e70f0c62b2))
+
 ## [0.7.1](https://github.com/common-repo/common-repo/compare/v0.7.0...v0.7.1) (2025-11-16)
 
 
