@@ -80,7 +80,7 @@ impl CacheKey {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct RepoCache {
-    cache: Arc<Mutex<HashMap<CacheKey, MemoryFS>>>,
+    pub(crate) cache: Arc<Mutex<HashMap<CacheKey, MemoryFS>>>,
 }
 
 #[allow(dead_code)]
@@ -273,5 +273,70 @@ mod tests {
         let cache = RepoCache::default();
         assert!(cache.is_empty().unwrap());
         assert_eq!(cache.len().unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cache_lock_poisoning() {
+        // Test lock poisoning error handling
+        // This test spawns a thread that acquires the lock and panics,
+        // poisoning the mutex, then tries to access it from another thread
+        use std::sync::Arc;
+        use std::thread;
+
+        let cache = Arc::new(RepoCache::new());
+        let cache_clone = Arc::clone(&cache);
+
+        // Spawn a thread that acquires the lock and panics
+        let handle = thread::spawn(move || {
+            let _lock = cache_clone.cache.lock().unwrap();
+            panic!("Intentional panic to poison the mutex");
+        });
+
+        // Wait for the thread to finish (and poison the mutex)
+        let _ = handle.join();
+
+        // Now try to access the cache - should get LockPoisoned error
+        let key = CacheKey::new("https://example.com/repo.git", "main");
+
+        // Test get_or_process - should fail with LockPoisoned
+        let result = cache.get_or_process(key.clone(), || {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "content").unwrap();
+            Ok(fs)
+        });
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::LockPoisoned { .. }));
+
+        // Test insert - should fail with LockPoisoned
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("test.txt", "content").unwrap();
+        let result = cache.insert(key.clone(), fs);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::LockPoisoned { .. }));
+
+        // Test get - should fail with LockPoisoned
+        let result = cache.get(&key);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::LockPoisoned { .. }));
+
+        // Test contains - should fail with LockPoisoned
+        let result = cache.contains(&key);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::LockPoisoned { .. }));
+
+        // Test clear - should fail with LockPoisoned
+        let result = cache.clear();
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::LockPoisoned { .. }));
+
+        // Test len - should fail with LockPoisoned
+        let result = cache.len();
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::LockPoisoned { .. }));
+
+        // Test is_empty - should fail with LockPoisoned
+        let result = cache.is_empty();
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::LockPoisoned { .. }));
     }
 }

@@ -71,3 +71,48 @@ impl Cli {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_execute_check_command() {
+        // Test that check command dispatching works (covers line 69)
+        let cli = Cli {
+            command: Commands::Check(commands::check::CheckArgs {
+                config: PathBuf::from("/nonexistent/config.yaml"),
+                cache_root: None,
+                updates: false,
+            }),
+            color: "auto".to_string(),
+            log_level: "info".to_string(),
+        };
+
+        // This should fail because the config file doesn't exist, but it covers the match arm
+        let result = cli.execute();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execute_update_command() {
+        // Test that update command dispatching works (covers line 70)
+        let cli = Cli {
+            command: Commands::Update(commands::update::UpdateArgs {
+                config: PathBuf::from("/nonexistent/config.yaml"),
+                cache_root: None,
+                compatible: false,
+                latest: false,
+                yes: false,
+                dry_run: true, // Use dry run to avoid actual changes
+            }),
+            color: "auto".to_string(),
+            log_level: "info".to_string(),
+        };
+
+        // This should fail because the config file doesn't exist, but it covers the match arm
+        let result = cli.execute();
+        assert!(result.is_err());
+    }
+}

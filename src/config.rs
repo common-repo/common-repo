@@ -1122,4 +1122,123 @@ mod tests {
             _ => panic!("Expected Template operation"),
         }
     }
+
+    #[test]
+    fn test_parse_yaml_value_not_mapping() {
+        // Test parsing YAML where an operation is not a mapping (covers lines 295-296)
+        let yaml = r#"
+- "not a mapping"
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Expected YAML mapping for operation"));
+    }
+
+    #[test]
+    fn test_parse_empty_operation_mapping() {
+        // Test parsing YAML with empty operation mapping (covers lines 307-308)
+        let yaml = r#"
+- {}
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Empty operation mapping"));
+    }
+
+    #[test]
+    fn test_parse_non_string_operation_key() {
+        // Test parsing YAML where operation key is not a string (covers lines 311-312)
+        let yaml = r#"
+- 123: value
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Operation key must be string"));
+    }
+
+    #[test]
+    fn test_parse_repo_not_mapping() {
+        // Test parsing YAML where repo operation is not a mapping (covers lines 322-323)
+        let yaml = r#"
+- repo: "not a mapping"
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Repo operation must be a mapping"));
+    }
+
+    #[test]
+    fn test_parse_with_clause_items_not_mappings() {
+        // Test parsing YAML where with clause items are not mappings (covers lines 357-358)
+        let yaml = r#"
+- repo:
+    url: https://github.com/example/repo
+    ref: main
+    with:
+      - "not a mapping"
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("With clause items must be mappings"));
+    }
+
+    #[test]
+    fn test_parse_with_clause_not_sequence() {
+        // Test parsing YAML where with clause is not a sequence (covers lines 365-366)
+        let yaml = r#"
+- repo:
+    url: https://github.com/example/repo
+    ref: main
+    with: "not a sequence"
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("With clause must be a sequence"));
+    }
+
+    #[test]
+    fn test_parse_empty_rename_mapping() {
+        // Test parsing YAML with empty rename mapping (covers line 418)
+        let yaml = r#"
+- rename: [{}]
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Empty rename mapping"));
+    }
+
+    #[test]
+    fn test_parse_empty_tool_specification() {
+        // Test parsing YAML with empty tool specification (covers line 448)
+        let yaml = r#"
+- tools: [{}]
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Empty tool specification"));
+    }
 }
