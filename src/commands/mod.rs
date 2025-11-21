@@ -21,5 +21,6 @@ pub mod cache;
 pub mod check;
 pub mod info;
 pub mod init;
+pub mod tree;
 pub mod update;
 pub mod validate;
