@@ -335,6 +335,7 @@ fn generate_go_service_template() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::env;
     use tempfile::TempDir;
 
@@ -379,6 +380,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_execute_force_flag() {
         let original_dir = env::current_dir().unwrap();
         let temp_dir = TempDir::new().unwrap();
@@ -419,6 +421,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_execute_empty_config() {
         let original_dir = env::current_dir().unwrap();
         let temp_dir = TempDir::new().unwrap();
@@ -443,6 +446,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_execute_minimal_config() {
         let original_dir = env::current_dir().unwrap();
         let temp_dir = TempDir::new().unwrap();
@@ -467,6 +471,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_execute_template_config() {
         let original_dir = env::current_dir().unwrap();
         let temp_dir = TempDir::new().unwrap();
@@ -491,6 +496,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_execute_interactive_config() {
         let original_dir = env::current_dir().unwrap();
         let temp_dir = TempDir::new().unwrap();
