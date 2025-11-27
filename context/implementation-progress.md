@@ -249,6 +249,7 @@ With core implementation complete, the next priorities are expanding CLI functio
 - **Unix Permissions**: Permissions displayed in standard format (e.g., `rw-r--r--`)
 - **Empty Result Handling**: Clear message when no files would be created
 - **Testing**: 7 unit tests and 10 end-to-end tests covering all features
+- **Test Pattern**: E2E tests use `cargo_bin_cmd!` macro (not deprecated `Command::cargo_bin`)
 - **Files Added**: `src/commands/ls.rs`, `tests/cli_e2e_ls.rs`
 - **Files Modified**: `src/commands/mod.rs`, `src/cli.rs`
 - **Usage Examples**:
