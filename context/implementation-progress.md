@@ -162,6 +162,8 @@ This document tracks current implementation status against the implementation pl
   - `cache.rs`
   - `check.rs`
   - `info.rs`
+  - `init.rs`
+  - `ls.rs`
   - `tree.rs`
   - `update.rs`
   - `validate.rs`
@@ -176,8 +178,9 @@ This document tracks current implementation status against the implementation pl
   - ✅ `common-repo cache`: Manage repository cache (list and clean subcommands with comprehensive filtering options)
   - ✅ `common-repo info`: Display configuration overview with repository and operation statistics
   - ✅ `common-repo tree`: Display repository inheritance tree in hierarchical format with depth control
-  - ⚠️ **Not yet implemented**: `diff`, `ls` (planned for future phases)
-- **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_cache.rs, cli_e2e_check.rs, cli_e2e_info.rs, cli_e2e_tree.rs, cli_e2e_update.rs, cli_e2e_validate.rs, cli_e2e_yaml_merge.rs).
+  - ✅ `common-repo ls`: List files that would be created/modified by the configuration with pattern filtering, sorting, and long format options
+  - ⚠️ **Not yet implemented**: `diff` (planned for future phases)
+- **Testing**: End-to-end tests covering implemented CLI functionality (cli_e2e_apply.rs, cli_e2e_cache.rs, cli_e2e_check.rs, cli_e2e_info.rs, cli_e2e_ls.rs, cli_e2e_tree.rs, cli_e2e_update.rs, cli_e2e_validate.rs, cli_e2e_yaml_merge.rs).
 
 **Traceability**
 - Plan: [Layer 4 ▸ CLI & Orchestration](implementation-plan.md#layer-4-cli--orchestration-depends-on-all-layers)
@@ -187,13 +190,13 @@ This document tracks current implementation status against the implementation pl
 
 ## 📊 Overall Progress Summary
 
-### By Layer (November 21, 2025)
+### By Layer (November 27, 2025)
 - **Layer 0 (Foundation)**: ✅ Complete
 - **Layer 1 (Core Utilities)**: ✅ Complete
 - **Layer 2 (Operators)**: ✅ Complete
 - **Layer 3 (Phases)**: ✅ Complete (all 6 phases implemented)
 - **Layer 3.5 (Version Detection)**: ✅ Complete
-- **Layer 4 (CLI)**: ⚠️ Partially Complete (apply, check, update, validate, init, cache, info, tree implemented; diff, ls planned)
+- **Layer 4 (CLI)**: ⚠️ Partially Complete (apply, check, update, validate, init, cache, info, tree, ls implemented; diff planned)
 
 **Test Status**: See CLAUDE.md for canonical test counts and coverage targets.
 - Run with: `cargo test` (toolchain managed via rust-toolchain.toml)
@@ -209,9 +212,8 @@ This document tracks current implementation status against the implementation pl
 With core implementation complete, the next priorities are expanding CLI functionality, adding performance optimizations, and enhancing documentation.
 
 1.  **Expand CLI Functionality**:
-    - Implement the remaining CLI commands as planned in `implementation-plan.md`:
+    - Implement the remaining CLI command as planned in `implementation-plan.md`:
       - `common-repo diff` - Preview changes without applying
-      - `common-repo ls` - List files that would be created/modified
 
 2.  **Performance Optimizations**:
     - Implement parallel repository cloning using rayon or tokio (Phase 1)
@@ -235,6 +237,30 @@ With core implementation complete, the next priorities are expanding CLI functio
 **Traceability**
 - Plan: [Implementation Plan ▸ Change Log Highlights](implementation-plan.md#implementation-strategy)
 - Design: [Design Doc ▸ Execution Model & Operators](design.md#execution-model)
+
+### CLI `ls` Command Implementation (November 27, 2025)
+- **New Command**: `common-repo ls` - Lists files that would be created/modified by the configuration
+- **Pattern Filtering**: Support for glob patterns via `--pattern` flag (e.g., `*.rs`, `src/**/*.ts`)
+- **Long Format**: Optional detailed output via `--long` flag showing file permissions and sizes
+- **Sorting Options**: Sort by name, size, or path via `--sort` flag with `--reverse` option
+- **Count Mode**: Show only total file count via `--count` flag
+- **Working Directory**: Optional `--working-dir` parameter for specifying the local file context
+- **Human-Readable Sizes**: File sizes displayed as B, K, M, G with appropriate formatting
+- **Unix Permissions**: Permissions displayed in standard format (e.g., `rw-r--r--`)
+- **Empty Result Handling**: Clear message when no files would be created
+- **Testing**: 7 unit tests and 10 end-to-end tests covering all features
+- **Files Added**: `src/commands/ls.rs`, `tests/cli_e2e_ls.rs`
+- **Files Modified**: `src/commands/mod.rs`, `src/cli.rs`
+- **Usage Examples**:
+  - `common-repo ls` - List all files that would be created
+  - `common-repo ls --long` - Show detailed file information
+  - `common-repo ls --pattern "*.rs"` - Filter to Rust files only
+  - `common-repo ls --sort size --reverse` - Sort by size, largest first
+  - `common-repo ls --count` - Show only the file count
+
+**Traceability**
+- Plan: [Layer 4 ▸ CLI Interface](implementation-plan.md#41-cli-interface)
+- Design: [CLI Design](design.md#cli-design)
 
 ### CLI Logging Infrastructure Implementation (November 20, 2025)
 - **Dependencies Added**: Added `log` (0.4) and `env_logger` (0.11) to Cargo.toml for structured logging support

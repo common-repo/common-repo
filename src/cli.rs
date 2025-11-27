@@ -58,6 +58,9 @@ enum Commands {
     /// Show information about a repository or the current configuration
     Info(commands::info::InfoArgs),
 
+    /// List files that would be created/modified by the configuration
+    Ls(commands::ls::LsArgs),
+
     /// Validate a .common-repo.yaml configuration file
     Validate(commands::validate::ValidateArgs),
 
@@ -79,6 +82,7 @@ impl Cli {
             Commands::Check(args) => commands::check::execute(args),
             Commands::Info(args) => commands::info::execute(args),
             Commands::Init(args) => commands::init::execute(args),
+            Commands::Ls(args) => commands::ls::execute(args),
             Commands::Update(args) => commands::update::execute(args),
             Commands::Validate(args) => commands::validate::execute(args),
             Commands::Cache(args) => commands::cache::execute(args),
