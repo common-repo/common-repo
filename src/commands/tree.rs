@@ -148,19 +148,25 @@ mod tests {
             .contains("Failed to load config"));
     }
 
+    /// Test tree command with repository configuration.
+    /// This test requires network access to fetch repositories.
     #[test]
+    #[cfg_attr(not(feature = "integration-tests"), ignore)]
     fn test_execute_with_simple_config() {
+        // Skip if network tests are disabled
+        if std::env::var("SKIP_NETWORK_TESTS").is_ok() {
+            println!("Skipping network test");
+            return;
+        }
+
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.yaml");
 
-        // Create a simple config file (YAML array format)
+        // Use a real, small test repository
         let config_content = r#"
 - repo:
-    url: https://example.com/repo
-    ref: main
-- repo:
-    url: https://example.com/dependency
-    ref: v1.0.0
+    url: https://github.com/octocat/Hello-World
+    ref: master
 "#;
 
         std::fs::write(&config_path, config_content).unwrap();
