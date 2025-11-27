@@ -31,6 +31,7 @@ ptree = "0.4"
 [dev-dependencies]
 tempfile = "3.0"
 datatest-stable = "0.1"
+serial_test = "3.0"
 # CLI E2E testing dependencies
 assert_cmd = "2.0"
 predicates = "3.1"
