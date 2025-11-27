@@ -208,6 +208,34 @@ Configuration is in `.config/nextest.toml`. Slow tests will be highlighted in CI
 - **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
 - **cargo-nextest is used in CI** for faster execution and slow test detection
 
+#### Writing E2E CLI Tests
+
+E2E tests for CLI commands are in `tests/cli_e2e_*.rs`. When writing these tests:
+
+**Use `cargo_bin_cmd!` macro** (not deprecated `Command::cargo_bin`):
+```rust
+// ✅ CORRECT - use cargo_bin_cmd! macro
+use assert_cmd::cargo::cargo_bin_cmd;
+
+#[test]
+fn test_example() {
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.arg("ls")
+        .arg("--help")
+        .assert()
+        .success();
+}
+
+// ❌ WRONG - Command::cargo_bin is deprecated and will cause clippy failures
+use assert_cmd::Command;
+
+fn common_repo_cmd() -> Command {
+    Command::cargo_bin("common-repo").unwrap()  // DEPRECATED
+}
+```
+
+See existing tests in `tests/cli_e2e_apply.rs` or `tests/cli_e2e_ls.rs` for examples.
+
 #### Test Coverage (Tarpaulin)
 
 This project uses [cargo-tarpaulin](https://github.com/xd009642/tarpaulin) for test coverage analysis:
