@@ -3,31 +3,28 @@
 //! These tests verify the CLI behavior of the `ls` command by invoking
 //! the binary directly and checking its output.
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
 
-/// Get a Command for the common-repo binary
-fn common_repo_cmd() -> Command {
-    Command::cargo_bin("common-repo").unwrap()
-}
-
 #[test]
 fn test_ls_help() {
-    common_repo_cmd()
-        .arg("ls")
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.arg("ls")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("List files that would be created/modified"));
+        .stdout(predicate::str::contains(
+            "List files that would be created/modified",
+        ));
 }
 
 #[test]
 fn test_ls_missing_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .assert()
         .failure()
@@ -51,8 +48,8 @@ fn test_ls_with_simple_config() {
     // Create a test file
     temp.child("test.txt").write_str("hello world").unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
@@ -80,8 +77,8 @@ fn test_ls_with_count_flag() {
     temp.child("file1.txt").write_str("content1").unwrap();
     temp.child("file2.txt").write_str("content2").unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
@@ -109,8 +106,8 @@ fn test_ls_with_long_format() {
     // Create a test file
     temp.child("test.txt").write_str("hello").unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
@@ -141,8 +138,8 @@ fn test_ls_with_pattern_filter() {
     temp.child("file.rs").write_str("rust").unwrap();
 
     // Filter to only .rs files
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
@@ -172,8 +169,8 @@ fn test_ls_with_sort_by_path() {
     temp.child("zebra.txt").write_str("z").unwrap();
     temp.child("alpha.txt").write_str("a").unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
@@ -204,8 +201,8 @@ fn test_ls_with_reverse_sort() {
     temp.child("aaa.txt").write_str("a").unwrap();
     temp.child("zzz.txt").write_str("z").unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
@@ -230,8 +227,8 @@ fn test_ls_empty_result() {
         )
         .unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
@@ -257,8 +254,8 @@ fn test_ls_invalid_pattern() {
     // Create a test file so the pipeline produces results
     temp.child("test.txt").write_str("content").unwrap();
 
-    common_repo_cmd()
-        .current_dir(temp.path())
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
         .arg("ls")
         .arg("--working-dir")
         .arg(temp.path())
