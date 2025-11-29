@@ -37,13 +37,45 @@ When creating task lists, feature tracking, or progress documentation:
 Example structure:
 ```json
 {
-  "features": [
+  "plan_name": "Feature or Project Name",
+  "last_updated": "YYYY-MM-DD",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
     {
-      "id": "feature-name",
+      "id": "task-id-kebab-case",
+      "name": "Human readable task name",
       "status": "pending",
-      "steps": ["Step 1", "Step 2"],
-      "acceptance_criteria": ["Criterion 1", "Criterion 2"]
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "path/to/output.rs",
+      "steps": [
+        "Concrete step 1 with specific action",
+        "Concrete step 2 with verification command"
+      ],
+      "acceptance_criteria": [
+        "File exists at expected path",
+        "Tests pass: cargo test test_name",
+        "No clippy warnings"
+      ]
+    },
+    {
+      "id": "dependent-task",
+      "name": "Task that depends on first",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "task-id-kebab-case",
+      "steps": ["..."],
+      "acceptance_criteria": ["..."]
     }
+  ],
+  "notes": [
+    "Tasks with blocked_by=null can run in parallel",
+    "Update status to complete and last_updated when done"
   ]
 }
 ```
