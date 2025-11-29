@@ -462,6 +462,34 @@ cargo test
 - ❌ Pre-commit hooks failed → Always run `prek run --all-files` before committing
 - ❌ Branch name doesn't end with session ID → Rename branch to include session ID
 
+## Feature Completion Checklist
+
+Before marking a feature as complete, verify all criteria are met:
+
+1. **End-to-end tests exist and pass**
+   - Unit tests alone are insufficient for feature completion
+   - E2E tests must verify the feature works in realistic scenarios
+   - Run: `cargo test --features integration-tests` for network-dependent features
+
+2. **All acceptance criteria met**
+   - Review each criterion explicitly in the task plan
+   - Document how each criterion was verified
+
+3. **Tests actually run and pass**
+   - Run tests locally: `./script/test`
+   - Never assume tests pass without running them
+
+4. **Update feature-status.json**
+   - Update `context/feature-status.json` to reflect completion
+   - Set `"status": "complete"` only after all criteria are verified
+   - Include the date of completion
+
+5. **Documentation updated**
+   - Update `context/implementation-progress.md` with completion summary
+   - Add any new commands or features to relevant documentation
+
+Reference: This checklist is based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) which emphasizes that agents often mark tasks complete prematurely.
+
 ## Commit Message Requirements
 
 This repository enforces **conventional commits** via pre-commit hooks and CI. All commits must follow this format:

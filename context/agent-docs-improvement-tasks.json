@@ -128,7 +128,7 @@
     {
       "id": "add-completion-checklist",
       "name": "Add completion checklist to CLAUDE.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": null,
       "output_file": "CLAUDE.md",
