@@ -16,6 +16,7 @@ The `context/` directory contains detailed implementation plans, progress tracki
 - `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
 - `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
 - `context/feature-status.json` - Structured JSON tracking of all Layer 0-4 features
+- `context/current-task.json` - Quick-start file for next session with immediate next steps (temporary)
 - `context/agent-docs-improvement-plan.md` - Plan for improving agent documentation (temporary)
 - `context/agent-docs-improvement-tasks.json` - Task tracking for agent docs improvements (temporary)
 
