@@ -15,6 +15,11 @@ The `context/` directory contains detailed implementation plans, progress tracki
 - `context/cli-*.md` - CLI design, implementation plans, and testing strategies
 - `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
 - `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
+- `context/feature-status.json` - Structured JSON tracking of all Layer 0-4 features
+- `context/agent-docs-improvement-plan.md` - Plan for improving agent documentation (temporary)
+- `context/agent-docs-improvement-tasks.json` - Task tracking for agent docs improvements (temporary)
+
+**Important**: When completing tasks from any JSON task file, always update the task's `status` field to `"complete"` and update the `last_updated` field before committing.
 
 These files are temporary and will be removed once the project reaches maturity. For human-readable documentation, see:
 - `docs/purpose.md` - Project purpose and goals
