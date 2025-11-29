@@ -515,22 +515,6 @@ src/
 
 ---
 
-## Missing Binary Entry Point
-
-**Critical**: The project currently has NO `src/main.rs` (it was removed in commit aec37da).
-
-**Action required**:
-- Create `src/main.rs` as binary entry point
-- Update `Cargo.toml`:
-
-```toml
-[[bin]]
-name = "common-repo"
-path = "src/main.rs"
-```
-
----
-
 ## Testing Strategy
 
 ### Unit Tests
@@ -577,40 +561,17 @@ tempfile = "3.0"    # Already present
 
 ---
 
-## Risk Assessment
+## Implementation Status
 
-### Low Risk (Can implement now)
-- ✅ apply, validate, init (minimal), cache list/clean
+**Note**: This plan was created during initial CLI development. Most commands are now implemented.
 
-### Medium Risk (Need utilities first)
-- ⚠️ tree, info, ls, check (need helper functions)
+### Completed Commands
+- apply, validate, init, cache (list/clean), tree, info, ls, check, update
 
-### High Risk (Complex new features)
-- ❌ diff (new diff logic)
-- ❌ update (YAML rewriting is tricky)
-- ❌ init --interactive (template system)
+### Remaining Commands
+- diff (see context/next-priority.md for implementation plan)
 
 ---
 
-## Next Steps
-
-1. **Create `src/main.rs`** - Restore binary entry point
-2. **Add CLI dependencies** - Update Cargo.toml
-3. **Implement `apply` command** - Prove the full pipeline works
-4. **Create integration test** - Verify end-to-end
-5. **Continue with Phase 1 commands**
-
----
-
-## Questions to Resolve
-
-1. **Default cache location**: Should we use `~/.cache/common-repo/` (XDG) or `~/.common-repo/cache/`?
-2. **Progress indicators**: How much output by default? Should `--verbose` be required?
-3. **Error handling**: What level of detail in error messages?
-4. **YAML rewriting**: For `update` command, should we use a custom YAML library that preserves formatting?
-5. **Template registry**: Where should templates live? Separate repo? Embedded?
-
----
-
-**Last updated**: 2025-11-12
-**Recommended start**: `common-repo apply` command (Phase 1, Priority 1)
+**Last updated**: 2025-11-29
+**Current status**: CLI mostly complete, only `diff` command remaining

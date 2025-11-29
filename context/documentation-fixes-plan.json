@@ -10,7 +10,7 @@
     {
       "id": "fix-test-counts",
       "name": "Update outdated test counts across documentation",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_files": [
@@ -18,209 +18,102 @@
         "README.md",
         "context/implementation-progress.md"
       ],
-      "steps": [
-        "Run cargo nextest run --no-fail-fast 2>&1 | tail -5 to get accurate test count",
-        "Update CLAUDE.md line 310 test count (currently says 186 total tests)",
-        "Update CLAUDE.md lines 311-312 with accurate unit/integration/datatest breakdown",
-        "Update README.md line 141 test count",
-        "Update README.md lines 142-144 test breakdown",
-        "Update context/implementation-progress.md test references",
-        "Verify feature-status.json notes match the new count"
-      ],
-      "acceptance_criteria": [
-        "All test counts match the actual cargo test output",
-        "No hardcoded test counts that will become stale",
-        "Tests pass: cargo test"
-      ]
+      "notes": "Changed from hardcoded counts to generic descriptions to prevent staleness"
     },
     {
       "id": "fix-file-path-references",
       "name": "Fix incorrect documentation file path references",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "output_files": [
         "CLAUDE.md",
         "README.md",
         "docs/design.md"
-      ],
-      "steps": [
-        "Update CLAUDE.md line 378: change docs/improving-test-coverage-plan.md to context/improving-test-coverage-plan.md",
-        "Update README.md line 172: change docs/improving-test-coverage-plan.md to context/improving-test-coverage-plan.md",
-        "Update docs/design.md line 444: change docs/cli-design.md to context/cli-design.md"
-      ],
-      "acceptance_criteria": [
-        "All file path references point to existing files",
-        "No broken documentation links"
       ]
     },
     {
       "id": "fix-rust-version",
       "name": "Fix incorrect Rust version in CONTRIBUTING.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "output_files": ["CONTRIBUTING.md"],
-      "steps": [
-        "Read rust-toolchain.toml to get the actual required Rust version",
-        "Update CONTRIBUTING.md line 15: change 'Rust 1.90.0 or later' to correct version or reference rust-toolchain.toml"
-      ],
-      "acceptance_criteria": [
-        "Rust version is accurate",
-        "Contributors won't be confused by impossible version number"
-      ]
+      "notes": "Changed from nonexistent 'Rust 1.90.0' to 'Rust stable channel'"
     },
     {
       "id": "remove-stale-cli-stub-doc",
       "name": "Archive or remove stale cli-stub-implementation.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": null,
       "output_files": ["context/cli-stub-implementation.md"],
-      "steps": [
-        "This file documents the initial CLI stub implementation from Nov 12",
-        "The full CLI is now implemented, making this historical artifact",
-        "Option A: Delete the file entirely",
-        "Option B: Move content into a 'historical' section or archive folder",
-        "Recommend: Delete it - the information is captured in git history",
-        "Remove the file"
-      ],
-      "acceptance_criteria": [
-        "Stale documentation is removed",
-        "No confusion about current CLI state"
-      ]
+      "notes": "Deleted file - historical artifact no longer relevant"
     },
     {
       "id": "update-cli-implementation-plan",
       "name": "Update cli-implementation-plan.md to reflect current state",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": null,
       "output_files": ["context/cli-implementation-plan.md"],
-      "steps": [
-        "Update 'Last updated' date to 2025-11-29",
-        "Update status of all commands that are now implemented",
-        "Remove references to missing main.rs (it now exists)",
-        "Update implementation checklist to mark completed items",
-        "Consider whether this file should be archived like cli-stub-implementation.md"
-      ],
-      "acceptance_criteria": [
-        "File accurately reflects current implementation state",
-        "No misleading 'NOT READY' statuses for implemented commands"
-      ]
+      "notes": "Removed outdated sections, added implementation status summary"
     },
     {
       "id": "update-cli-testing-strategy",
       "name": "Update cli-testing-strategy.md to reflect current test coverage",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": null,
       "output_files": ["context/cli-testing-strategy.md"],
-      "steps": [
-        "Update 'Last updated' date to 2025-11-29",
-        "Update implementation checklist - many items are now complete",
-        "Update test count estimates to match reality",
-        "Mark Phase 1 checklist items as complete (assert_cmd, tests exist, etc.)"
-      ],
-      "acceptance_criteria": [
-        "File accurately reflects current test coverage",
-        "Checklist items marked complete where appropriate"
-      ]
+      "notes": "Updated checklist to mark completed items"
     },
     {
       "id": "remove-emojis-cli-design",
       "name": "Remove emojis from cli-design.md output examples",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": null,
       "output_files": ["context/cli-design.md"],
-      "steps": [
-        "Review CLAUDE.md documentation style guide - says 'Do not use emojis'",
-        "Remove emoji characters from cli-design.md output examples",
-        "Replace with text indicators where appropriate (e.g., '[OK]' instead of '✓')",
-        "Maintain readability of example output"
-      ],
-      "acceptance_criteria": [
-        "No emoji characters in the file",
-        "Output examples remain clear and readable",
-        "Complies with documentation style guide"
-      ]
+      "notes": "Replaced all emoji characters with text-based indicators"
     },
     {
       "id": "update-design-version-detection",
       "name": "Update design.md to reflect Version Detection is implemented",
-      "status": "pending",
+      "status": "complete",
       "priority": 8,
       "blocked_by": null,
       "output_files": ["docs/design.md"],
-      "steps": [
-        "Line 382 says 'Version Detection and Updates (Future)'",
-        "Version detection is now implemented (Layer 3.5 complete per feature-status.json)",
-        "Update the section heading to remove '(Future)'",
-        "Update content to reflect current implementation"
-      ],
-      "acceptance_criteria": [
-        "Design doc accurately reflects implementation status",
-        "No misleading 'Future' labels on implemented features"
-      ]
+      "notes": "Removed '(Future)' label, updated description"
     },
     {
       "id": "update-traceability-map",
       "name": "Fix broken links in traceability-map.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 9,
       "blocked_by": null,
       "output_files": ["context/traceability-map.md"],
-      "steps": [
-        "Verify all design reference links point to existing sections",
-        "Line 57 links to ../docs/design.md#cli-design but design.md uses #cli-design heading that points to separate doc",
-        "Update links to point to correct locations"
-      ],
-      "acceptance_criteria": [
-        "All markdown links are valid",
-        "Links point to correct sections"
-      ]
+      "notes": "Fixed anchor link for version detection section"
     },
     {
       "id": "update-implementation-progress-date",
       "name": "Update implementation-progress.md with current date",
-      "status": "pending",
+      "status": "complete",
       "priority": 10,
-      "blocked_by": "fix-test-counts",
-      "output_files": ["context/implementation-progress.md"],
-      "steps": [
-        "Update 'Date: November 21, 2025' to current date",
-        "Review all status sections for accuracy",
-        "Update any other outdated information"
-      ],
-      "acceptance_criteria": [
-        "Date reflects current review",
-        "All status information is accurate"
-      ]
+      "blocked_by": null,
+      "output_files": ["context/implementation-progress.md"]
     },
     {
       "id": "update-improving-coverage-plan",
       "name": "Update improving-test-coverage-plan.md status table",
-      "status": "pending",
+      "status": "complete",
       "priority": 11,
       "blocked_by": null,
-      "output_files": ["context/improving-test-coverage-plan.md"],
-      "steps": [
-        "Update the tracking table to reflect current coverage status",
-        "Update 'Last Updated' date",
-        "Review module statuses for accuracy"
-      ],
-      "acceptance_criteria": [
-        "Coverage tracking table is accurate",
-        "Date is current"
-      ]
+      "output_files": ["context/improving-test-coverage-plan.md"]
     }
   ],
   "notes": [
-    "Tasks with blocked_by=null can be worked on independently",
-    "Priority 1-3 are critical fixes (incorrect information)",
-    "Priority 4-7 are cleanup tasks (stale/outdated content)",
-    "Priority 8-11 are polish tasks (minor improvements)",
-    "After completing all tasks, run prek run --all-files before committing"
+    "All tasks completed on 2025-11-29",
+    "Key changes: removed hardcoded test counts, fixed file paths, removed stale docs, removed emojis"
   ]
 }

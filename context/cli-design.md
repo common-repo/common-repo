@@ -61,23 +61,23 @@ common-repo apply --config .common-repo.prod.yaml
 
 **Output**:
 ```
-🔍 Discovering repositories...
-  ✓ https://github.com/common-repo/rust-cli @ v1.2.0
-  ✓ https://github.com/common-repo/semantic-versioning @ v2.0.1
+[SEARCH] Discovering repositories...
+  [OK] https://github.com/common-repo/rust-cli @ v1.2.0
+  [OK] https://github.com/common-repo/semantic-versioning @ v2.0.1
 
-📦 Cloning repositories... (2 parallel)
-  ✓ rust-cli (cached)
-  ↓ semantic-versioning (1.2 MB)
+[PACKAGE] Cloning repositories... (2 parallel)
+  [OK] rust-cli (cached)
+  v semantic-versioning (1.2 MB)
 
-🔧 Processing operations...
-  ✓ Phase 1: Discovery (2 repos, 0.03s)
-  ✓ Phase 2: Processing (54 files)
-  ✓ Phase 3: Operation order determined
-  ✓ Phase 4: Composite filesystem (48 files)
-  ✓ Phase 5: Local merging (3 conflicts resolved)
-  ✓ Phase 6: Writing to disk
+[PROCESSING] Processing operations...
+  [OK] Phase 1: Discovery (2 repos, 0.03s)
+  [OK] Phase 2: Processing (54 files)
+  [OK] Phase 3: Operation order determined
+  [OK] Phase 4: Composite filesystem (48 files)
+  [OK] Phase 5: Local merging (3 conflicts resolved)
+  [OK] Phase 6: Writing to disk
 
-✅ Applied successfully in 0.18s
+[OK] Applied successfully in 0.18s
    48 files written
    3 files merged
    12 files unchanged
@@ -118,29 +118,29 @@ common-repo init --empty
 
 **Interactive Example**:
 ```
-🎉 Welcome to common-repo!
+[WELCOME] Welcome to common-repo!
 
 Let's set up your repository configuration.
 
 ? What type of project is this?
-  ❯ Rust CLI application
+  > Rust CLI application
     Python web application
     Node.js/TypeScript project
     Go service
     Custom/Other
 
 ? Which common configurations do you want?
-  ◉ Pre-commit hooks
-  ◉ CI/CD workflows (GitHub Actions)
-  ◯ Semantic versioning
-  ◉ Linters and formatters
+  [x] Pre-commit hooks
+  [x] CI/CD workflows (GitHub Actions)
+  [ ] Semantic versioning
+  [x] Linters and formatters
 
 ? Pin to stable versions or track latest?
-  ❯ Stable (recommended)
+  > Stable (recommended)
     Latest (auto-update to newest)
     Custom
 
-✅ Created .common-repo.yaml
+[OK] Created .common-repo.yaml
    Added 3 repositories
    Run `common-repo apply` to fetch and apply configurations
 ```
@@ -176,19 +176,19 @@ common-repo check --validate-only
 
 **Output**:
 ```
-🔍 Validating .common-repo.yaml...
-  ✓ Syntax valid
-  ✓ All repository URLs reachable
-  ✓ All refs exist
-  ✓ No circular dependencies
-  ✓ All regex patterns valid
+[SEARCH] Validating .common-repo.yaml...
+  [OK] Syntax valid
+  [OK] All repository URLs reachable
+  [OK] All refs exist
+  [OK] No circular dependencies
+  [OK] All regex patterns valid
 
-📦 Checking for updates...
-  ✓ common-repo/rust-cli: v1.2.0 (latest)
-  ⚠ common-repo/semantic-versioning: v2.0.1 → v2.1.0 available (minor)
-  ⚠ common-repo/python-uv: v0.8.0 → v1.0.0 available (major ⚠️  breaking)
+[PACKAGE] Checking for updates...
+  [OK] common-repo/rust-cli: v1.2.0 (latest)
+  [WARNING] common-repo/semantic-versioning: v2.0.1 -> v2.1.0 available (minor)
+  [WARNING] common-repo/python-uv: v0.8.0 -> v1.0.0 available (major [WARNING]  breaking)
 
-💡 Run `common-repo update` to upgrade dependencies
+[TIP] Run `common-repo update` to upgrade dependencies
    Run `common-repo update --major` to include breaking changes
 ```
 
@@ -232,17 +232,17 @@ common-repo update --minor --apply
 
 **Output**:
 ```
-📦 Checking for updates...
+[PACKAGE] Checking for updates...
 
 Available updates:
-  common-repo/semantic-versioning: v2.0.1 → v2.1.0 (minor)
-  common-repo/pre-commit-hooks: v1.5.2 → v1.5.3 (patch)
+  common-repo/semantic-versioning: v2.0.1 -> v2.1.0 (minor)
+  common-repo/pre-commit-hooks: v1.5.2 -> v1.5.3 (patch)
 
 ? Update these dependencies? (Y/n) y
 
-✅ Updated 2 dependencies
+[OK] Updated 2 dependencies
 
-💡 Run `common-repo apply` to apply the updates
+[TIP] Run `common-repo apply` to apply the updates
 ```
 
 ---
@@ -280,7 +280,7 @@ common-repo diff --name-only
 
 **Output**:
 ```
-📊 Changes that would be applied:
+[DIFF] Changes that would be applied:
 
 Modified: .github/workflows/ci.yml
 @@ -12,7 +12,10 @@
@@ -319,7 +319,7 @@ common-repo cache list [options]
 
 **Output**:
 ```
-📦 Cached repositories (~/.common-repo/cache/):
+[PACKAGE] Cached repositories (~/.common-repo/cache/):
 
 common-repo/rust-cli
   v1.2.0  (102 MB)  last used: 2 hours ago
@@ -405,7 +405,7 @@ common-repo tree [options]
 
 **Output**:
 ```
-📦 Repository inheritance tree:
+[PACKAGE] Repository inheritance tree:
 
 . (local)
 ├── common-repo/rust-cli @ v1.2.0
@@ -450,17 +450,17 @@ common-repo info common-repo/rust-cli --tags
 
 **Output (current config)**:
 ```
-📋 Configuration: .common-repo.yaml
+[INFO] Configuration: .common-repo.yaml
 
 Inherited repositories: 2
-  • common-repo/rust-cli @ v1.2.0
-  • common-repo/semantic-versioning @ v2.1.0
+  * common-repo/rust-cli @ v1.2.0
+  * common-repo/semantic-versioning @ v2.1.0
 
 Operations: 8
-  • 2 repo operations
-  • 3 include operations
-  • 2 exclude operations
-  • 1 template operation
+  * 2 repo operations
+  * 3 include operations
+  * 2 exclude operations
+  * 1 template operation
 
 Cache status: 2/2 repositories cached
 Last applied: 2 hours ago
@@ -468,7 +468,7 @@ Last applied: 2 hours ago
 
 **Output (specific repo)**:
 ```
-📦 common-repo/rust-cli
+[PACKAGE] common-repo/rust-cli
 
 URL: https://github.com/common-repo/rust-cli
 Latest version: v1.2.0
@@ -481,15 +481,15 @@ Available versions:
   v1.0.0
 
 Exports:
-  • .github/workflows/ci.yml
-  • .github/workflows/release.yml
-  • Cargo.toml (fragment)
-  • rustfmt.toml
-  • clippy.toml
+  * .github/workflows/ci.yml
+  * .github/workflows/release.yml
+  * Cargo.toml (fragment)
+  * rustfmt.toml
+  * clippy.toml
 
 Dependencies:
-  • common-repo/ci-base @ v3.0.1
-  • common-repo/rustfmt-config @ v1.0.3
+  * common-repo/ci-base @ v3.0.1
+  * common-repo/rustfmt-config @ v1.0.3
 ```
 
 ---
@@ -523,7 +523,7 @@ common-repo ls --tree
 
 **Output**:
 ```
-📄 Files in composite filesystem (48 files):
+[FILES] Files in composite filesystem (48 files):
 
 .github/
   workflows/
@@ -648,9 +648,9 @@ These options work with all commands:
 ## Comparison with Similar Tools
 
 ### vs `cargo`
-- Similar command structure: `cargo build` → `common-repo apply`
-- Similar update workflow: `cargo update` → `common-repo update`
-- Similar inspection: `cargo tree` → `common-repo tree`
+- Similar command structure: `cargo build` -> `common-repo apply`
+- Similar update workflow: `cargo update` -> `common-repo update`
+- Similar inspection: `cargo tree` -> `common-repo tree`
 
 ### vs `git`
 - Clear operation semantics like git (apply, diff, status-like info)

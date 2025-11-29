@@ -138,9 +138,9 @@ SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 - Disabled by default since they require network access
 
 **Test Coverage:**
-- **186 total tests** (167 unit, 5 integration, 14 datatest) covering all core functionality
-- **5 integration tests** validating end-to-end workflows
-- **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
+- **Comprehensive test suite** including unit tests, E2E CLI tests, integration tests, and doc tests
+- **Integration tests** validating end-to-end workflows (feature-gated)
+- **Datatest tests** for schema parsing automatically discover test cases from YAML files
 - **Test coverage analysis** available via cargo-tarpaulin
 
 #### Test Coverage Analysis
@@ -169,7 +169,7 @@ cargo tarpaulin --out Html --output-dir target/tarpaulin
 
 Coverage reports are saved to `target/tarpaulin/`. Open `target/tarpaulin/tarpaulin-report.html` in a browser to view the HTML report.
 
-For detailed coverage analysis and areas for improvement, see `docs/improving-test-coverage-plan.md`.
+For detailed coverage analysis and areas for improvement, see [context/improving-test-coverage-plan.md](context/improving-test-coverage-plan.md).
 
 ## Development Workflow
 
