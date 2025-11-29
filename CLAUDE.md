@@ -16,11 +16,24 @@ The `context/` directory contains detailed implementation plans, progress tracki
 - `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
 - `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
 - `context/feature-status.json` - Structured JSON tracking of all Layer 0-4 features
-- `context/current-task.json` - Quick-start file for next session with immediate next steps (temporary)
+- `context/current-task.json` - **Start here** - Quick-start file with immediate next steps (temporary)
 - `context/agent-docs-improvement-plan.md` - Plan for improving agent documentation (temporary)
 - `context/agent-docs-improvement-tasks.json` - Task tracking for agent docs improvements (temporary)
 
-**Important**: When completing tasks from any JSON task file, always update the task's `status` field to `"complete"` and update the `last_updated` field before committing.
+### Using current-task.json
+
+When starting a new session, **read `context/current-task.json` first**. It contains:
+- Session startup checklist
+- Completed tasks from previous sessions
+- Unblocked next tasks ready to work on
+- Blocked tasks with explanations
+
+**After completing any task:**
+1. Update the task's `status` to `"complete"` in the parent plan JSON
+2. Move the task from `next_tasks` to `completed_tasks` in `current-task.json`
+3. Update `last_updated` fields in both files
+4. If your task unblocks others, move them from `blocked_tasks` to `next_tasks`
+5. Commit all JSON updates together with your work
 
 These files are temporary and will be removed once the project reaches maturity. For human-readable documentation, see:
 - `docs/purpose.md` - Project purpose and goals
