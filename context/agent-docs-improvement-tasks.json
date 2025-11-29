@@ -86,7 +86,7 @@
     {
       "id": "create-traceability-map",
       "name": "Create traceability-map.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": null,
       "output_file": "context/traceability-map.md",
