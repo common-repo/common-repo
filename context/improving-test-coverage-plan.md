@@ -243,4 +243,4 @@ Run `cargo tarpaulin --features integration-tests` to check current coverage.
 
 ---
 
-Last Updated: 2025-11-20 (Target raised to 90%)
+Last Updated: 2025-11-29

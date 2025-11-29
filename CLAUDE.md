@@ -307,9 +307,9 @@ Configuration is in `.config/nextest.toml`. Slow tests will be highlighted in CI
 - **Run integration tests before major changes** - they verify real-world functionality
 - **Integration tests are disabled by default** to avoid network dependencies
 - **All tests must pass** for CI/CD to succeed (both unit and integration tests)
-- **186 total tests** (167 unit, 5 integration, 14 datatest) cover individual components and full workflows
-- **5 integration tests** validate end-to-end repository inheritance workflows
-- **14 datatest tests** for schema parsing (automatically discover test cases from YAML files)
+- **Comprehensive test suite** includes unit tests, E2E CLI tests, integration tests, and doc tests
+- **Integration tests** validate end-to-end repository inheritance workflows (feature-gated)
+- **Datatest tests** for schema parsing automatically discover test cases from YAML files
 - **cargo-nextest is used in CI** for faster execution and slow test detection
 
 #### Writing E2E CLI Tests
@@ -375,7 +375,7 @@ Coverage reports are generated in `target/tarpaulin/` directory. HTML reports ca
 
 **Coverage Goals:**
 - Target: 90%+ line coverage for all modules
-- See `context/improving-test-coverage-plan.md` for detailed coverage analysis and improvement areas
+- See [context/improving-test-coverage-plan.md](context/improving-test-coverage-plan.md) for detailed coverage analysis and improvement areas
 
 ### Code Quality
 ```bash

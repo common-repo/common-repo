@@ -374,7 +374,7 @@ For sophisticated merge strategies that can't be handled by generic operators, w
 
 Plugins would implement custom merge logic for specific tools. This is not part of the initial implementation but the design should allow for it.
 
-### Version Detection and Updates (Future)
+### Version Detection and Updates
 
 The cache structure enables version checking:
 
@@ -384,7 +384,7 @@ The cache structure enables version checking:
 4. Notify user of available updates
 5. Optionally auto-update refs in `.common-repo.yaml`
 
-This is planned functionality but not part of the core implementation.
+This functionality is implemented in `src/version.rs` and exposed via the `check` and `update` CLI commands.
 
 ## Performance Characteristics
 
@@ -441,7 +441,7 @@ The tool is implemented in Rust for:
 
 ## CLI Design
 
-A detailed CLI design is available in [docs/cli-design.md](docs/cli-design.md). This document outlines the full command structure, options, and user experience.
+A detailed CLI design is available in [context/cli-design.md](../context/cli-design.md). This document outlines the full command structure, options, and user experience.
 
 ## Testing Strategy
 

@@ -48,7 +48,7 @@ This document provides a consolidated reference mapping each component to its co
 
 | Component | Plan Reference | Design Reference |
 |-----------|----------------|------------------|
-| Version Detection | [Layer 3.5 Version Detection](implementation-plan.md#layer-35-version-detection-depends-on-layers-0-1) | [Version Detection and Updates](../docs/design.md#version-detection-and-updates-future) |
+| Version Detection | [Layer 3.5 Version Detection](implementation-plan.md#layer-35-version-detection-depends-on-layers-0-1) | [Version Detection and Updates](../docs/design.md#version-detection-and-updates) |
 
 ## Layer 4 - CLI & Orchestration
 

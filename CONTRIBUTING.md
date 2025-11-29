@@ -10,7 +10,7 @@ This project adheres to a Code of Conduct that all contributors are expected to 
 
 ### Prerequisites
 
-- Rust 1.90.0 or later
+- Rust stable channel (automatically managed via `rust-toolchain.toml`)
 - Python 3.7+ (for pre-commit hooks)
 - Git
 - Familiarity with Rust and Git workflows

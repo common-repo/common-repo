@@ -887,36 +887,32 @@ fn test_apply_missing_config() {
 
 ### Phase 1: Basic CLI Tests (with MVP commands)
 
-- [ ] Set up test infrastructure
-  - [ ] Add `assert_cmd`, `predicates`, `assert_fs` to dev-dependencies
-  - [ ] Create `tests/cli_e2e_test.rs`
-  - [ ] Create `tests/testdata/` directory
-- [ ] Test `apply` command
-  - [ ] Unit tests in `src/commands/apply.rs`
-  - [ ] Integration test in `tests/cli_integration_test.rs`
-  - [ ] E2E tests in `tests/cli_e2e_apply.rs`
-- [ ] Test `validate` command
-  - [ ] Unit tests
-  - [ ] E2E tests
-- [ ] Test `init` command
-  - [ ] Unit tests
-  - [ ] E2E tests
-- [ ] Test `cache` commands
-  - [ ] Unit tests
-  - [ ] E2E tests
+- [x] Set up test infrastructure
+  - [x] Add `assert_cmd`, `predicates`, `assert_fs` to dev-dependencies
+  - [x] Create E2E test files in `tests/`
+  - [x] Create `tests/testdata/` directory
+- [x] Test `apply` command
+  - [x] Unit tests in `src/commands/apply.rs`
+  - [x] E2E tests in `tests/cli_e2e_apply.rs`
+- [x] Test `validate` command
+  - [x] E2E tests in `tests/cli_e2e_validate.rs`
+- [x] Test `init` command
+  - [x] E2E tests (via apply tests)
+- [x] Test `cache` commands
+  - [x] E2E tests in `tests/cli_e2e_cache.rs`
 
 ### Phase 2: Enhanced Testing (with Phase 2 commands)
 
-- [ ] Test `tree` command (with snapshot testing)
-- [ ] Test `info` command (with snapshot testing)
-- [ ] Test `ls` command
-- [ ] Test `check` command
+- [x] Test `tree` command - `tests/cli_e2e_tree.rs`
+- [x] Test `info` command - `tests/cli_e2e_info.rs`
+- [x] Test `ls` command - `tests/cli_e2e_ls.rs`
+- [x] Test `check` command - `tests/cli_e2e_check.rs`
 - [ ] Add performance benchmarks
 
 ### Phase 3: Comprehensive Testing (with Phase 3 commands)
 
-- [ ] Test `diff` command (complex output validation)
-- [ ] Test `update` command (critical - tests file modification)
+- [ ] Test `diff` command (not yet implemented)
+- [x] Test `update` command - `tests/cli_e2e_update.rs`
 - [ ] Test `init --interactive` (input simulation)
 - [ ] Add network mocking for isolated E2E tests
 - [ ] Cross-platform testing in CI
@@ -1006,7 +1002,7 @@ fn test_cli_apply_exit_codes() { /* ... */ }
 
 For 12 commands in full implementation: **180-360 CLI tests**
 
-Plus existing **186 library tests** = **366-546 total tests**
+Plus existing library tests = comprehensive test coverage
 
 ### Key Testing Principles
 
@@ -1030,5 +1026,5 @@ Plus existing **186 library tests** = **366-546 total tests**
 
 ---
 
-**Last updated**: 2025-11-12
-**Status**: Ready to implement with Phase 1 CLI commands
+**Last updated**: 2025-11-29
+**Status**: Phase 1 and Phase 2 complete; Phase 3 partially complete (diff pending)
