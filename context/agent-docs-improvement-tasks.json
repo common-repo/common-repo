@@ -1,0 +1,217 @@
+{
+  "plan_name": "Agent Documentation Improvements",
+  "reference": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+  "last_updated": "2025-11-29",
+  "session_startup": [
+    "Run git status to check branch and working state",
+    "Run ./script/test to verify baseline functionality",
+    "Read this file to find current task (first pending, unblocked)",
+    "Review recent commits: git log --oneline -5"
+  ],
+  "tasks": [
+    {
+      "id": "create-feature-status-json",
+      "name": "Create feature-status.json",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "context/feature-status.json",
+      "steps": [
+        "Read context/implementation-progress.md to extract current feature status",
+        "Create context/feature-status.json with schema from this task",
+        "Populate with all major features from Layers 0-4",
+        "Mark each feature with correct status (complete/in_progress/pending)",
+        "Validate JSON: python3 -c \"import json; json.load(open('context/feature-status.json'))\""
+      ],
+      "acceptance_criteria": [
+        "File exists at context/feature-status.json",
+        "JSON is valid and parseable",
+        "All Layer 0-4 features from implementation-progress.md are represented",
+        "Status matches current implementation state"
+      ],
+      "schema_example": {
+        "last_updated": "YYYY-MM-DD",
+        "features": [
+          {
+            "id": "unique-kebab-case-id",
+            "name": "Human readable name",
+            "status": "complete|in_progress|pending",
+            "layer": "0|1|2|3|3.5|4",
+            "steps": ["Step 1", "Step 2"],
+            "tests": ["test_file.rs"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "create-next-priority-md",
+      "name": "Create next-priority.md",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "context/next-priority.md",
+      "steps": [
+        "Identify highest priority incomplete feature from implementation-progress.md",
+        "Create context/next-priority.md with single focused task",
+        "Include specific acceptance criteria",
+        "Link to relevant design/plan sections"
+      ],
+      "acceptance_criteria": [
+        "File exists at context/next-priority.md",
+        "Contains exactly one priority item",
+        "Has testable acceptance criteria",
+        "References are valid links"
+      ]
+    },
+    {
+      "id": "add-session-startup-protocol",
+      "name": "Add session startup protocol to CLAUDE.md",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "output_file": "CLAUDE.md",
+      "steps": [
+        "Read current CLAUDE.md structure",
+        "Add new section after '## LLM Context Files' titled '## Agent Session Startup'",
+        "Include 5-step startup protocol from session_startup field in this file",
+        "Reference context/feature-status.json and context/next-priority.md"
+      ],
+      "acceptance_criteria": [
+        "Section exists in CLAUDE.md",
+        "Follows 5-step protocol",
+        "References correct file paths",
+        "Placed logically in document structure"
+      ]
+    },
+    {
+      "id": "create-traceability-map",
+      "name": "Create traceability-map.md",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": null,
+      "output_file": "context/traceability-map.md",
+      "steps": [
+        "Read implementation-progress.md and identify all Traceability sections",
+        "Create context/traceability-map.md with table format",
+        "Map each component to its plan and design sections",
+        "Verify all links are valid"
+      ],
+      "acceptance_criteria": [
+        "File exists at context/traceability-map.md",
+        "All traceability links from implementation-progress.md captured",
+        "Links are valid and point to correct sections",
+        "Format is scannable table, not prose"
+      ]
+    },
+    {
+      "id": "slim-implementation-progress",
+      "name": "Slim down implementation-progress.md",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "create-traceability-map",
+      "output_file": "context/implementation-progress.md",
+      "steps": [
+        "Verify context/traceability-map.md exists and is complete",
+        "Remove all inline Traceability subsections",
+        "Add single reference to traceability-map.md at top",
+        "Remove Recent Changes entries older than 2 weeks",
+        "Keep: Current Status, Layer completion, Next Steps, Recent changes (2 weeks)"
+      ],
+      "acceptance_criteria": [
+        "File size reduced by at least 30%",
+        "No traceability sections remain inline",
+        "Reference to traceability-map.md exists at top",
+        "Recent changes limited to last 2 weeks",
+        "All current status information preserved"
+      ]
+    },
+    {
+      "id": "add-completion-checklist",
+      "name": "Add completion checklist to CLAUDE.md",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": null,
+      "output_file": "CLAUDE.md",
+      "steps": [
+        "Read current CLAUDE.md Pre-Commit Checklist section",
+        "Add new section '## Feature Completion Checklist' after it",
+        "Emphasize E2E testing requirement (key point from Anthropic article)",
+        "Reference feature-status.json for status updates"
+      ],
+      "acceptance_criteria": [
+        "Section exists in CLAUDE.md",
+        "Emphasizes E2E testing requirement",
+        "References feature-status.json",
+        "Placed after Pre-Commit Checklist"
+      ]
+    },
+    {
+      "id": "update-llm-context-files-section",
+      "name": "Update LLM Context Files section in CLAUDE.md",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": ["create-feature-status-json", "create-next-priority-md", "create-traceability-map", "add-session-startup-protocol", "slim-implementation-progress", "add-completion-checklist"],
+      "output_file": "CLAUDE.md",
+      "steps": [
+        "Read current LLM Context Files section",
+        "Add entries for: feature-status.json, next-priority.md, traceability-map.md",
+        "Update description to emphasize agent workflow",
+        "Remove reference to this tasks file (temporary)"
+      ],
+      "acceptance_criteria": [
+        "All new context files listed",
+        "Descriptions are accurate and concise",
+        "Section reflects agent-first workflow"
+      ]
+    },
+    {
+      "id": "validate-workflow",
+      "name": "Validate and test the new workflow",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": "update-llm-context-files-section",
+      "output_file": null,
+      "steps": [
+        "Follow new Agent Session Startup protocol exactly",
+        "Verify all referenced files exist and are readable",
+        "Validate feature-status.json: python3 -c \"import json; json.load(open('context/feature-status.json'))\"",
+        "Verify next-priority.md has actionable content",
+        "Verify traceability-map.md links are valid",
+        "Document any issues found"
+      ],
+      "acceptance_criteria": [
+        "All 5 startup protocol steps complete without errors",
+        "feature-status.json parses correctly",
+        "All file references resolve",
+        "No broken links in traceability-map.md"
+      ]
+    },
+    {
+      "id": "cleanup-plan-files",
+      "name": "Remove temporary plan files",
+      "status": "pending",
+      "priority": 9,
+      "blocked_by": "validate-workflow",
+      "output_file": null,
+      "steps": [
+        "Delete context/agent-docs-improvement-plan.md",
+        "Delete context/agent-docs-improvement-tasks.json",
+        "Commit removal with message: docs(agent): complete agent documentation improvements"
+      ],
+      "acceptance_criteria": [
+        "Temporary plan files removed",
+        "All permanent improvements in place",
+        "Clean commit history"
+      ]
+    }
+  ],
+  "commit_format": "docs(agent): [task name]",
+  "notes": [
+    "Tasks 1-4 and 6 can be done in parallel (no dependencies)",
+    "Task 5 requires Task 4 to be complete first",
+    "Task 7 requires Tasks 1-6 to be complete",
+    "Task 8 is final validation",
+    "Task 9 cleans up these temporary planning files",
+    "Each task should take 10-20 minutes"
+  ]
+}
