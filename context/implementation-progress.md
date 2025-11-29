@@ -45,14 +45,24 @@ This document tracks current implementation status against the implementation pl
 - **Tool Validation** - tools operator validates tool presence/versions
 - **Merge Operators** - All 5 operators (YAML, JSON, TOML, INI, Markdown) complete with Phase 5 handlers
 
+**`repo: with:` Clause Details:**
+- **Supported**: `include` (filters files), `exclude`, `rename`, `template` (marks files), `tools` (validates requirements)
+- **Not Supported**: Merge operators and `template_vars` - they operate during composition phase, not repo loading
+- **Prevented**: Nested `repo` operations (would create circular dependencies)
+
 ## ✅ Layer 3 - Phases (Complete)
 
-- **Phase 1** - Recursive discovery, cycle detection, cache fallback
+- **Phase 1** - Recursive discovery, cycle detection, cache fallback (sequential cloning; parallelism not yet implemented)
 - **Phase 2** - Merge operation collection, all other operators processed
 - **Phase 3** - Depth-first ordering
 - **Phase 4** - Last-write-wins merge, template processing, merge dispatcher
 - **Phase 5** - Local merge handlers for all 5 operators
 - **Phase 6** - Writes final filesystem to disk with permissions
+
+**Technical Notes:**
+- **Cache Key Isolation**: Path-filtered repos get separate cache entries (e.g., `url@main` vs `url@main:path=src`)
+- **Template Detection**: Efficient `${` pattern scanning for O(content_length) detection
+- **Variable Resolution**: Priority order: template vars → environment vars → defaults → error
 
 ## ✅ Layer 3.5 - Version Detection (Complete)
 
@@ -123,9 +133,13 @@ This document tracks current implementation status against the implementation pl
 
 ## 🚨 Blockers & Decisions
 
+### Resolved Design Decisions
+- **Git library**: Shell commands (not `git2`) - simpler, uses system git config
+- **Template engine**: Simple `${VAR}` and `${VAR:-default}` substitution
+- **Error handling**: `thiserror` for library errors, `anyhow` for CLI
+
 ### Open Questions
-1. **Parallel execution library**: `tokio` vs `rayon` - Defer until Phase 4
-2. **Git library**: `git2` vs shell commands - Using shell commands
+1. **Parallel execution library**: `tokio` vs `rayon` - Defer until needed
 
 ### No Current Blockers
 - Foundation is solid
