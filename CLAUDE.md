@@ -29,7 +29,7 @@ These files are temporary and will be removed once the project reaches maturity.
 Each session starts with no memory of previous work. Follow this 5-step protocol at the start of every session:
 
 1. **Check repository state**: Run `git status` to verify the current branch and working tree state
-2. **Verify baseline**: Run `./script/test` to ensure tests pass before making changes
+2. **Verify baseline**: Run `./script/test` to ensure tests pass before making changes. **Exception**: Skip this for documentation-only or context-only changes (markdown files, JSON task tracking) since tests are slow and unaffected by such changes.
 3. **Find current task**: Read `context/current-task.json` to identify the active work and its detailed plan
 4. **Review recent history**: Run `git log --oneline -5` to understand recent changes
 5. **Execute the task**: Find the first task where `status=pending` and `blocked_by=null`, complete it, then update the plan's task status to `complete`
