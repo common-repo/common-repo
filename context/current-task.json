@@ -1,5 +1,5 @@
 {
-  "task": "Improve agent documentation per Anthropic's best practices",
-  "plan": "context/agent-docs-improvement-tasks.json",
-  "instructions": "Read the plan file, find the first task where status=pending and blocked_by=null, complete it, update status to complete, commit."
+  "task": "Implement common-repo diff command",
+  "plan": "context/next-priority.md",
+  "instructions": "Read next-priority.md for acceptance criteria and implementation approach. Create src/commands/diff.rs and tests/cli_e2e_diff.rs."
 }
