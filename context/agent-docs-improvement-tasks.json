@@ -46,7 +46,7 @@
     {
       "id": "create-next-priority-md",
       "name": "Create next-priority.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "output_file": "context/next-priority.md",
