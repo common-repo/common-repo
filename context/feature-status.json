@@ -1,0 +1,369 @@
+{
+  "last_updated": "2025-11-29",
+  "schema_version": "1.0.0",
+  "summary": {
+    "total_features": 22,
+    "complete": 21,
+    "in_progress": 1,
+    "pending": 0
+  },
+  "features": [
+    {
+      "id": "config-schema-parsing",
+      "name": "Configuration Schema & Parsing",
+      "status": "complete",
+      "layer": "0",
+      "description": "Define data structures and parse .common-repo.yaml files",
+      "files": ["src/config.rs"],
+      "steps": [
+        "Define config::Schema Rust structs representing the YAML schema",
+        "Implement config::Operation enum for all operator types",
+        "Implement config::parse() for YAML parsing using serde_yaml",
+        "Add error types for invalid configurations"
+      ],
+      "tests": ["src/config.rs (unit tests)"]
+    },
+    {
+      "id": "in-memory-filesystem",
+      "name": "In-Memory Filesystem",
+      "status": "complete",
+      "layer": "0",
+      "description": "Represent filesystems in memory for fast manipulation",
+      "files": ["src/filesystem.rs"],
+      "steps": [
+        "Implement filesystem::MemoryFS core structure with HashMap<PathBuf, File>",
+        "Add file operations: add, remove, rename, copy",
+        "Implement glob matching for file listing",
+        "Add metadata support: permissions, timestamps, is_template flag"
+      ],
+      "tests": ["src/filesystem.rs (unit tests)"]
+    },
+    {
+      "id": "error-handling",
+      "name": "Error Handling",
+      "status": "complete",
+      "layer": "0",
+      "description": "Consistent error types throughout the application",
+      "files": ["src/error.rs"],
+      "steps": [
+        "Create error::Error enum using thiserror",
+        "Add ConfigParseError, GitCloneError, CacheError variants",
+        "Add OperatorError, CycleDetectedError, MergeConflictWarning variants",
+        "Define error::Result<T> type alias"
+      ],
+      "tests": ["src/error.rs (unit tests)"]
+    },
+    {
+      "id": "git-operations",
+      "name": "Git Operations",
+      "status": "complete",
+      "layer": "1",
+      "description": "Clone repositories and interact with git",
+      "files": ["src/git.rs"],
+      "steps": [
+        "Implement git::clone_shallow() for shallow cloning at specific ref",
+        "Implement git::load_from_cache_with_path() for path-filtered loading",
+        "Implement git::save_to_cache() for cache persistence",
+        "Implement git::list_tags() and git::parse_semver_tag()"
+      ],
+      "tests": ["src/git.rs (unit tests)"]
+    },
+    {
+      "id": "path-operations",
+      "name": "Path Operations",
+      "status": "complete",
+      "layer": "1",
+      "description": "Handle path transformations and glob matching",
+      "files": ["src/path.rs"],
+      "steps": [
+        "Implement path::glob_match() for pattern matching",
+        "Implement path::regex_rename() with capture groups",
+        "Implement path::encode_url_path() for URL encoding"
+      ],
+      "tests": ["src/path.rs (unit tests)"]
+    },
+    {
+      "id": "repository-cache",
+      "name": "Repository Cache",
+      "status": "complete",
+      "layer": "1",
+      "description": "In-process caching of processed repositories",
+      "files": ["src/cache.rs"],
+      "steps": [
+        "Implement cache::RepoCache with HashMap<(url, ref), IntermediateFS>",
+        "Implement cache::get_or_process() for cache lookup/population",
+        "Add thread-safe access with Arc<Mutex<>>"
+      ],
+      "tests": ["src/cache.rs (unit tests)"]
+    },
+    {
+      "id": "repository-manager",
+      "name": "Repository Manager",
+      "status": "complete",
+      "layer": "1",
+      "description": "High-level orchestration of git clone/cache/load operations",
+      "files": ["src/repository.rs"],
+      "steps": [
+        "Define GitOperations and CacheOperations traits for mockability",
+        "Implement RepositoryManager::fetch_repository() with smart caching",
+        "Implement RepositoryManager::fetch_repository_with_path() for sub-paths",
+        "Add fetch_repository_fresh() for force-refresh"
+      ],
+      "tests": ["src/repository.rs (unit tests)", "tests/integration_test.rs"]
+    },
+    {
+      "id": "repo-operator",
+      "name": "Repo Operator",
+      "status": "complete",
+      "layer": "2",
+      "description": "Pull files from inherited repositories with sub-path support",
+      "files": ["src/operators.rs"],
+      "steps": [
+        "Implement operators::repo::apply() with sub-path filtering",
+        "Implement operators::repo::apply_with_clause() for inline operations",
+        "Support with: clause operations: include, exclude, rename, template, tools",
+        "Prevent nested repo operations to avoid circular dependencies"
+      ],
+      "tests": ["src/operators.rs (unit tests)"]
+    },
+    {
+      "id": "basic-file-operators",
+      "name": "Basic File Operators",
+      "status": "complete",
+      "layer": "2",
+      "description": "Include, exclude, rename operations",
+      "files": ["src/operators.rs"],
+      "steps": [
+        "Implement operators::include::apply() for pattern-based file inclusion",
+        "Implement operators::exclude::apply() for pattern-based file exclusion",
+        "Implement operators::rename::apply() for regex-based renaming"
+      ],
+      "tests": ["src/operators.rs (unit tests)"]
+    },
+    {
+      "id": "template-operators",
+      "name": "Template Operators",
+      "status": "complete",
+      "layer": "2",
+      "description": "Mark and process templates with variable substitution",
+      "files": ["src/operators.rs"],
+      "steps": [
+        "Implement operators::template::mark() to detect ${VAR} patterns",
+        "Implement operators::template::process() for variable substitution",
+        "Support ${VAR} and ${VAR:-default} syntax",
+        "Implement operators::template_vars::collect() for context building"
+      ],
+      "tests": ["src/operators.rs (unit tests)"]
+    },
+    {
+      "id": "merge-operators",
+      "name": "Merge Operators",
+      "status": "complete",
+      "layer": "2",
+      "description": "YAML, JSON, TOML, INI, Markdown fragment merging",
+      "files": ["src/phases.rs", "src/operators.rs"],
+      "steps": [
+        "Implement YAML merge with path navigation and deep merging",
+        "Implement JSON merge with path navigation and deep merging",
+        "Implement TOML merge with section-based merging",
+        "Implement INI merge with optional section field",
+        "Implement Markdown merge with header-level insertion"
+      ],
+      "tests": [
+        "src/phases.rs (unit tests)",
+        "tests/yaml_merge_integration.rs",
+        "tests/json_merge_integration.rs",
+        "tests/ini_merge_integration.rs",
+        "tests/cli_e2e_yaml_merge.rs",
+        "tests/cli_e2e_json_merge.rs",
+        "tests/cli_e2e_ini_merge.rs"
+      ]
+    },
+    {
+      "id": "tool-validation-operator",
+      "name": "Tool Validation Operator",
+      "status": "complete",
+      "layer": "2",
+      "description": "Validate required tools exist with correct versions",
+      "files": ["src/operators.rs"],
+      "steps": [
+        "Implement operators::tools::validate() for availability checking",
+        "Implement operators::tools::parse_version_constraint()",
+        "Implement operators::tools::check_tool() for individual checks"
+      ],
+      "tests": ["src/operators.rs (unit tests)"]
+    },
+    {
+      "id": "phase1-discovery-cloning",
+      "name": "Phase 1: Discovery and Cloning",
+      "status": "complete",
+      "layer": "3",
+      "description": "Fetch all repos using breadth-first traversal",
+      "files": ["src/phases.rs"],
+      "steps": [
+        "Implement phase1::discover_repos() for recursive discovery",
+        "Implement phase1::clone_parallel() (sequential currently, parallelism deferred)",
+        "Implement phase1::detect_cycles() for circular dependency detection",
+        "Add network failure fallback to cache"
+      ],
+      "tests": ["src/phases.rs (unit tests)"]
+    },
+    {
+      "id": "phase2-processing-repos",
+      "name": "Phase 2: Processing Individual Repos",
+      "status": "complete",
+      "layer": "3",
+      "description": "Transform each repo into intermediate filesystem",
+      "files": ["src/phases.rs"],
+      "steps": [
+        "Implement phase2::process_repo() with operator application",
+        "Collect merge operations for Phase 4 execution",
+        "Integrate with RepoCache for deduplication"
+      ],
+      "tests": ["src/phases.rs (unit tests)"]
+    },
+    {
+      "id": "phase3-operation-order",
+      "name": "Phase 3: Determining Operation Order",
+      "status": "complete",
+      "layer": "3",
+      "description": "Build deterministic operation order using depth-first traversal",
+      "files": ["src/phases.rs"],
+      "steps": [
+        "Implement phase3::build_operation_order() with depth-first traversal",
+        "Return OperationOrder list for Phase 4 consumption"
+      ],
+      "tests": ["src/phases.rs (unit tests)"]
+    },
+    {
+      "id": "phase4-composition",
+      "name": "Phase 4: Composite Filesystem Construction",
+      "status": "complete",
+      "layer": "3",
+      "description": "Merge all intermediate filesystems",
+      "files": ["src/phases.rs"],
+      "steps": [
+        "Implement phase4::build_composite() for last-write-wins merging",
+        "Execute collected merge operations via dispatcher",
+        "Process templates with unified variable context"
+      ],
+      "tests": ["src/phases.rs (unit tests)"]
+    },
+    {
+      "id": "phase5-local-merging",
+      "name": "Phase 5: Local File Merging",
+      "status": "complete",
+      "layer": "3",
+      "description": "Merge composite FS with local files",
+      "files": ["src/phases.rs"],
+      "steps": [
+        "Implement phase5::merge_with_local() for local operations",
+        "Implement merge helpers for all 5 formats (YAML, JSON, TOML, INI, Markdown)"
+      ],
+      "tests": ["src/phases.rs (unit tests)"]
+    },
+    {
+      "id": "phase6-writing-to-disk",
+      "name": "Phase 6: Writing to Disk",
+      "status": "complete",
+      "layer": "3",
+      "description": "Write final filesystem to disk",
+      "files": ["src/phases.rs"],
+      "steps": [
+        "Implement phase6::execute() to write MemoryFS to disk",
+        "Create parent directories recursively",
+        "Set file permissions on Unix systems"
+      ],
+      "tests": ["src/phases.rs (unit tests)", "tests/cli_e2e_apply.rs"]
+    },
+    {
+      "id": "version-detection",
+      "name": "Version Detection",
+      "status": "complete",
+      "layer": "3.5",
+      "description": "Detect when inherited repos have newer versions available",
+      "files": ["src/version.rs"],
+      "steps": [
+        "Implement version::check_updates() for all repos",
+        "Implement version::compare_refs() against available tags",
+        "Implement version::filter_semver_tags() for semantic version filtering",
+        "Integrate with check and update CLI commands"
+      ],
+      "tests": ["src/version.rs (unit tests)"]
+    },
+    {
+      "id": "cli-commands-implemented",
+      "name": "CLI Commands (Implemented)",
+      "status": "complete",
+      "layer": "4",
+      "description": "User-facing CLI commands that are complete",
+      "files": [
+        "src/cli.rs",
+        "src/commands/apply.rs",
+        "src/commands/cache.rs",
+        "src/commands/check.rs",
+        "src/commands/info.rs",
+        "src/commands/init.rs",
+        "src/commands/ls.rs",
+        "src/commands/tree.rs",
+        "src/commands/update.rs",
+        "src/commands/validate.rs"
+      ],
+      "steps": [
+        "Implement apply command with full 6-phase pipeline",
+        "Implement check command for config validation and update checking",
+        "Implement update command for ref updates",
+        "Implement validate command for configuration validation",
+        "Implement init command with multiple modes (minimal, empty, template)",
+        "Implement cache command with list and clean subcommands",
+        "Implement info command for configuration overview",
+        "Implement tree command for inheritance visualization",
+        "Implement ls command for file listing with pattern filtering"
+      ],
+      "tests": [
+        "tests/cli_e2e_apply.rs",
+        "tests/cli_e2e_cache.rs",
+        "tests/cli_e2e_check.rs",
+        "tests/cli_e2e_info.rs",
+        "tests/cli_e2e_ls.rs",
+        "tests/cli_e2e_tree.rs",
+        "tests/cli_e2e_update.rs",
+        "tests/cli_e2e_validate.rs"
+      ]
+    },
+    {
+      "id": "cli-commands-pending",
+      "name": "CLI Commands (Pending)",
+      "status": "in_progress",
+      "layer": "4",
+      "description": "CLI commands not yet implemented",
+      "files": [],
+      "steps": [
+        "Implement diff command to preview changes without applying"
+      ],
+      "tests": []
+    },
+    {
+      "id": "main-orchestrator",
+      "name": "Main Orchestrator",
+      "status": "complete",
+      "layer": "4",
+      "description": "Coordinate all phases with logging and color support",
+      "files": ["src/main.rs", "src/cli.rs"],
+      "steps": [
+        "Implement main.rs entry point",
+        "Implement logging infrastructure with env_logger",
+        "Implement color output control (auto/always/never)",
+        "Add log level support (error, warn, info, debug, trace, off)"
+      ],
+      "tests": ["src/cli.rs (unit tests)"]
+    }
+  ],
+  "notes": [
+    "All Layer 0-3 features are complete",
+    "Layer 3.5 (Version Detection) is complete",
+    "Layer 4 CLI is mostly complete, only 'diff' command is pending",
+    "Parallelism optimization for Phase 1 cloning is deferred",
+    "354 tests pass (unit, integration, E2E)"
+  ]
+}

@@ -12,7 +12,7 @@
     {
       "id": "create-feature-status-json",
       "name": "Create feature-status.json",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_file": "context/feature-status.json",
