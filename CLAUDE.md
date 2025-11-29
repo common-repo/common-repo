@@ -21,6 +21,58 @@ These files are temporary and will be removed once the project reaches maturity.
 - `docs/design.md` - Implementation architecture and design philosophy
 - `README.md` - User-facing documentation
 
+## Agent Effectiveness Guidelines
+
+Based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), follow these principles:
+
+### Use JSON for Structured Tracking
+
+When creating task lists, feature tracking, or progress documentation:
+
+- **Use JSON, not YAML or markdown prose** - The article specifically recommends JSON for its explicit structure and parseability
+- **Do not substitute formats** - If a reference says "use JSON", use JSON. Don't decide YAML is "close enough"
+- **Include explicit status fields** - Every trackable item needs a `"status": "pending|in_progress|complete"` field
+- **Add step-by-step descriptions** - Break features into discrete steps that can be verified
+
+Example structure:
+```json
+{
+  "features": [
+    {
+      "id": "feature-name",
+      "status": "pending",
+      "steps": ["Step 1", "Step 2"],
+      "acceptance_criteria": ["Criterion 1", "Criterion 2"]
+    }
+  ]
+}
+```
+
+### Follow Recommendations Precisely
+
+When referencing external documentation or articles:
+
+- **Read the entire source** before proposing solutions
+- **Use exact recommendations** - Don't paraphrase or adapt without explicit justification
+- **If corrected, acknowledge and fix** - Don't defend substitutions that contradict the source
+
+### Session Continuity
+
+Each session starts with no memory of previous work:
+
+- **Check git status and recent commits** before starting
+- **Run tests to verify baseline** - Catch regressions before adding new work
+- **Read progress/task files** to understand current state
+- **Work on one task at a time** - Avoid scope creep and doing too much at once
+
+### Completion Criteria
+
+Do not mark features or tasks complete prematurely:
+
+- **E2E tests required** - Unit tests alone are insufficient; features need end-to-end verification
+- **All acceptance criteria met** - Check each criterion explicitly
+- **Tests actually pass** - Run them, don't assume
+
 ## Requirements
 
 - **Rust**: Stable channel (automatically managed via `rust-toolchain.toml`)
