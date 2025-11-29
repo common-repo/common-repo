@@ -24,6 +24,21 @@ These files are temporary and will be removed once the project reaches maturity.
 - `docs/design.md` - Implementation architecture and design philosophy
 - `README.md` - User-facing documentation
 
+## Agent Session Startup
+
+Each session starts with no memory of previous work. Follow this 5-step protocol at the start of every session:
+
+1. **Check repository state**: Run `git status` to verify the current branch and working tree state
+2. **Verify baseline**: Run `./script/test` to ensure tests pass before making changes
+3. **Find current task**: Read `context/current-task.json` to identify the active work and its detailed plan
+4. **Review recent history**: Run `git log --oneline -5` to understand recent changes
+5. **Execute the task**: Find the first task where `status=pending` and `blocked_by=null`, complete it, then update the plan's task status to `complete`
+
+**Key files for session continuity:**
+- `context/current-task.json` - Points to the active task and its plan file
+- `context/feature-status.json` - Structured tracking of all feature implementation status
+- `context/next-priority.md` - The highest priority incomplete work item
+
 ## Agent Effectiveness Guidelines
 
 Based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), follow these principles:
