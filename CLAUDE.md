@@ -8,18 +8,20 @@ This is a Rust project with automated tooling for code quality, conventional com
 
 ## LLM Context Files
 
-The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans:
+The `context/` directory provides structured context for agent-based development workflows.
 
-- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
-- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
-- `context/cli-*.md` - CLI design, implementation plans, and testing strategies
-- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
-- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
-- `context/feature-status.json` - Structured JSON tracking of all Layer 0-4 features
+**Agent workflow files** (read at session start):
+- `context/current-task.json` - Points to active task and its plan file (read first if exists)
+- `context/feature-status.json` - Structured JSON tracking of all Layer 0-4 feature status
+- `context/next-priority.md` - Highest priority incomplete work item
+- `context/traceability-map.md` - Maps components to plan/design documentation
 
-**Active work**: If `context/current-task.json` exists, read it first - it describes ongoing work and points to a detailed plan. Follow its instructions, then update the plan's task status when done.
+**Reference documentation**:
+- `context/implementation-progress.md` - Concise status summary and recent changes
+- `context/implementation-plan.md` - Detailed technical implementation plans
+- `context/cli-*.md` - CLI design and testing strategies
 
-These files are temporary and will be removed once the project reaches maturity. For human-readable documentation, see:
+For human-readable documentation, see:
 - `docs/purpose.md` - Project purpose and goals
 - `docs/design.md` - Implementation architecture and design philosophy
 - `README.md` - User-facing documentation
