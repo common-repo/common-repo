@@ -66,7 +66,7 @@
     {
       "id": "add-session-startup-protocol",
       "name": "Add session startup protocol to CLAUDE.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "output_file": "CLAUDE.md",
