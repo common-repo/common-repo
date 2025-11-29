@@ -1,6 +1,5 @@
 {
-  "task": "Create traceability-map.md",
+  "task": "Improve agent documentation per Anthropic's best practices",
   "plan": "context/agent-docs-improvement-tasks.json",
-  "task_id": "create-traceability-map",
-  "instructions": "Read implementation-progress.md, extract all Traceability sections, create context/traceability-map.md as a scannable table mapping components to plan/design sections."
+  "instructions": "Read the plan file, find the first task where status=pending and blocked_by=null, complete it, update status to complete, commit."
 }
