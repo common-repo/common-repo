@@ -296,7 +296,7 @@
     {
       "id": "extract-orchestrator",
       "name": "Extract orchestrator to orchestrator.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": ["extract-phase1-discovery", "extract-phase2-processing", "extract-phase3-ordering", "extract-phase4-composite", "extract-phase5-local-merge", "extract-phase6-write"],
       "output_file": "src/phases/orchestrator.rs",
