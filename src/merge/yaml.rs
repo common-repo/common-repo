@@ -386,6 +386,39 @@ mod tests {
             let result = navigate_yaml_value(&mut value, &path);
             assert!(result.is_err());
         }
+
+        #[test]
+        fn test_navigate_array_index_type_error() {
+            // Trying to index into a scalar should fail
+            let mut value: YamlValue = serde_yaml::from_str("foo: 42").unwrap();
+            let path = parse_path("foo[0]");
+            let result = navigate_yaml_value(&mut value, &path);
+            assert!(result.is_err());
+            let err_msg = result.unwrap_err().to_string();
+            assert!(err_msg.contains("Expected sequence"));
+        }
+
+        #[test]
+        fn test_navigate_creates_array_from_null() {
+            let mut value: YamlValue = serde_yaml::from_str("items: null").unwrap();
+            let path = parse_path("items[2]");
+            let target = navigate_yaml_value(&mut value, &path).unwrap();
+            // Should have created an array with null values up to index 2
+            assert!(target.is_null()); // The element at index 2
+                                       // Verify parent is now an array
+            let items = value.get("items").unwrap();
+            assert!(items.is_sequence());
+            assert_eq!(items.as_sequence().unwrap().len(), 3);
+        }
+
+        #[test]
+        fn test_navigate_extends_array_to_index() {
+            let mut value: YamlValue = serde_yaml::from_str("items:\n  - a").unwrap();
+            let path = parse_path("items[5]");
+            let _ = navigate_yaml_value(&mut value, &path).unwrap();
+            let items = value.get("items").unwrap().as_sequence().unwrap();
+            assert_eq!(items.len(), 6); // Extended to fit index 5
+        }
     }
 
     mod yaml_merge_integration_tests {
@@ -689,6 +722,156 @@ mod tests {
             let items = parsed["items"].as_sequence().unwrap();
             // 1, 2, 3 - 2 is not duplicated even though it's a number
             assert_eq!(items.len(), 3);
+        }
+
+        #[test]
+        fn test_yaml_merge_top_level_sequence_append() {
+            let mut fs = MemoryFS::new();
+            // Both source and dest are top-level arrays
+            fs.add_file("source.yaml", File::from_string("- x\n- y"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("- a\n- b"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::Append),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let items = parsed.as_sequence().unwrap();
+            assert_eq!(items.len(), 4); // a, b, x, y
+        }
+
+        #[test]
+        fn test_yaml_merge_top_level_sequence_replace() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("- new"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("- old1\n- old2\n- old3"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::Replace),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let items = parsed.as_sequence().unwrap();
+            assert_eq!(items.len(), 1); // replaced with just [new]
+        }
+
+        #[test]
+        fn test_yaml_merge_top_level_sequence_append_unique() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("- b\n- c"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("- a\n- b"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::AppendUnique),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let items = parsed.as_sequence().unwrap();
+            assert_eq!(items.len(), 3); // a, b, c - b not duplicated
+        }
+
+        #[test]
+        fn test_yaml_merge_source_not_found() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("dest.yaml", File::from_string("key: value"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "nonexistent.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_err());
+            let err_msg = result.unwrap_err().to_string();
+            assert!(err_msg.contains("File not found"));
+        }
+
+        #[test]
+        fn test_yaml_merge_invalid_source_yaml() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("invalid: [yaml: {broken"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("key: value"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_err());
+            let err_msg = result.unwrap_err().to_string();
+            assert!(err_msg.contains("parse source YAML"));
+        }
+    }
+
+    mod helper_function_tests {
+        use super::*;
+
+        #[test]
+        fn test_get_yaml_type_name_all_types() {
+            assert_eq!(get_yaml_type_name(&YamlValue::Null), "Null");
+            assert_eq!(get_yaml_type_name(&YamlValue::Bool(true)), "Bool");
+            assert_eq!(get_yaml_type_name(&YamlValue::Number(42.into())), "Number");
+            assert_eq!(
+                get_yaml_type_name(&YamlValue::String("test".to_string())),
+                "String"
+            );
+            assert_eq!(get_yaml_type_name(&YamlValue::Sequence(vec![])), "Sequence");
+            assert_eq!(
+                get_yaml_type_name(&YamlValue::Mapping(Default::default())),
+                "Mapping"
+            );
+        }
+
+        #[test]
+        fn test_ensure_trailing_newline_adds_when_missing() {
+            let input = "content".to_string();
+            let result = ensure_trailing_newline(input);
+            assert!(result.ends_with('\n'));
+            assert_eq!(result, "content\n");
+        }
+
+        #[test]
+        fn test_ensure_trailing_newline_preserves_existing() {
+            let input = "content\n".to_string();
+            let result = ensure_trailing_newline(input);
+            assert_eq!(result, "content\n");
         }
     }
 }
