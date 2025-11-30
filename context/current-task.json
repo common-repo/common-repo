@@ -1,5 +1,5 @@
 {
-  "task": "fix-session-startup-test-command",
-  "plan": null,
-  "instructions": "Fix CLAUDE.md so the initial background test run does NOT use QUICK=1. This ensures dependencies (like prek, cargo-nextest) are installed and compiled on first run. Only subsequent test runs after making code changes should use QUICK=1."
+  "task": "extract-phase4-composite",
+  "plan": "context/refactor-phases-plan.json",
+  "instructions": "Extract phase4 (Composite FS) from phases/mod.rs to phases/composite.rs. Move the phase4 module contents (~120 lines) and update imports. The public API path phases::phase4::execute must remain accessible."
 }
