@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.13.0](https://github.com/common-repo/common-repo/compare/v0.12.0...v0.13.0) (2025-11-30)
+
+
+### Features
+
+* **cli:** add diff command to preview changes before applying ([df339d5](https://github.com/common-repo/common-repo/commit/df339d5288bc82af6a12c2fec58d62a67feeb68e))
+* **cli:** implement ls command to list files from configuration ([a998cd7](https://github.com/common-repo/common-repo/commit/a998cd72e20fd4d001d1f546acca2bfb5c58b2de))
+
+
+### Bug Fixes
+
+* **tests:** mark tree test as integration test requiring network ([bf07183](https://github.com/common-repo/common-repo/commit/bf07183411eabf446085f98c72a59e0de5b0a503))
+* **tests:** resolve flaky test issues with serial execution ([b2bbe4f](https://github.com/common-repo/common-repo/commit/b2bbe4f69259a53a7dbeb2b049ca43e5b7654677))
+* **tests:** use cargo_bin_cmd macro instead of deprecated Command::cargo_bin ([3c723ec](https://github.com/common-repo/common-repo/commit/3c723ecc5cd40b37ddbd303e282076d136d75a00))
+
 ## [0.12.0](https://github.com/common-repo/common-repo/compare/v0.11.0...v0.12.0) (2025-11-21)
 
 
