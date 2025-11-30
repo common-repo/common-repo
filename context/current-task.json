@@ -1,5 +1,5 @@
 {
-  "task": null,
-  "plan": null,
-  "instructions": "No active task. The phases.rs refactor is complete."
+  "task": "setup-integration-test-infrastructure",
+  "plan": "context/merge-operator-testing-plan.json",
+  "instructions": "Set up shared test utilities for merge operator integration tests. Create helpers for loading fixtures and running assertions."
 }

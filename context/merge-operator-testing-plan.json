@@ -1,0 +1,298 @@
+{
+  "plan_name": "Merge Operator Integration Testing",
+  "last_updated": "2025-11-30",
+  "goal": "Write integration tests for all merge operators using the existing testdata fixtures",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test to verify baseline before changes",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "context": {
+    "fixtures_location": "tests/testdata/merge-*-repo/",
+    "test_file_pattern": "tests/integration_merge_*.rs",
+    "feature_gate": "integration-tests",
+    "reference_doc": "context/merge-operator-testing-guide.md"
+  },
+  "tasks": [
+    {
+      "id": "setup-integration-test-infrastructure",
+      "name": "Set up integration test infrastructure for merge operators",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "tests/integration_merge_common.rs",
+      "steps": [
+        "Create tests/integration_merge_common.rs with shared test utilities",
+        "Add helper functions for loading fixtures from testdata directories",
+        "Add helper for running common-repo apply and capturing output",
+        "Add assertion helpers for checking merged file contents",
+        "Ensure feature gate integration-tests is properly configured"
+      ],
+      "acceptance_criteria": [
+        "Common test utilities compile without errors",
+        "Helpers can load files from tests/testdata/merge-*-repo/",
+        "cargo check --features integration-tests passes"
+      ]
+    },
+    {
+      "id": "yaml-merge-integration-tests",
+      "name": "Write YAML merge integration tests",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "setup-integration-test-infrastructure",
+      "output_file": "tests/integration_merge_yaml.rs",
+      "scenarios": [
+        {
+          "name": "basic_root_merge",
+          "description": "Root-level merge, fragment values override destination",
+          "source": "fragment-basic.yml",
+          "dest": "destination-basic.yml"
+        },
+        {
+          "name": "nested_path_merge",
+          "description": "Merge into metadata.labels path",
+          "source": "fragment-nested.yml",
+          "dest": "destination-nested.yml"
+        },
+        {
+          "name": "list_append",
+          "description": "Append items to existing array",
+          "source": "fragment-list.yml",
+          "dest": "destination-list.yml"
+        },
+        {
+          "name": "section_replace",
+          "description": "Replace entire config section",
+          "source": "fragment-replace.yml",
+          "dest": "destination-replace.yml"
+        }
+      ],
+      "acceptance_criteria": [
+        "All 4 YAML merge scenarios have passing tests",
+        "Tests use fixtures from tests/testdata/merge-yaml-repo/",
+        "Tests verify expected merge behavior",
+        "cargo test --features integration-tests passes"
+      ]
+    },
+    {
+      "id": "json-merge-integration-tests",
+      "name": "Write JSON merge integration tests",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "setup-integration-test-infrastructure",
+      "output_file": "tests/integration_merge_json.rs",
+      "scenarios": [
+        {
+          "name": "basic_root_merge",
+          "description": "Root-level merge, fragment values override destination",
+          "source": "fragment-basic.json",
+          "dest": "destination-basic.json"
+        },
+        {
+          "name": "package_dependencies",
+          "description": "Merge into package.json dependencies",
+          "source": "fragment-deps.json",
+          "dest": "package.json"
+        },
+        {
+          "name": "array_insert_start",
+          "description": "Insert at start of scripts array",
+          "source": "fragment-scripts-start.json",
+          "dest": "destination-scripts.json"
+        },
+        {
+          "name": "array_insert_end",
+          "description": "Insert at end of scripts array",
+          "source": "fragment-scripts-end.json",
+          "dest": "destination-scripts.json"
+        },
+        {
+          "name": "nested_object_replace",
+          "description": "Replace config.database with fragment",
+          "source": "fragment-config.json",
+          "dest": "destination-config.json"
+        }
+      ],
+      "acceptance_criteria": [
+        "All 5 JSON merge scenarios have passing tests",
+        "Tests use fixtures from tests/testdata/merge-json-repo/",
+        "Tests verify array positioning (start/end)",
+        "cargo test --features integration-tests passes"
+      ]
+    },
+    {
+      "id": "toml-merge-integration-tests",
+      "name": "Write TOML merge integration tests",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "setup-integration-test-infrastructure",
+      "output_file": "tests/integration_merge_toml.rs",
+      "scenarios": [
+        {
+          "name": "basic_root_merge",
+          "description": "Root-level merge, fragment values override destination",
+          "source": "fragment-basic.toml",
+          "dest": "destination-basic.toml"
+        },
+        {
+          "name": "cargo_dependencies",
+          "description": "Merge into Cargo.toml dependencies table",
+          "source": "fragment-deps.toml",
+          "dest": "Cargo.toml"
+        },
+        {
+          "name": "workspace_members_append",
+          "description": "Append to workspace.members array",
+          "source": "fragment-members.toml",
+          "dest": "workspace.toml"
+        },
+        {
+          "name": "comment_preservation",
+          "description": "Merge while preserving comments",
+          "source": "fragment-with-comments.toml",
+          "dest": "destination-with-comments.toml"
+        }
+      ],
+      "acceptance_criteria": [
+        "All 4 TOML merge scenarios have passing tests",
+        "Tests use fixtures from tests/testdata/merge-toml-repo/",
+        "Tests verify comment preservation if supported",
+        "cargo test --features integration-tests passes"
+      ]
+    },
+    {
+      "id": "ini-merge-integration-tests",
+      "name": "Write INI merge integration tests",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "setup-integration-test-infrastructure",
+      "output_file": "tests/integration_merge_ini.rs",
+      "scenarios": [
+        {
+          "name": "basic_section_merge",
+          "description": "Merge sections, fragment values override destination",
+          "source": "fragment-basic.ini",
+          "dest": "destination-basic.ini"
+        },
+        {
+          "name": "section_targeting",
+          "description": "Merge into specific section only",
+          "source": "fragment-database.ini",
+          "dest": "config.ini"
+        },
+        {
+          "name": "duplicates_allowed",
+          "description": "Append with allow-duplicates: true",
+          "source": "fragment-logging.ini",
+          "dest": "app.ini"
+        },
+        {
+          "name": "duplicates_disallowed",
+          "description": "Merge with allow-duplicates: false",
+          "source": "fragment-server.ini",
+          "dest": "server.ini"
+        }
+      ],
+      "acceptance_criteria": [
+        "All 4 INI merge scenarios have passing tests",
+        "Tests use fixtures from tests/testdata/merge-ini-repo/",
+        "Tests verify duplicate handling behavior",
+        "cargo test --features integration-tests passes"
+      ]
+    },
+    {
+      "id": "markdown-merge-integration-tests",
+      "name": "Write Markdown merge integration tests",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "setup-integration-test-infrastructure",
+      "output_file": "tests/integration_merge_markdown.rs",
+      "scenarios": [
+        {
+          "name": "section_append_end",
+          "description": "Append content to end of Features section",
+          "source": "fragment-features.md",
+          "dest": "README.md"
+        },
+        {
+          "name": "section_append_start",
+          "description": "Insert content at start of Installation section",
+          "source": "fragment-prerequisites.md",
+          "dest": "README.md"
+        },
+        {
+          "name": "section_creation",
+          "description": "Create new Contributing section",
+          "source": "fragment-contributing.md",
+          "dest": "README.md"
+        },
+        {
+          "name": "position_before",
+          "description": "Insert Quick Start before Advanced Usage",
+          "source": "fragment-quickstart.md",
+          "dest": "GUIDE.md"
+        },
+        {
+          "name": "section_replace",
+          "description": "Replace License section content",
+          "source": "fragment-license-updated.md",
+          "dest": "README.md"
+        }
+      ],
+      "acceptance_criteria": [
+        "All 5 Markdown merge scenarios have passing tests",
+        "Tests use fixtures from tests/testdata/merge-markdown-repo/",
+        "Tests verify section positioning and creation",
+        "cargo test --features integration-tests passes"
+      ]
+    },
+    {
+      "id": "verify-test-coverage",
+      "name": "Verify test coverage targets are met",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": [
+        "yaml-merge-integration-tests",
+        "json-merge-integration-tests",
+        "toml-merge-integration-tests",
+        "ini-merge-integration-tests",
+        "markdown-merge-integration-tests"
+      ],
+      "output_file": null,
+      "steps": [
+        "Run cargo tarpaulin on merge modules",
+        "Verify coverage >= 90% for src/merge/ module",
+        "Identify any untested code paths",
+        "Add additional unit tests if coverage is below target"
+      ],
+      "acceptance_criteria": [
+        "Test coverage >= 90% for merge modules",
+        "All merge operators have integration tests",
+        "No critical code paths left untested"
+      ]
+    },
+    {
+      "id": "archive-testing-guide",
+      "name": "Archive the markdown testing guide",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "verify-test-coverage",
+      "output_file": null,
+      "steps": [
+        "Move context/merge-operator-testing-guide.md to context/completed/",
+        "Update any references to the guide if needed"
+      ],
+      "acceptance_criteria": [
+        "Guide archived to completed directory",
+        "This JSON plan remains active until all tasks complete"
+      ]
+    }
+  ],
+  "notes": [
+    "Priority 2 tasks (format-specific tests) can run in parallel after infrastructure setup",
+    "Integration tests require network access to clone fixture repos (or use local testdata)",
+    "Tests should use the #[cfg(feature = \"integration-tests\")] gate",
+    "Current release is v0.15.0 - use this for fixture refs if testing against remote"
+  ]
+}
