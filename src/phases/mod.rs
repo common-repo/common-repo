@@ -210,7 +210,6 @@ impl OperationOrder {
 /// representation of what the output directory should look like.
 pub mod phase5 {
     use super::*;
-    use crate::config::MarkdownMergeOp;
     use crate::filesystem::File;
     use std::path::Path;
 
@@ -373,44 +372,6 @@ pub mod phase5 {
         Ok(())
     }
 
-    pub(crate) fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
-        match fs.get_file(path) {
-            Some(file) => String::from_utf8(file.content.clone()).map_err(|_| Error::Merge {
-                operation: format!("read {}", path),
-                message: "File content is not valid UTF-8".to_string(),
-            }),
-            None => Err(Error::Merge {
-                operation: format!("read {}", path),
-                message: "File not found in filesystem".to_string(),
-            }),
-        }
-    }
-
-    fn read_file_as_string_optional(fs: &MemoryFS, path: &str) -> Result<Option<String>> {
-        if let Some(file) = fs.get_file(path) {
-            Ok(Some(String::from_utf8(file.content.clone()).map_err(
-                |_| Error::Merge {
-                    operation: format!("read {}", path),
-                    message: "File content is not valid UTF-8".to_string(),
-                },
-            )?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn ensure_trailing_newline(mut content: String) -> String {
-        if !content.ends_with('\n') {
-            content.push('\n');
-        }
-        content
-    }
-
-    fn write_string_to_file(fs: &mut MemoryFS, path: &str, content: String) -> Result<()> {
-        let normalized = ensure_trailing_newline(content);
-        fs.add_file(path, File::from_string(&normalized))
-    }
-
     // TODO: Remove after parse_path_tests are moved to merge module (task: extract-shared-type-tests)
     #[derive(Clone, Debug)]
     #[allow(dead_code)]
@@ -507,128 +468,6 @@ pub mod phase5 {
         segments
     }
 
-    fn split_lines_preserve(content: &str) -> Vec<String> {
-        let mut lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
-        if content.ends_with('\n') {
-            lines.push(String::new());
-        }
-        lines
-    }
-
-    fn heading_for(level: u8, section: &str) -> String {
-        let level = level.clamp(1, 6);
-        format!("{} {}", "#".repeat(level as usize), section.trim())
-    }
-
-    fn find_section_bounds(lines: &[String], level: u8, section: &str) -> Option<(usize, usize)> {
-        let heading = heading_for(level, section);
-        let mut start_index = None;
-
-        for (idx, line) in lines.iter().enumerate() {
-            if line.trim() == heading {
-                start_index = Some(idx);
-                break;
-            }
-        }
-
-        let start = start_index?;
-        let mut end = lines.len();
-
-        for (idx, line) in lines.iter().enumerate().skip(start + 1) {
-            let trimmed = line.trim_start();
-            if trimmed.starts_with('#') {
-                let next_level = trimmed.chars().take_while(|c| *c == '#').count() as u8;
-                if next_level <= level {
-                    end = idx;
-                    break;
-                }
-            }
-        }
-
-        Some((start, end))
-    }
-
-    fn normalize_position(position: &str) -> &str {
-        match position.to_lowercase().as_str() {
-            "start" => "start",
-            _ => "end",
-        }
-    }
-
-    pub fn apply_markdown_merge_operation(fs: &mut MemoryFS, op: &MarkdownMergeOp) -> Result<()> {
-        let source_content = read_file_as_string(fs, &op.source)?;
-        let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
-
-        let mut dest_lines = split_lines_preserve(&dest_content);
-        let source_lines = split_lines_preserve(&source_content);
-        let position = normalize_position(&op.position);
-
-        if let Some((start, end)) = find_section_bounds(&dest_lines, op.level, &op.section) {
-            let insert_index = if op.append { end } else { start + 1 };
-
-            if op.append {
-                let mut payload = source_lines.clone();
-                if payload.is_empty()
-                    || !payload.last().map(|line| line.is_empty()).unwrap_or(false)
-                {
-                    payload.push(String::new());
-                }
-                if insert_index > start + 1 && !dest_lines[insert_index - 1].trim().is_empty() {
-                    payload.insert(0, String::new());
-                }
-                dest_lines.splice(insert_index..insert_index, payload);
-            } else {
-                let mut payload = source_lines.clone();
-                if payload.is_empty()
-                    || !payload.last().map(|line| line.is_empty()).unwrap_or(false)
-                {
-                    payload.push(String::new());
-                }
-                dest_lines.splice(start + 1..end, payload);
-            }
-        } else {
-            if !op.create_section {
-                return Err(Error::Merge {
-                    operation: "markdown merge".to_string(),
-                    message: format!(
-                        "Section '{}' not found and create-section is false",
-                        op.section
-                    ),
-                });
-            }
-
-            let mut block = Vec::new();
-            block.push(heading_for(op.level, &op.section));
-            block.push(String::new());
-            block.extend(source_lines.clone());
-            if block.is_empty() || !block.last().map(|line| line.is_empty()).unwrap_or(false) {
-                block.push(String::new());
-            }
-
-            match position {
-                "start" => {
-                    while !dest_lines.is_empty() && dest_lines[0].trim().is_empty() {
-                        dest_lines.remove(0);
-                    }
-                    dest_lines.splice(0..0, block);
-                }
-                _ => {
-                    if !dest_lines.is_empty() && !dest_lines.last().unwrap().trim().is_empty() {
-                        dest_lines.push(String::new());
-                    }
-                    dest_lines.extend(block);
-                }
-            }
-        }
-
-        let mut serialized = dest_lines.join("\n");
-        if !serialized.ends_with('\n') {
-            serialized.push('\n');
-        }
-
-        write_string_to_file(fs, &op.dest, serialized)
-    }
-
     /// Apply local operations from the configuration
     ///
     /// These are operations that apply to the final merged filesystem,
@@ -665,7 +504,7 @@ pub mod phase5 {
                     crate::merge::ini::apply_ini_merge_operation(final_fs, ini)?;
                 }
                 Operation::Markdown { markdown } => {
-                    apply_markdown_merge_operation(final_fs, markdown)?;
+                    crate::merge::markdown::apply_markdown_merge_operation(final_fs, markdown)?;
                 }
                 // This should never happen due to filtering above
                 _ => unreachable!("Filtered operations should only include merge operations"),
@@ -737,9 +576,9 @@ mod phase_tests {
 
     mod phase5_tests {
         use super::*;
+        use crate::merge::markdown::apply_markdown_merge_operation;
         use crate::merge::toml::{apply_toml_merge_operation, parse_toml_path};
         use crate::merge::PathSegment;
-        use crate::phases::phase5::apply_markdown_merge_operation;
 
         // Note: MockGitOps and MockCacheOps are defined but not used in phase5 tests
         // They're kept for potential future use

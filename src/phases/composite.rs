@@ -114,7 +114,7 @@ fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<(
         Operation::Toml { toml } => crate::merge::toml::apply_toml_merge_operation(fs, toml),
         Operation::Ini { ini } => crate::merge::ini::apply_ini_merge_operation(fs, ini),
         Operation::Markdown { markdown } => {
-            super::phase5::apply_markdown_merge_operation(fs, markdown)
+            crate::merge::markdown::apply_markdown_merge_operation(fs, markdown)
         }
         _ => {
             // Non-merge operations should not be passed to this function

@@ -1,5 +1,5 @@
 {
-  "task": "extract-markdown-merge",
+  "task": "extract-phase5-local-merge",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract Markdown merge operations from phase5 to merge/markdown.rs. Move apply_markdown_merge_operation and related functions including split_lines_preserve, heading_for, find_section_bounds, normalize_position."
+  "instructions": "Extract phase5 core (Local Merging) to local_merge.rs. Move phase5 module core, update to import merge operations from crate::merge, keep execute, load_local_fs, merge_local_files, apply_local_operations, etc."
 }
