@@ -10,7 +10,8 @@ This is a Rust project with automated tooling for code quality, conventional com
 
 The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans:
 
-- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
+- `context/feature-status.json` - Structured JSON tracking of all feature implementation status
+- `context/current-task.json` - Points to active task and its plan file
 - `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
 - `context/cli-*.md` - CLI design, implementation plans, and testing strategies
 - `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
@@ -155,7 +156,7 @@ cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
    - **Format code**: `cargo fmt`
    - **Run linting**: `cargo clippy --all-targets --all-features -- -D warnings`
    - **Run tests**: `./script/test`
-3. **Update documentation**: If you've completed a feature, update `context/implementation-progress.md`
+3. **Update feature-status.json**: If you've completed a feature, update `context/feature-status.json`
 4. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
 
 **Quick verification before push**:

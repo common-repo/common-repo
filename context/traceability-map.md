@@ -76,4 +76,4 @@ This document provides a consolidated reference mapping each component to its co
 
 - All plan references are relative to `context/implementation-plan.md`
 - All design references are relative to `docs/design.md`
-- This map consolidates traceability sections previously scattered throughout `context/implementation-progress.md`
+- Feature implementation status is tracked in `context/feature-status.json`

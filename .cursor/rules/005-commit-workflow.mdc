@@ -18,7 +18,7 @@ alwaysApply: true
    - **Format code**: Run `cargo fmt` to ensure consistent code formatting
    - **Run linting**: Run `cargo clippy --all-targets --all-features -- -D warnings` to catch warnings
    - **Run tests**: Run `./script/test` or `cargo test` to ensure all tests pass
-3. **Update documentation**: If you've completed a feature, update `context/implementation-progress.md`
+3. **Update feature-status.json**: If you've completed a feature, update `context/feature-status.json`
 4. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
 5. **Check branch name**: For agent branches, ensure name follows convention (e.g., `claude/feature-*`, `devin/{timestamp}-*`)
 

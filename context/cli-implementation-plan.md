@@ -563,15 +563,12 @@ tempfile = "3.0"    # Already present
 
 ## Implementation Status
 
-**Note**: This plan was created during initial CLI development. Most commands are now implemented.
+**Note**: This plan was created during initial CLI development. All commands are now implemented.
 
 ### Completed Commands
-- apply, validate, init, cache (list/clean), tree, info, ls, check, update
-
-### Remaining Commands
-- diff (see context/next-priority.md for implementation plan)
+- apply, validate, init, cache (list/clean), tree, info, ls, check, update, diff
 
 ---
 
-**Last updated**: 2025-11-29
-**Current status**: CLI mostly complete, only `diff` command remaining
+**Last updated**: 2025-11-30
+**Current status**: All CLI commands complete

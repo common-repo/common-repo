@@ -9,17 +9,21 @@ alwaysApply: false
 
 The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans.
 
-## Permanent Context Files
+## Structured Tracking Files
 
-These files track implementation progress and plans. They are temporary and will be removed once the project reaches maturity:
+These JSON files track implementation progress and active tasks:
 
-- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
+- `context/feature-status.json` - Structured JSON tracking of all feature implementation status
   - **Update this file when completing features**
-  - Contains traceability links to implementation plans and design docs
+- `context/current-task.json` - Points to active task and its plan file
+
+## Reference Documentation
+
+These files provide detailed implementation plans and guidance:
+
 - `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
 - `context/cli-design.md` - CLI architecture and command structure
 - `context/cli-implementation-plan.md` - CLI implementation roadmap
-- `context/cli-stub-implementation.md` - CLI stub tracking
 - `context/cli-testing-strategy.md` - CLI testing approach and coverage
 - `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
 - `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
@@ -38,12 +42,13 @@ These files are manually invoked prompt files. They are temporary and should not
 - All context files are temporary and will be removed once the project reaches maturity
 - For human-readable documentation, see `docs/purpose.md` and `docs/design.md`
 - Use these files to understand project architecture, completed work, and future plans
-- When completing features, update `context/implementation-progress.md` with the completion status
+- When completing features, update `context/feature-status.json` with the completion status
 
 ## File Organization
 
 The context files are organized by concern:
-- **Implementation tracking**: `implementation-progress.md`, `implementation-plan.md`
+- **Structured tracking**: `feature-status.json`, `current-task.json`
+- **Implementation plans**: `implementation-plan.md`
 - **CLI development**: `cli-*.md` files
 - **Testing guidance**: `merge-operator-testing-guide.md`, `improving-test-coverage-plan.md`
 - **Temporary prompts**: `*prompt.md` files (manually invoked)

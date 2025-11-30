@@ -13,13 +13,16 @@ This is a Rust project with automated tooling for code quality, conventional com
 
 The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans.
 
-### Permanent Context Files
+### Structured Tracking Files
 
-- `context/implementation-progress.md` - Comprehensive tracking of completed features and implementation status
+- `context/feature-status.json` - Structured JSON tracking of all feature implementation status
+- `context/current-task.json` - Points to active task and its plan file
+
+### Reference Documentation
+
 - `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
 - `context/cli-design.md` - CLI architecture and command structure
 - `context/cli-implementation-plan.md` - CLI implementation roadmap
-- `context/cli-stub-implementation.md` - CLI stub tracking
 - `context/cli-testing-strategy.md` - CLI testing approach and coverage
 - `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
 - `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
@@ -30,10 +33,10 @@ The `context/` directory contains detailed implementation plans, progress tracki
 - `context/todo-prompt.md` - Manually invoked prompt file (temporary, will be removed)
 
 **Important Notes:**
-- Permanent context files are temporary and will be removed once the project reaches maturity
+- Context files are temporary and will be removed once the project reaches maturity
 - Temporary prompt files (`*prompt.md`) are manually invoked and should not be automatically included
 - For human-readable documentation, see `docs/purpose.md` and `docs/design.md`
-- Update `context/implementation-progress.md` when completing features
+- Update `context/feature-status.json` when completing features
 - Use these files to understand project architecture, completed work, and future plans
 
 ## Requirements
