@@ -1,39 +1,47 @@
-# Next Priority: `common-repo diff` Command
+# Next Priority: All Core CLI Commands Complete
 
 ## Summary
 
-Implement the `common-repo diff` command to preview changes without applying them. This is the last remaining CLI command from the implementation plan.
+All planned CLI commands have been implemented. The `common-repo diff` command was the last remaining feature and is now complete.
 
-## Rationale
+## Completed CLI Commands
 
-- All other CLI commands are complete: `apply`, `check`, `update`, `validate`, `init`, `cache`, `info`, `tree`, `ls`
-- The `diff` command enables safe preview workflows before running `apply`
-- Essential for CI/CD pipelines and cautious users who want to review changes first
+All 10 CLI commands are now implemented:
+- `apply` - Full 6-phase pipeline execution
+- `check` - Configuration validation and update checking
+- `update` - Repository ref updates
+- `validate` - Configuration file validation
+- `init` - Initialize new configurations
+- `cache` - Manage repository cache (list/clean)
+- `info` - Display configuration overview
+- `tree` - Display repository inheritance tree
+- `ls` - List files that would be created/modified
+- `diff` - Preview changes without applying (newly completed)
 
-## Acceptance Criteria
+## Future Enhancement Options
 
-1. Command exists and is accessible via `common-repo diff`
-2. Shows files that would be added, modified, or deleted
-3. Supports `--config` flag for custom config path
-4. Supports `--working-dir` flag for specifying comparison target
-5. Output is human-readable with clear indicators for change types
-6. Returns appropriate exit codes (0 for no changes, 1 for changes exist)
-7. Has comprehensive E2E test coverage in `tests/cli_e2e_diff.rs`
-8. All existing tests continue to pass
+Consider these optional improvements for future sessions:
 
-## Implementation References
+### 1. Performance Optimizations
+- Parallel repository cloning using `rayon` or `tokio`
+- Progress indicators during long operations
+- Incremental diff detection
 
-- Plan: [Layer 4 - CLI & Orchestration](implementation-plan.md#layer-4-cli--orchestration-depends-on-all-layers)
-- Design: [CLI Design](design.md#cli-design)
-- Similar command: `src/commands/ls.rs` (file listing with pattern filtering)
-- Similar command: `src/commands/check.rs` (configuration validation)
+### 2. Enhanced Diff Features
+- Colorized output for change indicators
+- Show actual content differences (line-by-line diff)
+- Track managed files with manifest for deletion detection
 
-## Suggested Approach
+### 3. Additional Testing
+- E2E tests for TOML/Markdown merge operators
+- More complex inheritance chain integration tests
+- Performance benchmarks
 
-1. Create `src/commands/diff.rs` following the pattern of existing commands
-2. Execute phases 1-4 to build the composite filesystem
-3. Compare composite filesystem against working directory
-4. Categorize changes: added, modified, deleted
-5. Format output with clear visual indicators
-6. Add command to `src/cli.rs` and `src/commands/mod.rs`
-7. Write E2E tests in `tests/cli_e2e_diff.rs`
+### 4. Documentation
+- User guide for all CLI commands
+- Configuration schema reference
+- Common use case examples
+
+## No Immediate Action Required
+
+The core implementation is complete. Future work should be driven by user feedback and real-world usage patterns.
