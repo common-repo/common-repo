@@ -17,8 +17,8 @@
 //! The `PathSegment` enum and path parsing functions are shared across formats
 //! to navigate nested data structures during merge operations.
 
-// Merge format modules (to be extracted from phase5)
-// pub mod yaml;
+// Merge format modules (extracted from phase5)
+pub mod yaml;
 // pub mod json;
 // pub mod toml;
 // pub mod ini;

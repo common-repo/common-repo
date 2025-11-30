@@ -154,7 +154,7 @@
     {
       "id": "extract-yaml-merge",
       "name": "Extract YAML merge operations to merge/yaml.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "create-merge-module",
       "output_file": "src/merge/yaml.rs",
