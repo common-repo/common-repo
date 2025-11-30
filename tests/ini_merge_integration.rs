@@ -2,7 +2,7 @@
 
 use common_repo::config::IniMergeOp;
 use common_repo::filesystem::MemoryFS;
-use common_repo::phases::phase5;
+use common_repo::merge::ini::apply_ini_merge_operation;
 
 #[test]
 fn test_ini_merge_basic_root_level() {
@@ -28,7 +28,7 @@ fn test_ini_merge_basic_root_level() {
         allow_duplicates: false,
     };
 
-    phase5::apply_ini_merge_operation(&mut fs, &op).unwrap();
+    apply_ini_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("destination-basic.ini").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -68,7 +68,7 @@ fn test_ini_merge_specific_section() {
         allow_duplicates: false,
     };
 
-    phase5::apply_ini_merge_operation(&mut fs, &op).unwrap();
+    apply_ini_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("config.ini").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -110,7 +110,7 @@ fn test_ini_merge_append_with_duplicates() {
         allow_duplicates: true,
     };
 
-    phase5::apply_ini_merge_operation(&mut fs, &op).unwrap();
+    apply_ini_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("app.ini").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -150,7 +150,7 @@ fn test_ini_merge_append_without_duplicates() {
         allow_duplicates: false,
     };
 
-    phase5::apply_ini_merge_operation(&mut fs, &op).unwrap();
+    apply_ini_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("server.ini").unwrap();
     let content = String::from_utf8_lossy(&result.content);
