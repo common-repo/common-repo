@@ -316,7 +316,7 @@
     {
       "id": "extract-phase3-tests",
       "name": "Move phase3 tests to ordering.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "extract-phase3-ordering",
       "output_file": "src/phases/ordering.rs",
