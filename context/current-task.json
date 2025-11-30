@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase1-discovery",
-  "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract phase1 (Discovery & Cloning) from phases/mod.rs to phases/discovery.rs. Move the phase1 module contents (~305 lines) and update imports. The public API paths phases::phase1::discover_repos and phases::phase1::execute must remain accessible."
+  "task": "simplify-claude-md-prek-docs",
+  "plan": null,
+  "instructions": "Remove detailed prek installation steps from CLAUDE.md - installation details should be in the scripts, CLAUDE.md should just reference using ./script/setup or ./script/bootstrap"
 }

@@ -163,8 +163,8 @@ This keeps the `context/` directory clean and provides a historical record of co
   - The toolchain file will automatically ensure you have the correct version
 - **cargo-nextest**: Required for running tests (see setup instructions below)
 - **prek**: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
-  - Uses binary installer for fast installation (no compilation needed)
   - Alternative: **pre-commit** (Python-based, works as fallback)
+  - Installed automatically by `./script/setup`
 
 ## Quick Setup
 
@@ -559,24 +559,7 @@ Pre-commit hooks are configured in `.pre-commit-config.yaml` and will automatica
 - Conventional commit validation
 - Trailing whitespace and YAML checks
 
-If pre-commit hooks are not installed, install them with:
-
-**Recommended (Rust-based, faster):**
-```bash
-# Install using binary installer (fast, no compilation)
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.2.19/prek-installer.sh | sh
-prek install
-prek install --hook-type commit-msg
-```
-
-**Alternative (Python-based):**
-```bash
-pip install pre-commit
-pre-commit install
-pre-commit install --hook-type commit-msg
-```
-
-**Note**: The `./script/setup` command automatically installs and configures prek if available.
+If pre-commit hooks are not installed, run `./script/setup` to install and configure them automatically.
 
 ## CI/CD Architecture
 
@@ -600,7 +583,7 @@ pre-commit install --hook-type commit-msg
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
-- **Prek installation**: The bootstrap script uses the binary installer for fast installation (no compilation). Manual install: `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.2.19/prek-installer.sh | sh`
+- **Prek installation**: Run `./script/setup` or `./script/bootstrap` to install prek automatically.
 - Binary name is `common-repo` (matches the package name in Cargo.toml).
 - When reviewing changes, always look for flimsy or axiomatic tests that don't really test anything.
 - When reviewing changes, always check for TODOs or other stubbed implementation items.
