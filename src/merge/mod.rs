@@ -19,8 +19,8 @@
 
 // Merge format modules (extracted from phase5)
 pub mod json;
+pub mod toml;
 pub mod yaml;
-// pub mod toml;
 // pub mod ini;
 // pub mod markdown;
 

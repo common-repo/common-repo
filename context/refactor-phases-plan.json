@@ -194,7 +194,7 @@
     {
       "id": "extract-toml-merge",
       "name": "Extract TOML merge operations to merge/toml.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "create-merge-module",
       "output_file": "src/merge/toml.rs",
