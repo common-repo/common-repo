@@ -1,4 +1,6 @@
-{
-  "name": "pre-task",
-  "command": "echo 'Starting task'"
-}
+[
+  {
+    "name": "pre-task",
+    "command": "echo 'Starting task'"
+  }
+]

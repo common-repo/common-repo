@@ -101,26 +101,41 @@ pub fn navigate_json_value<'a>(
 ///
 /// Handles different JSON types appropriately:
 /// - Objects: Recursively merge keys, with source values taking precedence for conflicts
-/// - Arrays: Either append source items to target or replace entirely based on `append` flag
+/// - Arrays: Either append/prepend source items to target or replace entirely based on flags
 /// - Scalars: Replace target with source
 ///
 /// # Arguments
 ///
 /// * `target` - The target value to merge into (modified in place)
 /// * `source` - The source value to merge from
-/// * `append` - If true, append array items; if false, replace arrays entirely
-pub fn merge_json_values(target: &mut JsonValue, source: &JsonValue, append: bool) {
+/// * `append` - If true, append/prepend array items; if false, replace arrays entirely
+/// * `position` - Position for array insertion: "start" prepends, anything else appends
+pub fn merge_json_values(
+    target: &mut JsonValue,
+    source: &JsonValue,
+    append: bool,
+    position: Option<&str>,
+) {
+    let prepend = position.map(|p| p == "start").unwrap_or(false);
+
     match target {
         JsonValue::Object(target_map) => {
             if let JsonValue::Object(source_map) = source {
                 for (key, value) in source_map {
                     if let Some(existing) = target_map.get_mut(key) {
                         if existing.is_object() && value.is_object() {
-                            merge_json_values(existing, value, append);
+                            merge_json_values(existing, value, append, position);
                         } else if let Some(source_array) = value.as_array() {
                             if let Some(target_array) = existing.as_array_mut() {
                                 if append {
-                                    target_array.extend(source_array.iter().cloned());
+                                    if prepend {
+                                        // Insert source items at the beginning
+                                        let mut new_array = source_array.clone();
+                                        new_array.append(target_array);
+                                        *target_array = new_array;
+                                    } else {
+                                        target_array.extend(source_array.iter().cloned());
+                                    }
                                 } else {
                                     *existing = JsonValue::Array(source_array.clone());
                                 }
@@ -141,7 +156,14 @@ pub fn merge_json_values(target: &mut JsonValue, source: &JsonValue, append: boo
         JsonValue::Array(target_array) => {
             if let JsonValue::Array(source_array) = source {
                 if append {
-                    target_array.extend(source_array.clone());
+                    if prepend {
+                        // Insert source items at the beginning
+                        let mut new_array = source_array.clone();
+                        new_array.append(target_array);
+                        *target_array = new_array;
+                    } else {
+                        target_array.extend(source_array.clone());
+                    }
                 } else {
                     *target = JsonValue::Array(source_array.clone());
                 }
@@ -187,9 +209,9 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
             message: format!("Failed to parse source JSON: {}", err),
         })?;
 
-    let path = super::parse_path(&op.path);
+    let path = super::parse_path(op.path.as_deref().unwrap_or(""));
     let target = navigate_json_value(&mut dest_value, &path)?;
-    merge_json_values(target, &source_value, op.append);
+    merge_json_values(target, &source_value, op.append, op.position.as_deref());
 
     let serialized = serde_json::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
         operation: "json merge".to_string(),
@@ -301,9 +323,9 @@ mod tests {
             let op = JsonMergeOp {
                 source: "source.json".to_string(),
                 dest: "dest.json".to_string(),
-                path: "".to_string(),
+                path: None,
                 append: false,
-                position: "end".to_string(),
+                position: None,
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -342,9 +364,9 @@ mod tests {
             let op = JsonMergeOp {
                 source: "source.json".to_string(),
                 dest: "dest.json".to_string(),
-                path: "database.connection".to_string(),
+                path: Some("database.connection".to_string()),
                 append: false,
-                position: "end".to_string(),
+                position: None,
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -373,9 +395,9 @@ mod tests {
             let op = JsonMergeOp {
                 source: "source.json".to_string(),
                 dest: "new_dest.json".to_string(),
-                path: "".to_string(),
+                path: None,
                 append: false,
-                position: "end".to_string(),
+                position: None,
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -396,9 +418,9 @@ mod tests {
             let op = JsonMergeOp {
                 source: "source.json".to_string(),
                 dest: "dest.json".to_string(),
-                path: "".to_string(),
+                path: None,
                 append: true,
-                position: "end".to_string(),
+                position: None,
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -423,9 +445,9 @@ mod tests {
             let op = JsonMergeOp {
                 source: "source.json".to_string(),
                 dest: "dest.json".to_string(),
-                path: "".to_string(),
+                path: None,
                 append: false,
-                position: "end".to_string(),
+                position: None,
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -453,9 +475,9 @@ mod tests {
             let op = JsonMergeOp {
                 source: "source.json".to_string(),
                 dest: "dest.json".to_string(),
-                path: "".to_string(),
+                path: None,
                 append: false,
-                position: "end".to_string(),
+                position: None,
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();

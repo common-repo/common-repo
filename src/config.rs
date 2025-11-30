@@ -172,14 +172,15 @@ pub struct JsonMergeOp {
     pub source: String,
     /// Destination file to merge into
     pub dest: String,
-    /// Path within the destination to merge at
-    pub path: String,
+    /// Path within the destination to merge at (optional - merges at root if omitted)
+    #[serde(default)]
+    pub path: Option<String>,
     /// Whether to append (true) or replace (false)
     #[serde(default)]
     pub append: bool,
     /// Position for appending ("end" or "start")
     #[serde(default)]
-    pub position: String,
+    pub position: Option<String>,
 }
 
 /// TOML merge operator configuration
@@ -960,9 +961,9 @@ mod tests {
             Operation::Json { json } => {
                 assert_eq!(json.source, "fragment.json");
                 assert_eq!(json.dest, "package.json");
-                assert_eq!(json.path, "dependencies");
+                assert_eq!(json.path, Some("dependencies".to_string()));
                 assert!(json.append);
-                assert_eq!(json.position, "end".to_string());
+                assert_eq!(json.position, Some("end".to_string()));
             }
             _ => panic!("Expected Json operation"),
         }

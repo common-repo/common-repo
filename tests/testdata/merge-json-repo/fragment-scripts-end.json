@@ -1,4 +1,6 @@
-{
-  "name": "post-task",
-  "command": "echo 'Task completed'"
-}
+[
+  {
+    "name": "post-task",
+    "command": "echo 'Task completed'"
+  }
+]
