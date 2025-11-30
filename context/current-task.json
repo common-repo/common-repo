@@ -1,5 +1,5 @@
 {
-  "task": "remove-duplicate-ci-build",
-  "plan": null,
-  "instructions": "Remove the build job from CI - it's slow and duplicates the build done in the test job. The test job already compiles the code as part of running tests, making the separate build job redundant."
+  "task": "extract-phase4-composite",
+  "plan": "context/refactor-phases-plan.json",
+  "instructions": "Extract phase4 (Composite FS) from phases/mod.rs to phases/composite.rs. Move the phase4 module contents (~120 lines) and update imports. The public API path phases::phase4::execute must remain accessible."
 }
