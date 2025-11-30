@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+#
+# Install cargo-binstall from GitHub releases
+#
+# Downloads the latest release of cargo-binstall prebuilt binary
+# and installs it to ~/.cargo/bin (or specified directory)
+#
+# Usage: ./install-cargo-binstall [install-dir]
+#
+# Requirements: curl, jq, tar (for Linux), unzip (for macOS/Windows)
+
+set -euo pipefail
+
+REPO="cargo-bins/cargo-binstall"
+INSTALL_DIR="${1:-$HOME/.cargo/bin}"
+TMPDIR=""
+
+cleanup() {
+    if [[ -n "$TMPDIR" && -d "$TMPDIR" ]]; then
+        rm -rf "$TMPDIR"
+    fi
+}
+trap cleanup EXIT
+
+# Detect platform
+detect_platform() {
+    local os arch
+
+    case "$(uname -s)" in
+        Linux*)  os="unknown-linux" ;;
+        Darwin*) os="apple-darwin" ;;
+        MINGW*|MSYS*|CYGWIN*) os="pc-windows-msvc" ;;
+        *)
+            echo "Error: Unsupported operating system: $(uname -s)" >&2
+            exit 1
+            ;;
+    esac
+
+    case "$(uname -m)" in
+        x86_64|amd64) arch="x86_64" ;;
+        aarch64|arm64) arch="aarch64" ;;
+        armv7l) arch="armv7" ;;
+        *)
+            echo "Error: Unsupported architecture: $(uname -m)" >&2
+            exit 1
+            ;;
+    esac
+
+    # For Linux, prefer gnu over musl, but could add detection
+    if [[ "$os" == "unknown-linux" ]]; then
+        # Check if we're on musl-based system
+        if ldd --version 2>&1 | grep -q musl; then
+            os="unknown-linux-musl"
+        else
+            os="unknown-linux-gnu"
+        fi
+    fi
+
+    echo "${arch}-${os}"
+}
+
+# Get the download URL for the latest release
+get_download_url() {
+    local platform="$1"
+    local api_url="https://api.github.com/repos/${REPO}/releases/latest"
+    local extension
+
+    # Determine file extension based on platform
+    case "$platform" in
+        *linux*) extension="tgz" ;;
+        *darwin*) extension="zip" ;;
+        *windows*) extension="zip" ;;
+    esac
+
+    # Use the non-full version (smaller download)
+    local asset_name="cargo-binstall-${platform}.${extension}"
+
+    curl -fsSL "$api_url" | jq -r --arg name "$asset_name" \
+        '.assets[] | select(.name == $name) | .browser_download_url'
+}
+
+# Download and extract the binary
+download_and_install() {
+    local url="$1"
+    local platform="$2"
+
+    TMPDIR=$(mktemp -d)
+
+    echo "Downloading from: $url"
+    local filename
+    filename=$(basename "$url")
+
+    curl -fsSL -o "${TMPDIR}/${filename}" "$url"
+
+    echo "Extracting..."
+    case "$filename" in
+        *.tgz|*.tar.gz)
+            tar -xzf "${TMPDIR}/${filename}" -C "$TMPDIR"
+            ;;
+        *.zip)
+            unzip -q "${TMPDIR}/${filename}" -d "$TMPDIR"
+            ;;
+    esac
+
+    # Ensure install directory exists
+    mkdir -p "$INSTALL_DIR"
+
+    # Find and install the binary
+    local binary="cargo-binstall"
+    if [[ "$platform" == *windows* ]]; then
+        binary="cargo-binstall.exe"
+    fi
+
+    if [[ -f "${TMPDIR}/${binary}" ]]; then
+        mv "${TMPDIR}/${binary}" "${INSTALL_DIR}/${binary}"
+        chmod +x "${INSTALL_DIR}/${binary}"
+        echo "Installed ${binary} to ${INSTALL_DIR}"
+    else
+        echo "Error: Could not find ${binary} in archive" >&2
+        ls -la "$TMPDIR" >&2
+        exit 1
+    fi
+}
+
+main() {
+    # Check dependencies
+    for cmd in curl jq; do
+        if ! command -v "$cmd" &> /dev/null; then
+            echo "Error: Required command '$cmd' not found" >&2
+            exit 1
+        fi
+    done
+
+    echo "Detecting platform..."
+    local platform
+    platform=$(detect_platform)
+    echo "Platform: $platform"
+
+    echo "Fetching latest release info..."
+    local download_url
+    download_url=$(get_download_url "$platform")
+
+    if [[ -z "$download_url" ]]; then
+        echo "Error: Could not find download URL for platform: $platform" >&2
+        exit 1
+    fi
+
+    download_and_install "$download_url" "$platform"
+
+    # Verify installation
+    if [[ -x "${INSTALL_DIR}/cargo-binstall" ]]; then
+        echo ""
+        echo "Successfully installed cargo-binstall!"
+        echo "Version: $("${INSTALL_DIR}/cargo-binstall" -V)"
+        echo ""
+        echo "Make sure ${INSTALL_DIR} is in your PATH"
+    fi
+}
+
+main "$@"
