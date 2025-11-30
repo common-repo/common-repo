@@ -436,7 +436,7 @@ cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
    - **Format code**: Run `cargo fmt` to ensure consistent code formatting
    - **Run linting**: Run `cargo clippy --all-targets --all-features -- -D warnings` to catch warnings
    - **Run tests**: Run `./script/test` or `cargo test` to ensure all tests pass
-3. **Update documentation**: If you've completed a feature, update `context/implementation-progress.md`
+3. **Update feature-status.json**: If you've completed a feature, update `context/feature-status.json`
 4. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
 5. **Check branch name**: For claude/agent branches, ensure name ends with session ID (e.g., `claude/feature-018evyqR5BZFzuZW5AuM9XRR`)
 
@@ -484,7 +484,6 @@ Before marking a feature as complete, verify all criteria are met:
    - Include the date of completion
 
 5. **Documentation updated**
-   - Update `context/implementation-progress.md` with completion summary
    - Add any new commands or features to relevant documentation
 
 Reference: This checklist is based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) which emphasizes that agents often mark tasks complete prematurely.

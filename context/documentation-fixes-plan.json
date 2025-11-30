@@ -15,8 +15,7 @@
       "blocked_by": null,
       "output_files": [
         "CLAUDE.md",
-        "README.md",
-        "context/implementation-progress.md"
+        "README.md"
       ],
       "notes": "Changed from hardcoded counts to generic descriptions to prevent staleness"
     },
@@ -94,14 +93,6 @@
       "blocked_by": null,
       "output_files": ["context/traceability-map.md"],
       "notes": "Fixed anchor link for version detection section"
-    },
-    {
-      "id": "update-implementation-progress-date",
-      "name": "Update implementation-progress.md with current date",
-      "status": "complete",
-      "priority": 10,
-      "blocked_by": null,
-      "output_files": ["context/implementation-progress.md"]
     },
     {
       "id": "update-improving-coverage-plan",
