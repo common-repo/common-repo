@@ -1,5 +1,5 @@
 {
-  "task": "phases-discovery-errors",
-  "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Work on improving test coverage for phases.rs. Start with the first pending task: 'phases-discovery-errors' - Add tests for Phase 1 (Discovery & Cloning) error handling. See the plan file for detailed steps and acceptance criteria."
+  "task": "create-phases-directory",
+  "plan": "context/refactor-phases-plan.json",
+  "instructions": "Refactor phases.rs into a directory module structure. Start with 'create-phases-directory' to set up the foundation. See the plan file for detailed steps, dependencies, and acceptance criteria. The public API must be preserved throughout."
 }
