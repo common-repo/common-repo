@@ -1,5 +1,5 @@
 {
-  "task": "final-verification",
-  "plan": "context/refactor-phases-plan.json",
-  "instructions": "Final verification and cleanup. Run cargo fmt, clippy, tests, and cargo doc. Verify no dead code warnings, remove any temporary compatibility shims, update CLAUDE.md if needed."
+  "task": null,
+  "plan": null,
+  "instructions": "No active task. The phases.rs refactor is complete."
 }
