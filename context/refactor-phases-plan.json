@@ -1,0 +1,388 @@
+{
+  "plan_name": "Refactor phases.rs into Directory Module",
+  "last_updated": "2025-11-30",
+  "goal": "Break up the 5169-line phases.rs into maintainable modules while preserving the public API",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test to verify baseline before changes",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "public_api_contract": {
+    "description": "These paths must continue to work after refactoring",
+    "exports": [
+      "phases::orchestrator",
+      "phases::orchestrator::execute_pull",
+      "phases::phase1",
+      "phases::phase1::discover_repos",
+      "phases::phase1::execute",
+      "phases::RepoNode",
+      "phases::RepoTree",
+      "phases::IntermediateFS",
+      "phases::OperationOrder",
+      "phases::phase2",
+      "phases::phase3",
+      "phases::phase4",
+      "phases::phase5",
+      "phases::phase6"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "create-phases-directory",
+      "name": "Create phases directory structure and mod.rs with shared types",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "src/phases/mod.rs",
+      "steps": [
+        "Create src/phases/ directory",
+        "Create src/phases/mod.rs with shared types (RepoNode, RepoTree, IntermediateFS, OperationOrder)",
+        "Add module declarations for all submodules (discovery, processing, ordering, composite, local_merge, write, orchestrator)",
+        "Add pub use re-exports to preserve existing API paths",
+        "Delete src/phases.rs (content now in directory)",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/ directory exists",
+        "src/phases/mod.rs contains shared types",
+        "cargo check passes",
+        "Public API paths still resolve (may have stub modules)"
+      ]
+    },
+    {
+      "id": "extract-phase1-discovery",
+      "name": "Extract phase1 (Discovery & Cloning) to discovery.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-phases-directory",
+      "output_file": "src/phases/discovery.rs",
+      "steps": [
+        "Create src/phases/discovery.rs",
+        "Move phase1 module contents (~305 lines) to discovery.rs",
+        "Update imports to reference shared types from super",
+        "Ensure pub mod phase1 re-export in mod.rs points to discovery",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/discovery.rs exists with phase1 contents",
+        "phases::phase1::discover_repos still accessible",
+        "phases::phase1::execute still accessible",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-phase2-processing",
+      "name": "Extract phase2 (Processing) to processing.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-phases-directory",
+      "output_file": "src/phases/processing.rs",
+      "steps": [
+        "Create src/phases/processing.rs",
+        "Move phase2 module contents (~948 lines) to processing.rs",
+        "Update imports to reference shared types from super",
+        "Ensure pub mod phase2 re-export in mod.rs",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/processing.rs exists with phase2 contents",
+        "phases::phase2::execute still accessible",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-phase3-ordering",
+      "name": "Extract phase3 (Operation Order) to ordering.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-phases-directory",
+      "output_file": "src/phases/ordering.rs",
+      "steps": [
+        "Create src/phases/ordering.rs",
+        "Move phase3 module contents (~79 lines) to ordering.rs",
+        "Update imports to reference shared types from super",
+        "Ensure pub mod phase3 re-export in mod.rs",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/ordering.rs exists with phase3 contents",
+        "phases::phase3::execute still accessible",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-phase4-composite",
+      "name": "Extract phase4 (Composite FS) to composite.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-phases-directory",
+      "output_file": "src/phases/composite.rs",
+      "steps": [
+        "Create src/phases/composite.rs",
+        "Move phase4 module contents (~120 lines) to composite.rs",
+        "Update imports to reference shared types from super",
+        "Ensure pub mod phase4 re-export in mod.rs",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/composite.rs exists with phase4 contents",
+        "phases::phase4::execute still accessible",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "create-merge-module",
+      "name": "Create merge module structure",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "output_file": "src/merge/mod.rs",
+      "steps": [
+        "Create src/merge/ directory",
+        "Create src/merge/mod.rs with module declarations",
+        "Add common helper functions used across merge types (parse_path, PathSegment, etc.)",
+        "Add pub mod merge to lib.rs",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/merge/ directory exists",
+        "src/merge/mod.rs exists with common types",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-yaml-merge",
+      "name": "Extract YAML merge operations to merge/yaml.rs",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "create-merge-module",
+      "output_file": "src/merge/yaml.rs",
+      "steps": [
+        "Create src/merge/yaml.rs",
+        "Move apply_yaml_merge_operation and related functions from phase5",
+        "Move merge_yaml_values, get_yaml_type_name, navigate_yaml_value",
+        "Update imports in mod.rs to re-export public functions",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/merge/yaml.rs exists with YAML merge logic",
+        "apply_yaml_merge_operation accessible via merge module",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-json-merge",
+      "name": "Extract JSON merge operations to merge/json.rs",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "create-merge-module",
+      "output_file": "src/merge/json.rs",
+      "steps": [
+        "Create src/merge/json.rs",
+        "Move apply_json_merge_operation and related functions from phase5",
+        "Move merge_json_values, navigate_json_value",
+        "Update imports in mod.rs to re-export public functions",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/merge/json.rs exists with JSON merge logic",
+        "apply_json_merge_operation accessible via merge module",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-toml-merge",
+      "name": "Extract TOML merge operations to merge/toml.rs",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "create-merge-module",
+      "output_file": "src/merge/toml.rs",
+      "steps": [
+        "Create src/merge/toml.rs",
+        "Move apply_toml_merge_operation and related functions from phase5",
+        "Move merge_toml_values, navigate_toml_value, get_toml_type_name",
+        "Update imports in mod.rs to re-export public functions",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/merge/toml.rs exists with TOML merge logic",
+        "apply_toml_merge_operation accessible via merge module",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-ini-merge",
+      "name": "Extract INI merge operations to merge/ini.rs",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "create-merge-module",
+      "output_file": "src/merge/ini.rs",
+      "steps": [
+        "Create src/merge/ini.rs",
+        "Move apply_ini_merge_operation and related functions from phase5",
+        "Move IniSection struct, parse_ini, serialize_ini, find_ini_section functions",
+        "Update imports in mod.rs to re-export public functions",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/merge/ini.rs exists with INI merge logic",
+        "apply_ini_merge_operation accessible via merge module",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-markdown-merge",
+      "name": "Extract Markdown merge operations to merge/markdown.rs",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "create-merge-module",
+      "output_file": "src/merge/markdown.rs",
+      "steps": [
+        "Create src/merge/markdown.rs",
+        "Move apply_markdown_merge_operation and related functions from phase5",
+        "Move split_lines_preserve, heading_for, find_section_bounds, normalize_position",
+        "Update imports in mod.rs to re-export public functions",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/merge/markdown.rs exists with Markdown merge logic",
+        "apply_markdown_merge_operation accessible via merge module",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-phase5-local-merge",
+      "name": "Extract phase5 core (Local Merging) to local_merge.rs",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": ["extract-yaml-merge", "extract-json-merge", "extract-toml-merge", "extract-ini-merge", "extract-markdown-merge"],
+      "output_file": "src/phases/local_merge.rs",
+      "steps": [
+        "Create src/phases/local_merge.rs",
+        "Move phase5 module core (~400 lines after merge extraction)",
+        "Update to import merge operations from crate::merge",
+        "Keep: execute, load_local_fs, merge_local_files, apply_local_operations, etc.",
+        "Ensure pub mod phase5 re-export in mod.rs",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/local_merge.rs exists with phase5 core",
+        "phases::phase5::execute still accessible",
+        "Merge operations imported from crate::merge",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-phase6-write",
+      "name": "Extract phase6 (Write to Disk) to write.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-phases-directory",
+      "output_file": "src/phases/write.rs",
+      "steps": [
+        "Create src/phases/write.rs",
+        "Move phase6 module contents (~51 lines) to write.rs",
+        "Update imports to reference shared types from super",
+        "Ensure pub mod phase6 re-export in mod.rs",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/write.rs exists with phase6 contents",
+        "phases::phase6::execute still accessible",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-orchestrator",
+      "name": "Extract orchestrator to orchestrator.rs",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": ["extract-phase1-discovery", "extract-phase2-processing", "extract-phase3-ordering", "extract-phase4-composite", "extract-phase5-local-merge", "extract-phase6-write"],
+      "output_file": "src/phases/orchestrator.rs",
+      "steps": [
+        "Create src/phases/orchestrator.rs",
+        "Move orchestrator module contents (~50 lines) to orchestrator.rs",
+        "Update imports to reference phase modules from super",
+        "Ensure pub mod orchestrator re-export in mod.rs",
+        "Run cargo check to verify compilation"
+      ],
+      "acceptance_criteria": [
+        "src/phases/orchestrator.rs exists",
+        "phases::orchestrator::execute_pull still accessible",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "extract-phase-tests",
+      "name": "Move phase tests to appropriate locations",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "extract-orchestrator",
+      "output_file": "src/phases/tests.rs",
+      "steps": [
+        "Analyze test dependencies to determine best placement",
+        "Option A: Create src/phases/tests.rs for integration-style tests",
+        "Option B: Distribute unit tests to their respective module files",
+        "Move ~2166 lines of tests to appropriate locations",
+        "Update test imports to reference new module paths",
+        "Run cargo test to verify all tests pass"
+      ],
+      "acceptance_criteria": [
+        "All 2166 lines of tests moved from monolithic file",
+        "Tests organized by module or in dedicated test file",
+        "cargo test passes with no regressions"
+      ]
+    },
+    {
+      "id": "final-verification",
+      "name": "Final verification and cleanup",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": "extract-phase-tests",
+      "output_file": null,
+      "steps": [
+        "Run cargo fmt to ensure consistent formatting",
+        "Run cargo clippy --all-targets --all-features -- -D warnings",
+        "Run ./script/test to verify all tests pass",
+        "Run cargo doc to verify documentation builds",
+        "Verify no dead code warnings",
+        "Remove any temporary compatibility shims if added",
+        "Update CLAUDE.md if any developer guidance needed"
+      ],
+      "acceptance_criteria": [
+        "cargo fmt --check passes",
+        "cargo clippy passes with no warnings",
+        "All tests pass",
+        "Documentation builds without errors",
+        "Public API unchanged (commands still work)",
+        "No src/phases.rs file exists (replaced by src/phases/)"
+      ]
+    }
+  ],
+  "file_size_targets": {
+    "description": "Expected line counts after refactoring",
+    "src/phases/mod.rs": "~150 lines (types + re-exports)",
+    "src/phases/discovery.rs": "~305 lines",
+    "src/phases/processing.rs": "~948 lines",
+    "src/phases/ordering.rs": "~79 lines",
+    "src/phases/composite.rs": "~120 lines",
+    "src/phases/local_merge.rs": "~400 lines",
+    "src/phases/write.rs": "~51 lines",
+    "src/phases/orchestrator.rs": "~50 lines",
+    "src/merge/mod.rs": "~100 lines (common helpers)",
+    "src/merge/yaml.rs": "~200 lines",
+    "src/merge/json.rs": "~150 lines",
+    "src/merge/toml.rs": "~200 lines",
+    "src/merge/ini.rs": "~200 lines",
+    "src/merge/markdown.rs": "~150 lines"
+  },
+  "notes": [
+    "Tasks with array blocked_by require ALL listed tasks to complete first",
+    "Priority 2 tasks (phase extractions) can run in parallel after directory creation",
+    "Priority 4 tasks (merge extractions) can run in parallel after merge module creation",
+    "Run cargo check after each extraction to catch issues early",
+    "Preserve all pub visibility to maintain API compatibility",
+    "The processing.rs file at ~948 lines may warrant future decomposition"
+  ]
+}
