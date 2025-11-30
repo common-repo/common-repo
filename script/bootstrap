@@ -45,6 +45,21 @@ else
   echo "==> cargo-nextest is already installed ($(cargo nextest --version))"
 fi
 
+# Install cargo-tarpaulin if not already installed (for coverage)
+if ! command -v cargo-tarpaulin >/dev/null 2>&1; then
+  echo "==> Installing cargo-tarpaulin..."
+  if command -v cargo-binstall >/dev/null 2>&1; then
+    echo "    Using cargo-binstall for faster installation..."
+    cargo binstall cargo-tarpaulin --no-confirm
+  else
+    echo "    Installing via cargo install (this may take a few minutes)..."
+    cargo install cargo-tarpaulin
+  fi
+  echo "    cargo-tarpaulin installed successfully!"
+else
+  echo "==> cargo-tarpaulin is already installed ($(cargo tarpaulin --version | head -1))"
+fi
+
 # Install prek (Rust-based pre-commit alternative) if not already installed
 # Uses the official binary installer for fast installation (no compilation needed)
 if ! command -v prek >/dev/null 2>&1; then
