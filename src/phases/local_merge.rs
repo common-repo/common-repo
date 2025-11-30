@@ -329,3 +329,105 @@ fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Res
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_phase5_execute_merge_local_files() {
+        // Test merging composite filesystem with local files
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Create local files
+        std::fs::create_dir_all(working_dir.join("subdir")).unwrap();
+        std::fs::write(working_dir.join("local.txt"), b"local content").unwrap();
+        std::fs::write(working_dir.join("subdir/nested.txt"), b"nested content").unwrap();
+
+        // Create composite filesystem
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("composite.txt", "composite content")
+            .unwrap();
+
+        // Create local config (empty for this test)
+        let local_config = vec![];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        // Should contain both composite and local files
+        assert!(final_fs.exists("composite.txt"));
+        assert!(final_fs.exists("local.txt"));
+        assert!(final_fs.exists("subdir/nested.txt"));
+    }
+
+    #[test]
+    fn test_phase5_execute_local_files_override_composite() {
+        // Test that local files override composite files (last-write-wins)
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Create local file with same name as composite
+        std::fs::write(working_dir.join("common.txt"), b"local version").unwrap();
+
+        // Create composite filesystem with same file
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("common.txt", "composite version")
+            .unwrap();
+
+        let local_config = vec![];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        // Local file should override composite
+        let file = final_fs.get_file("common.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(file.content.clone()).unwrap(),
+            "local version"
+        );
+    }
+
+    #[test]
+    fn test_phase5_execute_skips_hidden_files() {
+        // Test that hidden files and .git directory are skipped
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join(".hidden"), b"hidden").unwrap();
+        std::fs::write(working_dir.join(".common-repo.yaml"), b"config").unwrap();
+        std::fs::create_dir_all(working_dir.join(".git")).unwrap();
+        std::fs::write(working_dir.join(".git/config"), b"git config").unwrap();
+        std::fs::write(working_dir.join("visible.txt"), b"visible").unwrap();
+
+        let composite_fs = MemoryFS::new();
+        let local_config = vec![];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        // Should only contain visible.txt
+        assert!(final_fs.exists("visible.txt"));
+        assert!(!final_fs.exists(".hidden"));
+        assert!(!final_fs.exists(".common-repo.yaml"));
+        assert!(!final_fs.exists(".git/config"));
+    }
+
+    #[test]
+    fn test_phase5_execute_empty_composite() {
+        // Test with empty composite filesystem
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join("local.txt"), b"local").unwrap();
+
+        let composite_fs = MemoryFS::new();
+        let local_config = vec![];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        assert_eq!(final_fs.len(), 1);
+        assert!(final_fs.exists("local.txt"));
+    }
+}
