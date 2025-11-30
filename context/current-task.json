@@ -1,5 +1,5 @@
 {
-  "task": "extract-shared-type-tests",
+  "task": "final-verification",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Keep shared type tests in mod.rs. Keep repo_tree_tests in mod.rs (tests shared types), move parse_path_tests and navigate_yaml_value_tests to merge module if applicable, clean up empty test module wrapper if needed."
+  "instructions": "Final verification and cleanup. Run cargo fmt, clippy, tests, and cargo doc. Verify no dead code warnings, remove any temporary compatibility shims, update CLAUDE.md if needed."
 }

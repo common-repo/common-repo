@@ -385,7 +385,7 @@
     {
       "id": "extract-shared-type-tests",
       "name": "Keep shared type tests in mod.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "extract-orchestrator",
       "output_file": "src/phases/mod.rs",
