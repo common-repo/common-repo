@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase4-tests",
+  "task": "extract-phase3-tests",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Move phase4_tests module from phases/mod.rs to phases/composite.rs. Update imports to use crate:: paths and verify tests pass."
+  "instructions": "Move phase3_tests module from phases/mod.rs to phases/ordering.rs. Update imports and verify tests pass."
 }

@@ -66,3 +66,126 @@ fn build_order_recursive(node: &RepoNode, order: &mut Vec<String>, visited: &mut
     order.push(node_key.clone());
     visited.insert(node_key);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{execute, RepoNode, RepoTree};
+
+    #[test]
+    fn test_phase3_execute_simple_dependency() {
+        // Test simple dependency: A depends on B
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        let repo_b = RepoNode::new(
+            "https://github.com/repo-b.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut repo_a = RepoNode::new(
+            "https://github.com/repo-a.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        repo_a.add_child(repo_b);
+        root.add_child(repo_a);
+
+        let tree = RepoTree::new(root);
+        let order = execute(&tree).unwrap();
+
+        // B should come before A (dependencies first)
+        assert_eq!(order.len(), 3); // local, repo-b, repo-a
+        let order_vec: Vec<&str> = order.order.iter().map(|s| s.as_str()).collect();
+        let b_index = order_vec.iter().position(|s| s.contains("repo-b")).unwrap();
+        let a_index = order_vec.iter().position(|s| s.contains("repo-a")).unwrap();
+        assert!(b_index < a_index, "repo-b should come before repo-a");
+    }
+
+    #[test]
+    fn test_phase3_execute_complex_dependency_tree() {
+        // Test complex tree: A -> B, A -> C, B -> D
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        let repo_d = RepoNode::new(
+            "https://github.com/repo-d.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut repo_b = RepoNode::new(
+            "https://github.com/repo-b.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        repo_b.add_child(repo_d);
+        let repo_c = RepoNode::new(
+            "https://github.com/repo-c.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut repo_a = RepoNode::new(
+            "https://github.com/repo-a.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        repo_a.add_child(repo_b);
+        repo_a.add_child(repo_c);
+        root.add_child(repo_a);
+
+        let tree = RepoTree::new(root);
+        let order = execute(&tree).unwrap();
+
+        // Verify order: D before B, B and C before A
+        assert_eq!(order.len(), 5); // local, d, b, c, a
+        let order_vec: Vec<&str> = order.order.iter().map(|s| s.as_str()).collect();
+        let d_index = order_vec.iter().position(|s| s.contains("repo-d")).unwrap();
+        let b_index = order_vec.iter().position(|s| s.contains("repo-b")).unwrap();
+        let c_index = order_vec.iter().position(|s| s.contains("repo-c")).unwrap();
+        let a_index = order_vec.iter().position(|s| s.contains("repo-a")).unwrap();
+
+        assert!(d_index < b_index, "repo-d should come before repo-b");
+        assert!(b_index < a_index, "repo-b should come before repo-a");
+        assert!(c_index < a_index, "repo-c should come before repo-a");
+    }
+
+    #[test]
+    fn test_phase3_execute_multiple_repos_same_level() {
+        // Test multiple repos at same level
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        let repo_a = RepoNode::new(
+            "https://github.com/repo-a.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let repo_b = RepoNode::new(
+            "https://github.com/repo-b.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let repo_c = RepoNode::new(
+            "https://github.com/repo-c.git".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        root.add_child(repo_a);
+        root.add_child(repo_b);
+        root.add_child(repo_c);
+
+        let tree = RepoTree::new(root);
+        let order = execute(&tree).unwrap();
+
+        // All repos should be in the order
+        assert_eq!(order.len(), 4); // local + 3 repos
+        assert!(order.order.iter().any(|s| s.contains("repo-a")));
+        assert!(order.order.iter().any(|s| s.contains("repo-b")));
+        assert!(order.order.iter().any(|s| s.contains("repo-c")));
+    }
+
+    #[test]
+    fn test_phase3_execute_empty_tree() {
+        // Test empty tree (only local root)
+        let root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        let tree = RepoTree::new(root);
+        let order = execute(&tree).unwrap();
+
+        // Should only contain local
+        assert_eq!(order.len(), 1);
+        assert_eq!(order.order[0], "local@HEAD");
+    }
+}
