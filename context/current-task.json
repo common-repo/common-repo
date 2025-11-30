@@ -1,5 +1,5 @@
 {
-  "task": null,
-  "plan": null,
-  "instructions": "No active task. All 10 planned CLI commands are implemented. Check feature-status.json for project status."
+  "task": "improve-phases-test-coverage",
+  "plan": "context/improving-test-coverage-plan.md",
+  "instructions": "Improve test coverage for src/phases.rs, the largest remaining coverage gap. Focus on Phase 5 merge operations (YAML, JSON, TOML, INI, Markdown). See improving-test-coverage-plan.md section 2.1 for detailed areas needing coverage."
 }
