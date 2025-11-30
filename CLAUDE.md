@@ -163,7 +163,7 @@ This keeps the `context/` directory clean and provides a historical record of co
   - The toolchain file will automatically ensure you have the correct version
 - **cargo-nextest**: Required for running tests (see setup instructions below)
 - **prek**: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
-  - **IMPORTANT**: Install from GitHub (`cargo install --git https://github.com/j178/prek`) as crates.io version is outdated
+  - Uses binary installer for fast installation (no compilation needed)
   - Alternative: **pre-commit** (Python-based, works as fallback)
 
 ## Quick Setup
@@ -172,30 +172,16 @@ This project follows the [Scripts to Rule Them All](https://github.com/github/sc
 
 For first-time setup after cloning:
 
-**Option 1: Manual installation (RECOMMENDED to avoid timeouts):**
-```bash
-# Install development tools individually to avoid compilation timeouts
-cargo install cargo-nextest --locked
-cargo install --git https://github.com/j178/prek --locked
-
-# Then run setup to configure hooks and build the project
-./script/setup
-```
-
-**Option 2: Automated setup (may timeout during compilation):**
 ```bash
 # Set up the project (installs dependencies and configures environment)
-# WARNING: This compiles cargo-nextest and prek, which may timeout in resource-constrained environments
 ./script/setup
 ```
 
 The setup process will:
 - Install Rust toolchain (via rust-toolchain.toml)
-- Install cargo-nextest (using cargo-binstall if available, otherwise cargo install)
-- Install prek (Rust-based pre-commit tool) and configure hooks
+- Install cargo-nextest (using cargo-binstall for fast binary installation)
+- Install prek (using binary installer, no compilation needed)
 - Build the project to warm the cache
-
-**Note**: If `./script/setup` times out during cargo-nextest or prek installation, use Option 1 to install these tools individually first.
 
 ### Available Scripts
 
@@ -577,8 +563,8 @@ If pre-commit hooks are not installed, install them with:
 
 **Recommended (Rust-based, faster):**
 ```bash
-# Install latest version from GitHub (crates.io version is outdated)
-cargo install --git https://github.com/j178/prek --locked
+# Install using binary installer (fast, no compilation)
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.2.19/prek-installer.sh | sh
 prek install
 prek install --hook-type commit-msg
 ```
@@ -614,7 +600,7 @@ pre-commit install --hook-type commit-msg
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
-- **Prek installation**: Always install prek from GitHub (`cargo install --git https://github.com/j178/prek`) as the crates.io version (0.0.1) is outdated. The bootstrap script handles this automatically.
+- **Prek installation**: The bootstrap script uses the binary installer for fast installation (no compilation). Manual install: `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.2.19/prek-installer.sh | sh`
 - Binary name is `common-repo` (matches the package name in Cargo.toml).
 - When reviewing changes, always look for flimsy or axiomatic tests that don't really test anything.
 - When reviewing changes, always check for TODOs or other stubbed implementation items.
