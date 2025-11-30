@@ -1,5 +1,5 @@
 {
-  "task": "All core CLI commands complete",
-  "plan": "context/next-priority.md",
-  "instructions": "No active task. All 10 planned CLI commands are implemented. See next-priority.md for optional future enhancement ideas."
+  "task": null,
+  "plan": null,
+  "instructions": "No active task. All 10 planned CLI commands are implemented. Check feature-status.json for project status."
 }

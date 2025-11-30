@@ -13,11 +13,9 @@ The `context/` directory provides structured context for agent-based development
 **Agent workflow files** (read at session start):
 - `context/current-task.json` - Points to active task and its plan file (read first if exists)
 - `context/feature-status.json` - Structured JSON tracking of all Layer 0-4 feature status
-- `context/next-priority.md` - Highest priority incomplete work item
 - `context/traceability-map.md` - Maps components to plan/design documentation
 
 **Reference documentation**:
-- `context/implementation-progress.md` - Concise status summary and recent changes
 - `context/implementation-plan.md` - Detailed technical implementation plans
 - `context/cli-*.md` - CLI design and testing strategies
 
@@ -39,7 +37,6 @@ Each session starts with no memory of previous work. Follow this 5-step protocol
 **Key files for session continuity:**
 - `context/current-task.json` - Points to the active task and its plan file
 - `context/feature-status.json` - Structured tracking of all feature implementation status
-- `context/next-priority.md` - The highest priority incomplete work item
 
 ## Agent Effectiveness Guidelines
 
