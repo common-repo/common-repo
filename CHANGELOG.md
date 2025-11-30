@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.0](https://github.com/common-repo/common-repo/compare/v0.14.0...v0.15.0) (2025-11-30)
+
+
+### Features
+
+* **context:** add task stash stack system ([a2e8f43](https://github.com/common-repo/common-repo/commit/a2e8f439cefc523df0ef39f7abc710fd52a281af))
+* **scripts:** add QUICK and SKIP_UPDATE env vars for faster test runs ([13b89b9](https://github.com/common-repo/common-repo/commit/13b89b9c2e6f2dd26dd4c5cd2e946a0335c8eebe))
+* **scripts:** use install-cargo-binstall in bootstrap ([40e898a](https://github.com/common-repo/common-repo/commit/40e898a6fa4d4be73cf840825d6d4d3d4ab49ea1))
+* **scripts:** use prek binary installer for faster bootstrap ([720d2fa](https://github.com/common-repo/common-repo/commit/720d2fafffeec859db26baf2036a92e03f12f173))
+
 ## [0.14.0](https://github.com/common-repo/common-repo/compare/v0.13.0...v0.14.0) (2025-11-30)
 
 
