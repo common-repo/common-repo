@@ -276,7 +276,7 @@
     {
       "id": "extract-phase6-write",
       "name": "Extract phase6 (Write to Disk) to write.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "create-phases-directory",
       "output_file": "src/phases/write.rs",
@@ -368,7 +368,7 @@
     {
       "id": "extract-phase6-tests",
       "name": "Move phase6 tests to write.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "extract-phase6-write",
       "output_file": "src/phases/write.rs",

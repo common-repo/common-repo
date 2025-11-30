@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase3-tests",
+  "task": "extract-phase6-write",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Move phase3_tests module from phases/mod.rs to phases/ordering.rs. Update imports and verify tests pass."
+  "instructions": "Extract phase6 module (~51 lines) to phases/write.rs. Update imports and ensure pub mod phase6 re-export in mod.rs."
 }
