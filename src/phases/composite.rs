@@ -109,7 +109,7 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 /// based on the operation type (YAML, JSON, TOML, INI, or Markdown).
 fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
     match operation {
-        Operation::Yaml { yaml } => super::phase5::apply_yaml_merge_operation(fs, yaml),
+        Operation::Yaml { yaml } => crate::merge::yaml::apply_yaml_merge_operation(fs, yaml),
         Operation::Json { json } => super::phase5::apply_json_merge_operation(fs, json),
         Operation::Toml { toml } => super::phase5::apply_toml_merge_operation(fs, toml),
         Operation::Ini { ini } => super::phase5::apply_ini_merge_operation(fs, ini),

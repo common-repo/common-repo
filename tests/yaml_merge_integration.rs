@@ -1,8 +1,8 @@
-//! Integration tests for YAML merge operations in Phase 5.
+//! Integration tests for YAML merge operations.
 
 use common_repo::config::{ArrayMergeMode, YamlMergeOp};
 use common_repo::filesystem::MemoryFS;
-use common_repo::phases::phase5;
+use common_repo::merge::yaml::apply_yaml_merge_operation;
 
 #[test]
 fn test_yaml_merge_simple_keys() {
@@ -22,7 +22,7 @@ fn test_yaml_merge_simple_keys() {
         array_mode: None,
     };
 
-    phase5::apply_yaml_merge_operation(&mut fs, &op).unwrap();
+    apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("dest.yaml").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -53,7 +53,7 @@ fn test_yaml_merge_nested_path() {
         array_mode: None,
     };
 
-    phase5::apply_yaml_merge_operation(&mut fs, &op).unwrap();
+    apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("dest.yaml").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -81,7 +81,7 @@ fn test_yaml_merge_array_append() {
         array_mode: None,
     };
 
-    phase5::apply_yaml_merge_operation(&mut fs, &op).unwrap();
+    apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("dest.yaml").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -110,7 +110,7 @@ fn test_yaml_merge_array_replace() {
         array_mode: None,
     };
 
-    phase5::apply_yaml_merge_operation(&mut fs, &op).unwrap();
+    apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("dest.yaml").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -139,7 +139,7 @@ fn test_yaml_merge_no_duplicates() {
         array_mode: Some(ArrayMergeMode::AppendUnique),
     };
 
-    phase5::apply_yaml_merge_operation(&mut fs, &op).unwrap();
+    apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("dest.yaml").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -170,7 +170,7 @@ fn test_yaml_merge_allow_duplicates() {
         array_mode: Some(ArrayMergeMode::Append),
     };
 
-    phase5::apply_yaml_merge_operation(&mut fs, &op).unwrap();
+    apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
     let result = fs.get_file("dest.yaml").unwrap();
     let content = String::from_utf8_lossy(&result.content);
@@ -200,7 +200,7 @@ fn test_yaml_merge_create_dest() {
         array_mode: None,
     };
 
-    phase5::apply_yaml_merge_operation(&mut fs, &op).unwrap();
+    apply_yaml_merge_operation(&mut fs, &op).unwrap();
 
     assert!(fs.exists("new_dest.yaml"));
 
