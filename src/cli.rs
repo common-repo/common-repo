@@ -49,6 +49,9 @@ enum Commands {
     /// Check configuration validity and check for repository updates
     Check(commands::check::CheckArgs),
 
+    /// Show differences between current files and configuration result
+    Diff(commands::diff::DiffArgs),
+
     /// Initialize a new .common-repo.yaml configuration file
     Init(commands::init::InitArgs),
 
@@ -80,6 +83,17 @@ impl Cli {
         match self.command {
             Commands::Apply(args) => commands::apply::execute(args),
             Commands::Check(args) => commands::check::execute(args),
+            Commands::Diff(args) => {
+                // Diff command uses exit code 1 to indicate changes exist
+                match commands::diff::execute(args) {
+                    Ok(()) => Ok(()),
+                    Err(e) if e.to_string() == "CHANGES_DETECTED" => {
+                        // Exit with code 1 for changes detected
+                        std::process::exit(1);
+                    }
+                    Err(e) => Err(e),
+                }
+            }
             Commands::Info(args) => commands::info::execute(args),
             Commands::Init(args) => commands::init::execute(args),
             Commands::Ls(args) => commands::ls::execute(args),
