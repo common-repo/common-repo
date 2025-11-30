@@ -314,24 +314,91 @@
       ]
     },
     {
-      "id": "extract-phase-tests",
-      "name": "Move phase tests to appropriate locations",
+      "id": "extract-phase3-tests",
+      "name": "Move phase3 tests to ordering.rs",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "extract-phase3-ordering",
+      "output_file": "src/phases/ordering.rs",
+      "steps": [
+        "Move phase3_tests module from mod.rs to ordering.rs",
+        "Update imports to use crate:: paths",
+        "Run cargo test to verify tests pass"
+      ],
+      "acceptance_criteria": [
+        "phase3_tests module in ordering.rs",
+        "cargo test passes"
+      ]
+    },
+    {
+      "id": "extract-phase4-tests",
+      "name": "Move phase4 tests to composite.rs",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "extract-phase4-composite",
+      "output_file": "src/phases/composite.rs",
+      "steps": [
+        "Move phase4_tests module from mod.rs to composite.rs",
+        "Update imports to use crate:: paths",
+        "Run cargo test to verify tests pass"
+      ],
+      "acceptance_criteria": [
+        "phase4_tests module in composite.rs",
+        "cargo test passes"
+      ]
+    },
+    {
+      "id": "extract-phase5-tests",
+      "name": "Move phase5 tests to local_merge.rs",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "extract-phase5-local-merge",
+      "output_file": "src/phases/local_merge.rs",
+      "steps": [
+        "Move phase5_tests module from mod.rs to local_merge.rs",
+        "Move yaml_merge_integration_tests if applicable",
+        "Update imports to use crate:: paths",
+        "Run cargo test to verify tests pass"
+      ],
+      "acceptance_criteria": [
+        "phase5_tests module in local_merge.rs",
+        "cargo test passes"
+      ]
+    },
+    {
+      "id": "extract-phase6-tests",
+      "name": "Move phase6 tests to write.rs",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "extract-phase6-write",
+      "output_file": "src/phases/write.rs",
+      "steps": [
+        "Move phase6_tests module from mod.rs to write.rs",
+        "Update imports to use crate:: paths",
+        "Run cargo test to verify tests pass"
+      ],
+      "acceptance_criteria": [
+        "phase6_tests module in write.rs",
+        "cargo test passes"
+      ]
+    },
+    {
+      "id": "extract-shared-type-tests",
+      "name": "Keep shared type tests in mod.rs",
       "status": "pending",
       "priority": 7,
       "blocked_by": "extract-orchestrator",
-      "output_file": "src/phases/tests.rs",
+      "output_file": "src/phases/mod.rs",
       "steps": [
-        "Analyze test dependencies to determine best placement",
-        "Option A: Create src/phases/tests.rs for integration-style tests",
-        "Option B: Distribute unit tests to their respective module files",
-        "Move ~2166 lines of tests to appropriate locations",
-        "Update test imports to reference new module paths",
-        "Run cargo test to verify all tests pass"
+        "Keep repo_tree_tests in mod.rs (tests shared types)",
+        "Move parse_path_tests and navigate_yaml_value_tests to merge module if applicable",
+        "Clean up empty test module wrapper if needed",
+        "Run cargo test to verify tests pass"
       ],
       "acceptance_criteria": [
-        "All 2166 lines of tests moved from monolithic file",
-        "Tests organized by module or in dedicated test file",
-        "cargo test passes with no regressions"
+        "Shared type tests remain accessible",
+        "No orphaned test modules",
+        "cargo test passes"
       ]
     },
     {
@@ -339,7 +406,7 @@
       "name": "Final verification and cleanup",
       "status": "pending",
       "priority": 8,
-      "blocked_by": "extract-phase-tests",
+      "blocked_by": ["extract-phase3-tests", "extract-phase4-tests", "extract-phase5-tests", "extract-phase6-tests", "extract-shared-type-tests"],
       "output_file": null,
       "steps": [
         "Run cargo fmt to ensure consistent formatting",
