@@ -247,6 +247,30 @@ cargo binstall cargo-nextest
 
 **Note:** The `./script/test` command will automatically use cargo-nextest if available, or fall back to `cargo test` with a helpful message.
 
+#### Quick Test Runs
+
+For faster test runs after initial setup, skip the update step:
+
+```bash
+# Skip dependency update for faster test runs
+QUICK=1 ./script/test
+
+# Or equivalently
+SKIP_UPDATE=1 ./script/test
+```
+
+**Environment variables for `./script/test`:**
+- `CI=1` - Automatically set in CI environments, skips update
+- `SKIP_UPDATE=1` - Skip the update step for faster runs
+- `QUICK=1` - Alias for SKIP_UPDATE=1
+
+The first run of `./script/test` may take longer because it:
+1. Installs required tools (cargo-nextest, prek)
+2. Fetches all dependencies
+3. Compiles the project
+
+Subsequent runs with `QUICK=1` skip these steps and run tests directly.
+
 #### Unit Tests (Recommended for development)
 
 **Using cargo-nextest (preferred):**

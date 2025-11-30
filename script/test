@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 # script/test: Run test suite for application. Optionally pass in a path to an
 #              individual test file to run a single test.
+#
+# Environment variables:
+#   CI=1         - Skip update (automatic in CI environments)
+#   SKIP_UPDATE=1 - Skip update step for faster test runs
+#   QUICK=1      - Alias for SKIP_UPDATE=1
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Update dependencies if not in CI
-if [[ -z "${CI:-}" ]]; then
+# Skip update if CI, SKIP_UPDATE, or QUICK is set
+if [[ -z "${CI:-}" && -z "${SKIP_UPDATE:-}" && -z "${QUICK:-}" ]]; then
   echo "==> Updating dependencies..."
   ./script/update
+elif [[ -n "${SKIP_UPDATE:-}" || -n "${QUICK:-}" ]]; then
+  echo "==> Skipping update (SKIP_UPDATE or QUICK is set)"
 fi
 
 echo "==> Running tests..."

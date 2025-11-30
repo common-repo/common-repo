@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 # script/update: Update application to run for its current checkout.
+#
+# This script ensures the project is ready to run by:
+# 1. Installing required tools (bootstrap)
+# 2. Fetching dependencies
+# 3. Building the project (if needed)
+#
+# Environment variables:
+#   SKIP_BUILD=1 - Skip the cargo build step
 
 set -euo pipefail
 
@@ -14,8 +22,12 @@ echo "==> Updating common-repo..."
 echo "==> Fetching dependencies..."
 cargo fetch
 
-# Warm up the build cache
-echo "==> Building project to warm cache..."
-cargo build
+# Warm up the build cache (skip if SKIP_BUILD is set)
+if [[ -n "${SKIP_BUILD:-}" ]]; then
+  echo "==> Skipping build (SKIP_BUILD is set)"
+else
+  echo "==> Building project to warm cache..."
+  cargo build
+fi
 
 echo "==> Update complete!"
