@@ -25,10 +25,12 @@ use crate::filesystem::MemoryFS;
 
 // Phase modules
 pub mod discovery;
+pub mod ordering;
 pub mod processing;
 
 // Re-export phase modules to preserve public API
 pub use discovery as phase1;
+pub use ordering as phase3;
 pub use processing as phase2;
 
 /// Repository tree node representing inheritance hierarchy
@@ -175,55 +177,6 @@ impl OperationOrder {
 
     pub fn len(&self) -> usize {
         self.order.len()
-    }
-}
-
-pub mod phase3 {
-    use super::*;
-
-    /// Execute Phase 3: Determine operation order for deterministic merging
-    ///
-    /// Uses depth-first traversal to build the correct order for applying operations.
-    /// This ensures ancestors are processed before their dependents, guaranteeing
-    /// that base configurations are applied before derived ones.
-    ///
-    /// Returns an OperationOrder containing repository keys in merge order.
-    pub fn execute(tree: &RepoTree) -> Result<OperationOrder> {
-        let mut order = Vec::new();
-        let mut visited = HashSet::new();
-
-        // Start with the root and build order depth-first
-        build_order_recursive(&tree.root, &mut order, &mut visited);
-
-        Ok(OperationOrder::new(order))
-    }
-
-    /// Recursively build operation order using depth-first traversal
-    ///
-    /// This ensures that dependencies (children) are processed before their parents.
-    /// The resulting order guarantees that base repositories are applied before
-    /// repositories that depend on them.
-    fn build_order_recursive(
-        node: &RepoNode,
-        order: &mut Vec<String>,
-        visited: &mut HashSet<String>,
-    ) {
-        let node_key = format!("{}@{}", node.url, node.ref_);
-
-        // Skip if already processed (shouldn't happen in a tree, but safety check)
-        if visited.contains(&node_key) {
-            return;
-        }
-
-        // First, process all children (dependencies) recursively
-        // This ensures dependencies come before their dependents in the final order
-        for child in &node.children {
-            build_order_recursive(child, order, visited);
-        }
-
-        // Then add this node to the order
-        order.push(node_key.clone());
-        visited.insert(node_key);
     }
 }
 
