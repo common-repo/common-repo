@@ -1,5 +1,5 @@
 {
-  "task": "Implement common-repo diff command",
+  "task": "All core CLI commands complete",
   "plan": "context/next-priority.md",
-  "instructions": "Read next-priority.md for acceptance criteria and implementation approach. Create src/commands/diff.rs and tests/cli_e2e_diff.rs."
+  "instructions": "No active task. All 10 planned CLI commands are implemented. See next-priority.md for optional future enhancement ideas."
 }

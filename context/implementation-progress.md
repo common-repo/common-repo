@@ -4,10 +4,10 @@ This document tracks current implementation status against the implementation pl
 
 > **Traceability**: For component-to-documentation mapping, see [traceability-map.md](traceability-map.md).
 
-## Current Status: Core Implementation Complete
+## Current Status: All Core Features Complete
 
-**Date**: November 29, 2025
-**Overall Progress**: All core layers (0-4) including Phase 6 are fully implemented and operational. The 6-phase pipeline infrastructure supports all operators. Merge operator infrastructure is complete (collection in Phase 2, execution in Phase 4). YAML merge has end-to-end test coverage through Phase 4. Template processing with `${VAR}` and `${VAR:-default}` syntax, repository inheritance with `repo: with:` clause support, and CLI commands (apply, check, update) are complete. See CLAUDE.md for canonical test counts and coverage targets.
+**Date**: November 30, 2025
+**Overall Progress**: All core layers (0-4) are fully implemented and operational. The 6-phase pipeline infrastructure supports all operators. All 10 CLI commands are complete: `apply`, `check`, `update`, `validate`, `init`, `cache`, `info`, `tree`, `ls`, and `diff`. See CLAUDE.md for canonical test counts and coverage targets.
 
 ---
 
@@ -20,7 +20,7 @@ This document tracks current implementation status against the implementation pl
 | Layer 2 (Operators) | ✅ Complete | Repo, Include/Exclude/Rename, Template, Merge operators (YAML/JSON/TOML/INI/Markdown) |
 | Layer 3 (Phases) | ✅ Complete | All 6 phases implemented (Discovery, Processing, Ordering, Composition, Merging, Writing) |
 | Layer 3.5 (Version Detection) | ✅ Complete | Semantic version comparison, breaking change detection |
-| Layer 4 (CLI) | ⚠️ Partial | apply, check, update, validate, init, cache, info, tree, ls implemented; diff planned |
+| Layer 4 (CLI) | ✅ Complete | All 10 commands: apply, check, update, validate, init, cache, info, tree, ls, diff |
 
 ---
 
@@ -68,9 +68,9 @@ This document tracks current implementation status against the implementation pl
 
 - (`src/version.rs`) - Version parsing, comparison, and update reporting
 
-## ⚠️ Layer 4 - CLI & Orchestration (Partial)
+## ✅ Layer 4 - CLI & Orchestration (Complete)
 
-**Implemented Commands:**
+**All Commands Implemented:**
 - `common-repo apply` - Full 6-phase pipeline execution
 - `common-repo check` - Configuration validation and update checking
 - `common-repo update` - Repository ref updates
@@ -80,22 +80,29 @@ This document tracks current implementation status against the implementation pl
 - `common-repo info` - Display configuration overview
 - `common-repo tree` - Display repository inheritance tree
 - `common-repo ls` - List files that would be created/modified
-
-**Not Yet Implemented:**
 - `common-repo diff` - Preview changes without applying
 
 ---
 
-## 🎯 Next Implementation Steps
+## 🎯 Future Enhancement Options
 
-1. **Expand CLI Functionality**: Implement `common-repo diff`
-2. **Performance Optimizations**: Parallel repository cloning (rayon/tokio), progress indicators
-3. **Enhance Testing**: E2E tests for TOML/INI/Markdown merge operators
+All core features are complete. Consider these optional improvements:
+
+1. **Performance Optimizations**: Parallel repository cloning (rayon/tokio), progress indicators
+2. **Enhanced Diff Features**: Colorized output, line-by-line diff, managed file tracking
+3. **Enhance Testing**: E2E tests for TOML/Markdown merge operators, performance benchmarks
 4. **Improve Documentation**: User-facing documentation for CLI commands
 
 ---
 
 ## 📝 Recent Changes Summary
+
+### CLI `diff` Command Implementation (November 30, 2025)
+- **New Command**: `common-repo diff` - Preview changes without applying
+- **Features**: Shows added/modified/deleted files, --summary flag, custom config/working-dir
+- **Exit Codes**: 0 for no changes, 1 for changes detected
+- **Testing**: 4 unit tests and 11 E2E tests
+- **Files Added**: `src/commands/diff.rs`, `tests/cli_e2e_diff.rs`
 
 ### CLI `ls` Command Implementation (November 27, 2025)
 - **New Command**: `common-repo ls` - Lists files that would be created/modified

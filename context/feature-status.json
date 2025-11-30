@@ -1,10 +1,10 @@
 {
-  "last_updated": "2025-11-29",
+  "last_updated": "2025-11-30",
   "schema_version": "1.0.0",
   "summary": {
     "total_features": 22,
-    "complete": 21,
-    "in_progress": 1,
+    "complete": 22,
+    "in_progress": 0,
     "pending": 0
   },
   "features": [
@@ -293,15 +293,16 @@
     },
     {
       "id": "cli-commands-implemented",
-      "name": "CLI Commands (Implemented)",
+      "name": "CLI Commands (Core)",
       "status": "complete",
       "layer": "4",
-      "description": "User-facing CLI commands that are complete",
+      "description": "User-facing CLI commands for core functionality",
       "files": [
         "src/cli.rs",
         "src/commands/apply.rs",
         "src/commands/cache.rs",
         "src/commands/check.rs",
+        "src/commands/diff.rs",
         "src/commands/info.rs",
         "src/commands/init.rs",
         "src/commands/ls.rs",
@@ -318,30 +319,20 @@
         "Implement cache command with list and clean subcommands",
         "Implement info command for configuration overview",
         "Implement tree command for inheritance visualization",
-        "Implement ls command for file listing with pattern filtering"
+        "Implement ls command for file listing with pattern filtering",
+        "Implement diff command to preview changes without applying"
       ],
       "tests": [
         "tests/cli_e2e_apply.rs",
         "tests/cli_e2e_cache.rs",
         "tests/cli_e2e_check.rs",
+        "tests/cli_e2e_diff.rs",
         "tests/cli_e2e_info.rs",
         "tests/cli_e2e_ls.rs",
         "tests/cli_e2e_tree.rs",
         "tests/cli_e2e_update.rs",
         "tests/cli_e2e_validate.rs"
       ]
-    },
-    {
-      "id": "cli-commands-pending",
-      "name": "CLI Commands (Pending)",
-      "status": "in_progress",
-      "layer": "4",
-      "description": "CLI commands not yet implemented",
-      "files": [],
-      "steps": [
-        "Implement diff command to preview changes without applying"
-      ],
-      "tests": []
     },
     {
       "id": "main-orchestrator",
@@ -360,10 +351,9 @@
     }
   ],
   "notes": [
-    "All Layer 0-3 features are complete",
-    "Layer 3.5 (Version Detection) is complete",
-    "Layer 4 CLI is mostly complete, only 'diff' command is pending",
-    "Parallelism optimization for Phase 1 cloning is deferred",
+    "All Layer 0-4 features are complete",
+    "All planned CLI commands are implemented: apply, check, update, validate, init, cache, info, tree, ls, diff",
+    "Parallelism optimization for Phase 1 cloning is deferred as future enhancement",
     "Comprehensive test suite covers unit, integration, E2E, and doc tests"
   ]
 }
