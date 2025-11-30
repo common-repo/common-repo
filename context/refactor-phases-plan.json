@@ -94,7 +94,7 @@
     {
       "id": "extract-phase3-ordering",
       "name": "Extract phase3 (Operation Order) to ordering.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "create-phases-directory",
       "output_file": "src/phases/ordering.rs",
