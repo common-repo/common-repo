@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase1-discovery",
-  "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract phase1 (Discovery & Cloning) from phases/mod.rs to phases/discovery.rs. Move the phase1 module contents (~305 lines) and update imports. The public API paths phases::phase1::discover_repos and phases::phase1::execute must remain accessible."
+  "task": "use-prek-binary-installer",
+  "plan": null,
+  "instructions": "Change prek installation in script/bootstrap to use binary installer: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.2.19/prek-installer.sh | sh"
 }
