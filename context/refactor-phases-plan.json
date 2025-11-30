@@ -134,7 +134,7 @@
     {
       "id": "create-merge-module",
       "name": "Create merge module structure",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "output_file": "src/merge/mod.rs",
