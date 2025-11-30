@@ -18,10 +18,10 @@
 //! to navigate nested data structures during merge operations.
 
 // Merge format modules (extracted from phase5)
+pub mod ini;
 pub mod json;
 pub mod toml;
 pub mod yaml;
-// pub mod ini;
 // pub mod markdown;
 
 /// Represents a segment in a path expression for navigating nested structures

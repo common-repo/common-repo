@@ -214,7 +214,7 @@
     {
       "id": "extract-ini-merge",
       "name": "Extract INI merge operations to merge/ini.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "create-merge-module",
       "output_file": "src/merge/ini.rs",

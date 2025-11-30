@@ -1,5 +1,5 @@
 {
-  "task": "extract-ini-merge",
+  "task": "extract-markdown-merge",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract INI merge operations from phase5 to merge/ini.rs. Move apply_ini_merge_operation and related functions including IniSection struct, parse_ini, serialize_ini, find_ini_section functions."
+  "instructions": "Extract Markdown merge operations from phase5 to merge/markdown.rs. Move apply_markdown_merge_operation and related functions including split_lines_preserve, heading_for, find_section_bounds, normalize_position."
 }

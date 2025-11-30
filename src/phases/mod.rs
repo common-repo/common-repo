@@ -210,10 +210,8 @@ impl OperationOrder {
 /// representation of what the output directory should look like.
 pub mod phase5 {
     use super::*;
-    use crate::config::{IniMergeOp, MarkdownMergeOp};
+    use crate::config::MarkdownMergeOp;
     use crate::filesystem::File;
-    use crate::merge::toml::apply_toml_merge_operation;
-    use std::collections::HashSet;
     use std::path::Path;
 
     /// Executes Phase 5 of the pipeline.
@@ -413,100 +411,6 @@ pub mod phase5 {
         fs.add_file(path, File::from_string(&normalized))
     }
 
-    #[derive(Clone, Debug)]
-    struct IniEntry {
-        key: String,
-        value: String,
-    }
-
-    #[derive(Clone, Debug)]
-    struct IniSection {
-        name: String,
-        entries: Vec<IniEntry>,
-    }
-
-    fn parse_ini(content: &str) -> Vec<IniSection> {
-        let mut sections = Vec::new();
-        let mut current = IniSection {
-            name: String::new(),
-            entries: Vec::new(),
-        };
-        let mut has_entries = false;
-
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with(';') {
-                continue;
-            }
-
-            if trimmed.starts_with('[') && trimmed.ends_with(']') {
-                if !current.name.is_empty() || has_entries {
-                    sections.push(current);
-                }
-                current = IniSection {
-                    name: trimmed[1..trimmed.len() - 1].trim().to_string(),
-                    entries: Vec::new(),
-                };
-                has_entries = false;
-            } else if let Some(pos) = trimmed.find('=') {
-                let key = trimmed[..pos].trim().to_string();
-                let value = trimmed[pos + 1..].trim().to_string();
-                current.entries.push(IniEntry { key, value });
-                has_entries = true;
-            }
-        }
-
-        if !current.name.is_empty() || has_entries {
-            sections.push(current);
-        }
-
-        sections
-    }
-
-    fn find_ini_section<'a>(sections: &'a [IniSection], name: &str) -> Option<&'a IniSection> {
-        sections.iter().find(|section| section.name == name)
-    }
-
-    fn find_ini_section_mut<'a>(
-        sections: &'a mut Vec<IniSection>,
-        name: &str,
-    ) -> &'a mut IniSection {
-        if let Some(pos) = sections.iter().position(|section| section.name == name) {
-            &mut sections[pos]
-        } else {
-            sections.push(IniSection {
-                name: name.to_string(),
-                entries: Vec::new(),
-            });
-            sections.last_mut().unwrap()
-        }
-    }
-
-    fn serialize_ini(sections: &[IniSection]) -> String {
-        let mut output = String::new();
-
-        for (index, section) in sections.iter().enumerate() {
-            if !section.name.is_empty() {
-                output.push('[');
-                output.push_str(&section.name);
-                output.push_str("]\n");
-            }
-
-            for entry in &section.entries {
-                output.push_str(&entry.key);
-                output.push('=');
-                output.push_str(&entry.value);
-                output.push('\n');
-            }
-
-            if index + 1 < sections.len() {
-                output.push('\n');
-            }
-        }
-
-        output
-    }
-
     // TODO: Remove after parse_path_tests are moved to merge module (task: extract-shared-type-tests)
     #[derive(Clone, Debug)]
     #[allow(dead_code)]
@@ -651,81 +555,6 @@ pub mod phase5 {
         }
     }
 
-    pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<()> {
-        let source_content = read_file_as_string(fs, &op.source)?;
-        let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
-
-        let source_sections = parse_ini(&source_content);
-        let mut dest_sections = parse_ini(&dest_content);
-
-        // Helper function to merge a source section into a destination section
-        fn merge_section(
-            source_section: &IniSection,
-            dest_section: &mut IniSection,
-            append: bool,
-            allow_duplicates: bool,
-        ) {
-            if append {
-                if allow_duplicates {
-                    dest_section.entries.extend(source_section.entries.clone());
-                } else {
-                    for entry in &source_section.entries {
-                        if !dest_section
-                            .entries
-                            .iter()
-                            .any(|existing| existing.key.eq_ignore_ascii_case(&entry.key))
-                        {
-                            dest_section.entries.push(entry.clone());
-                        }
-                    }
-                }
-            } else {
-                if !allow_duplicates {
-                    let keys: HashSet<String> = source_section
-                        .entries
-                        .iter()
-                        .map(|entry| entry.key.to_lowercase())
-                        .collect();
-                    dest_section
-                        .entries
-                        .retain(|entry| !keys.contains(&entry.key.to_lowercase()));
-                }
-
-                dest_section.entries.extend(source_section.entries.clone());
-            }
-        }
-
-        match &op.section {
-            Some(section_name) => {
-                // Merge into specific section
-                let dest_section = find_ini_section_mut(&mut dest_sections, section_name);
-
-                // If the source has the same section, merge it
-                if let Some(source_section) = find_ini_section(&source_sections, section_name) {
-                    merge_section(source_section, dest_section, op.append, op.allow_duplicates);
-                }
-
-                // Also merge any root-level entries from source into the target section
-                if let Some(root_section) = find_ini_section(&source_sections, "") {
-                    if !root_section.entries.is_empty() {
-                        merge_section(root_section, dest_section, op.append, op.allow_duplicates);
-                    }
-                }
-            }
-            None => {
-                // Merge all sections from source into destination
-                for source_section in &source_sections {
-                    let dest_section =
-                        find_ini_section_mut(&mut dest_sections, &source_section.name);
-                    merge_section(source_section, dest_section, op.append, op.allow_duplicates);
-                }
-            }
-        }
-
-        let serialized = serialize_ini(&dest_sections);
-        write_string_to_file(fs, &op.dest, serialized)
-    }
-
     pub fn apply_markdown_merge_operation(fs: &mut MemoryFS, op: &MarkdownMergeOp) -> Result<()> {
         let source_content = read_file_as_string(fs, &op.source)?;
         let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
@@ -830,10 +659,10 @@ pub mod phase5 {
                     crate::merge::json::apply_json_merge_operation(final_fs, json)?;
                 }
                 Operation::Toml { toml } => {
-                    apply_toml_merge_operation(final_fs, toml)?;
+                    crate::merge::toml::apply_toml_merge_operation(final_fs, toml)?;
                 }
                 Operation::Ini { ini } => {
-                    apply_ini_merge_operation(final_fs, ini)?;
+                    crate::merge::ini::apply_ini_merge_operation(final_fs, ini)?;
                 }
                 Operation::Markdown { markdown } => {
                     apply_markdown_merge_operation(final_fs, markdown)?;
@@ -910,7 +739,7 @@ mod phase_tests {
         use super::*;
         use crate::merge::toml::{apply_toml_merge_operation, parse_toml_path};
         use crate::merge::PathSegment;
-        use crate::phases::phase5::{apply_ini_merge_operation, apply_markdown_merge_operation};
+        use crate::phases::phase5::apply_markdown_merge_operation;
 
         // Note: MockGitOps and MockCacheOps are defined but not used in phase5 tests
         // They're kept for potential future use
@@ -1397,220 +1226,7 @@ items = ["old1"]
             assert_eq!(items[1].as_str(), Some("new1"));
         }
 
-        #[test]
-        fn test_ini_merge_operation_basic() {
-            // Test INI merge with section
-            let mut fs = MemoryFS::new();
-
-            // Create source INI fragment
-            let source_ini = r#"
-[database]
-driver = postgresql
-port = 5432
-"#;
-            fs.add_file_string("db.ini", source_ini).unwrap();
-
-            // Create destination INI file
-            let dest_ini = r#"
-[server]
-host = localhost
-port = 8080
-"#;
-            fs.add_file_string("config.ini", dest_ini).unwrap();
-
-            let ini_op = crate::config::IniMergeOp {
-                source: "db.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: Some("database".to_string()),
-                append: false,
-                allow_duplicates: false,
-            };
-
-            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
-
-            let result = fs.get_file("config.ini").unwrap();
-            let result_str = String::from_utf8(result.content.clone()).unwrap();
-
-            // Should contain both sections
-            assert!(result_str.contains("[server]"));
-            assert!(result_str.contains("host=localhost"));
-            assert!(result_str.contains("port=8080"));
-            assert!(result_str.contains("[database]"));
-            assert!(result_str.contains("driver=postgresql"));
-            assert!(result_str.contains("port=5432"));
-        }
-
-        #[test]
-        fn test_ini_merge_operation_append_mode() {
-            // Test INI merge in append mode (should not overwrite existing keys)
-            let mut fs = MemoryFS::new();
-
-            // Create source INI fragment
-            let source_ini = r#"
-[settings]
-timeout = 60
-debug = true
-"#;
-            fs.add_file_string("new.ini", source_ini).unwrap();
-
-            // Create destination INI file with overlapping key
-            let dest_ini = r#"
-[settings]
-timeout = 30
-host = localhost
-"#;
-            fs.add_file_string("config.ini", dest_ini).unwrap();
-
-            let ini_op = crate::config::IniMergeOp {
-                source: "new.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: Some("settings".to_string()),
-                append: true, // append mode
-                allow_duplicates: false,
-            };
-
-            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
-
-            let result = fs.get_file("config.ini").unwrap();
-            let result_str = String::from_utf8(result.content.clone()).unwrap();
-
-            // Should contain merged content
-            assert!(result_str.contains("[settings]"));
-            assert!(result_str.contains("host=localhost"));
-            assert!(result_str.contains("debug=true"));
-            // In append mode, existing keys should not be overwritten
-            assert!(result_str.contains("timeout=30"));
-        }
-
-        #[test]
-        fn test_ini_merge_operation_optional_section() {
-            // Test INI merge without section (merge all sections)
-            let mut fs = MemoryFS::new();
-
-            // Create source INI fragment with multiple sections
-            let source_ini = r#"
-[database]
-driver = postgresql
-port = 5432
-
-[cache]
-enabled = true
-ttl = 3600
-"#;
-            fs.add_file_string("multi.ini", source_ini).unwrap();
-
-            // Create destination INI file with existing section
-            let dest_ini = r#"
-[server]
-host = localhost
-port = 8080
-"#;
-            fs.add_file_string("config.ini", dest_ini).unwrap();
-
-            let ini_op = crate::config::IniMergeOp {
-                source: "multi.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None, // No specific section
-                append: false,
-                allow_duplicates: false,
-            };
-
-            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
-
-            let result = fs.get_file("config.ini").unwrap();
-            let result_str = String::from_utf8(result.content.clone()).unwrap();
-
-            // Should contain all sections
-            assert!(result_str.contains("[server]"));
-            assert!(result_str.contains("host=localhost"));
-            assert!(result_str.contains("port=8080"));
-            assert!(result_str.contains("[database]"));
-            assert!(result_str.contains("driver=postgresql"));
-            assert!(result_str.contains("port=5432"));
-            assert!(result_str.contains("[cache]"));
-            assert!(result_str.contains("enabled=true"));
-            assert!(result_str.contains("ttl=3600"));
-        }
-
-        #[test]
-        fn test_ini_merge_operation_root_level_into_section() {
-            // Test merging root-level entries into a specific section
-            let mut fs = MemoryFS::new();
-
-            // Create source INI fragment with root-level entries and a section
-            let source_ini = r#"
-host = postgres.example.com
-port = 5432
-ssl_mode = require
-
-[advanced]
-pool_size = 20
-"#;
-            fs.add_file_string("db.ini", source_ini).unwrap();
-
-            // Create destination INI file
-            let dest_ini = r#"
-[database]
-driver = postgresql
-"#;
-            fs.add_file_string("config.ini", dest_ini).unwrap();
-
-            let ini_op = crate::config::IniMergeOp {
-                source: "db.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: Some("database".to_string()), // Merge into database section
-                append: false,
-                allow_duplicates: false,
-            };
-
-            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
-
-            let result = fs.get_file("config.ini").unwrap();
-            let result_str = String::from_utf8(result.content.clone()).unwrap();
-
-            // Should contain the database section with root-level entries merged in
-            assert!(result_str.contains("[database]"));
-            assert!(result_str.contains("driver=postgresql"));
-            assert!(result_str.contains("host=postgres.example.com"));
-            assert!(result_str.contains("port=5432"));
-            assert!(result_str.contains("ssl_mode=require"));
-            // pool_size should NOT be merged since it's in [advanced] section, not root level
-        }
-
-        #[test]
-        fn test_ini_merge_operation_empty_source() {
-            // Test INI merge with empty source file
-            let mut fs = MemoryFS::new();
-
-            // Create empty source INI fragment
-            fs.add_file_string("empty.ini", "").unwrap();
-
-            // Create destination INI file
-            let dest_ini = r#"
-[server]
-host = localhost
-port = 8080
-"#;
-            fs.add_file_string("config.ini", dest_ini).unwrap();
-
-            let ini_op = crate::config::IniMergeOp {
-                source: "empty.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
-            };
-
-            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
-
-            let result = fs.get_file("config.ini").unwrap();
-            let result_str = String::from_utf8(result.content.clone()).unwrap();
-
-            // Should contain original content unchanged
-            assert!(result_str.contains("[server]"));
-            assert!(result_str.contains("host=localhost"));
-            assert!(result_str.contains("port=8080"));
-        }
+        // Note: INI merge tests have been moved to src/merge/ini.rs
 
         #[test]
         fn test_markdown_merge_operation_basic() {
