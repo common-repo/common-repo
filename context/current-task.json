@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase6-write",
+  "task": "extract-yaml-merge",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract phase6 module (~51 lines) to phases/write.rs. Update imports and ensure pub mod phase6 re-export in mod.rs."
+  "instructions": "Extract YAML merge operations from phase5 to merge/yaml.rs. Move apply_yaml_merge_operation, merge_yaml_values, navigate_yaml_value and related functions."
 }
