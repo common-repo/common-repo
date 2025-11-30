@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/common-repo/common-repo/compare/v0.13.0...v0.14.0) (2025-11-30)
+
+
+### Features
+
+* **scripts:** add install-cargo-binstall script ([8b1a279](https://github.com/common-repo/common-repo/commit/8b1a2790364ca6e4917e1b1eaaf44436d95b990d))
+
 ## [0.13.0](https://github.com/common-repo/common-repo/compare/v0.12.0...v0.13.0) (2025-11-30)
 
 
