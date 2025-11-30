@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase4-composite",
+  "task": "extract-phase4-tests",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract phase4 (Composite FS) from phases/mod.rs to phases/composite.rs. Move the phase4 module contents (~120 lines) and update imports. The public API path phases::phase4::execute must remain accessible."
+  "instructions": "Move phase4_tests module from phases/mod.rs to phases/composite.rs. Update imports to use crate:: paths and verify tests pass."
 }
