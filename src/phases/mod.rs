@@ -166,7 +166,7 @@ impl IntermediateFS {
 #[derive(Debug, Clone)]
 pub struct OperationOrder {
     /// Ordered list of repository keys in the correct merge order
-    /// Format: "url@ref" (e.g., "https://github.com/user/repo@main")
+    /// Format: `url@ref` (e.g., `https://github.com/user/repo@main`)
     pub order: Vec<String>,
 }
 

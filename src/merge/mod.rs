@@ -26,7 +26,7 @@ pub mod yaml;
 
 /// Represents a segment in a path expression for navigating nested structures
 ///
-/// Path expressions like "servers[0].host" or "database.connection.timeout"
+/// Path expressions like `servers[0].host` or `database.connection.timeout`
 /// are parsed into a sequence of PathSegments for navigation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PathSegment {
