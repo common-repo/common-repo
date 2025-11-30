@@ -1,5 +1,5 @@
 {
-  "task": "update-bootstrap-cargo-binstall",
+  "task": null,
   "plan": null,
-  "instructions": "Update script/bootstrap to use the new script/install-cargo-binstall script to install cargo-binstall first, then use cargo-binstall for installing other cargo tools (cargo-nextest, prek, etc.). This provides faster installation by downloading prebuilt binaries instead of compiling from source."
+  "instructions": null
 }
