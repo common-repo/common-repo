@@ -122,6 +122,16 @@ Do not mark features or tasks complete prematurely:
 - **All acceptance criteria met** - Check each criterion explicitly
 - **Tests actually pass** - Run them, don't assume
 
+### Archiving Completed Task Plans
+
+When all tasks in a JSON task plan file are complete:
+
+1. **Move to completed directory**: `git mv context/<plan-name>.json context/completed/`
+2. **Update current-task.json**: Point to the next active task plan, or clear if no pending work
+3. **Commit the archive**: Include in your next commit with a message like `chore(context): archive completed <plan-name>`
+
+This keeps the `context/` directory clean and provides a historical record of completed work.
+
 ## Requirements
 
 - **Rust**: Stable channel (automatically managed via `rust-toolchain.toml`)
