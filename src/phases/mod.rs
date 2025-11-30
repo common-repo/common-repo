@@ -212,9 +212,8 @@ impl OperationOrder {
 /// representation of what the output directory should look like.
 pub mod phase5 {
     use super::*;
-    use crate::config::{IniMergeOp, JsonMergeOp, MarkdownMergeOp, TomlMergeOp};
+    use crate::config::{IniMergeOp, MarkdownMergeOp, TomlMergeOp};
     use crate::filesystem::File;
-    use serde_json::Value as JsonValue;
     use std::collections::HashSet;
     use std::path::Path;
     use toml::Value as TomlValue;
@@ -516,6 +515,8 @@ pub mod phase5 {
         Index(usize),
     }
 
+    // TODO: Remove after parse_path_tests are moved to merge module (task: extract-shared-type-tests)
+    #[allow(dead_code)]
     pub(crate) fn parse_path(path: &str) -> Vec<PathSegment> {
         if path.trim().is_empty() || path == "/" {
             return Vec::new();
@@ -600,98 +601,6 @@ pub mod phase5 {
         }
 
         segments
-    }
-
-    fn navigate_json_value<'a>(
-        value: &'a mut JsonValue,
-        path: &[PathSegment],
-    ) -> Result<&'a mut JsonValue> {
-        let mut current = value;
-        for segment in path {
-            match segment {
-                PathSegment::Key(key) => {
-                    if !current.is_object() && !current.is_null() {
-                        return Err(Error::Merge {
-                            operation: "json merge".to_string(),
-                            message: format!("Expected object while navigating to '{}'", key),
-                        });
-                    }
-
-                    if current.is_null() {
-                        *current = JsonValue::Object(serde_json::Map::new());
-                    }
-
-                    let map = current.as_object_mut().unwrap();
-                    current = map
-                        .entry(key.clone())
-                        .or_insert(JsonValue::Object(serde_json::Map::new()));
-                }
-                PathSegment::Index(idx) => {
-                    if !current.is_array() && !current.is_null() {
-                        return Err(Error::Merge {
-                            operation: "json merge".to_string(),
-                            message: format!("Expected array while navigating to index {}", idx),
-                        });
-                    }
-
-                    if current.is_null() {
-                        *current = JsonValue::Array(Vec::new());
-                    }
-
-                    let array = current.as_array_mut().unwrap();
-                    while array.len() <= *idx {
-                        array.push(JsonValue::Null);
-                    }
-                    current = &mut array[*idx];
-                }
-            }
-        }
-
-        Ok(current)
-    }
-
-    fn merge_json_values(target: &mut JsonValue, source: &JsonValue, append: bool) {
-        match target {
-            JsonValue::Object(target_map) => {
-                if let JsonValue::Object(source_map) = source {
-                    for (key, value) in source_map {
-                        if let Some(existing) = target_map.get_mut(key) {
-                            if existing.is_object() && value.is_object() {
-                                merge_json_values(existing, value, append);
-                            } else if let Some(source_array) = value.as_array() {
-                                if let Some(target_array) = existing.as_array_mut() {
-                                    if append {
-                                        target_array.extend(source_array.iter().cloned());
-                                    } else {
-                                        *existing = JsonValue::Array(source_array.clone());
-                                    }
-                                } else if !append {
-                                    *existing = JsonValue::Array(source_array.clone());
-                                }
-                            } else if !append {
-                                *existing = value.clone();
-                            }
-                        } else {
-                            target_map.insert(key.clone(), value.clone());
-                        }
-                    }
-                } else {
-                    *target = source.clone();
-                }
-            }
-            JsonValue::Array(target_array) => {
-                if let JsonValue::Array(source_array) = source {
-                    if append {
-                        target_array.extend(source_array.clone());
-                    } else {
-                        *target = JsonValue::Array(source_array.clone());
-                    }
-                } else {
-                    *target = source.clone();
-                }
-            }
-            _ => *target = source.clone(),
-        }
     }
 
     pub(crate) fn parse_toml_path(path: &str) -> Vec<PathSegment> {
@@ -992,31 +901,6 @@ pub mod phase5 {
         }
     }
 
-    pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result<()> {
-        let source_content = read_file_as_string(fs, &op.source)?;
-        let dest_content =
-            read_file_as_string_optional(fs, &op.dest)?.unwrap_or_else(|| "{}".to_string());
-
-        let mut dest_value: JsonValue = serde_json::from_str(&dest_content)
-            .unwrap_or(JsonValue::Object(serde_json::Map::new()));
-        let source_value: JsonValue =
-            serde_json::from_str(&source_content).map_err(|err| Error::Merge {
-                operation: "json merge".to_string(),
-                message: format!("Failed to parse source JSON: {}", err),
-            })?;
-
-        let path = parse_path(&op.path);
-        let target = navigate_json_value(&mut dest_value, &path)?;
-        merge_json_values(target, &source_value, op.append);
-
-        let serialized = serde_json::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
-            operation: "json merge".to_string(),
-            message: format!("Failed to serialize JSON: {}", err),
-        })?;
-
-        write_string_to_file(fs, &op.dest, serialized)
-    }
-
     pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result<()> {
         let source_content = read_file_as_string(fs, &op.source)?;
         let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
@@ -1230,7 +1114,7 @@ pub mod phase5 {
                     crate::merge::yaml::apply_yaml_merge_operation(final_fs, yaml)?;
                 }
                 Operation::Json { json } => {
-                    apply_json_merge_operation(final_fs, json)?;
+                    crate::merge::json::apply_json_merge_operation(final_fs, json)?;
                 }
                 Operation::Toml { toml } => {
                     apply_toml_merge_operation(final_fs, toml)?;

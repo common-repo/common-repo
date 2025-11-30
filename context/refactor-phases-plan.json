@@ -174,7 +174,7 @@
     {
       "id": "extract-json-merge",
       "name": "Extract JSON merge operations to merge/json.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "create-merge-module",
       "output_file": "src/merge/json.rs",
