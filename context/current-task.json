@@ -1,5 +1,46 @@
 {
-  "task": "setup-integration-test-infrastructure",
+  "task": "yaml-merge-integration-tests",
   "plan": "context/merge-operator-testing-plan.json",
-  "instructions": "Set up shared test utilities for merge operator integration tests. Create helpers for loading fixtures and running assertions."
+  "instructions": "Write YAML merge integration tests using the testdata fixtures. Tests should verify all 4 YAML merge scenarios (basic_root_merge, nested_path_merge, list_append, section_replace).",
+  "context": {
+    "infrastructure_complete": true,
+    "utilities_file": "tests/integration_merge_common.rs",
+    "available_helpers": {
+      "fixture_loading": [
+        "setup_fixture_dir(fixtures::YAML) - copies merge-yaml-repo fixtures to temp dir",
+        "fixture_path(fixture_name) - returns absolute path to fixture directory"
+      ],
+      "cli_execution": [
+        "run_apply(&temp, None) - runs common-repo apply, returns ApplyResult",
+        "run_apply_expect_success(&temp, None) - runs apply, panics on failure"
+      ],
+      "yaml_assertions": [
+        "parse_yaml(&temp, path) - parses YAML file to serde_yaml::Value",
+        "assert_yaml_contains(&temp, path, key, expected) - checks root-level key",
+        "assert_yaml_nested(&temp, path, yaml_path, expected) - checks nested path like 'metadata.labels.app'",
+        "assert_yaml_array_contains(&temp, path, expected) - checks array contains value"
+      ],
+      "generic_assertions": [
+        "read_file(&temp, path) - reads file as string",
+        "file_exists(&temp, path) - checks if file exists",
+        "assert_file_contains(&temp, path, expected) - checks file contains string"
+      ]
+    },
+    "test_pattern": "Use #[cfg_attr(not(feature = \"integration-tests\"), ignore)] on each test",
+    "fixtures_location": "tests/testdata/merge-yaml-repo/",
+    "fixture_files": {
+      "config": ".common-repo.yaml",
+      "scenario_1": {"source": "fragment-basic.yml", "dest": "destination-basic.yml"},
+      "scenario_2": {"source": "fragment-nested.yml", "dest": "destination-nested.yml"},
+      "scenario_3": {"source": "fragment-list.yml", "dest": "destination-list.yml"},
+      "scenario_4": {"source": "fragment-replace.yml", "dest": "destination-replace.yml"}
+    }
+  },
+  "parallel_tasks": [
+    "json-merge-integration-tests",
+    "toml-merge-integration-tests",
+    "ini-merge-integration-tests",
+    "markdown-merge-integration-tests"
+  ],
+  "notes": "Priority 2 tasks can run in parallel. YAML is a good starting point as it's the simplest format."
 }
