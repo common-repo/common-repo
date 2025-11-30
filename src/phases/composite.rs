@@ -111,7 +111,7 @@ fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<(
     match operation {
         Operation::Yaml { yaml } => crate::merge::yaml::apply_yaml_merge_operation(fs, yaml),
         Operation::Json { json } => crate::merge::json::apply_json_merge_operation(fs, json),
-        Operation::Toml { toml } => super::phase5::apply_toml_merge_operation(fs, toml),
+        Operation::Toml { toml } => crate::merge::toml::apply_toml_merge_operation(fs, toml),
         Operation::Ini { ini } => super::phase5::apply_ini_merge_operation(fs, ini),
         Operation::Markdown { markdown } => {
             super::phase5::apply_markdown_merge_operation(fs, markdown)

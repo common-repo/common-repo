@@ -17,8 +17,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use log::warn;
-
 use crate::config::{Operation, Schema};
 use crate::error::{Error, Result};
 use crate::filesystem::MemoryFS;
@@ -212,11 +210,11 @@ impl OperationOrder {
 /// representation of what the output directory should look like.
 pub mod phase5 {
     use super::*;
-    use crate::config::{IniMergeOp, MarkdownMergeOp, TomlMergeOp};
+    use crate::config::{IniMergeOp, MarkdownMergeOp};
     use crate::filesystem::File;
+    use crate::merge::toml::apply_toml_merge_operation;
     use std::collections::HashSet;
     use std::path::Path;
-    use toml::Value as TomlValue;
 
     /// Executes Phase 5 of the pipeline.
     ///
@@ -509,7 +507,9 @@ pub mod phase5 {
         output
     }
 
+    // TODO: Remove after parse_path_tests are moved to merge module (task: extract-shared-type-tests)
     #[derive(Clone, Debug)]
+    #[allow(dead_code)]
     pub(crate) enum PathSegment {
         Key(String),
         Index(usize),
@@ -603,256 +603,6 @@ pub mod phase5 {
         segments
     }
 
-    pub(crate) fn parse_toml_path(path: &str) -> Vec<PathSegment> {
-        if path.trim().is_empty() {
-            return Vec::new();
-        }
-
-        let mut segments = Vec::new();
-        let mut current = String::new();
-        let mut chars = path.chars().peekable();
-
-        while let Some(ch) = chars.next() {
-            match ch {
-                '.' => {
-                    if !current.is_empty() {
-                        segments.push(PathSegment::Key(current.clone()));
-                        current.clear();
-                    }
-                }
-                '[' => {
-                    if !current.is_empty() {
-                        segments.push(PathSegment::Key(current.clone()));
-                        current.clear();
-                    }
-
-                    let first_char = chars.peek().copied();
-
-                    if first_char == Some('"') || first_char == Some('\'') {
-                        let quote_char = chars.next().unwrap();
-                        let mut key = String::new();
-                        let mut bracket_escaped = false;
-
-                        while let Some(ch) = chars.next() {
-                            if bracket_escaped {
-                                key.push(ch);
-                                bracket_escaped = false;
-                            } else if ch == '\\' {
-                                bracket_escaped = true;
-                            } else if ch == quote_char {
-                                if chars.peek() == Some(&']') {
-                                    chars.next();
-                                    break;
-                                }
-                                key.push(ch);
-                            } else {
-                                key.push(ch);
-                            }
-                        }
-
-                        segments.push(PathSegment::Key(key));
-                    } else {
-                        let mut bracket_content = String::new();
-                        while let Some(&next_ch) = chars.peek() {
-                            chars.next();
-                            if next_ch == ']' {
-                                break;
-                            }
-                            bracket_content.push(next_ch);
-                        }
-
-                        if let Ok(idx) = bracket_content.trim().parse::<usize>() {
-                            segments.push(PathSegment::Index(idx));
-                        } else if !bracket_content.trim().is_empty() {
-                            segments.push(PathSegment::Key(bracket_content.trim().to_string()));
-                        }
-                    }
-                }
-                _ => current.push(ch),
-            }
-        }
-
-        if !current.is_empty() {
-            segments.push(PathSegment::Key(current));
-        }
-
-        segments
-    }
-
-    fn navigate_toml_value<'a>(
-        value: &'a mut TomlValue,
-        path: &[PathSegment],
-    ) -> Result<&'a mut TomlValue> {
-        let mut current = value;
-        for segment in path {
-            match segment {
-                PathSegment::Key(key) => {
-                    if !current.is_table() {
-                        return Err(Error::Merge {
-                            operation: "toml merge".to_string(),
-                            message: format!("Expected table while navigating to '{}'", key),
-                        });
-                    }
-
-                    let table = current.as_table_mut().unwrap();
-                    current = table
-                        .entry(key.clone())
-                        .or_insert(TomlValue::Table(toml::map::Map::new()));
-                }
-                PathSegment::Index(idx) => {
-                    if !current.is_array() {
-                        return Err(Error::Merge {
-                            operation: "toml merge".to_string(),
-                            message: format!("Expected array while navigating to index {}", idx),
-                        });
-                    }
-
-                    let array = current.as_array_mut().unwrap();
-                    while array.len() <= *idx {
-                        array.push(TomlValue::Table(toml::map::Map::new()));
-                    }
-                    current = &mut array[*idx];
-                }
-            }
-        }
-        Ok(current)
-    }
-
-    fn merge_toml_values(
-        target: &mut TomlValue,
-        source: &TomlValue,
-        mode: crate::config::ArrayMergeMode,
-        path: &str,
-        src_file: &str,
-        dst_file: &str,
-    ) {
-        use crate::config::ArrayMergeMode;
-
-        match target {
-            TomlValue::Table(target_table) => {
-                if let TomlValue::Table(source_table) = source {
-                    for (key, value) in source_table {
-                        let new_path = if path.is_empty() {
-                            key.clone()
-                        } else {
-                            format!("{}.{}", path, key)
-                        };
-
-                        if let Some(existing) = target_table.get_mut(key) {
-                            if matches!(existing, TomlValue::Table(_))
-                                && matches!(value, TomlValue::Table(_))
-                            {
-                                merge_toml_values(
-                                    existing, value, mode, &new_path, src_file, dst_file,
-                                );
-                            } else if let Some(source_array) = value.as_array() {
-                                if let Some(target_array) = existing.as_array_mut() {
-                                    match mode {
-                                        ArrayMergeMode::Append => {
-                                            target_array.extend(source_array.iter().cloned());
-                                        }
-                                        ArrayMergeMode::Replace => {
-                                            warn!(
-                                                "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
-                                                src_file, dst_file, new_path, target_array.len(), source_array.len()
-                                            );
-                                            *existing = TomlValue::Array(source_array.clone());
-                                        }
-                                        ArrayMergeMode::AppendUnique => {
-                                            for item in source_array {
-                                                if !target_array.contains(item) {
-                                                    target_array.push(item.clone());
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    warn!(
-                                        "{} -> {}: Type mismatch at path '{}': replacing {:?} with Array",
-                                        src_file, dst_file, new_path, get_toml_type_name(existing)
-                                    );
-                                    *existing = TomlValue::Array(source_array.clone());
-                                }
-                            } else {
-                                eprintln!(
-                                    "Warning: {} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
-                                    src_file, dst_file, new_path, get_toml_type_name(existing), get_toml_type_name(value)
-                                );
-                                *existing = value.clone();
-                            }
-                        } else {
-                            target_table.insert(key.clone(), value.clone());
-                        }
-                    }
-                } else {
-                    eprintln!(
-                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Table with {:?}",
-                        src_file,
-                        dst_file,
-                        path,
-                        get_toml_type_name(source)
-                    );
-                    *target = source.clone();
-                }
-            }
-            TomlValue::Array(target_array) => {
-                if let TomlValue::Array(source_array) = source {
-                    match mode {
-                        ArrayMergeMode::Append => {
-                            target_array.extend(source_array.clone());
-                        }
-                        ArrayMergeMode::Replace => {
-                            eprintln!(
-                                "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
-                                src_file, dst_file, path, target_array.len(), source_array.len()
-                            );
-                            *target = TomlValue::Array(source_array.clone());
-                        }
-                        ArrayMergeMode::AppendUnique => {
-                            for item in source_array {
-                                if !target_array.contains(item) {
-                                    target_array.push(item.clone());
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    eprintln!(
-                        "Warning: {} -> {}: Type mismatch at path '{}': replacing Array with {:?}",
-                        src_file,
-                        dst_file,
-                        path,
-                        get_toml_type_name(source)
-                    );
-                    *target = source.clone();
-                }
-            }
-            _ => {
-                eprintln!(
-                    "Warning: {} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
-                    src_file,
-                    dst_file,
-                    path,
-                    get_toml_type_name(target),
-                    get_toml_type_name(source)
-                );
-                *target = source.clone();
-            }
-        }
-    }
-
-    fn get_toml_type_name(value: &TomlValue) -> &'static str {
-        match value {
-            TomlValue::String(_) => "String",
-            TomlValue::Integer(_) => "Integer",
-            TomlValue::Float(_) => "Float",
-            TomlValue::Boolean(_) => "Boolean",
-            TomlValue::Datetime(_) => "Datetime",
-            TomlValue::Array(_) => "Array",
-            TomlValue::Table(_) => "Table",
-        }
-    }
-
     fn split_lines_preserve(content: &str) -> Vec<String> {
         let mut lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
         if content.ends_with('\n') {
@@ -899,43 +649,6 @@ pub mod phase5 {
             "start" => "start",
             _ => "end",
         }
-    }
-
-    pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result<()> {
-        let source_content = read_file_as_string(fs, &op.source)?;
-        let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
-
-        let mut dest_value: TomlValue = toml::from_str(&dest_content)
-            .unwrap_or_else(|_| TomlValue::Table(toml::map::Map::new()));
-        let source_value: TomlValue =
-            toml::from_str(&source_content).map_err(|err| Error::Merge {
-                operation: "toml merge".to_string(),
-                message: format!("Failed to parse source TOML: {}", err),
-            })?;
-
-        let path = parse_toml_path(&op.path);
-        let target = navigate_toml_value(&mut dest_value, &path)?;
-        let mode = op.get_array_mode();
-        merge_toml_values(target, &source_value, mode, &op.path, &op.source, &op.dest);
-
-        let serialized = if op.preserve_comments {
-            // Attempt comment preservation using taplo
-            // First serialize with toml, then format with taplo to preserve structure
-            let toml_string = toml::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
-                operation: "toml merge".to_string(),
-                message: format!("Failed to serialize TOML: {}", err),
-            })?;
-
-            // Try to format with taplo for better structure preservation
-            taplo::formatter::format(&toml_string, taplo::formatter::Options::default())
-        } else {
-            toml::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
-                operation: "toml merge".to_string(),
-                message: format!("Failed to serialize TOML: {}", err),
-            })?
-        };
-
-        write_string_to_file(fs, &op.dest, serialized)
     }
 
     pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<()> {
@@ -1195,10 +908,9 @@ mod phase_tests {
 
     mod phase5_tests {
         use super::*;
-        use crate::phases::phase5::{
-            apply_ini_merge_operation, apply_markdown_merge_operation, apply_toml_merge_operation,
-            parse_toml_path, PathSegment,
-        };
+        use crate::merge::toml::{apply_toml_merge_operation, parse_toml_path};
+        use crate::merge::PathSegment;
+        use crate::phases::phase5::{apply_ini_merge_operation, apply_markdown_merge_operation};
 
         // Note: MockGitOps and MockCacheOps are defined but not used in phase5 tests
         // They're kept for potential future use

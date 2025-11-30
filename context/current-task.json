@@ -1,5 +1,5 @@
 {
-  "task": "extract-toml-merge",
+  "task": "extract-ini-merge",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract TOML merge operations from phase5 to merge/toml.rs. Move apply_toml_merge_operation, merge_toml_values, navigate_toml_value, get_toml_type_name, and parse_toml_path functions."
+  "instructions": "Extract INI merge operations from phase5 to merge/ini.rs. Move apply_ini_merge_operation and related functions including IniSection struct, parse_ini, serialize_ini, find_ini_section functions."
 }
