@@ -1,5 +1,5 @@
 {
-  "task": null,
+  "task": "investigate-slow-first-test-run",
   "plan": null,
-  "instructions": null
+  "instructions": "Investigate why the first run of script/test is so slow. The first run took over 2 minutes (was interrupted) while subsequent runs complete in ~6 seconds. Identify the cause and propose optimizations."
 }

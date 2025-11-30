@@ -38,6 +38,29 @@ Each session starts with no memory of previous work. Follow this 5-step protocol
 - `context/current-task.json` - Points to the active task and its plan file
 - `context/feature-status.json` - Structured tracking of all feature implementation status
 
+### Task Stash Stack
+
+When interrupted by a higher-priority task, use the stash stack to preserve context:
+
+**Push a task** (start new work, preserve current):
+1. Rename `current-task.json` → `current-task-stash{N}.json` (where N is the next available number: 1, 2, 3...)
+2. Create new `current-task.json` with the new task
+3. Skip step 1 if current task is null/empty
+
+**Pop a task** (resume previous work after completing current):
+1. Delete or clear `current-task.json` (task is done)
+2. Rename highest-numbered stash file back to `current-task.json`
+   - e.g., `current-task-stash2.json` → `current-task.json`
+
+**Example stash state:**
+```
+context/current-task.json        # Active: investigate slow tests
+context/current-task-stash1.json # Stashed: extract phase1 refactor
+context/current-task-stash2.json # Stashed: older task
+```
+
+The stack order (highest number = oldest) provides implicit task priority.
+
 ## Agent Effectiveness Guidelines
 
 Based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), follow these principles:
