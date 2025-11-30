@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase5-local-merge",
+  "task": "extract-orchestrator",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract phase5 core (Local Merging) to local_merge.rs. Move phase5 module core, update to import merge operations from crate::merge, keep execute, load_local_fs, merge_local_files, apply_local_operations, etc."
+  "instructions": "Extract orchestrator to orchestrator.rs. Move orchestrator module contents (~50 lines) to orchestrator.rs, update imports to reference phase modules from super, ensure pub mod orchestrator re-export in mod.rs."
 }
