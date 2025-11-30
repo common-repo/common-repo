@@ -20,9 +20,9 @@
 // Merge format modules (extracted from phase5)
 pub mod ini;
 pub mod json;
+pub mod markdown;
 pub mod toml;
 pub mod yaml;
-// pub mod markdown;
 
 /// Represents a segment in a path expression for navigating nested structures
 ///

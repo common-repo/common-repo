@@ -234,7 +234,7 @@
     {
       "id": "extract-markdown-merge",
       "name": "Extract Markdown merge operations to merge/markdown.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "create-merge-module",
       "output_file": "src/merge/markdown.rs",
