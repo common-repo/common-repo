@@ -29,10 +29,12 @@ For human-readable documentation, see:
 Each session starts with no memory of previous work. Follow this 5-step protocol at the start of every session:
 
 1. **Check repository state**: Run `git status` to verify the current branch and working tree state
-2. **Verify baseline**: Run `./script/test` to ensure tests pass before making changes. **Exception**: Skip this for documentation-only or context-only changes (markdown files, JSON task tracking) since tests are slow and unaffected by such changes.
+2. **Start baseline tests in background**: Run `QUICK=1 ./script/test` with `run_in_background: true`. This pre-installs dependencies while you continue working, and you can check the output later to verify tests pass after making changes. **Exception**: Skip for documentation-only or context-only changes (markdown files, JSON task tracking).
 3. **Find current task**: Read `context/current-task.json` to identify the active work and its detailed plan
 4. **Review recent history**: Run `git log --oneline -5` to understand recent changes
 5. **Execute the task**: Find the first task where `status=pending` and `blocked_by=null`, complete it, then update the plan's task status to `complete`
+
+**Using background tests**: After making code changes, use `BashOutput` to check the background test results. If tests were already running, they show the baseline. Start a new background test run after edits to verify your changes.
 
 **Key files for session continuity:**
 - `context/current-task.json` - Points to the active task and its plan file
