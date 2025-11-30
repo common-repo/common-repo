@@ -17,6 +17,19 @@ echo "==> Ensuring Rust toolchain is installed..."
 # Ensure toolchain installation happens (rust-toolchain.toml will pin the version)
 rustup show >/dev/null 2>&1 || true
 
+# Install cargo-binstall for faster binary installations
+if ! command -v cargo-binstall >/dev/null 2>&1; then
+  echo "==> Installing cargo-binstall..."
+  SCRIPT_DIR="$(dirname "$0")"
+  if [[ -x "${SCRIPT_DIR}/install-cargo-binstall" ]]; then
+    "${SCRIPT_DIR}/install-cargo-binstall"
+  else
+    echo "    Warning: install-cargo-binstall script not found, skipping"
+  fi
+else
+  echo "==> cargo-binstall is already installed ($(cargo-binstall -V))"
+fi
+
 # Install cargo-nextest if not already installed
 if ! command -v cargo-nextest >/dev/null 2>&1; then
   echo "==> Installing cargo-nextest..."
@@ -33,10 +46,11 @@ else
 fi
 
 # Install prek (Rust-based pre-commit alternative) if not already installed
+# Note: prek must be installed from git because crates.io version (0.0.1) is outdated.
+# cargo-binstall cannot be used here since it only supports crates.io releases.
 if ! command -v prek >/dev/null 2>&1; then
   echo "==> Installing prek (Rust-based pre-commit)..."
-  # Install from git to get latest version (crates.io is outdated at 0.0.1)
-  echo "    Installing latest version from GitHub..."
+  echo "    Installing latest version from GitHub (crates.io version is outdated)..."
   cargo install --git https://github.com/j178/prek --locked
   echo "    prek installed successfully!"
 else
