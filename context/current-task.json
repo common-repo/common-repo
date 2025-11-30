@@ -1,5 +1,5 @@
 {
-  "task": "create-phases-directory",
+  "task": "extract-phase1-discovery",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Refactor phases.rs into a directory module structure. Start with 'create-phases-directory' to set up the foundation. See the plan file for detailed steps, dependencies, and acceptance criteria. The public API must be preserved throughout."
+  "instructions": "Extract phase1 (Discovery & Cloning) from phases/mod.rs to phases/discovery.rs. Move the phase1 module contents (~305 lines) and update imports. The public API paths phases::phase1::discover_repos and phases::phase1::execute must remain accessible."
 }
