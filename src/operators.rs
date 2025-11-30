@@ -975,9 +975,9 @@ mod tests {
                     json: crate::config::JsonMergeOp {
                         source: "s.json".to_string(),
                         dest: "d.json".to_string(),
-                        path: "/".to_string(),
+                        path: Some("/".to_string()),
                         append: false,
-                        position: "end".to_string(),
+                        position: None,
                     },
                 },
                 Operation::Toml {

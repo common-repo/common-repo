@@ -423,9 +423,9 @@ mod tests {
         let json_merge_op = JsonMergeOp {
             source: "fragment.json".to_string(),
             dest: "package.json".to_string(),
-            path: "/".to_string(),
+            path: None,
             append: false,
-            position: "end".to_string(),
+            position: None,
         };
 
         let merge_operations = vec![Operation::Json {
