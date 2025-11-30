@@ -1,5 +1,5 @@
 {
-  "task": "extract-yaml-merge",
+  "task": "extract-json-merge",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract YAML merge operations from phase5 to merge/yaml.rs. Move apply_yaml_merge_operation, merge_yaml_values, navigate_yaml_value and related functions."
+  "instructions": "Extract JSON merge operations from phase5 to merge/json.rs. Move apply_json_merge_operation, merge_json_values, navigate_json_value and related functions."
 }
