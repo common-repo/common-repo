@@ -573,7 +573,6 @@ If pre-commit hooks are not installed, run `./script/setup` to install and confi
    - **Test job**: Runs all tests with caching for cargo registry/index/build artifacts
    - **Rustfmt job**: Checks code formatting
    - **Clippy job**: Runs linting checks
-   - **Build job**: Creates release binary
 
 2. **Commit Linting** (`.github/workflows/commitlint.yml`)
    - Validates commit messages in PRs
