@@ -1,5 +1,5 @@
 {
-  "task": "extract-phase1-discovery",
+  "task": "extract-phase3-ordering",
   "plan": "context/refactor-phases-plan.json",
-  "instructions": "Extract phase1 (Discovery & Cloning) from phases/mod.rs to phases/discovery.rs. Move the phase1 module contents (~305 lines) and update imports. The public API paths phases::phase1::discover_repos and phases::phase1::execute must remain accessible."
+  "instructions": "Extract phase3 (Operation Order) from phases/mod.rs to phases/ordering.rs. Move the phase3 module contents (~79 lines) and update imports. The public API path phases::phase3::execute must remain accessible."
 }
