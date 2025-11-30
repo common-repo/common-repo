@@ -19,6 +19,10 @@
 //! }
 //! ```
 
+// Allow dead code for helper functions that will be used by future integration tests
+// (JSON, TOML, INI, Markdown merge tests are pending implementation)
+#![allow(dead_code)]
+
 use assert_cmd::cargo::cargo_bin_cmd;
 use std::path::{Path, PathBuf};
 
