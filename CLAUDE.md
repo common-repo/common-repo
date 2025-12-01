@@ -35,7 +35,7 @@ Each session starts with no memory of previous work. Follow this protocol:
 - `context/feature-status.json` - Feature implementation status
 - `context/traceability-map.md` - Component to documentation mapping
 
-**Reference docs:** `context/implementation-plan.md`, `context/cli-*.md`, `docs/purpose.md`, `docs/design.md`, `README.md`
+**Reference docs:** `context/cli-design.md`, `docs/purpose.md`, `docs/design.md`, `README.md`
 
 ### Task Stash Stack
 
