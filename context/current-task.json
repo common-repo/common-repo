@@ -1,44 +1,25 @@
 {
-  "task": "markdown-merge-integration-tests",
+  "task": "verify-test-coverage",
   "plan": "context/merge-operator-testing-plan.json",
-  "instructions": "Write Markdown merge integration tests using the testdata fixtures. Tests should verify all 5 Markdown merge scenarios (section_append_end, section_append_start, section_creation, position_before, section_replace).",
+  "instructions": "Verify test coverage targets are met for merge operators. Run cargo tarpaulin on merge modules and verify coverage >= 90%.",
   "context": {
     "infrastructure_complete": true,
-    "utilities_file": "tests/integration_merge_common.rs",
-    "available_helpers": {
-      "fixture_loading": [
-        "setup_fixture_dir(fixtures::MARKDOWN) - copies merge-markdown-repo fixtures to temp dir",
-        "fixture_path(fixture_name) - returns absolute path to fixture directory"
-      ],
-      "cli_execution": [
-        "run_apply(&temp, None) - runs common-repo apply, returns ApplyResult",
-        "run_apply_expect_success(&temp, None) - runs apply, panics on failure"
-      ],
-      "markdown_assertions": [
-        "assert_markdown_contains(&temp, path, expected) - checks file contains text",
-        "assert_markdown_has_section(&temp, path, heading, level) - checks section exists",
-        "assert_markdown_section_order(&temp, path, first, second) - checks section order"
-      ],
-      "generic_assertions": [
-        "read_file(&temp, path) - reads file as string",
-        "file_exists(&temp, path) - checks if file exists",
-        "assert_file_contains(&temp, path, expected) - checks file contains string"
-      ]
-    },
-    "test_pattern": "Use #[cfg_attr(not(feature = \"integration-tests\"), ignore)] on each test",
-    "fixtures_location": "tests/testdata/merge-markdown-repo/",
-    "reference_tests": [
-      "tests/integration_merge_yaml.rs - YAML tests as pattern reference",
-      "tests/integration_merge_json.rs - JSON tests as pattern reference",
-      "tests/integration_merge_toml.rs - TOML tests as pattern reference",
-      "tests/integration_merge_ini.rs - INI tests as pattern reference"
+    "all_format_tests_complete": true,
+    "completed_format_tests": [
+      "yaml-merge-integration-tests",
+      "json-merge-integration-tests",
+      "toml-merge-integration-tests",
+      "ini-merge-integration-tests",
+      "markdown-merge-integration-tests"
     ]
   },
   "completed_tasks": [
+    "setup-integration-test-infrastructure",
     "yaml-merge-integration-tests",
     "json-merge-integration-tests",
     "toml-merge-integration-tests",
-    "ini-merge-integration-tests"
+    "ini-merge-integration-tests",
+    "markdown-merge-integration-tests"
   ],
-  "notes": "This is the final format-specific integration test task. After this, verify-test-coverage can proceed."
+  "notes": "This is the final verification task. After this, archive-testing-guide can proceed."
 }
