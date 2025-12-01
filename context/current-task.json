@@ -1,10 +1,10 @@
 {
-  "task": "phases-discovery-errors",
+  "task": "phases-processing",
   "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for Phase 1 (Discovery & Cloning) error handling. Review existing Phase 1 code paths and write tests for error handling, cycle detection edge cases, config parsing errors, and network fallback logic.",
+  "instructions": "Add tests for Phase 2 (Processing) in phases.rs. Review existing Phase 2 code paths and write tests for cache key generation, operation fingerprinting, and serialization edge cases.",
   "context": {
-    "target_file": "src/phases/discovery.rs",
-    "related_files": ["src/phases/processing.rs", "src/phases/mod.rs"],
+    "target_file": "src/phases/processing.rs",
+    "related_files": ["src/phases/mod.rs", "src/phases/discovery.rs"],
     "note": "The merge-related tasks (phases-merge-yaml, etc.) may be outdated - we just completed comprehensive integration tests for src/merge/ modules."
   },
   "completed_plans": [

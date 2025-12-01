@@ -1,6 +1,6 @@
 {
   "plan_name": "Improving Test Coverage",
-  "last_updated": "2025-11-30",
+  "last_updated": "2025-12-01",
   "goal": "Target: 90%+ overall line coverage",
   "session_startup": [
     "Run git status to check branch",
@@ -191,10 +191,10 @@
     {
       "id": "phases-discovery-errors",
       "name": "Add tests for Phase 1 (Discovery & Cloning) error handling in phases.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "output_file": "src/phases.rs",
+      "output_file": "src/phases/discovery.rs",
       "steps": [
         "Review existing Phase 1 code paths in phases.rs",
         "Write tests for error handling in discovery",
@@ -206,7 +206,8 @@
         "All Phase 1 error paths have test coverage",
         "Cycle detection edge cases are tested",
         "All tests pass: cargo test phases"
-      ]
+      ],
+      "notes": "Added 21 tests covering: process_config_to_node, detect_cycles, clone_parallel error handling"
     },
     {
       "id": "phases-processing",
