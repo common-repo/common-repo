@@ -1,9 +1,9 @@
 {
-  "task": "phases-merge-toml",
+  "task": "phases-merge-ini",
   "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for TOML merge operations in phases.rs. Review TOML merge operator implementation and write tests for section merging, array handling, and error paths.",
+  "instructions": "Add tests for INI merge operations in phases.rs. Review INI merge operator implementation and write tests for section creation, key-value updates, and error paths.",
   "context": {
-    "target_file": "src/merge/toml.rs",
+    "target_file": "src/merge/ini.rs",
     "related_files": ["src/merge/mod.rs"],
     "note": "The merge-related tasks may be partially covered by the comprehensive integration tests in src/merge/ modules."
   },
