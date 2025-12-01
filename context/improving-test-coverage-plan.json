@@ -255,10 +255,10 @@
     {
       "id": "phases-merge-json",
       "name": "Add tests for JSON merge operations in phases.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "output_file": "src/phases.rs",
+      "output_file": "src/merge/json.rs",
       "steps": [
         "Review JSON merge operator implementation",
         "Write tests for deep merging",
@@ -270,7 +270,8 @@
         "Deep merging and type conflicts are tested",
         "Error paths are covered",
         "All tests pass"
-      ]
+      ],
+      "notes": "Added 41 new tests in 7 modules: deep_merging_tests (5 tests), type_conflict_tests (8 tests), error_path_tests (8 tests), array_position_tests (5 tests), navigate_edge_case_tests (6 tests), merge_values_direct_tests (6 tests), file_io_helper_tests (5 tests). Total JSON tests: 52"
     },
     {
       "id": "phases-merge-toml",
