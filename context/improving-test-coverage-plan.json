@@ -212,10 +212,10 @@
     {
       "id": "phases-processing",
       "name": "Add tests for Phase 2 (Processing) in phases.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "output_file": "src/phases.rs",
+      "output_file": "src/phases/processing.rs",
       "steps": [
         "Review existing Phase 2 code paths in phases.rs",
         "Write tests for cache key generation",
@@ -227,7 +227,8 @@
         "Operation fingerprinting is tested",
         "Serialization edge cases are covered",
         "All tests pass: cargo test phases"
-      ]
+      ],
+      "notes": "Added 41 new tests covering: cache_key_for_node (7 tests), collect_template_vars (5 tests), collect_merge_operations (9 tests), apply_operation (12 tests), process_single_repo (4 tests), execute_phase2 (4 tests)"
     },
     {
       "id": "phases-merge-yaml",

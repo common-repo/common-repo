@@ -1,11 +1,11 @@
 {
-  "task": "phases-processing",
+  "task": "phases-merge-yaml",
   "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for Phase 2 (Processing) in phases.rs. Review existing Phase 2 code paths and write tests for cache key generation, operation fingerprinting, and serialization edge cases.",
+  "instructions": "Add tests for YAML merge operations in phases.rs. Review YAML merge operator implementation and write tests for nested object merging, array merging, overwrite modes, and error paths.",
   "context": {
-    "target_file": "src/phases/processing.rs",
-    "related_files": ["src/phases/mod.rs", "src/phases/discovery.rs"],
-    "note": "The merge-related tasks (phases-merge-yaml, etc.) may be outdated - we just completed comprehensive integration tests for src/merge/ modules."
+    "target_file": "src/phases/composite.rs",
+    "related_files": ["src/merge/yaml.rs", "src/merge/mod.rs"],
+    "note": "The merge-related tasks may be partially covered by the comprehensive integration tests in src/merge/ modules."
   },
   "completed_plans": [
     "merge-operator-testing-plan (archived to context/completed/)"
