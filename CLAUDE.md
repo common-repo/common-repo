@@ -121,37 +121,37 @@ Example structure:
 
 ### Plan-to-Plan Pattern
 
-When a task requires reading excessive files/lines that would consume too much context, break it into sub-plans:
-
-**When to use:** A task needs to touch many modules/files and reading them all would overwhelm context.
+When a task requires reading excessive files/lines that would consume too much context, break it into sub-plans.
 
 **How it works:**
 1. Parent plan includes task: `"Create sub-plan for X"` → complete when sub-plan file created
 2. Next parent task: `"Complete sub-plan-X.json"` → stays `in_progress`
 3. Update `current-task.json` to point to sub-plan
 4. Work through sub-plan tasks
-5. When sub-plan done: archive it, update `current-task.json` back to parent, mark parent task complete
+5. When sub-plan is done: archive it, update `current-task.json` back to parent, mark parent task complete
 
 **Example parent plan tasks:**
 ```json
-{
-  "id": "create-coverage-subplans",
-  "name": "Create sub-plans for each module's test coverage",
-  "status": "complete",
-  "steps": ["Create context/coverage-config-module.json", "Create context/coverage-git-module.json"]
-},
-{
-  "id": "complete-config-coverage",
-  "name": "Complete coverage-config-module.json",
-  "status": "in_progress",
-  "sub_plan": "context/coverage-config-module.json"
-}
+[
+  {
+    "id": "create-coverage-subplans",
+    "name": "Create sub-plans for each module's test coverage",
+    "status": "complete",
+    "steps": ["Create context/coverage-config-module.json", "Create context/coverage-git-module.json"]
+  },
+  {
+    "id": "complete-config-coverage",
+    "name": "Complete coverage-config-module.json",
+    "status": "in_progress",
+    "sub_plan": "context/coverage-config-module.json"
+  }
+]
 ```
 
 **Rules:**
 - Sub-plans are functionally separate (no parent references needed)
 - Archive sub-plans separately when complete
-- Nesting depth is unlimited, but confirm with user at 3+ levels deep
+- Nesting depth is unlimited, but confirm with the user at 3+ levels deep
 
 ### Feature Completion Criteria
 
