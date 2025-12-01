@@ -1,25 +1,9 @@
 {
-  "task": "verify-test-coverage",
-  "plan": "context/merge-operator-testing-plan.json",
-  "instructions": "Verify test coverage targets are met for merge operators. Run cargo tarpaulin on merge modules and verify coverage >= 90%.",
-  "context": {
-    "infrastructure_complete": true,
-    "all_format_tests_complete": true,
-    "completed_format_tests": [
-      "yaml-merge-integration-tests",
-      "json-merge-integration-tests",
-      "toml-merge-integration-tests",
-      "ini-merge-integration-tests",
-      "markdown-merge-integration-tests"
-    ]
-  },
-  "completed_tasks": [
-    "setup-integration-test-infrastructure",
-    "yaml-merge-integration-tests",
-    "json-merge-integration-tests",
-    "toml-merge-integration-tests",
-    "ini-merge-integration-tests",
-    "markdown-merge-integration-tests"
+  "task": null,
+  "plan": null,
+  "instructions": null,
+  "completed_plans": [
+    "merge-operator-testing-plan (archived to context/completed/)"
   ],
-  "notes": "This is the final verification task. After this, archive-testing-guide can proceed."
+  "notes": "All merge operator integration tests and coverage verification complete."
 }
