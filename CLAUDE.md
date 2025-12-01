@@ -6,75 +6,72 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust project with automated tooling for code quality, conventional commits, and semantic versioning. The project is configured for modern development practices with comprehensive CI/CD automation.
 
-## LLM Context Files
+## Quick Setup
 
-The `context/` directory provides structured context for agent-based development workflows.
+This project follows the [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-them-all) pattern:
 
-**Agent workflow files** (read at session start):
-- `context/current-task.json` - Points to active task and its plan file (read first if exists)
-- `context/feature-status.json` - Structured JSON tracking of all Layer 0-4 feature status
-- `context/traceability-map.md` - Maps components to plan/design documentation
+```bash
+./script/setup    # First-time setup (installs deps, configures environment)
+./script/test     # Run test suite (uses cargo-nextest)
+./script/cibuild  # Run CI checks locally
+```
 
-**Reference documentation**:
-- `context/implementation-plan.md` - Detailed technical implementation plans
-- `context/cli-*.md` - CLI design and testing strategies
+Other scripts: `./script/bootstrap` (install deps), `./script/update` (after pulling changes)
 
-For human-readable documentation, see:
-- `docs/purpose.md` - Project purpose and goals
-- `docs/design.md` - Implementation architecture and design philosophy
-- `README.md` - User-facing documentation
+## Agent Session Protocol
 
-## Agent Session Startup
+Each session starts with no memory of previous work. Follow this protocol:
 
-Each session starts with no memory of previous work. Follow this 5-step protocol at the start of every session:
+1. **Check repository state**: Run `git status` to verify branch and working tree
+2. **Start baseline tests**: Run `./script/test` with `run_in_background: true` (skip for docs/context-only changes)
+3. **Find current task**: Read `context/current-task.json` for active work
+4. **Review recent history**: Run `git log --oneline -5`
+5. **Execute**: Find first task where `status=pending` and `blocked_by=null`, complete it, update status
 
-1. **Check repository state**: Run `git status` to verify the current branch and working tree state
-2. **Start baseline tests in background**: Run `./script/test` with `run_in_background: true`. This installs dependencies and runs tests while you continue working. You can check the output later to verify tests pass after making changes. **Exception**: Skip for documentation-only or context-only changes (markdown files, JSON task tracking).
-3. **Find current task**: Read `context/current-task.json` to identify the active work and its detailed plan
-4. **Review recent history**: Run `git log --oneline -5` to understand recent changes
-5. **Execute the task**: Find the first task where `status=pending` and `blocked_by=null`, complete it, then update the plan's task status to `complete`
+**Using background tests**: After making code changes, use `BashOutput` to check results. Start a new background test run after edits to verify changes.
 
-**Using background tests**: After making code changes, use `BashOutput` to check the background test results. If tests were already running, they show the baseline. Start a new background test run after edits to verify your changes.
+**Key context files:**
+- `context/current-task.json` - Active task and plan file
+- `context/feature-status.json` - Feature implementation status
+- `context/traceability-map.md` - Component to documentation mapping
 
-**Key files for session continuity:**
-- `context/current-task.json` - Points to the active task and its plan file
-- `context/feature-status.json` - Structured tracking of all feature implementation status
+**Reference docs:** `context/implementation-plan.md`, `context/cli-*.md`, `docs/purpose.md`, `docs/design.md`, `README.md`
 
 ### Task Stash Stack
 
-When interrupted by a higher-priority task, use the stash stack to preserve context:
+When interrupted by higher-priority work:
 
-**Push a task** (start new work, preserve current):
-1. Rename `current-task.json` → `current-task-stash{N}.json` (where N is the next available number: 1, 2, 3...)
-2. Create new `current-task.json` with the new task
-3. Skip step 1 if current task is null/empty
+**Push** (preserve current, start new):
+1. Rename `current-task.json` → `current-task-stash{N}.json` (skip if current task is null/empty)
+2. Create new `current-task.json` with new task
 
-**Pop a task** (resume previous work after completing current):
-1. Delete or clear `current-task.json` (task is done)
-2. Rename highest-numbered stash file back to `current-task.json`
-   - e.g., `current-task-stash2.json` → `current-task.json`
+**Pop** (resume after completing current):
+1. Delete/clear `current-task.json`
+2. Rename highest-numbered stash back to `current-task.json`
 
-**Example stash state:**
-```
-context/current-task.json        # Active: investigate slow tests
-context/current-task-stash1.json # Stashed: extract phase1 refactor
-context/current-task-stash2.json # Stashed: older task
-```
+Stack order: highest number = oldest task.
 
-The stack order (highest number = oldest) provides implicit task priority.
+### Archiving Completed Plans
+
+When all tasks in a plan are complete:
+1. `git mv context/<plan>.json context/completed/`
+2. Update `current-task.json` to next plan or clear
+3. Commit: `chore(context): archive completed <plan-name>`
 
 ## Agent Effectiveness Guidelines
 
-Based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), follow these principles:
+Based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents):
+
+- **Follow recommendations precisely** - Read entire sources before proposing solutions; don't paraphrase without justification
+- **If corrected, acknowledge and fix** - Don't defend substitutions that contradict the source
+- **Work on one task at a time** - Avoid scope creep and doing too much at once
 
 ### Use JSON for Structured Tracking
 
-When creating task lists, feature tracking, or progress documentation:
-
-- **Use JSON, not YAML or markdown prose** - The article specifically recommends JSON for its explicit structure and parseability
-- **Do not substitute formats** - If a reference says "use JSON", use JSON. Don't decide YAML is "close enough"
-- **Include explicit status fields** - Every trackable item needs a `"status": "pending|in_progress|complete"` field
-- **Add step-by-step descriptions** - Break features into discrete steps that can be verified
+- **Use JSON, not YAML or markdown** for task lists and progress tracking
+- **Do not substitute formats** - If a reference says "use JSON", use JSON
+- **Include explicit status fields**: `"status": "pending|in_progress|complete"`
+- **Add step-by-step descriptions** that can be verified
 
 Example structure:
 ```json
@@ -122,470 +119,137 @@ Example structure:
 }
 ```
 
-### Follow Recommendations Precisely
+### Feature Completion Criteria
 
-When referencing external documentation or articles:
+Do not mark features complete prematurely:
 
-- **Read the entire source** before proposing solutions
-- **Use exact recommendations** - Don't paraphrase or adapt without explicit justification
-- **If corrected, acknowledge and fix** - Don't defend substitutions that contradict the source
-
-### Session Continuity
-
-Each session starts with no memory of previous work:
-
-- **Check git status and recent commits** before starting
-- **Run tests to verify baseline** - Catch regressions before adding new work
-- **Read progress/task files** to understand current state
-- **Work on one task at a time** - Avoid scope creep and doing too much at once
-
-### Completion Criteria
-
-Do not mark features or tasks complete prematurely:
-
-- **E2E tests required** - Unit tests alone are insufficient; features need end-to-end verification
-- **All acceptance criteria met** - Check each criterion explicitly
-- **Tests actually pass** - Run them, don't assume
-
-### Archiving Completed Task Plans
-
-When all tasks in a JSON task plan file are complete:
-
-1. **Move to completed directory**: `git mv context/<plan-name>.json context/completed/`
-2. **Update current-task.json**: Point to the next active task plan, or clear if no pending work
-3. **Commit the archive**: Include in your next commit with a message like `chore(context): archive completed <plan-name>`
-
-This keeps the `context/` directory clean and provides a historical record of completed work.
-
-## Requirements
-
-- **Rust**: Stable channel (automatically managed via `rust-toolchain.toml`)
-  - The project requires Rust stable with support for edition 2024 features
-  - Install Rust from https://rustup.rs/
-  - The toolchain file will automatically ensure you have the correct version
-- **cargo-nextest**: Required for running tests (see setup instructions below)
-- **prek**: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
-  - Alternative: **pre-commit** (Python-based, works as fallback)
-  - Installed automatically by `./script/setup`
-
-## Quick Setup
-
-This project follows the [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-them-all) pattern for a normalized development workflow.
-
-For first-time setup after cloning:
-
-```bash
-# Set up the project (installs dependencies and configures environment)
-./script/setup
-```
-
-The setup process will:
-- Install Rust toolchain (via rust-toolchain.toml)
-- Install cargo-nextest (using cargo-binstall for fast binary installation)
-- Install prek (using binary installer, no compilation needed)
-- Build the project to warm the cache
-
-### Available Scripts
-
-- `./script/bootstrap` - Install all dependencies
-- `./script/setup` - Set up project for first-time use (calls bootstrap)
-- `./script/update` - Update project after pulling changes
-- `./script/test` - Run the test suite (uses cargo-nextest if available)
-- `./script/cibuild` - Run CI build locally (formatting, linting, tests)
+1. **E2E tests exist and pass** - Unit tests alone are insufficient
+2. **All acceptance criteria met** - Check each explicitly
+3. **Tests actually run and pass** - Run `./script/test`, don't assume
+4. **Update feature-status.json** - Set `"status": "complete"` with date
+5. **Documentation updated** - Add new commands/features to relevant docs
 
 ## Development Commands
 
-### Building and Running
+### Building
 ```bash
-# Source cargo environment (if needed in new shells)
-. "$HOME/.cargo/env"
-
-# Build the project
-cargo build
-
-# Build release binary
-cargo build --release
-
-# Run the application
-cargo run
+cargo build           # Debug build
+cargo build --release # Release build
+cargo run             # Run application
 ```
 
 ### Testing
 
-This project has comprehensive testing with both unit tests and integration tests.
-
-**Recommended: Use cargo-nextest** for faster test execution and better reporting.
-
-#### Installing cargo-nextest
-
-**Automated installation (recommended):**
-```bash
-# Run the setup script (installs cargo-nextest and sets up pre-commit hooks)
-./script/setup
-```
-
-**Manual installation:**
-```bash
-# Install cargo-nextest (one-time setup)
-cargo install cargo-nextest --locked
-
-# Or use cargo-binstall for faster installation (if available)
-cargo binstall cargo-nextest
-```
-
-**Note:** The `./script/test` command will automatically use cargo-nextest if available, or fall back to `cargo test` with a helpful message.
-
-#### Quick Test Runs
-
-For faster test runs after initial setup, skip the update step:
+Uses cargo-nextest for faster execution (falls back to `cargo test` if unavailable).
 
 ```bash
-# Skip dependency update for faster test runs
-QUICK=1 ./script/test
-
-# Or equivalently
-SKIP_UPDATE=1 ./script/test
-```
-
-**Environment variables for `./script/test`:**
-- `CI=1` - Automatically set in CI environments, skips update
-- `SKIP_UPDATE=1` - Skip the update step for faster runs
-- `QUICK=1` - Alias for SKIP_UPDATE=1
-
-The first run of `./script/test` may take longer because it:
-1. Installs required tools (cargo-nextest, prek)
-2. Fetches all dependencies
-3. Compiles the project
-
-Subsequent runs with `QUICK=1` skip these steps and run tests directly.
-
-#### Unit Tests (Recommended for development)
-
-**Using cargo-nextest (preferred):**
-```bash
-# Run unit tests only (fast, no network required)
+# Unit tests (fast, no network)
 cargo nextest run
+cargo nextest run test_name              # Specific test
+cargo nextest run --profile ci           # Identify slow tests
 
-# Run tests with verbose output
-cargo nextest run --verbose
-
-# Run a specific unit test
-cargo nextest run test_name
-
-# Run tests for a specific module
-cargo nextest run -E 'test(mod::test_name)'
-
-# Identify slow tests
-cargo nextest run --profile ci
-```
-
-**Using standard cargo test:**
-```bash
-# Run unit tests only (fast, no network required)
-cargo test
-
-# Run tests with verbose output
-cargo test -- --nocapture
-
-# Run a specific unit test
-cargo test test_name
-
-# Run tests for a specific module
-cargo test mod::test_name
-```
-
-#### Integration Tests (Requires network)
-Integration tests verify end-to-end functionality with real repositories:
-
-**Using cargo-nextest (preferred):**
-```bash
-# Run all tests including integration tests
+# Integration tests (requires network)
 cargo nextest run --features integration-tests
-
-# Run only integration tests
-cargo nextest run --test integration_test --features integration-tests
-
-# Run integration tests with verbose output
-cargo nextest run --test integration_test --features integration-tests --verbose
-
-# Skip network-dependent integration tests
 SKIP_NETWORK_TESTS=1 cargo nextest run --features integration-tests
+
+# Quick runs (skip dependency update)
+QUICK=1 ./script/test  # Also: SKIP_UPDATE=1 or CI=1
 ```
 
-**Using standard cargo test:**
-```bash
-# Run all tests including integration tests
-cargo test --features integration-tests
+**Important:**
+- Use unit tests during development (fast, no network)
+- Run integration tests before major changes
+- Integration tests are disabled by default (feature-gated)
+- Datatest tests for schema parsing auto-discover from YAML files
+- All tests must pass for CI/CD to succeed
+- Slow test config: `.config/nextest.toml`
 
-# Run only integration tests
-cargo test --test integration_test --features integration-tests
+### Writing E2E CLI Tests
 
-# Run integration tests with verbose output
-cargo test --test integration_test --features integration-tests -- --nocapture
-
-# Skip network-dependent integration tests
-SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
-```
-
-#### Finding Slow Tests
-
-Cargo-nextest can identify tests that exceed configured slow test thresholds:
-
-```bash
-# Run tests with the CI profile to see slow test warnings
-cargo nextest run --profile ci
-
-# Run with specific slow test threshold
-cargo nextest run --profile default --slow-timeout 60s
-
-# Generate detailed timing report
-cargo nextest run --verbose
-```
-
-Configuration is in `.config/nextest.toml`. Slow tests will be highlighted in CI output.
-
-**Important Notes:**
-- **Use unit tests during development** - they're fast and don't require network
-- **Run integration tests before major changes** - they verify real-world functionality
-- **Integration tests are disabled by default** to avoid network dependencies
-- **All tests must pass** for CI/CD to succeed (both unit and integration tests)
-- **Comprehensive test suite** includes unit tests, E2E CLI tests, integration tests, and doc tests
-- **Integration tests** validate end-to-end repository inheritance workflows (feature-gated)
-- **Datatest tests** for schema parsing automatically discover test cases from YAML files
-- **cargo-nextest is used in CI** for faster execution and slow test detection
-
-#### Writing E2E CLI Tests
-
-E2E tests for CLI commands are in `tests/cli_e2e_*.rs`. When writing these tests:
-
-**Use `cargo_bin_cmd!` macro** (not deprecated `Command::cargo_bin`):
+E2E tests are in `tests/cli_e2e_*.rs`. Use `cargo_bin_cmd!` macro (not deprecated `Command::cargo_bin`):
 ```rust
-// ✅ CORRECT - use cargo_bin_cmd! macro
+// CORRECT
 use assert_cmd::cargo::cargo_bin_cmd;
+let mut cmd = cargo_bin_cmd!("common-repo");
+cmd.arg("ls").arg("--help").assert().success();
 
-#[test]
-fn test_example() {
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.arg("ls")
-        .arg("--help")
-        .assert()
-        .success();
-}
-
-// ❌ WRONG - Command::cargo_bin is deprecated and will cause clippy failures
-use assert_cmd::Command;
-
-fn common_repo_cmd() -> Command {
-    Command::cargo_bin("common-repo").unwrap()  // DEPRECATED
-}
+// WRONG - Command::cargo_bin is deprecated
+Command::cargo_bin("common-repo").unwrap()  // Don't use
 ```
 
-See existing tests in `tests/cli_e2e_apply.rs` or `tests/cli_e2e_ls.rs` for examples.
-
-#### Test Coverage (Tarpaulin)
-
-This project uses [cargo-tarpaulin](https://github.com/xd009642/tarpaulin) for test coverage analysis:
+### Test Coverage
 
 ```bash
-# Install tarpaulin (if not already installed)
 cargo install cargo-tarpaulin
-
-# Generate coverage report (HTML output)
-cargo tarpaulin --out Html
-
-# Generate coverage report (terminal output)
-cargo tarpaulin
-
-# Generate coverage report with specific output format
-cargo tarpaulin --out Xml  # For CI integration
-cargo tarpaulin --out Stdout  # Terminal output
-
-# Exclude integration tests from coverage
-cargo tarpaulin --tests
-
-# Generate coverage for specific modules
-cargo tarpaulin --tests --lib
-
-# Set minimum coverage threshold (fails if below threshold)
-cargo tarpaulin --fail-under 80
-
-# Generate detailed coverage report
-cargo tarpaulin --out Html --output-dir target/tarpaulin
+cargo tarpaulin --out Html              # HTML report in target/tarpaulin/
+cargo tarpaulin --fail-under 80         # Enforce minimum coverage
 ```
 
-Coverage reports are generated in `target/tarpaulin/` directory. HTML reports can be viewed by opening `target/tarpaulin/tarpaulin-report.html` in a browser.
+## Code Quality & Pre-commit
 
-**Coverage Goals:**
-- Target: 90%+ line coverage for all modules
-- See [context/improving-test-coverage-plan.md](context/improving-test-coverage-plan.md) for detailed coverage analysis and improvement areas
-
-### Code Quality
+**Before every commit**, run:
 ```bash
-# Format code (must pass before committing)
-cargo fmt
-
-# Check formatting without modifying files
-cargo fmt -- --check
-
-# Run clippy linting (configured to fail on warnings)
-cargo clippy --all-targets --all-features -- -D warnings
-
-# Run all quality checks at once
-cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
+prek run --all-files  # Recommended: runs all checks automatically
+# Or: ./script/cibuild  # Run full CI checks locally
 ```
 
-## Documentation style guide
-
-- Create documentation following the [Rustdoc guide](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html) and the [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/) as well as the [Rustdoc std-dev style guide](https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html).
-- Documentation should link to files or other documentation appropriately.
-- Do not use emojis or overly enthusiastic or hype language in documentation.
-- Do not write specific numbers that will change, like "with over 73.5% coverage".
-- Do not write specific call outs of line numbers like, "see fileblah.rs (line 123)", since they will change over time.
-- When you are done modifying a document, review it for consistency, and accuracy.
-
-## Committing and Pushing Guidelines for Claude Code
-
-**CRITICAL**: When working with Claude Code, follow these guidelines:
-
-1. **NEVER commit and push without explicit user approval**
-   - Always ask the user before committing changes
-   - Always ask the user before pushing to remote
-   - Exception: User explicitly says "commit and push" or similar
-
-2. **Avoid hardcoding ANY values in tests that will change over time**
-   - No specific version numbers (v0.9.0, v1.0.0, etc.)
-   - No specific dates or timestamps
-   - No major version assumptions (v0., v1., etc.)
-   - Use comparisons, regex parsing, or dynamic checks instead
-   - Parse from source files (Cargo.toml) if you need current values
-
-3. **When fixing tests**:
-   - Understand what behavior the test is validating
-   - Fix the underlying issue, not just update expectations
-   - If expectations need updating, make them flexible/dynamic
-   - Always run tests locally before claiming they're fixed
-
-4. **Keep summaries brief**:
-   - 1-2 sentences maximum
-   - No code samples in summaries unless explicitly requested
-   - Focus on what changed and why
-
-## Pre-Commit Checklist
-
-**IMPORTANT**: Always follow this checklist before committing to avoid CI failures:
-
-1. **Run prek (RECOMMENDED)**: Run `prek run --all-files` to automatically format, lint, and validate all files
-   - This runs cargo fmt, cargo clippy, and all other pre-commit hooks automatically
-   - Catches issues before committing
-2. **Alternative - Run checks individually**:
-   - **Format code**: Run `cargo fmt` to ensure consistent code formatting
-   - **Run linting**: Run `cargo clippy --all-targets --all-features -- -D warnings` to catch warnings
-   - **Run tests**: Run `./script/test` or `cargo test` to ensure all tests pass
-3. **Update feature-status.json**: If you've completed a feature, update `context/feature-status.json`
-4. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
-5. **Check branch name**: For claude/agent branches, ensure name ends with session ID (e.g., `claude/feature-018evyqR5BZFzuZW5AuM9XRR`)
-
-**Quick verification before push**:
+Or individually:
 ```bash
-# Run all CI checks locally
-./script/cibuild
-
-# Or run pre-commit hooks on all files (recommended)
-prek run --all-files
-
-# Or run checks individually
-cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test
+cargo fmt                                              # Format code
+cargo clippy --all-targets --all-features -- -D warnings  # Lint
+cargo test                                             # Run tests
 ```
 
-**Common CI failures to avoid**:
-- ❌ Commit message too long (>100 chars) → Use concise conventional commit format
-- ❌ Code not formatted → Run `prek run --all-files` or `cargo fmt` before committing
-- ❌ Clippy warnings → Run `prek run --all-files` or fix with `cargo clippy`
-- ❌ Pre-commit hooks failed → Always run `prek run --all-files` before committing
-- ❌ Branch name doesn't end with session ID → Rename branch to include session ID
+Pre-commit hooks (configured in `.pre-commit-config.yaml`) automatically run: cargo fmt, cargo check, cargo clippy, conventional commit validation, trailing whitespace/YAML checks.
 
-## Feature Completion Checklist
+**Also remember:**
+- Update `context/feature-status.json` when completing features
+- Branch names for Claude agents must end with session ID
 
-Before marking a feature as complete, verify all criteria are met:
-
-1. **End-to-end tests exist and pass**
-   - Unit tests alone are insufficient for feature completion
-   - E2E tests must verify the feature works in realistic scenarios
-   - Run: `cargo test --features integration-tests` for network-dependent features
-
-2. **All acceptance criteria met**
-   - Review each criterion explicitly in the task plan
-   - Document how each criterion was verified
-
-3. **Tests actually run and pass**
-   - Run tests locally: `./script/test`
-   - Never assume tests pass without running them
-
-4. **Update feature-status.json**
-   - Update `context/feature-status.json` to reflect completion
-   - Set `"status": "complete"` only after all criteria are verified
-   - Include the date of completion
-
-5. **Documentation updated**
-   - Add any new commands or features to relevant documentation
-
-Reference: This checklist is based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) which emphasizes that agents often mark tasks complete prematurely.
+**Common CI failures:**
+- Commit message >100 chars or wrong format
+- Code not formatted
+- Clippy warnings
 
 ## Commit Message Requirements
 
-This repository enforces **conventional commits** via pre-commit hooks and CI. All commits must follow this format:
+All commits must follow **conventional commits**:
 
 ```
 <type>(<scope>): <description>
 ```
 
-Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 
-Examples:
-- `feat: add user authentication module`
-- `fix: resolve memory leak in data parser`
-- `docs: update installation instructions`
+Examples: `feat: add user auth`, `fix: resolve memory leak`, `docs: update install instructions`
 
-Breaking changes require either:
-- `feat!: breaking change description` or
-- `BREAKING CHANGE:` in the commit footer
+Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 
-## Pre-commit Hooks
+## Committing Guidelines for Claude Code
 
-Pre-commit hooks are configured in `.pre-commit-config.yaml` and will automatically run:
-- `cargo fmt` (formatting)
-- `cargo check` (compilation)
-- `cargo clippy` (linting with `-D warnings`)
-- Conventional commit validation
-- Trailing whitespace and YAML checks
-
-If pre-commit hooks are not installed, run `./script/setup` to install and configure them automatically.
+1. **NEVER commit/push without explicit user approval**
+2. **Avoid hardcoding values that change** - No version numbers, dates, or timestamps in tests. Use dynamic checks.
+3. **When fixing tests** - Understand what's being validated, fix the underlying issue, make expectations flexible
+4. **Keep summaries brief** - 1-2 sentences, no code samples unless requested
 
 ## CI/CD Architecture
 
-### GitHub Actions Workflows
+**CI Pipeline** (`.github/workflows/ci.yml`): Lint job (pre-commit checks), Test job, Rustfmt job, Clippy job
 
-1. **CI Pipeline** (`.github/workflows/ci.yml`)
-   - Triggers on push/PR to `main`
-   - **Lint job**: Runs pre-commit checks on all files (rustfmt, clippy, conventional commits validation, etc.)
-   - **Test job**: Runs all tests with caching for cargo registry/index/build artifacts
-   - **Rustfmt job**: Checks code formatting
-   - **Clippy job**: Runs linting checks
+**Commit Linting** (`.github/workflows/commitlint.yml`): Validates conventional commit format in PRs
 
-2. **Commit Linting** (`.github/workflows/commitlint.yml`)
-   - Validates commit messages in PRs
-   - Enforces conventional commit format
+## Documentation Style Guide
 
-## Important Notes for Development
+- Follow [Rustdoc guide](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html), [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/), and [std-dev style guide](https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html)
+- Link to files/documentation appropriately
+- No emojis or hype language
+- No specific numbers that will change (versions, coverage percentages)
+- No line number references
+- Review for consistency and accuracy when done
 
-- **Lint job is required**: The CI pipeline includes a dedicated Lint job that runs pre-commit on all files. This job must pass for PRs to be merged.
-- **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
-- **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
-- **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
-- **Prek installation**: Run `./script/setup` or `./script/bootstrap` to install prek automatically.
-- Binary name is `common-repo` (matches the package name in Cargo.toml).
-- When reviewing changes, always look for flimsy or axiomatic tests that don't really test anything.
-- When reviewing changes, always check for TODOs or other stubbed implementation items.
-- before you push a branch remember to rebase it on main and resolve and conflict
+## Important Notes
+
+- Clippy is strict: all warnings are errors (`-D warnings`)
+- Binary name is `common-repo`
+- When reviewing: look for flimsy tests, check for TODOs/stubs
+- Before pushing: rebase on main and resolve conflicts
