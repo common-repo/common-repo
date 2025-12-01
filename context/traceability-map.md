@@ -76,4 +76,4 @@ This document provides a consolidated reference mapping each component to its co
 
 - All plan references are relative to `context/completed/implementation-plan.md` (archived after completion)
 - All design references are relative to `docs/design.md`
-- Feature implementation status is tracked in `context/feature-status.json`
+- Feature implementation status is archived in `context/completed/feature-status.json`

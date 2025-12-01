@@ -8,16 +8,12 @@ This is a Rust project with automated tooling for code quality, conventional com
 
 ## LLM Context Files
 
-The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans:
+The `context/` directory contains task tracking for LLM assistants:
 
-- `context/feature-status.json` - Structured JSON tracking of all feature implementation status
 - `context/current-task.json` - Points to active task and its plan file
-- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
-- `context/cli-*.md` - CLI design, implementation plans, and testing strategies
-- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
-- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
+- `context/completed/` - Archived plans and status files (feature-status.json, implementation plans, testing guides)
 
-These files are temporary and will be removed once the project reaches maturity. For human-readable documentation, see:
+For human-readable documentation, see:
 - `docs/purpose.md` - Project purpose and goals
 - `docs/design.md` - Implementation architecture and design philosophy
 - `README.md` - User-facing documentation
@@ -156,8 +152,7 @@ cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings
    - **Format code**: `cargo fmt`
    - **Run linting**: `cargo clippy --all-targets --all-features -- -D warnings`
    - **Run tests**: `./script/test`
-3. **Update feature-status.json**: If you've completed a feature, update `context/feature-status.json`
-4. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
+3. **Write conventional commit**: Ensure commit message is < 100 characters and follows format: `type(scope): description`
 
 **Quick verification before push**:
 ```bash

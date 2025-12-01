@@ -11,33 +11,14 @@ This is a Rust project with automated tooling for code quality, conventional com
 
 ## LLM Context Files
 
-The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans.
+The `context/` directory contains task tracking for LLM assistants:
 
-### Structured Tracking Files
-
-- `context/feature-status.json` - Structured JSON tracking of all feature implementation status
 - `context/current-task.json` - Points to active task and its plan file
-
-### Reference Documentation
-
-- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
-- `context/cli-design.md` - CLI architecture and command structure
-- `context/cli-implementation-plan.md` - CLI implementation roadmap
-- `context/cli-testing-strategy.md` - CLI testing approach and coverage
-- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
-- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
-
-### Temporary Prompt Files
-
-- `context/prompt.md` - Manually invoked prompt file (temporary, will be removed)
-- `context/todo-prompt.md` - Manually invoked prompt file (temporary, will be removed)
+- `context/completed/` - Archived plans and status files
 
 **Important Notes:**
-- Context files are temporary and will be removed once the project reaches maturity
-- Temporary prompt files (`*prompt.md`) are manually invoked and should not be automatically included
 - For human-readable documentation, see `docs/purpose.md` and `docs/design.md`
-- Update `context/feature-status.json` when completing features
-- Use these files to understand project architecture, completed work, and future plans
+- Use archived files in `context/completed/` to understand project architecture and completed work
 
 ## Requirements
 
