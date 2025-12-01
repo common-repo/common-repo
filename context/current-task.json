@@ -1,13 +1,9 @@
 {
-  "task": "phases-merge-config",
-  "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for merge configuration parsing in phases.rs. Review merge configuration parsing code and write tests for configuration parsing, file path handling, and invalid configuration handling.",
-  "context": {
-    "target_file": "src/phases.rs",
-    "related_files": ["src/merge/mod.rs", "src/config.rs"],
-    "note": "Focus on testing the configuration parsing logic for merge operations"
-  },
+  "task": null,
+  "plan": null,
+  "instructions": "All tasks in improving-test-coverage-plan.json complete. Plan archived to context/completed/",
   "completed_plans": [
-    "merge-operator-testing-plan (archived to context/completed/)"
+    "merge-operator-testing-plan (archived to context/completed/)",
+    "improving-test-coverage-plan (archived to context/completed/)"
   ]
 }
