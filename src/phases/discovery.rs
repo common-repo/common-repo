@@ -332,3 +332,676 @@ pub fn clone_parallel(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{ExcludeOp, IncludeOp, RepoOp};
+    use crate::filesystem::MemoryFS;
+    use crate::repository::{CacheOperations, GitOperations};
+    use std::path::{Path, PathBuf};
+    use std::sync::{Arc, Mutex};
+
+    // ========================================================================
+    // Mock implementations for testing
+    // ========================================================================
+
+    /// Mock git operations for testing
+    struct MockGitOperations {
+        clone_calls: Arc<Mutex<Vec<(String, String, PathBuf)>>>,
+        should_fail: bool,
+        fail_with_network_error: bool,
+        error_message: String,
+    }
+
+    impl MockGitOperations {
+        fn new() -> Self {
+            Self {
+                clone_calls: Arc::new(Mutex::new(Vec::new())),
+                should_fail: false,
+                fail_with_network_error: false,
+                error_message: String::new(),
+            }
+        }
+
+        fn with_network_error(message: String) -> Self {
+            Self {
+                clone_calls: Arc::new(Mutex::new(Vec::new())),
+                should_fail: true,
+                fail_with_network_error: true,
+                error_message: message,
+            }
+        }
+
+        fn with_non_network_error(message: String) -> Self {
+            Self {
+                clone_calls: Arc::new(Mutex::new(Vec::new())),
+                should_fail: true,
+                fail_with_network_error: false,
+                error_message: message,
+            }
+        }
+    }
+
+    impl GitOperations for MockGitOperations {
+        fn clone_shallow(&self, url: &str, ref_name: &str, target_dir: &Path) -> Result<()> {
+            self.clone_calls.lock().unwrap().push((
+                url.to_string(),
+                ref_name.to_string(),
+                target_dir.to_path_buf(),
+            ));
+            if self.should_fail {
+                if self.fail_with_network_error {
+                    Err(Error::GitClone {
+                        url: url.to_string(),
+                        r#ref: ref_name.to_string(),
+                        message: self.error_message.clone(),
+                    })
+                } else {
+                    Err(Error::ConfigParse {
+                        message: self.error_message.clone(),
+                    })
+                }
+            } else {
+                Ok(())
+            }
+        }
+
+        fn list_tags(&self, _url: &str) -> Result<Vec<String>> {
+            Ok(vec!["v1.0.0".to_string(), "v2.0.0".to_string()])
+        }
+    }
+
+    /// Mock cache operations for testing
+    struct MockCacheOperations {
+        cached_repos: Arc<Mutex<Vec<PathBuf>>>,
+        cache_root: PathBuf,
+        filesystem: MemoryFS,
+    }
+
+    impl MockCacheOperations {
+        fn new() -> Self {
+            Self {
+                cached_repos: Arc::new(Mutex::new(Vec::new())),
+                cache_root: PathBuf::from("/mock/cache"),
+                filesystem: MemoryFS::new(),
+            }
+        }
+
+        fn with_cached(paths: Vec<PathBuf>) -> Self {
+            Self {
+                cached_repos: Arc::new(Mutex::new(paths)),
+                cache_root: PathBuf::from("/mock/cache"),
+                filesystem: MemoryFS::new(),
+            }
+        }
+    }
+
+    impl CacheOperations for MockCacheOperations {
+        fn exists(&self, cache_path: &Path) -> bool {
+            self.cached_repos
+                .lock()
+                .unwrap()
+                .contains(&cache_path.to_path_buf())
+        }
+
+        fn get_cache_path(&self, url: &str, ref_name: &str) -> PathBuf {
+            self.cache_root
+                .join(format!("{}-{}", url.replace(['/', ':'], "-"), ref_name))
+        }
+
+        fn load_from_cache(&self, _cache_path: &Path) -> Result<MemoryFS> {
+            Ok(self.filesystem.clone())
+        }
+
+        fn save_to_cache(&self, cache_path: &Path, _fs: &MemoryFS) -> Result<()> {
+            self.cached_repos
+                .lock()
+                .unwrap()
+                .push(cache_path.to_path_buf());
+            Ok(())
+        }
+    }
+
+    // ========================================================================
+    // Tests for process_config_to_node
+    // ========================================================================
+
+    #[test]
+    fn test_process_config_to_node_empty_config() {
+        let config: Schema = vec![];
+        let result = process_config_to_node(&config);
+
+        assert!(result.is_ok());
+        let node = result.unwrap();
+        assert_eq!(node.url, "local");
+        assert_eq!(node.ref_, "HEAD");
+        assert!(node.children.is_empty());
+        assert!(node.operations.is_empty());
+    }
+
+    #[test]
+    fn test_process_config_to_node_non_repo_operations() {
+        let config: Schema = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["*.rs".to_string()],
+                },
+            },
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            },
+        ];
+
+        let result = process_config_to_node(&config);
+        assert!(result.is_ok());
+
+        let node = result.unwrap();
+        assert_eq!(node.url, "local");
+        assert!(node.children.is_empty());
+        assert_eq!(node.operations.len(), 2);
+    }
+
+    #[test]
+    fn test_process_config_to_node_repo_operations_become_children() {
+        let config: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "https://github.com/example/repo".to_string(),
+                r#ref: "main".to_string(),
+                path: None,
+                with: vec![],
+            },
+        }];
+
+        let result = process_config_to_node(&config);
+        assert!(result.is_ok());
+
+        let node = result.unwrap();
+        assert_eq!(node.url, "local");
+        assert_eq!(node.children.len(), 1);
+        assert_eq!(node.children[0].url, "https://github.com/example/repo");
+        assert_eq!(node.children[0].ref_, "main");
+        assert!(node.operations.is_empty());
+    }
+
+    #[test]
+    fn test_process_config_to_node_mixed_operations() {
+        let config: Schema = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["*.rs".to_string()],
+                },
+            },
+            Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/example/repo1".to_string(),
+                    r#ref: "v1.0".to_string(),
+                    path: None,
+                    with: vec![Operation::Exclude {
+                        exclude: ExcludeOp {
+                            patterns: vec!["tests/**".to_string()],
+                        },
+                    }],
+                },
+            },
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            },
+            Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/example/repo2".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            },
+        ];
+
+        let result = process_config_to_node(&config);
+        assert!(result.is_ok());
+
+        let node = result.unwrap();
+        assert_eq!(node.url, "local");
+        // Non-repo operations stay in root
+        assert_eq!(node.operations.len(), 2);
+        // Repo operations become children
+        assert_eq!(node.children.len(), 2);
+        assert_eq!(node.children[0].url, "https://github.com/example/repo1");
+        assert_eq!(node.children[0].ref_, "v1.0");
+        // The with clause operations are preserved
+        assert_eq!(node.children[0].operations.len(), 1);
+        assert_eq!(node.children[1].url, "https://github.com/example/repo2");
+    }
+
+    #[test]
+    fn test_process_config_to_node_local_url_error() {
+        // Using "local" as a repo URL should trigger a cycle detection error
+        let config: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "local".to_string(),
+                r#ref: "HEAD".to_string(),
+                path: None,
+                with: vec![],
+            },
+        }];
+
+        let result = process_config_to_node(&config);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(matches!(error, Error::CycleDetected { .. }));
+        assert!(error.to_string().contains("local@HEAD"));
+    }
+
+    // ========================================================================
+    // Tests for detect_cycles
+    // ========================================================================
+
+    #[test]
+    fn test_detect_cycles_no_cycle_single_node() {
+        let node = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+
+        let result = detect_cycles(&node, &mut Vec::new());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_detect_cycles_no_cycle_linear_chain() {
+        let mut grandchild = RepoNode::new(
+            "https://github.com/example/repo-c".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        grandchild.children = vec![];
+
+        let mut child = RepoNode::new(
+            "https://github.com/example/repo-b".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        child.children = vec![grandchild];
+
+        let mut root = RepoNode::new(
+            "https://github.com/example/repo-a".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        root.children = vec![child];
+
+        let result = detect_cycles(&root, &mut Vec::new());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_detect_cycles_no_cycle_same_repo_different_branches() {
+        // Same repo can appear in different branches - that's allowed
+        let child1 = RepoNode::new(
+            "https://github.com/example/shared".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let child2 = RepoNode::new(
+            "https://github.com/example/shared".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child1, child2];
+
+        let result = detect_cycles(&root, &mut Vec::new());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_detect_cycles_direct_cycle() {
+        // Create a cycle: A -> B -> A
+        let mut node_a = RepoNode::new(
+            "https://github.com/example/repo-a".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+
+        let mut node_b = RepoNode::new(
+            "https://github.com/example/repo-b".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+
+        // B points back to A (cycle)
+        let node_a_copy = RepoNode::new(
+            "https://github.com/example/repo-a".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        node_b.children = vec![node_a_copy];
+
+        node_a.children = vec![node_b];
+
+        let result = detect_cycles(&node_a, &mut Vec::new());
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(matches!(error, Error::CycleDetected { .. }));
+        let error_msg = error.to_string();
+        assert!(error_msg.contains("Cycle detected"));
+        assert!(error_msg.contains("repo-a"));
+        assert!(error_msg.contains("repo-b"));
+    }
+
+    #[test]
+    fn test_detect_cycles_longer_cycle() {
+        // Create a longer cycle: A -> B -> C -> A
+        let node_a_copy = RepoNode::new(
+            "https://github.com/example/repo-a".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+
+        let mut node_c = RepoNode::new(
+            "https://github.com/example/repo-c".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        node_c.children = vec![node_a_copy]; // C -> A (cycle)
+
+        let mut node_b = RepoNode::new(
+            "https://github.com/example/repo-b".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        node_b.children = vec![node_c]; // B -> C
+
+        let mut node_a = RepoNode::new(
+            "https://github.com/example/repo-a".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        node_a.children = vec![node_b]; // A -> B
+
+        let result = detect_cycles(&node_a, &mut Vec::new());
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(matches!(error, Error::CycleDetected { .. }));
+    }
+
+    #[test]
+    fn test_detect_cycles_skips_local_root() {
+        // Local root nodes should be skipped in cycle detection
+        let child = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child];
+
+        let result = detect_cycles(&root, &mut Vec::new());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_detect_cycles_different_refs_not_a_cycle() {
+        // Same URL but different refs are considered different repos
+        let child = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "v2.0".to_string(), // Different ref
+            vec![],
+        );
+
+        let mut parent = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "v1.0".to_string(),
+            vec![],
+        );
+        parent.children = vec![child];
+
+        let result = detect_cycles(&parent, &mut Vec::new());
+        assert!(result.is_ok());
+    }
+
+    // ========================================================================
+    // Tests for clone_parallel
+    // ========================================================================
+
+    #[test]
+    fn test_clone_parallel_empty_tree() {
+        let root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::new());
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_clone_parallel_single_repo() {
+        let child = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child];
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::new());
+        let clone_calls = git_ops.clone_calls.clone();
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_ok());
+
+        let calls = clone_calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].0, "https://github.com/example/repo");
+        assert_eq!(calls[0].1, "main");
+    }
+
+    #[test]
+    fn test_clone_parallel_multiple_repos_at_same_level() {
+        let child1 = RepoNode::new(
+            "https://github.com/example/repo1".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let child2 = RepoNode::new(
+            "https://github.com/example/repo2".to_string(),
+            "v1.0".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child1, child2];
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::new());
+        let clone_calls = git_ops.clone_calls.clone();
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_ok());
+
+        let calls = clone_calls.lock().unwrap();
+        assert_eq!(calls.len(), 2);
+    }
+
+    #[test]
+    fn test_clone_parallel_nested_repos() {
+        let grandchild = RepoNode::new(
+            "https://github.com/example/repo-c".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut child = RepoNode::new(
+            "https://github.com/example/repo-b".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        child.children = vec![grandchild];
+
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child];
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::new());
+        let clone_calls = git_ops.clone_calls.clone();
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_ok());
+
+        let calls = clone_calls.lock().unwrap();
+        assert_eq!(calls.len(), 2);
+        // First level cloned first
+        assert_eq!(calls[0].0, "https://github.com/example/repo-b");
+        // Then second level
+        assert_eq!(calls[1].0, "https://github.com/example/repo-c");
+    }
+
+    #[test]
+    fn test_clone_parallel_network_error_with_cache_fallback() {
+        let child = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child];
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::with_network_error(
+            "Connection refused".to_string(),
+        ));
+        // Pre-populate cache so fallback works
+        let cache_path = PathBuf::from("/mock/cache/https---github.com-example-repo-main");
+        let cache_ops = Box::new(MockCacheOperations::with_cached(vec![cache_path]));
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        // Should succeed because we fall back to cache
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_clone_parallel_network_error_without_cache_fails() {
+        let child = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child];
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::with_network_error(
+            "Connection refused".to_string(),
+        ));
+        // No cache available
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        // Should fail because no cache fallback available
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(matches!(error, Error::GitClone { .. }));
+    }
+
+    #[test]
+    fn test_clone_parallel_non_network_error_propagates() {
+        let child = RepoNode::new(
+            "https://github.com/example/repo".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child];
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::with_non_network_error(
+            "Some other error".to_string(),
+        ));
+        // No cache available - non-network errors should propagate
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        // Should fail because non-network errors propagate
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(matches!(error, Error::ConfigParse { .. }));
+    }
+
+    // ========================================================================
+    // Integration tests for discover_repos
+    // ========================================================================
+
+    #[test]
+    fn test_discover_repos_empty_config() {
+        let config: Schema = vec![];
+
+        let git_ops = Box::new(MockGitOperations::new());
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+
+        let result = discover_repos(&config, &repo_manager);
+        assert!(result.is_ok());
+
+        let tree = result.unwrap();
+        assert_eq!(tree.root.url, "local");
+        assert!(tree.root.children.is_empty());
+    }
+
+    #[test]
+    fn test_discover_repos_with_operations_only() {
+        let config: Schema = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["*.rs".to_string()],
+                },
+            },
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            },
+        ];
+
+        let git_ops = Box::new(MockGitOperations::new());
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+
+        let result = discover_repos(&config, &repo_manager);
+        assert!(result.is_ok());
+
+        let tree = result.unwrap();
+        assert_eq!(tree.root.url, "local");
+        assert!(tree.root.children.is_empty());
+        assert_eq!(tree.root.operations.len(), 2);
+    }
+}
