@@ -9,6 +9,7 @@
 - toml:
     source: fragment-basic.toml
     dest: destination-basic.toml
+    path: ""
 
 # Test 2: Merge dependencies in Cargo.toml
 - toml:
@@ -17,10 +18,12 @@
     path: dependencies
 
 # Test 3: Append to array
+# Note: path targets the parent table (workspace), and source contains the array key (members)
+# This allows array appending to work with TOML's requirement for table-rooted documents
 - toml:
     source: fragment-members.toml
     dest: workspace.toml
-    path: workspace.members
+    path: workspace
     append: true
 
 # Test 4: Merge with comment preservation

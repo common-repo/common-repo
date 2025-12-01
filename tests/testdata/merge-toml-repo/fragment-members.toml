@@ -1,2 +1,4 @@
-# Additional workspace members
-["new-crate-1", "new-crate-2"]
+# Additional workspace members to append
+# This file contains members array that will be merged into workspace table
+# When merged at path "workspace" with append: true, these items are appended
+members = ["new-crate-1", "new-crate-2"]
