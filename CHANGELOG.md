@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.17.0](https://github.com/common-repo/common-repo/compare/v0.16.0...v0.17.0) (2025-12-01)
+
+
+### Features
+
+* **tests:** add JSON merge operation tests ([4a6217d](https://github.com/common-repo/common-repo/commit/4a6217d0a7706d6d4f92407d66a195af5118c9f2))
+* **tests:** add Phase 1 discovery error handling tests ([3ac4727](https://github.com/common-repo/common-repo/commit/3ac4727727bcad4127b82bb145ff271ef05054ce))
+* **tests:** add Phase 2 processing tests ([0743782](https://github.com/common-repo/common-repo/commit/074378233560bc9e847666d794d2a77d0b414916))
+* **tests:** add YAML merge operation tests ([a2784fd](https://github.com/common-repo/common-repo/commit/a2784fd9a32ff3f5a03c6eb93d5a2a0f7c0f0d6d))
+
 ## [0.16.0](https://github.com/common-repo/common-repo/compare/v0.15.0...v0.16.0) (2025-12-01)
 
 
