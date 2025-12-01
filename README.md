@@ -15,6 +15,36 @@ A CLI tool for managing repository configuration inheritance and file compositio
 
 Perfect for standardizing CI/CD configs, pre-commit hooks, and other repository infrastructure across projects.
 
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](docs/getting-started.md) | Installation and first steps |
+| [Configuration Reference](docs/configuration.md) | All operators and options |
+| [CLI Reference](docs/cli.md) | Complete command documentation |
+| [Recipes](docs/recipes.md) | Common patterns and examples |
+| [Design](docs/design.md) | Architecture and implementation details |
+| [Purpose](docs/purpose.md) | Project goals and philosophy |
+
+## Quick Start
+
+```bash
+# Install
+cargo install --path .
+
+# Initialize configuration
+common-repo init
+
+# Preview changes
+common-repo ls
+common-repo diff
+
+# Apply configuration
+common-repo apply
+```
+
+See the [Getting Started guide](docs/getting-started.md) for detailed instructions.
+
 ## Features
 
 - **Automated Testing & CI/CD**: GitHub Actions workflows for continuous integration

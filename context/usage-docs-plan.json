@@ -1,0 +1,110 @@
+{
+  "plan_name": "Usage Documentation for Open Source Adoption",
+  "last_updated": "2025-12-01",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending"
+  ],
+  "tasks": [
+    {
+      "id": "getting-started",
+      "name": "Create docs/getting-started.md",
+      "status": "complete",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "docs/getting-started.md",
+      "steps": [
+        "Write installation instructions",
+        "Show minimal .common-repo.yaml example",
+        "Walk through first apply command",
+        "Link to deeper documentation"
+      ],
+      "acceptance_criteria": [
+        "File exists at docs/getting-started.md",
+        "Includes working example config",
+        "Clear path from zero to first apply"
+      ]
+    },
+    {
+      "id": "configuration-reference",
+      "name": "Create docs/configuration.md",
+      "status": "complete",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "docs/configuration.md",
+      "steps": [
+        "Document all operators with examples: repo, include, exclude, rename, template, template-vars, tools",
+        "Document all merge operators: yaml, json, toml, ini, markdown",
+        "Include complete examples for each",
+        "Explain operation ordering"
+      ],
+      "acceptance_criteria": [
+        "File exists at docs/configuration.md",
+        "All operators documented with examples",
+        "Clear explanation of execution order"
+      ]
+    },
+    {
+      "id": "cli-reference",
+      "name": "Create docs/cli.md",
+      "status": "complete",
+      "priority": 3,
+      "blocked_by": null,
+      "output_file": "docs/cli.md",
+      "steps": [
+        "Document all commands: apply, check, diff, init, update, info, ls, validate, cache, tree",
+        "Include practical examples for each",
+        "Show common flag combinations"
+      ],
+      "acceptance_criteria": [
+        "File exists at docs/cli.md",
+        "All commands documented with examples",
+        "Practical usage patterns shown"
+      ]
+    },
+    {
+      "id": "recipes",
+      "name": "Create docs/recipes.md",
+      "status": "complete",
+      "priority": 4,
+      "blocked_by": null,
+      "output_file": "docs/recipes.md",
+      "steps": [
+        "Standard Rust project setup",
+        "Python project with pre-commit",
+        "Multi-language monorepo",
+        "CI/CD config inheritance",
+        "Custom organization standards"
+      ],
+      "acceptance_criteria": [
+        "File exists at docs/recipes.md",
+        "At least 4-5 practical recipes",
+        "Complete, working examples"
+      ]
+    },
+    {
+      "id": "update-readme",
+      "name": "Update README.md to link to new docs",
+      "status": "complete",
+      "priority": 5,
+      "blocked_by": ["getting-started", "configuration-reference", "cli-reference", "recipes"],
+      "output_file": "README.md",
+      "steps": [
+        "Add Documentation section linking to new docs",
+        "Simplify README to focus on overview",
+        "Point users to detailed docs"
+      ],
+      "acceptance_criteria": [
+        "README links to all new doc files",
+        "Clear documentation navigation"
+      ]
+    }
+  ],
+  "notes": [
+    "All tasks complete",
+    "Focus on practical examples over theory",
+    "Use real-world scenarios that resonate with developers",
+    "Keep examples copy-pasteable"
+  ]
+}
