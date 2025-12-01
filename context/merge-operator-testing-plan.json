@@ -165,7 +165,7 @@
     {
       "id": "ini-merge-integration-tests",
       "name": "Write INI merge integration tests",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "setup-integration-test-infrastructure",
       "output_file": "tests/integration_merge_ini.rs",
