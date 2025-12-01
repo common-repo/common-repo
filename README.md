@@ -169,8 +169,6 @@ cargo tarpaulin --out Html --output-dir target/tarpaulin
 
 Coverage reports are saved to `target/tarpaulin/`. Open `target/tarpaulin/tarpaulin-report.html` in a browser to view the HTML report.
 
-For detailed coverage analysis and areas for improvement, see [context/improving-test-coverage-plan.md](context/improving-test-coverage-plan.md).
-
 ## Development Workflow
 
 ### Pre-commit Hooks
