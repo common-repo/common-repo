@@ -1,9 +1,9 @@
 {
-  "task": "phases-merge-ini",
+  "task": "phases-merge-markdown",
   "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for INI merge operations in phases.rs. Review INI merge operator implementation and write tests for section creation, key-value updates, and error paths.",
+  "instructions": "Add tests for Markdown merge operations. Review Markdown merge operator implementation and write tests for header level handling, content insertion modes, and error paths.",
   "context": {
-    "target_file": "src/merge/ini.rs",
+    "target_file": "src/merge/markdown.rs",
     "related_files": ["src/merge/mod.rs"],
     "note": "The merge-related tasks may be partially covered by the comprehensive integration tests in src/merge/ modules."
   },

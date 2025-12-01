@@ -1,6 +1,6 @@
 {
   "plan_name": "Improving Test Coverage",
-  "last_updated": "2025-12-01T06:45:00Z",
+  "last_updated": "2025-12-01T07:55:00Z",
   "goal": "Target: 90%+ overall line coverage",
   "session_startup": [
     "Run git status to check branch",
@@ -297,10 +297,10 @@
     {
       "id": "phases-merge-ini",
       "name": "Add tests for INI merge operations in phases.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "output_file": "src/phases.rs",
+      "output_file": "src/merge/ini.rs",
       "steps": [
         "Review INI merge operator implementation",
         "Write tests for section creation",
@@ -312,7 +312,8 @@
         "Section creation and key-value updates are tested",
         "Error paths are covered",
         "All tests pass"
-      ]
+      ],
+      "notes": "Added 31 new tests in 4 modules: apply_ini_merge_operation_tests (+5 tests), error_path_tests (8 tests), helper_function_tests (9 tests), edge_case_tests (13 tests). Total INI tests: 46"
     },
     {
       "id": "phases-merge-markdown",
