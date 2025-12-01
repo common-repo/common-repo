@@ -1,6 +1,6 @@
 {
   "plan_name": "Improving Test Coverage",
-  "last_updated": "2025-12-01T07:55:00Z",
+  "last_updated": "2025-12-01T08:25:00Z",
   "goal": "Target: 90%+ overall line coverage",
   "session_startup": [
     "Run git status to check branch",
@@ -318,10 +318,10 @@
     {
       "id": "phases-merge-markdown",
       "name": "Add tests for Markdown merge operations in phases.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "output_file": "src/phases.rs",
+      "output_file": "src/merge/markdown.rs",
       "steps": [
         "Review Markdown merge operator implementation",
         "Write tests for header level handling",
@@ -333,7 +333,8 @@
         "Header levels and content insertion modes are tested",
         "Error paths are covered",
         "All tests pass"
-      ]
+      ],
+      "notes": "Added 45 new tests in 5 modules: header_level_tests (10 tests), content_insertion_tests (12 tests), error_path_tests (5 tests), edge_case_tests (11 tests), file_io_helper_tests (11 tests). Total Markdown tests: 60"
     },
     {
       "id": "phases-merge-config",
