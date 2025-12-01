@@ -1,10 +1,10 @@
 {
-  "task": "phases-merge-yaml",
+  "task": "phases-merge-json",
   "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for YAML merge operations in phases.rs. Review YAML merge operator implementation and write tests for nested object merging, array merging, overwrite modes, and error paths.",
+  "instructions": "Add tests for JSON merge operations in phases.rs. Review JSON merge operator implementation and write tests for deep merging, type conflicts, and error paths.",
   "context": {
-    "target_file": "src/phases/composite.rs",
-    "related_files": ["src/merge/yaml.rs", "src/merge/mod.rs"],
+    "target_file": "src/merge/json.rs",
+    "related_files": ["src/merge/mod.rs"],
     "note": "The merge-related tasks may be partially covered by the comprehensive integration tests in src/merge/ modules."
   },
   "completed_plans": [
