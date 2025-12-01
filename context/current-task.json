@@ -1,24 +1,23 @@
 {
-  "task": "toml-merge-integration-tests",
+  "task": "ini-merge-integration-tests",
   "plan": "context/merge-operator-testing-plan.json",
-  "instructions": "Write TOML merge integration tests using the testdata fixtures. Tests should verify all 4 TOML merge scenarios (basic_root_merge, cargo_dependencies, workspace_members_append, comment_preservation).",
+  "instructions": "Write INI merge integration tests using the testdata fixtures. Tests should verify all 4 INI merge scenarios (basic_section_merge, section_targeting, duplicates_allowed, duplicates_disallowed).",
   "context": {
     "infrastructure_complete": true,
     "utilities_file": "tests/integration_merge_common.rs",
     "available_helpers": {
       "fixture_loading": [
-        "setup_fixture_dir(fixtures::TOML) - copies merge-toml-repo fixtures to temp dir",
+        "setup_fixture_dir(fixtures::INI) - copies merge-ini-repo fixtures to temp dir",
         "fixture_path(fixture_name) - returns absolute path to fixture directory"
       ],
       "cli_execution": [
         "run_apply(&temp, None) - runs common-repo apply, returns ApplyResult",
         "run_apply_expect_success(&temp, None) - runs apply, panics on failure"
       ],
-      "toml_assertions": [
-        "parse_toml(&temp, path) - parses TOML file to toml::Value",
-        "assert_toml_contains(&temp, path, key, expected) - checks root-level key",
-        "assert_toml_nested(&temp, path, toml_path, expected) - checks nested path",
-        "assert_toml_array_contains(&temp, path, toml_path, expected) - checks array contains value"
+      "ini_assertions": [
+        "parse_ini(&temp, path) - parses INI file to ini::Ini",
+        "assert_ini_contains(&temp, path, section, key, expected) - checks section.key value",
+        "assert_ini_has_section(&temp, path, section) - checks section exists"
       ],
       "generic_assertions": [
         "read_file(&temp, path) - reads file as string",
@@ -27,19 +26,20 @@
       ]
     },
     "test_pattern": "Use #[cfg_attr(not(feature = \"integration-tests\"), ignore)] on each test",
-    "fixtures_location": "tests/testdata/merge-toml-repo/",
+    "fixtures_location": "tests/testdata/merge-ini-repo/",
     "reference_tests": [
       "tests/integration_merge_yaml.rs - YAML tests as pattern reference",
-      "tests/integration_merge_json.rs - JSON tests as pattern reference"
+      "tests/integration_merge_json.rs - JSON tests as pattern reference",
+      "tests/integration_merge_toml.rs - TOML tests as pattern reference"
     ]
   },
   "parallel_tasks": [
-    "ini-merge-integration-tests",
     "markdown-merge-integration-tests"
   ],
   "completed_tasks": [
     "yaml-merge-integration-tests",
-    "json-merge-integration-tests"
+    "json-merge-integration-tests",
+    "toml-merge-integration-tests"
   ],
-  "notes": "Priority 2 tasks can run in parallel. TOML tests should follow the same pattern as YAML and JSON tests. Check if comment_preservation test is feasible based on TOML merge implementation."
+  "notes": "Priority 2 tasks can run in parallel. INI tests should follow the same pattern as YAML, JSON, and TOML tests. Check the INI fixtures for the specific scenarios to test."
 }
