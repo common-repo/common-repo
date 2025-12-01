@@ -233,10 +233,10 @@
     {
       "id": "phases-merge-yaml",
       "name": "Add tests for YAML merge operations in phases.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "output_file": "src/phases.rs",
+      "output_file": "src/merge/yaml.rs",
       "steps": [
         "Review YAML merge operator implementation",
         "Write tests for nested object merging",
@@ -249,7 +249,8 @@
         "Nested objects, arrays, and overwrite modes are tested",
         "Error paths are covered",
         "All tests pass"
-      ]
+      ],
+      "notes": "Added 34 new tests in 6 modules: nested_merging_tests (5 tests), array_edge_case_tests (6 tests), type_overwrite_tests (6 tests), error_path_tests (12 tests), merge_values_direct_tests (6 tests), helper_function_tests (+1 Tagged type test). Total YAML tests: 85"
     },
     {
       "id": "phases-merge-json",

@@ -860,6 +860,16 @@ mod tests {
         }
 
         #[test]
+        fn test_get_yaml_type_name_tagged() {
+            // Tagged values are a special YAML feature
+            let tagged = YamlValue::Tagged(Box::new(serde_yaml::value::TaggedValue {
+                tag: serde_yaml::value::Tag::new("!custom"),
+                value: YamlValue::String("value".to_string()),
+            }));
+            assert_eq!(get_yaml_type_name(&tagged), "Tagged");
+        }
+
+        #[test]
         fn test_ensure_trailing_newline_adds_when_missing() {
             let input = "content".to_string();
             let result = ensure_trailing_newline(input);
@@ -872,6 +882,871 @@ mod tests {
             let input = "content\n".to_string();
             let result = ensure_trailing_newline(input);
             assert_eq!(result, "content\n");
+        }
+    }
+
+    mod nested_merging_tests {
+        use super::*;
+
+        #[test]
+        fn test_yaml_merge_deep_nested_objects() {
+            // Test 4+ levels of nesting
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string(
+                    "level1:\n  level2:\n    level3:\n      level4:\n        deep: value",
+                ),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string(
+                    "level1:\n  level2:\n    level3:\n      existing: data\n  other: preserved",
+                ),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+
+            // Verify deep nesting is merged correctly
+            assert_eq!(
+                parsed["level1"]["level2"]["level3"]["level4"]["deep"],
+                YamlValue::String("value".to_string())
+            );
+            // Verify existing data is preserved at the same level
+            assert_eq!(
+                parsed["level1"]["level2"]["level3"]["existing"],
+                YamlValue::String("data".to_string())
+            );
+            // Verify sibling branches are preserved
+            assert_eq!(
+                parsed["level1"]["other"],
+                YamlValue::String("preserved".to_string())
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_nested_with_arrays() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("config:\n  servers:\n    - name: server1\n      port: 8080"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("config:\n  servers:\n    - name: server0\n      port: 80"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::Append),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+
+            let servers = parsed["config"]["servers"].as_sequence().unwrap();
+            assert_eq!(servers.len(), 2);
+            assert_eq!(servers[0]["name"], YamlValue::String("server0".to_string()));
+            assert_eq!(servers[1]["name"], YamlValue::String("server1".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_at_deep_path() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("timeout: 30\nretries: 5"))
+                .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("app:\n  config:\n    database:\n      host: localhost"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: Some("app.config.database.connection".to_string()),
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+
+            // Original data preserved
+            assert_eq!(
+                parsed["app"]["config"]["database"]["host"],
+                YamlValue::String("localhost".to_string())
+            );
+            // New nested path created
+            assert_eq!(
+                parsed["app"]["config"]["database"]["connection"]["timeout"],
+                YamlValue::Number(30.into())
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_with_array_indices_in_path() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("enabled: true"))
+                .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("servers:\n  - name: server1\n  - name: server2"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: Some("servers[1].config".to_string()),
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+
+            // First server unchanged
+            assert_eq!(
+                parsed["servers"][0]["name"],
+                YamlValue::String("server1".to_string())
+            );
+            // Second server has new config added
+            assert_eq!(
+                parsed["servers"][1]["config"]["enabled"],
+                YamlValue::Bool(true)
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_with_non_string_keys() {
+            // YAML allows non-string keys; test formatting in merge path
+            let mut target: YamlValue = serde_yaml::from_str("123:\n  nested: value").unwrap();
+            let source: YamlValue = serde_yaml::from_str("456:\n  other: data").unwrap();
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                "",
+                "src",
+                "dst",
+            );
+
+            // Both keys should exist
+            let mapping = target.as_mapping().unwrap();
+            assert_eq!(mapping.len(), 2);
+        }
+    }
+
+    mod array_edge_case_tests {
+        use super::*;
+
+        #[test]
+        fn test_yaml_merge_empty_source_array() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("items: []"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("items:\n  - a\n  - b"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::Append),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let items = parsed["items"].as_sequence().unwrap();
+            // Appending empty array should preserve original
+            assert_eq!(items.len(), 2);
+        }
+
+        #[test]
+        fn test_yaml_merge_empty_dest_array() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("items:\n  - x\n  - y"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("items: []"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::Append),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let items = parsed["items"].as_sequence().unwrap();
+            assert_eq!(items.len(), 2);
+        }
+
+        #[test]
+        fn test_yaml_merge_arrays_of_objects() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("users:\n  - name: bob\n    role: admin"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("users:\n  - name: alice\n    role: user"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::AppendUnique),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let users = parsed["users"].as_sequence().unwrap();
+            // Both objects are unique (different content), so both should be present
+            assert_eq!(users.len(), 2);
+        }
+
+        #[test]
+        fn test_yaml_merge_arrays_of_objects_append_unique_duplicate() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("users:\n  - name: alice\n    role: user"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("users:\n  - name: alice\n    role: user"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::AppendUnique),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let users = parsed["users"].as_sequence().unwrap();
+            // Identical objects should not be duplicated
+            assert_eq!(users.len(), 1);
+        }
+
+        #[test]
+        fn test_yaml_merge_nested_arrays() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("matrix:\n  - [4, 5, 6]\n  - [7, 8, 9]"),
+            )
+            .unwrap();
+            fs.add_file("dest.yaml", File::from_string("matrix:\n  - [1, 2, 3]"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::Append),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let matrix = parsed["matrix"].as_sequence().unwrap();
+            assert_eq!(matrix.len(), 3);
+        }
+
+        #[test]
+        fn test_yaml_merge_array_with_mixed_types() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("mixed:\n  - string\n  - 123\n  - true"),
+            )
+            .unwrap();
+            fs.add_file("dest.yaml", File::from_string("mixed:\n  - null\n  - 3.14"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: Some(ArrayMergeMode::Append),
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let mixed = parsed["mixed"].as_sequence().unwrap();
+            assert_eq!(mixed.len(), 5);
+        }
+    }
+
+    mod type_overwrite_tests {
+        use super::*;
+
+        #[test]
+        fn test_yaml_merge_mapping_replaced_by_scalar() {
+            // When source is a scalar but target is a mapping
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("config: simple_value"))
+                .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("config:\n  nested:\n    key: value"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            // Should succeed with warning logged
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            // Mapping should be replaced by scalar
+            assert_eq!(
+                parsed["config"],
+                YamlValue::String("simple_value".to_string())
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_sequence_replaced_by_mapping() {
+            // When source is a mapping but target is a sequence
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("items:\n  key: value"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("items:\n  - a\n  - b"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            // Sequence should be replaced by mapping
+            assert!(parsed["items"].is_mapping());
+            assert_eq!(
+                parsed["items"]["key"],
+                YamlValue::String("value".to_string())
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_scalar_replaced_by_mapping() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("value:\n  nested: data"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("value: scalar"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            assert!(parsed["value"].is_mapping());
+        }
+
+        #[test]
+        fn test_yaml_merge_top_level_mapping_replaced_by_sequence() {
+            // Source is a sequence, target is a mapping
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("- item1\n- item2"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("key: value"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            // Mapping replaced by sequence
+            assert!(parsed.is_sequence());
+            assert_eq!(parsed.as_sequence().unwrap().len(), 2);
+        }
+
+        #[test]
+        fn test_yaml_merge_top_level_sequence_replaced_by_scalar() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("just a string"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("- item1\n- item2"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            assert!(parsed.is_string());
+        }
+
+        #[test]
+        fn test_yaml_merge_nested_type_conflicts() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("config:\n  setting: [1, 2, 3]"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("config:\n  setting: old_value"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            // Scalar replaced by sequence
+            assert!(parsed["config"]["setting"].is_sequence());
+        }
+    }
+
+    mod error_path_tests {
+        use super::*;
+
+        #[test]
+        fn test_yaml_merge_invalid_utf8_source() {
+            let mut fs = MemoryFS::new();
+            // Add file with invalid UTF-8 bytes
+            let invalid_bytes: Vec<u8> = vec![0x80, 0x81, 0x82];
+            fs.add_file("source.yaml", File::new(invalid_bytes))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("key: value"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_err());
+            let err_msg = result.unwrap_err().to_string();
+            assert!(err_msg.contains("UTF-8"));
+        }
+
+        #[test]
+        fn test_yaml_merge_invalid_utf8_dest() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("key: value"))
+                .unwrap();
+            // Add dest file with invalid UTF-8 bytes
+            let invalid_bytes: Vec<u8> = vec![0x80, 0x81, 0x82];
+            fs.add_file("dest.yaml", File::new(invalid_bytes)).unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_err());
+            let err_msg = result.unwrap_err().to_string();
+            assert!(err_msg.contains("UTF-8"));
+        }
+
+        #[test]
+        fn test_yaml_merge_empty_source() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("")).unwrap();
+            fs.add_file("dest.yaml", File::from_string("key: value"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            // Empty YAML parses as null, which should merge fine
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_yaml_merge_null_source_value() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("null"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("key: value"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_yaml_merge_invalid_path_through_scalar() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("new: value"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("config: simple_string"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: Some("config.nested".to_string()),
+                append: false,
+                array_mode: None,
+            };
+
+            // Trying to navigate through a scalar should fail
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_err());
+            let err_msg = result.unwrap_err().to_string();
+            assert!(err_msg.contains("Expected mapping"));
+        }
+
+        #[test]
+        fn test_yaml_merge_path_through_array_expecting_key() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("value: test"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("config:\n  - item1"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: Some("config.key".to_string()),
+                append: false,
+                array_mode: None,
+            };
+
+            // Trying to access a key on an array should fail
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_err());
+            let err_msg = result.unwrap_err().to_string();
+            assert!(err_msg.contains("Expected mapping"));
+        }
+
+        #[test]
+        fn test_yaml_merge_empty_dest() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("key: value"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("")).unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_ok());
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&content).unwrap();
+            assert_eq!(parsed["key"], YamlValue::String("value".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_dest_with_only_comment() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("source.yaml", File::from_string("key: value"))
+                .unwrap();
+            fs.add_file("dest.yaml", File::from_string("# just a comment\n"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_ok());
+
+            let content = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&content).unwrap();
+            assert_eq!(parsed["key"], YamlValue::String("value".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_boolean_values() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("enabled: true\ndebug: false"),
+            )
+            .unwrap();
+            fs.add_file("dest.yaml", File::from_string("enabled: false"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            assert_eq!(parsed["enabled"], YamlValue::Bool(true));
+            assert_eq!(parsed["debug"], YamlValue::Bool(false));
+        }
+
+        #[test]
+        fn test_yaml_merge_numeric_values() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("int: 42\nfloat: 3.14\nnegative: -100"),
+            )
+            .unwrap();
+            fs.add_file("dest.yaml", File::from_string("int: 0"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: "source.yaml".to_string(),
+                dest: "dest.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            assert_eq!(parsed["int"], YamlValue::Number(42.into()));
+        }
+    }
+
+    mod merge_values_direct_tests {
+        use super::*;
+
+        #[test]
+        fn test_merge_yaml_values_mapping_source_not_mapping() {
+            // Direct test of merge_yaml_values when target is mapping but source is not
+            let mut target: YamlValue =
+                serde_yaml::from_str("key: value\nnested:\n  a: 1").unwrap();
+            let source: YamlValue = serde_yaml::from_str("- item1\n- item2").unwrap();
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                "root",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            // Target mapping should be replaced by source sequence
+            assert!(target.is_sequence());
+        }
+
+        #[test]
+        fn test_merge_yaml_values_sequence_source_not_sequence() {
+            // Direct test when target is sequence but source is not
+            let mut target: YamlValue = serde_yaml::from_str("- a\n- b\n- c").unwrap();
+            let source: YamlValue = serde_yaml::from_str("replacement: value").unwrap();
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                "root",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            // Target sequence should be replaced by source mapping
+            assert!(target.is_mapping());
+        }
+
+        #[test]
+        fn test_merge_yaml_values_scalar_overwrite() {
+            // Direct test of scalar overwrite path
+            let mut target = YamlValue::String("original".to_string());
+            let source = YamlValue::Number(42.into());
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                "field",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            assert_eq!(target, YamlValue::Number(42.into()));
+        }
+
+        #[test]
+        fn test_merge_yaml_values_null_overwrite() {
+            let mut target = YamlValue::String("value".to_string());
+            let source = YamlValue::Null;
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                "field",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            assert!(target.is_null());
+        }
+
+        #[test]
+        fn test_merge_yaml_values_bool_overwrite() {
+            let mut target = YamlValue::Bool(false);
+            let source = YamlValue::Bool(true);
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                "field",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            assert_eq!(target, YamlValue::Bool(true));
+        }
+
+        #[test]
+        fn test_merge_yaml_values_empty_path_string() {
+            // Test with empty path string for root-level merge
+            let mut target: YamlValue = serde_yaml::from_str("a: 1").unwrap();
+            let source: YamlValue = serde_yaml::from_str("b: 2").unwrap();
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                "",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            let mapping = target.as_mapping().unwrap();
+            assert_eq!(mapping.len(), 2);
         }
     }
 }
