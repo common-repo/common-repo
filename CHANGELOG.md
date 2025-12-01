@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/common-repo/common-repo/compare/v0.15.0...v0.16.0) (2025-12-01)
+
+
+### Features
+
+* **tests:** add INI merge integration tests ([eca2239](https://github.com/common-repo/common-repo/commit/eca2239e41a01d1455472e5399418f541bf752f3))
+* **tests:** add integration test infrastructure for merge operators ([aa77aae](https://github.com/common-repo/common-repo/commit/aa77aae7640dda574b98020adcdacf1eb24fcd49))
+* **tests:** add JSON merge integration tests ([1d65afc](https://github.com/common-repo/common-repo/commit/1d65afca9b53955a50fb1023a77c4b2e43991b1a))
+* **tests:** add Markdown merge integration tests ([319b7af](https://github.com/common-repo/common-repo/commit/319b7af90bda8c35e97a52586dbcd68005c87dd4))
+* **tests:** add TOML merge integration tests ([7d94c5f](https://github.com/common-repo/common-repo/commit/7d94c5fb5d55405825e39d3e8dcf0ae2bd879742))
+* **tests:** add YAML merge integration tests ([aba5e52](https://github.com/common-repo/common-repo/commit/aba5e527b835b7c4f0d294091c662ea7c0a45e17))
+
 ## [0.15.0](https://github.com/common-repo/common-repo/compare/v0.14.0...v0.15.0) (2025-11-30)
 
 
