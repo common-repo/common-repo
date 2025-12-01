@@ -1,11 +1,11 @@
 {
-  "task": "phases-merge-markdown",
+  "task": "phases-merge-config",
   "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for Markdown merge operations. Review Markdown merge operator implementation and write tests for header level handling, content insertion modes, and error paths.",
+  "instructions": "Add tests for merge configuration parsing in phases.rs. Review merge configuration parsing code and write tests for configuration parsing, file path handling, and invalid configuration handling.",
   "context": {
-    "target_file": "src/merge/markdown.rs",
-    "related_files": ["src/merge/mod.rs"],
-    "note": "The merge-related tasks may be partially covered by the comprehensive integration tests in src/merge/ modules."
+    "target_file": "src/phases.rs",
+    "related_files": ["src/merge/mod.rs", "src/config.rs"],
+    "note": "Focus on testing the configuration parsing logic for merge operations"
   },
   "completed_plans": [
     "merge-operator-testing-plan (archived to context/completed/)"

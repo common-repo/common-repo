@@ -529,4 +529,312 @@ port = 8080
         assert!(content.contains("[server]"));
         assert!(content.contains("port=8080"));
     }
+
+    // ========================================================================
+    // execute_merge_operation Tests
+    // ========================================================================
+
+    mod execute_merge_operation_tests {
+        use super::*;
+        use crate::config::{
+            ExcludeOp, IncludeOp, MarkdownMergeOp, Operation, TomlMergeOp, YamlMergeOp,
+        };
+        use crate::phases::composite::execute_merge_operation;
+
+        #[test]
+        fn test_execute_merge_operation_yaml() {
+            // Test executing a YAML merge operation
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("fragment.yaml", "new_key: new_value")
+                .unwrap();
+            fs.add_file_string("config.yaml", "existing_key: existing_value")
+                .unwrap();
+
+            let operation = Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: "fragment.yaml".to_string(),
+                    dest: "config.yaml".to_string(),
+                    path: None,
+                    append: false,
+                    array_mode: None,
+                },
+            };
+
+            let result = execute_merge_operation(&mut fs, &operation);
+            assert!(result.is_ok());
+
+            // Verify the merge happened
+            let content = fs.get_file("config.yaml").unwrap();
+            let content_str = String::from_utf8(content.content.clone()).unwrap();
+            assert!(content_str.contains("new_key"));
+            assert!(content_str.contains("existing_key"));
+        }
+
+        #[test]
+        fn test_execute_merge_operation_toml() {
+            // Test executing a TOML merge operation
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("fragment.toml", "value = 42").unwrap();
+            fs.add_file_string("config.toml", "[section]\noriginal = true")
+                .unwrap();
+
+            let operation = Operation::Toml {
+                toml: TomlMergeOp {
+                    source: "fragment.toml".to_string(),
+                    dest: "config.toml".to_string(),
+                    path: "section".to_string(),
+                    append: false,
+                    preserve_comments: false,
+                    array_mode: None,
+                },
+            };
+
+            let result = execute_merge_operation(&mut fs, &operation);
+            assert!(result.is_ok());
+
+            // Verify the merge happened
+            let content = fs.get_file("config.toml").unwrap();
+            let content_str = String::from_utf8(content.content.clone()).unwrap();
+            assert!(content_str.contains("section"));
+            assert!(content_str.contains("value"));
+        }
+
+        #[test]
+        fn test_execute_merge_operation_markdown() {
+            // Test executing a Markdown merge operation
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("fragment.md", "New content to insert")
+                .unwrap();
+            fs.add_file_string(
+                "README.md",
+                "# Title\n\n## Features\n\nExisting content\n\n## Other",
+            )
+            .unwrap();
+
+            let operation = Operation::Markdown {
+                markdown: MarkdownMergeOp {
+                    source: "fragment.md".to_string(),
+                    dest: "README.md".to_string(),
+                    section: "Features".to_string(),
+                    append: true,
+                    level: 2,
+                    position: "end".to_string(),
+                    create_section: false,
+                },
+            };
+
+            let result = execute_merge_operation(&mut fs, &operation);
+            assert!(result.is_ok());
+
+            // Verify the merge happened
+            let content = fs.get_file("README.md").unwrap();
+            let content_str = String::from_utf8(content.content.clone()).unwrap();
+            assert!(content_str.contains("Features"));
+            assert!(content_str.contains("New content"));
+        }
+
+        #[test]
+        fn test_execute_merge_operation_non_merge_operation_include() {
+            // Test that non-merge operations return an error
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "content").unwrap();
+
+            let operation = Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["**/*".to_string()],
+                },
+            };
+
+            let result = execute_merge_operation(&mut fs, &operation);
+            assert!(result.is_err());
+
+            // Verify the error message
+            if let Err(Error::Filesystem { message }) = result {
+                assert!(message.contains("Unexpected non-merge operation"));
+            } else {
+                panic!("Expected Filesystem error");
+            }
+        }
+
+        #[test]
+        fn test_execute_merge_operation_non_merge_operation_exclude() {
+            // Test that Exclude operations return an error
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "content").unwrap();
+
+            let operation = Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            };
+
+            let result = execute_merge_operation(&mut fs, &operation);
+            assert!(result.is_err());
+
+            if let Err(Error::Filesystem { message }) = result {
+                assert!(message.contains("Unexpected non-merge operation"));
+            } else {
+                panic!("Expected Filesystem error");
+            }
+        }
+
+        #[test]
+        fn test_execute_merge_operation_missing_source_file() {
+            // Test error handling when source file doesn't exist
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("config.yaml", "existing: value")
+                .unwrap();
+            // Note: fragment.yaml does NOT exist
+
+            let operation = Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: "nonexistent.yaml".to_string(),
+                    dest: "config.yaml".to_string(),
+                    path: None,
+                    append: false,
+                    array_mode: None,
+                },
+            };
+
+            let result = execute_merge_operation(&mut fs, &operation);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_execute_merge_operation_creates_dest_if_missing() {
+            // Test that YAML merge creates destination file if it doesn't exist
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("fragment.yaml", "new: value").unwrap();
+            // Note: nonexistent.yaml does NOT exist initially
+
+            let operation = Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: "fragment.yaml".to_string(),
+                    dest: "nonexistent.yaml".to_string(),
+                    path: None,
+                    append: false,
+                    array_mode: None,
+                },
+            };
+
+            let result = execute_merge_operation(&mut fs, &operation);
+            // YAML merge creates the destination file if it doesn't exist
+            assert!(result.is_ok());
+            assert!(fs.exists("nonexistent.yaml"));
+
+            // Verify the content was merged
+            let content = fs.get_file("nonexistent.yaml").unwrap();
+            let content_str = String::from_utf8(content.content.clone()).unwrap();
+            assert!(content_str.contains("new"));
+        }
+    }
+
+    // ========================================================================
+    // merge_filesystem Tests
+    // ========================================================================
+
+    mod merge_filesystem_tests {
+        use super::*;
+        use crate::phases::composite::merge_filesystem;
+
+        #[test]
+        fn test_merge_filesystem_empty_source() {
+            let mut target = MemoryFS::new();
+            target.add_file_string("existing.txt", "content").unwrap();
+
+            let source = MemoryFS::new();
+
+            let result = merge_filesystem(&mut target, &source);
+            assert!(result.is_ok());
+            assert_eq!(target.len(), 1);
+            assert!(target.exists("existing.txt"));
+        }
+
+        #[test]
+        fn test_merge_filesystem_empty_target() {
+            let mut target = MemoryFS::new();
+
+            let mut source = MemoryFS::new();
+            source.add_file_string("new.txt", "new content").unwrap();
+
+            let result = merge_filesystem(&mut target, &source);
+            assert!(result.is_ok());
+            assert_eq!(target.len(), 1);
+            assert!(target.exists("new.txt"));
+        }
+
+        #[test]
+        fn test_merge_filesystem_no_conflicts() {
+            let mut target = MemoryFS::new();
+            target.add_file_string("file1.txt", "content1").unwrap();
+
+            let mut source = MemoryFS::new();
+            source.add_file_string("file2.txt", "content2").unwrap();
+
+            let result = merge_filesystem(&mut target, &source);
+            assert!(result.is_ok());
+            assert_eq!(target.len(), 2);
+            assert!(target.exists("file1.txt"));
+            assert!(target.exists("file2.txt"));
+        }
+
+        #[test]
+        fn test_merge_filesystem_with_conflicts_source_wins() {
+            let mut target = MemoryFS::new();
+            target
+                .add_file_string("common.txt", "target version")
+                .unwrap();
+
+            let mut source = MemoryFS::new();
+            source
+                .add_file_string("common.txt", "source version")
+                .unwrap();
+
+            let result = merge_filesystem(&mut target, &source);
+            assert!(result.is_ok());
+            assert_eq!(target.len(), 1);
+
+            // Source should overwrite target (last-write-wins)
+            let file = target.get_file("common.txt").unwrap();
+            assert_eq!(
+                String::from_utf8(file.content.clone()).unwrap(),
+                "source version"
+            );
+        }
+
+        #[test]
+        fn test_merge_filesystem_nested_directories() {
+            let mut target = MemoryFS::new();
+            target
+                .add_file_string("dir1/file.txt", "target content")
+                .unwrap();
+
+            let mut source = MemoryFS::new();
+            source
+                .add_file_string("dir2/file.txt", "source content")
+                .unwrap();
+
+            let result = merge_filesystem(&mut target, &source);
+            assert!(result.is_ok());
+            assert_eq!(target.len(), 2);
+            assert!(target.exists("dir1/file.txt"));
+            assert!(target.exists("dir2/file.txt"));
+        }
+
+        #[test]
+        fn test_merge_filesystem_multiple_files() {
+            let mut target = MemoryFS::new();
+            target.add_file_string("a.txt", "a").unwrap();
+            target.add_file_string("b.txt", "b").unwrap();
+
+            let mut source = MemoryFS::new();
+            source.add_file_string("c.txt", "c").unwrap();
+            source.add_file_string("d.txt", "d").unwrap();
+            source.add_file_string("e.txt", "e").unwrap();
+
+            let result = merge_filesystem(&mut target, &source);
+            assert!(result.is_ok());
+            assert_eq!(target.len(), 5);
+        }
+    }
 }

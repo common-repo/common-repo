@@ -1243,4 +1243,534 @@ mod tests {
             .to_string()
             .contains("Empty tool specification"));
     }
+
+    // ========================================================================
+    // ArrayMergeMode Tests
+    // ========================================================================
+
+    mod array_merge_mode_tests {
+        use super::*;
+
+        #[test]
+        fn test_array_merge_mode_default() {
+            // Default should be Replace
+            let mode = ArrayMergeMode::default();
+            assert_eq!(mode, ArrayMergeMode::Replace);
+        }
+
+        #[test]
+        fn test_array_merge_mode_from_append_bool_true() {
+            let mode = ArrayMergeMode::from_append_bool(true);
+            assert_eq!(mode, ArrayMergeMode::Append);
+        }
+
+        #[test]
+        fn test_array_merge_mode_from_append_bool_false() {
+            let mode = ArrayMergeMode::from_append_bool(false);
+            assert_eq!(mode, ArrayMergeMode::Replace);
+        }
+
+        #[test]
+        fn test_yaml_merge_op_get_array_mode_default() {
+            // When both array_mode and append are default, should return Replace
+            let op = YamlMergeOp {
+                source: "s.yaml".to_string(),
+                dest: "d.yaml".to_string(),
+                path: None,
+                append: false,
+                array_mode: None,
+            };
+            assert_eq!(op.get_array_mode(), ArrayMergeMode::Replace);
+        }
+
+        #[test]
+        fn test_yaml_merge_op_get_array_mode_with_append_true() {
+            // Legacy append=true should return Append
+            let op = YamlMergeOp {
+                source: "s.yaml".to_string(),
+                dest: "d.yaml".to_string(),
+                path: None,
+                append: true,
+                array_mode: None,
+            };
+            assert_eq!(op.get_array_mode(), ArrayMergeMode::Append);
+        }
+
+        #[test]
+        fn test_yaml_merge_op_get_array_mode_explicit() {
+            // Explicit array_mode should override append
+            let op = YamlMergeOp {
+                source: "s.yaml".to_string(),
+                dest: "d.yaml".to_string(),
+                path: None,
+                append: true, // Would normally be Append
+                array_mode: Some(ArrayMergeMode::AppendUnique), // But explicit overrides
+            };
+            assert_eq!(op.get_array_mode(), ArrayMergeMode::AppendUnique);
+        }
+
+        #[test]
+        fn test_toml_merge_op_get_array_mode_default() {
+            let op = TomlMergeOp {
+                source: "s.toml".to_string(),
+                dest: "d.toml".to_string(),
+                path: "section".to_string(),
+                append: false,
+                preserve_comments: false,
+                array_mode: None,
+            };
+            assert_eq!(op.get_array_mode(), ArrayMergeMode::Replace);
+        }
+
+        #[test]
+        fn test_toml_merge_op_get_array_mode_with_append() {
+            let op = TomlMergeOp {
+                source: "s.toml".to_string(),
+                dest: "d.toml".to_string(),
+                path: "section".to_string(),
+                append: true,
+                preserve_comments: false,
+                array_mode: None,
+            };
+            assert_eq!(op.get_array_mode(), ArrayMergeMode::Append);
+        }
+
+        #[test]
+        fn test_toml_merge_op_get_array_mode_explicit() {
+            let op = TomlMergeOp {
+                source: "s.toml".to_string(),
+                dest: "d.toml".to_string(),
+                path: "section".to_string(),
+                append: false,
+                preserve_comments: false,
+                array_mode: Some(ArrayMergeMode::AppendUnique),
+            };
+            assert_eq!(op.get_array_mode(), ArrayMergeMode::AppendUnique);
+        }
+    }
+
+    // ========================================================================
+    // Merge Configuration Parsing Tests
+    // ========================================================================
+
+    mod merge_config_parsing_tests {
+        use super::*;
+
+        #[test]
+        fn test_parse_yaml_merge_with_array_mode() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+    dest: config.yaml
+    path: data.items
+    array_mode: append_unique
+"#;
+            let schema = parse(yaml).expect("Should parse YAML merge with array_mode");
+            assert_eq!(schema.len(), 1);
+            match &schema[0] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.source, "fragment.yaml");
+                    assert_eq!(yaml.dest, "config.yaml");
+                    assert_eq!(yaml.path, Some("data.items".to_string()));
+                    assert_eq!(yaml.array_mode, Some(ArrayMergeMode::AppendUnique));
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_yaml_merge_with_replace_array_mode() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+    dest: config.yaml
+    array_mode: replace
+"#;
+            let schema = parse(yaml).expect("Should parse YAML merge");
+            match &schema[0] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.array_mode, Some(ArrayMergeMode::Replace));
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_yaml_merge_with_append_array_mode() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+    dest: config.yaml
+    array_mode: append
+"#;
+            let schema = parse(yaml).expect("Should parse YAML merge");
+            match &schema[0] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.array_mode, Some(ArrayMergeMode::Append));
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_yaml_merge_defaults() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+    dest: config.yaml
+"#;
+            let schema = parse(yaml).expect("Should parse YAML merge");
+            match &schema[0] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.source, "fragment.yaml");
+                    assert_eq!(yaml.dest, "config.yaml");
+                    assert_eq!(yaml.path, None);
+                    assert!(!yaml.append);
+                    assert_eq!(yaml.array_mode, None);
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_json_merge_with_position() {
+            let yaml = r#"
+- json:
+    source: fragment.json
+    dest: package.json
+    path: dependencies
+    position: start
+    append: true
+"#;
+            let schema = parse(yaml).expect("Should parse JSON merge");
+            match &schema[0] {
+                Operation::Json { json } => {
+                    assert_eq!(json.source, "fragment.json");
+                    assert_eq!(json.dest, "package.json");
+                    assert_eq!(json.path, Some("dependencies".to_string()));
+                    assert_eq!(json.position, Some("start".to_string()));
+                    assert!(json.append);
+                }
+                _ => panic!("Expected Json operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_json_merge_defaults() {
+            let yaml = r#"
+- json:
+    source: fragment.json
+    dest: package.json
+"#;
+            let schema = parse(yaml).expect("Should parse JSON merge");
+            match &schema[0] {
+                Operation::Json { json } => {
+                    assert_eq!(json.path, None);
+                    assert_eq!(json.position, None);
+                    assert!(!json.append);
+                }
+                _ => panic!("Expected Json operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_toml_merge_with_preserve_comments() {
+            let yaml = r#"
+- toml:
+    source: fragment.toml
+    dest: Cargo.toml
+    path: dependencies
+    preserve-comments: true
+    array_mode: append
+"#;
+            let schema = parse(yaml).expect("Should parse TOML merge");
+            match &schema[0] {
+                Operation::Toml { toml } => {
+                    assert_eq!(toml.source, "fragment.toml");
+                    assert_eq!(toml.dest, "Cargo.toml");
+                    assert_eq!(toml.path, "dependencies");
+                    assert!(toml.preserve_comments);
+                    assert_eq!(toml.array_mode, Some(ArrayMergeMode::Append));
+                }
+                _ => panic!("Expected Toml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_ini_merge_with_all_options() {
+            let yaml = r#"
+- ini:
+    source: fragment.ini
+    dest: config.ini
+    section: database
+    append: true
+    allow-duplicates: true
+"#;
+            let schema = parse(yaml).expect("Should parse INI merge");
+            match &schema[0] {
+                Operation::Ini { ini } => {
+                    assert_eq!(ini.source, "fragment.ini");
+                    assert_eq!(ini.dest, "config.ini");
+                    assert_eq!(ini.section, Some("database".to_string()));
+                    assert!(ini.append);
+                    assert!(ini.allow_duplicates);
+                }
+                _ => panic!("Expected Ini operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_ini_merge_defaults() {
+            let yaml = r#"
+- ini:
+    source: fragment.ini
+    dest: config.ini
+"#;
+            let schema = parse(yaml).expect("Should parse INI merge");
+            match &schema[0] {
+                Operation::Ini { ini } => {
+                    assert_eq!(ini.section, None);
+                    assert!(!ini.append);
+                    assert!(!ini.allow_duplicates);
+                }
+                _ => panic!("Expected Ini operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_markdown_merge_with_all_options() {
+            let yaml = r###"
+- markdown:
+    source: fragment.md
+    dest: README.md
+    section: "## Installation"
+    append: true
+    level: 3
+    position: start
+    create-section: true
+"###;
+            let schema = parse(yaml).expect("Should parse Markdown merge");
+            match &schema[0] {
+                Operation::Markdown { markdown } => {
+                    assert_eq!(markdown.source, "fragment.md");
+                    assert_eq!(markdown.dest, "README.md");
+                    assert_eq!(markdown.section, "## Installation");
+                    assert!(markdown.append);
+                    assert_eq!(markdown.level, 3);
+                    assert_eq!(markdown.position, "start");
+                    assert!(markdown.create_section);
+                }
+                _ => panic!("Expected Markdown operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_markdown_merge_defaults() {
+            let yaml = r#"
+- markdown:
+    source: fragment.md
+    dest: README.md
+    section: Features
+"#;
+            let schema = parse(yaml).expect("Should parse Markdown merge");
+            match &schema[0] {
+                Operation::Markdown { markdown } => {
+                    assert!(!markdown.append);
+                    assert_eq!(markdown.level, 2); // default_header_level()
+                    assert_eq!(markdown.position, "");
+                    assert!(!markdown.create_section);
+                }
+                _ => panic!("Expected Markdown operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_merge_ops_with_special_path_characters() {
+            // Test that special characters in paths are handled correctly
+            let yaml = r#"
+- yaml:
+    source: data.yaml
+    dest: config.yaml
+    path: "metadata.labels[\"special.key\"]"
+"#;
+            let schema = parse(yaml).expect("Should parse path with special characters");
+            match &schema[0] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(
+                        yaml.path,
+                        Some("metadata.labels[\"special.key\"]".to_string())
+                    );
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_merge_ops_with_empty_path() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+    dest: config.yaml
+    path: ""
+"#;
+            let schema = parse(yaml).expect("Should parse empty path");
+            match &schema[0] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.path, Some("".to_string()));
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_multiple_merge_operations() {
+            let yaml = r#"
+- yaml:
+    source: yaml-fragment.yaml
+    dest: config.yaml
+- json:
+    source: json-fragment.json
+    dest: package.json
+- toml:
+    source: toml-fragment.toml
+    dest: Cargo.toml
+    path: dependencies
+- ini:
+    source: ini-fragment.ini
+    dest: config.ini
+- markdown:
+    source: md-fragment.md
+    dest: README.md
+    section: "Features"
+"#;
+            let schema = parse(yaml).expect("Should parse multiple merge operations");
+            assert_eq!(schema.len(), 5);
+            assert!(matches!(schema[0], Operation::Yaml { .. }));
+            assert!(matches!(schema[1], Operation::Json { .. }));
+            assert!(matches!(schema[2], Operation::Toml { .. }));
+            assert!(matches!(schema[3], Operation::Ini { .. }));
+            assert!(matches!(schema[4], Operation::Markdown { .. }));
+        }
+    }
+
+    // ========================================================================
+    // Invalid Merge Configuration Tests
+    // ========================================================================
+
+    mod invalid_merge_config_tests {
+        use super::*;
+
+        #[test]
+        fn test_parse_yaml_merge_missing_source() {
+            let yaml = r#"
+- yaml:
+    dest: config.yaml
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_yaml_merge_missing_dest() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_json_merge_missing_source() {
+            let yaml = r#"
+- json:
+    dest: package.json
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_json_merge_missing_dest() {
+            let yaml = r#"
+- json:
+    source: fragment.json
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_toml_merge_missing_path() {
+            // TOML merge requires a path (not optional)
+            let yaml = r#"
+- toml:
+    source: fragment.toml
+    dest: Cargo.toml
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_ini_merge_missing_source() {
+            let yaml = r#"
+- ini:
+    dest: config.ini
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_markdown_merge_missing_section() {
+            // Markdown merge requires a section
+            let yaml = r#"
+- markdown:
+    source: fragment.md
+    dest: README.md
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_yaml_merge_invalid_array_mode() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+    dest: config.yaml
+    array_mode: invalid_mode
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_markdown_invalid_level() {
+            // Level should be a number, not a string
+            let yaml = r#"
+- markdown:
+    source: fragment.md
+    dest: README.md
+    section: Features
+    level: "two"
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_parse_ini_invalid_append() {
+            // append should be a boolean
+            let yaml = r#"
+- ini:
+    source: fragment.ini
+    dest: config.ini
+    append: "yes"
+"#;
+            let result = parse(yaml);
+            assert!(result.is_err());
+        }
+    }
 }
