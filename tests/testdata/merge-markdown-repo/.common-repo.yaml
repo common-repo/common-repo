@@ -5,41 +5,54 @@
     patterns:
       - "*.md"
 
-# Test 1: Merge section content at end
+# Test 1: Append content to end of existing section
+# - Fragment content is appended after existing content in Features section
+# - Original subsections are preserved
 - markdown:
     source: fragment-features.md
     dest: README.md
-    section: "## Features"
+    section: Features
+    level: 2
     append: true
-    position: end
 
-# Test 2: Merge section content at start
+# Test 2: Append content to existing section (Installation)
+# - Fragment content (Prerequisites) is appended to Installation section
+# - Note: position field only affects new section creation, not existing sections
 - markdown:
     source: fragment-prerequisites.md
     dest: README.md
-    section: "## Installation"
+    section: Installation
+    level: 2
     append: true
-    position: start
 
 # Test 3: Create new section if it doesn't exist
+# - Creates Contributing section at end of document
+# - Fragment content becomes section body
 - markdown:
     source: fragment-contributing.md
     dest: README.md
-    section: "## Contributing"
+    section: Contributing
     level: 2
     create-section: true
+    position: end
 
-# Test 4: Merge content before another section
+# Test 4: Create new section at start of document
+# - Creates Quick Start section at start of GUIDE.md
+# - Tests position: start with create-section
 - markdown:
     source: fragment-quickstart.md
     dest: GUIDE.md
-    section: "## Getting Started"
-    position: before
-    reference-section: "## Advanced Usage"
+    section: Quick Start
+    level: 2
+    create-section: true
+    position: start
 
 # Test 5: Replace section content (no append)
+# - Original License content is replaced with fragment content
+# - Section heading is preserved
 - markdown:
     source: fragment-license-updated.md
     dest: README.md
-    section: "## License"
+    section: License
+    level: 2
     append: false
