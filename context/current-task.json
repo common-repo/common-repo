@@ -1,23 +1,23 @@
 {
-  "task": "ini-merge-integration-tests",
+  "task": "markdown-merge-integration-tests",
   "plan": "context/merge-operator-testing-plan.json",
-  "instructions": "Write INI merge integration tests using the testdata fixtures. Tests should verify all 4 INI merge scenarios (basic_section_merge, section_targeting, duplicates_allowed, duplicates_disallowed).",
+  "instructions": "Write Markdown merge integration tests using the testdata fixtures. Tests should verify all 5 Markdown merge scenarios (section_append_end, section_append_start, section_creation, position_before, section_replace).",
   "context": {
     "infrastructure_complete": true,
     "utilities_file": "tests/integration_merge_common.rs",
     "available_helpers": {
       "fixture_loading": [
-        "setup_fixture_dir(fixtures::INI) - copies merge-ini-repo fixtures to temp dir",
+        "setup_fixture_dir(fixtures::MARKDOWN) - copies merge-markdown-repo fixtures to temp dir",
         "fixture_path(fixture_name) - returns absolute path to fixture directory"
       ],
       "cli_execution": [
         "run_apply(&temp, None) - runs common-repo apply, returns ApplyResult",
         "run_apply_expect_success(&temp, None) - runs apply, panics on failure"
       ],
-      "ini_assertions": [
-        "parse_ini(&temp, path) - parses INI file to ini::Ini",
-        "assert_ini_contains(&temp, path, section, key, expected) - checks section.key value",
-        "assert_ini_has_section(&temp, path, section) - checks section exists"
+      "markdown_assertions": [
+        "assert_markdown_contains(&temp, path, expected) - checks file contains text",
+        "assert_markdown_has_section(&temp, path, heading, level) - checks section exists",
+        "assert_markdown_section_order(&temp, path, first, second) - checks section order"
       ],
       "generic_assertions": [
         "read_file(&temp, path) - reads file as string",
@@ -26,20 +26,19 @@
       ]
     },
     "test_pattern": "Use #[cfg_attr(not(feature = \"integration-tests\"), ignore)] on each test",
-    "fixtures_location": "tests/testdata/merge-ini-repo/",
+    "fixtures_location": "tests/testdata/merge-markdown-repo/",
     "reference_tests": [
       "tests/integration_merge_yaml.rs - YAML tests as pattern reference",
       "tests/integration_merge_json.rs - JSON tests as pattern reference",
-      "tests/integration_merge_toml.rs - TOML tests as pattern reference"
+      "tests/integration_merge_toml.rs - TOML tests as pattern reference",
+      "tests/integration_merge_ini.rs - INI tests as pattern reference"
     ]
   },
-  "parallel_tasks": [
-    "markdown-merge-integration-tests"
-  ],
   "completed_tasks": [
     "yaml-merge-integration-tests",
     "json-merge-integration-tests",
-    "toml-merge-integration-tests"
+    "toml-merge-integration-tests",
+    "ini-merge-integration-tests"
   ],
-  "notes": "Priority 2 tasks can run in parallel. INI tests should follow the same pattern as YAML, JSON, and TOML tests. Check the INI fixtures for the specific scenarios to test."
+  "notes": "This is the final format-specific integration test task. After this, verify-test-coverage can proceed."
 }
