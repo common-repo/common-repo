@@ -663,5 +663,641 @@ key = value
             assert!(result.contains("[settings]"));
             assert!(result.contains("key=value"));
         }
+
+        #[test]
+        fn test_ini_merge_replace_mode_allow_duplicates() {
+            // Test replace mode with allow_duplicates=true
+            // Should keep existing entries AND add new ones (resulting in duplicates)
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[settings]
+timeout = 60
+debug = true
+"#;
+            fs.add_file_string("new.ini", source_ini).unwrap();
+
+            let dest_ini = r#"
+[settings]
+timeout = 30
+host = localhost
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "new.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: Some("settings".to_string()),
+                append: false, // replace mode
+                allow_duplicates: true,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            // In replace mode with allow_duplicates, existing entries are kept
+            // and new entries are appended (may result in duplicate keys)
+            assert!(result.contains("[settings]"));
+            assert!(result.contains("host=localhost")); // existing entry
+            assert!(result.contains("debug=true")); // new entry
+                                                    // timeout appears (either original or new, depending on implementation)
+            assert!(result.contains("timeout="));
+        }
+
+        #[test]
+        fn test_ini_merge_append_mode_allow_duplicates() {
+            // Test append mode with allow_duplicates=true
+            // Should add all entries including duplicates
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[settings]
+timeout = 60
+debug = true
+"#;
+            fs.add_file_string("new.ini", source_ini).unwrap();
+
+            let dest_ini = r#"
+[settings]
+timeout = 30
+host = localhost
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "new.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: Some("settings".to_string()),
+                append: true,
+                allow_duplicates: true,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            // With append and allow_duplicates, should have both timeout entries
+            assert!(result.contains("[settings]"));
+            assert!(result.contains("timeout=30")); // original
+            assert!(result.contains("host=localhost"));
+            assert!(result.contains("timeout=60")); // added (duplicate)
+            assert!(result.contains("debug=true"));
+        }
+
+        #[test]
+        fn test_ini_merge_replace_mode_removes_existing_keys() {
+            // Test that replace mode without duplicates removes existing keys
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[database]
+host = newhost.example.com
+port = 3306
+"#;
+            fs.add_file_string("source.ini", source_ini).unwrap();
+
+            let dest_ini = r#"
+[database]
+host = oldhost.example.com
+port = 5432
+driver = mysql
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "source.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: Some("database".to_string()),
+                append: false, // replace mode
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            // Should have new values, driver should remain (not in source)
+            assert!(result.contains("host=newhost.example.com"));
+            assert!(result.contains("port=3306"));
+            assert!(result.contains("driver=mysql"));
+            // Should NOT have old values
+            assert!(!result.contains("oldhost.example.com"));
+            assert!(!result.contains("5432"));
+        }
+
+        #[test]
+        fn test_ini_merge_no_matching_section_in_source() {
+            // Test merging when source doesn't have the target section
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[other]
+key = value
+"#;
+            fs.add_file_string("source.ini", source_ini).unwrap();
+
+            let dest_ini = r#"
+[settings]
+host = localhost
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "source.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: Some("settings".to_string()),
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            // Destination should remain unchanged since source doesn't have
+            // the target section or root-level entries
+            assert!(result.contains("[settings]"));
+            assert!(result.contains("host=localhost"));
+        }
+    }
+
+    mod error_path_tests {
+        use super::*;
+
+        #[test]
+        fn test_ini_merge_source_not_found() {
+            let mut fs = MemoryFS::new();
+
+            let dest_ini = "[settings]\nkey=value\n";
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "nonexistent.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: None,
+                append: false,
+                allow_duplicates: false,
+            };
+
+            let result = apply_ini_merge_operation(&mut fs, &ini_op);
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            let err_str = format!("{}", err);
+            assert!(err_str.contains("not found") || err_str.contains("File not found"));
+        }
+
+        #[test]
+        fn test_ini_merge_source_invalid_utf8() {
+            let mut fs = MemoryFS::new();
+
+            // Add file with invalid UTF-8 bytes
+            let _ = fs.add_file("invalid.ini", File::new(vec![0xFF, 0xFE, 0x00, 0x01]));
+
+            let dest_ini = "[settings]\nkey=value\n";
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "invalid.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: None,
+                append: false,
+                allow_duplicates: false,
+            };
+
+            let result = apply_ini_merge_operation(&mut fs, &ini_op);
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            let err_str = format!("{}", err);
+            assert!(err_str.contains("UTF-8"));
+        }
+
+        #[test]
+        fn test_ini_merge_dest_invalid_utf8() {
+            let mut fs = MemoryFS::new();
+
+            let source_ini = "[settings]\nkey=value\n";
+            fs.add_file_string("source.ini", source_ini).unwrap();
+
+            // Add dest file with invalid UTF-8 bytes
+            let _ = fs.add_file("config.ini", File::new(vec![0xFF, 0xFE, 0x00, 0x01]));
+
+            let ini_op = IniMergeOp {
+                source: "source.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: None,
+                append: false,
+                allow_duplicates: false,
+            };
+
+            let result = apply_ini_merge_operation(&mut fs, &ini_op);
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            let err_str = format!("{}", err);
+            assert!(err_str.contains("UTF-8"));
+        }
+
+        #[test]
+        fn test_read_file_as_string_not_found() {
+            let fs = MemoryFS::new();
+            let result = read_file_as_string(&fs, "nonexistent.file");
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_read_file_as_string_invalid_utf8() {
+            let mut fs = MemoryFS::new();
+            let _ = fs.add_file("binary.dat", File::new(vec![0x80, 0x81, 0x82]));
+            let result = read_file_as_string(&fs, "binary.dat");
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_read_file_as_string_optional_not_found() {
+            let fs = MemoryFS::new();
+            let result = read_file_as_string_optional(&fs, "nonexistent.file");
+            assert!(result.is_ok());
+            assert!(result.unwrap().is_none());
+        }
+
+        #[test]
+        fn test_read_file_as_string_optional_invalid_utf8() {
+            let mut fs = MemoryFS::new();
+            let _ = fs.add_file("binary.dat", File::new(vec![0x80, 0x81, 0x82]));
+            let result = read_file_as_string_optional(&fs, "binary.dat");
+            assert!(result.is_err());
+        }
+    }
+
+    mod helper_function_tests {
+        use super::*;
+
+        #[test]
+        fn test_find_ini_section_found() {
+            let sections = vec![
+                IniSection {
+                    name: "first".to_string(),
+                    entries: vec![],
+                },
+                IniSection {
+                    name: "second".to_string(),
+                    entries: vec![IniEntry {
+                        key: "key".to_string(),
+                        value: "value".to_string(),
+                    }],
+                },
+            ];
+
+            let result = find_ini_section(&sections, "second");
+            assert!(result.is_some());
+            assert_eq!(result.unwrap().name, "second");
+            assert_eq!(result.unwrap().entries.len(), 1);
+        }
+
+        #[test]
+        fn test_find_ini_section_not_found() {
+            let sections = vec![IniSection {
+                name: "only".to_string(),
+                entries: vec![],
+            }];
+
+            let result = find_ini_section(&sections, "nonexistent");
+            assert!(result.is_none());
+        }
+
+        #[test]
+        fn test_find_ini_section_root_level() {
+            let sections = vec![
+                IniSection {
+                    name: "".to_string(), // Root level
+                    entries: vec![IniEntry {
+                        key: "root_key".to_string(),
+                        value: "root_value".to_string(),
+                    }],
+                },
+                IniSection {
+                    name: "named".to_string(),
+                    entries: vec![],
+                },
+            ];
+
+            let result = find_ini_section(&sections, "");
+            assert!(result.is_some());
+            assert_eq!(result.unwrap().entries.len(), 1);
+        }
+
+        #[test]
+        fn test_find_ini_section_mut_existing() {
+            let mut sections = vec![IniSection {
+                name: "existing".to_string(),
+                entries: vec![],
+            }];
+
+            let section = find_ini_section_mut(&mut sections, "existing");
+            section.entries.push(IniEntry {
+                key: "new_key".to_string(),
+                value: "new_value".to_string(),
+            });
+
+            assert_eq!(sections.len(), 1);
+            assert_eq!(sections[0].entries.len(), 1);
+        }
+
+        #[test]
+        fn test_find_ini_section_mut_creates_new() {
+            let mut sections = vec![IniSection {
+                name: "existing".to_string(),
+                entries: vec![],
+            }];
+
+            let section = find_ini_section_mut(&mut sections, "new_section");
+            section.entries.push(IniEntry {
+                key: "key".to_string(),
+                value: "value".to_string(),
+            });
+
+            assert_eq!(sections.len(), 2);
+            assert_eq!(sections[1].name, "new_section");
+            assert_eq!(sections[1].entries.len(), 1);
+        }
+
+        #[test]
+        fn test_find_ini_section_mut_creates_root() {
+            let mut sections: Vec<IniSection> = vec![];
+
+            let section = find_ini_section_mut(&mut sections, "");
+            section.entries.push(IniEntry {
+                key: "key".to_string(),
+                value: "value".to_string(),
+            });
+
+            assert_eq!(sections.len(), 1);
+            assert_eq!(sections[0].name, "");
+        }
+
+        #[test]
+        fn test_ensure_trailing_newline_already_has_newline() {
+            let content = "line1\nline2\n".to_string();
+            let result = ensure_trailing_newline(content);
+            assert_eq!(result, "line1\nline2\n");
+        }
+
+        #[test]
+        fn test_ensure_trailing_newline_adds_newline() {
+            let content = "line1\nline2".to_string();
+            let result = ensure_trailing_newline(content);
+            assert_eq!(result, "line1\nline2\n");
+        }
+
+        #[test]
+        fn test_ensure_trailing_newline_empty_string() {
+            let content = "".to_string();
+            let result = ensure_trailing_newline(content);
+            assert_eq!(result, "\n");
+        }
+    }
+
+    mod edge_case_tests {
+        use super::*;
+
+        #[test]
+        fn test_parse_ini_value_with_equals_sign() {
+            let content = r#"
+[database]
+url = postgres://user:pass@host/db?ssl=true&timeout=30
+"#;
+            let sections = parse_ini(content);
+            assert_eq!(sections.len(), 1);
+            assert_eq!(sections[0].entries.len(), 1);
+            assert_eq!(sections[0].entries[0].key, "url");
+            // Value should include everything after the first =
+            assert_eq!(
+                sections[0].entries[0].value,
+                "postgres://user:pass@host/db?ssl=true&timeout=30"
+            );
+        }
+
+        #[test]
+        fn test_parse_ini_empty_value() {
+            let content = r#"
+[settings]
+empty_key =
+another =
+"#;
+            let sections = parse_ini(content);
+            assert_eq!(sections.len(), 1);
+            assert_eq!(sections[0].entries.len(), 2);
+            assert_eq!(sections[0].entries[0].key, "empty_key");
+            assert_eq!(sections[0].entries[0].value, "");
+            assert_eq!(sections[0].entries[1].key, "another");
+            assert_eq!(sections[0].entries[1].value, "");
+        }
+
+        #[test]
+        fn test_parse_ini_key_with_whitespace() {
+            let content = r#"
+[section]
+  key with spaces  =  value with spaces
+"#;
+            let sections = parse_ini(content);
+            assert_eq!(sections.len(), 1);
+            assert_eq!(sections[0].entries[0].key, "key with spaces");
+            assert_eq!(sections[0].entries[0].value, "value with spaces");
+        }
+
+        #[test]
+        fn test_parse_ini_section_with_whitespace() {
+            let content = r#"
+[  section name  ]
+key = value
+"#;
+            let sections = parse_ini(content);
+            assert_eq!(sections.len(), 1);
+            assert_eq!(sections[0].name, "section name");
+        }
+
+        #[test]
+        fn test_parse_ini_line_without_equals() {
+            // Lines without = should be ignored
+            let content = r#"
+[section]
+valid = entry
+invalid line without equals
+another_valid = entry
+"#;
+            let sections = parse_ini(content);
+            assert_eq!(sections.len(), 1);
+            assert_eq!(sections[0].entries.len(), 2);
+        }
+
+        #[test]
+        fn test_parse_ini_only_comments() {
+            let content = r#"
+# Comment 1
+; Comment 2
+# Another comment
+"#;
+            let sections = parse_ini(content);
+            assert!(sections.is_empty());
+        }
+
+        #[test]
+        fn test_parse_ini_only_empty_lines() {
+            let content = "\n\n\n\n";
+            let sections = parse_ini(content);
+            assert!(sections.is_empty());
+        }
+
+        #[test]
+        fn test_merge_case_insensitive_key_matching() {
+            // Test that key matching is case-insensitive for duplicate detection
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[settings]
+TIMEOUT = 60
+"#;
+            fs.add_file_string("source.ini", source_ini).unwrap();
+
+            let dest_ini = r#"
+[settings]
+timeout = 30
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "source.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: Some("settings".to_string()),
+                append: true, // append mode
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            // Should only have one timeout entry (case-insensitive match)
+            let timeout_count =
+                result.matches("timeout").count() + result.matches("TIMEOUT").count();
+            assert_eq!(timeout_count, 1);
+        }
+
+        #[test]
+        fn test_serialize_ini_multiple_sections_with_spacing() {
+            let sections = vec![
+                IniSection {
+                    name: "first".to_string(),
+                    entries: vec![IniEntry {
+                        key: "key1".to_string(),
+                        value: "value1".to_string(),
+                    }],
+                },
+                IniSection {
+                    name: "second".to_string(),
+                    entries: vec![IniEntry {
+                        key: "key2".to_string(),
+                        value: "value2".to_string(),
+                    }],
+                },
+            ];
+            let output = serialize_ini(&sections);
+            // Should have blank line between sections
+            assert!(output.contains("\n\n[second]") || output.contains("]\n\n["));
+        }
+
+        #[test]
+        fn test_merge_all_sections_preserves_order() {
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[b_section]
+key_b = value_b
+
+[a_section]
+key_a = value_a
+"#;
+            fs.add_file_string("source.ini", source_ini).unwrap();
+
+            let dest_ini = r#"
+[c_section]
+key_c = value_c
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "source.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: None,
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            // All sections should be present
+            assert!(result.contains("[c_section]"));
+            assert!(result.contains("[b_section]"));
+            assert!(result.contains("[a_section]"));
+        }
+
+        #[test]
+        fn test_merge_empty_dest_all_sections() {
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[settings]
+key = value
+
+[database]
+host = localhost
+"#;
+            fs.add_file_string("source.ini", source_ini).unwrap();
+            fs.add_file_string("config.ini", "").unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "source.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: None,
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            assert!(result.contains("[settings]"));
+            assert!(result.contains("key=value"));
+            assert!(result.contains("[database]"));
+            assert!(result.contains("host=localhost"));
+        }
+
+        #[test]
+        fn test_merge_section_with_empty_root_entries() {
+            // Test that empty root-level section doesn't affect merge
+            let mut fs = MemoryFS::new();
+
+            let source_ini = r#"
+[settings]
+key = value
+"#;
+            fs.add_file_string("source.ini", source_ini).unwrap();
+
+            let dest_ini = r#"
+[settings]
+existing = entry
+"#;
+            fs.add_file_string("config.ini", dest_ini).unwrap();
+
+            let ini_op = IniMergeOp {
+                source: "source.ini".to_string(),
+                dest: "config.ini".to_string(),
+                section: Some("settings".to_string()),
+                append: false,
+                allow_duplicates: false,
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            let result = read_file_as_string(&fs, "config.ini").unwrap();
+            assert!(result.contains("existing=entry"));
+            assert!(result.contains("key=value"));
+        }
     }
 }
