@@ -1,5 +1,5 @@
 {
-  "task": "Create usage documentation for open source adoption",
-  "plan": "context/usage-docs-plan.json",
-  "instructions": "Create comprehensive user-facing documentation: getting-started, configuration reference, CLI reference, and recipes"
+  "task": null,
+  "plan": null,
+  "instructions": "All planned tasks are complete. Check feature-status.json for project status."
 }
