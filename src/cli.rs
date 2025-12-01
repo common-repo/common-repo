@@ -72,6 +72,12 @@ enum Commands {
 
     /// Display the repository inheritance tree
     Tree(commands::tree::TreeArgs),
+
+    /// Check if local files are in sync with inherited repositories
+    SyncCheck(commands::sync_check::SyncCheckArgs),
+
+    /// Manage Git hooks for common-repo
+    Hooks(commands::hooks::HooksArgs),
 }
 
 impl Cli {
@@ -101,6 +107,26 @@ impl Cli {
             Commands::Validate(args) => commands::validate::execute(args),
             Commands::Cache(args) => commands::cache::execute(args),
             Commands::Tree(args) => commands::tree::execute(args),
+            Commands::SyncCheck(args) => {
+                // Sync-check uses exit codes to indicate status
+                match commands::sync_check::execute(args) {
+                    Ok(result) => {
+                        if !result.has_changes() {
+                            Ok(()) // Exit 0: in sync
+                        } else if result.within_threshold {
+                            if result.auto_fixed {
+                                Ok(()) // Exit 0: auto-fixed
+                            } else {
+                                std::process::exit(1) // Exit 1: minor drift
+                            }
+                        } else {
+                            std::process::exit(2) // Exit 2: major drift
+                        }
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            Commands::Hooks(args) => commands::hooks::execute(args),
         }
     }
 
