@@ -7,48 +7,22 @@ alwaysApply: false
 
 # Context Files Guidance
 
-The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans.
+The `context/` directory contains task tracking for LLM assistants.
 
-## Structured Tracking Files
+## Active Files
 
-These JSON files track implementation progress and active tasks:
-
-- `context/feature-status.json` - Structured JSON tracking of all feature implementation status
-  - **Update this file when completing features**
 - `context/current-task.json` - Points to active task and its plan file
 
-## Reference Documentation
+## Archived Files
 
-These files provide detailed implementation plans and guidance:
+Completed plans and status files are stored in `context/completed/`:
 
-- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
-- `context/cli-design.md` - CLI architecture and command structure
-- `context/cli-implementation-plan.md` - CLI implementation roadmap
-- `context/cli-testing-strategy.md` - CLI testing approach and coverage
-- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
-- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
-
-## Temporary Prompt Files
-
-These files are manually invoked prompt files. They are temporary and should not be automatically included:
-
-- `context/prompt.md` - Manually invoked prompt file (temporary, will be removed)
-- `context/todo-prompt.md` - Manually invoked prompt file (temporary, will be removed)
-
-**Important**: These `*prompt.md` files are not part of the permanent context and should be manually invoked only when needed.
+- `feature-status.json` - Feature implementation status (all complete)
+- `implementation-plan.md` - Technical implementation plans
+- `cli-*.md` - CLI design and implementation files
+- Various testing guides and plans
 
 ## Important Notes
 
-- All context files are temporary and will be removed once the project reaches maturity
 - For human-readable documentation, see `docs/purpose.md` and `docs/design.md`
-- Use these files to understand project architecture, completed work, and future plans
-- When completing features, update `context/feature-status.json` with the completion status
-
-## File Organization
-
-The context files are organized by concern:
-- **Structured tracking**: `feature-status.json`, `current-task.json`
-- **Implementation plans**: `implementation-plan.md`
-- **CLI development**: `cli-*.md` files
-- **Testing guidance**: `merge-operator-testing-guide.md`, `improving-test-coverage-plan.md`
-- **Temporary prompts**: `*prompt.md` files (manually invoked)
+- Use archived files to understand project architecture and completed work

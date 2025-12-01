@@ -8,16 +8,12 @@ This is a Rust library for managing repository inheritance and file composition 
 
 ## LLM Context Files
 
-The `context/` directory contains detailed implementation plans, progress tracking, and design documents specifically for LLM assistants. These files provide deep context about the project's architecture, implementation status, and future plans:
+The `context/` directory contains task tracking for LLM assistants:
 
-- `context/feature-status.json` - Structured JSON tracking of all feature implementation status
 - `context/current-task.json` - Points to active task and its plan file
-- `context/implementation-plan.md` - Detailed technical implementation plans and architecture decisions
-- `context/cli-*.md` - CLI design, implementation plans, and testing strategies
-- `context/merge-operator-testing-guide.md` - Testing guidance for merge operators
-- `context/improving-test-coverage-plan.md` - Test coverage analysis and improvement plans
+- `context/completed/` - Archived plans and status files (feature-status.json, implementation plans, testing guides)
 
-These files are temporary and will be removed once the project reaches maturity. For human-readable documentation, see:
+For human-readable documentation, see:
 - `docs/purpose.md` - Project purpose and goals
 - `docs/design.md` - Implementation architecture and design philosophy
 - `README.md` - User-facing documentation

@@ -36,6 +36,5 @@ For human-readable documentation, see:
 ## Context Files Documentation
 
 When updating `context/` directory files:
-- Update `context/feature-status.json` when completing features
-- Keep context files focused on implementation details and progress tracking
-- Remember that context files are temporary and will be removed once the project reaches maturity
+- Keep context files focused on task tracking
+- Archived files are stored in `context/completed/`

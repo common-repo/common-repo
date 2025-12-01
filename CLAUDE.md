@@ -32,8 +32,9 @@ Each session starts with no memory of previous work. Follow this protocol:
 
 **Key context files:**
 - `context/current-task.json` - Active task and plan file
-- `context/feature-status.json` - Feature implementation status
 - `context/traceability-map.md` - Component to documentation mapping
+
+**Archived files** (in `context/completed/`): feature-status.json, implementation plans, testing guides
 
 **Reference docs:** `context/cli-design.md`, `docs/purpose.md`, `docs/design.md`, `README.md`
 
@@ -160,8 +161,7 @@ Do not mark features complete prematurely:
 1. **E2E tests exist and pass** - Unit tests alone are insufficient
 2. **All acceptance criteria met** - Check each explicitly
 3. **Tests actually run and pass** - Run `./script/test`, don't assume
-4. **Update feature-status.json** - Set `"status": "complete"` with date
-5. **Documentation updated** - Add new commands/features to relevant docs
+4. **Documentation updated** - Add new commands/features to relevant docs
 
 ## Development Commands
 
@@ -237,7 +237,6 @@ cargo test                                             # Run tests
 Pre-commit hooks (configured in `.pre-commit-config.yaml`) automatically run: cargo fmt, cargo check, cargo clippy, conventional commit validation, trailing whitespace/YAML checks.
 
 **Also remember:**
-- Update `context/feature-status.json` when completing features
 - Branch names for Claude agents must end with session ID
 
 **Common CI failures:**
