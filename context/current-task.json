@@ -1,9 +1,9 @@
 {
-  "task": "phases-merge-json",
+  "task": "phases-merge-toml",
   "plan": "context/improving-test-coverage-plan.json",
-  "instructions": "Add tests for JSON merge operations in phases.rs. Review JSON merge operator implementation and write tests for deep merging, type conflicts, and error paths.",
+  "instructions": "Add tests for TOML merge operations in phases.rs. Review TOML merge operator implementation and write tests for section merging, array handling, and error paths.",
   "context": {
-    "target_file": "src/merge/json.rs",
+    "target_file": "src/merge/toml.rs",
     "related_files": ["src/merge/mod.rs"],
     "note": "The merge-related tasks may be partially covered by the comprehensive integration tests in src/merge/ modules."
   },
