@@ -1,6 +1,6 @@
 {
   "plan_name": "Improving Test Coverage",
-  "last_updated": "2025-12-01",
+  "last_updated": "2025-12-01T06:45:00Z",
   "goal": "Target: 90%+ overall line coverage",
   "session_startup": [
     "Run git status to check branch",
@@ -276,10 +276,10 @@
     {
       "id": "phases-merge-toml",
       "name": "Add tests for TOML merge operations in phases.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "output_file": "src/phases.rs",
+      "output_file": "src/merge/toml.rs",
       "steps": [
         "Review TOML merge operator implementation",
         "Write tests for section merging",
@@ -291,7 +291,8 @@
         "Section merging and array handling are tested",
         "Error paths are covered",
         "All tests pass"
-      ]
+      ],
+      "notes": "Added 45 new tests in 8 modules: deep_section_merging_tests (5 tests), array_edge_case_tests (6 tests), type_overwrite_tests (6 tests), error_path_tests (9 tests), merge_values_direct_tests (7 tests), helper_function_tests (8 tests), parse_path_edge_cases (8 tests), preserve_comments_tests (2 tests). Total TOML tests: 66"
     },
     {
       "id": "phases-merge-ini",
