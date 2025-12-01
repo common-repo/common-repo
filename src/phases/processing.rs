@@ -218,7 +218,6 @@ fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
             // They create new repositories, not modify existing ones
             Ok(())
         }
-        // TODO: Implement other operators when they're available
         Operation::Template { template } => {
             use crate::operators::template;
             template::mark(template, fs)

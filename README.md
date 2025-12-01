@@ -1,16 +1,19 @@
 # common-repo
 
-A Rust library for managing repository inheritance and file composition across multiple Git repositories.
+A CLI tool for managing repository configuration inheritance and file composition across multiple Git repositories.
 
 ## Overview
 
-`common-repo` provides a sophisticated system for:
+`common-repo` treats repository configuration files as software dependencies. Define your configuration inheritance in a `.common-repo.yaml` file and let the tool handle versioning, updates, and intelligent merging.
+
+**Key capabilities:**
 - **Repository Inheritance**: Pull and compose files from multiple Git repositories
 - **File Operations**: Include, exclude, rename, and template files using declarative YAML configuration
-- **6-Phase Processing Pipeline**: Efficient parallel processing with automatic caching
-- **In-Memory Filesystem**: Fast file manipulation without disk I/O during processing
+- **Intelligent Merging**: Merge YAML, JSON, TOML, INI, and Markdown files with path-based targeting
+- **Version Management**: Pin refs, detect updates, and upgrade dependencies
+- **6-Phase Processing Pipeline**: Efficient processing with automatic caching
 
-Perfect for projects that need to compose shared configurations, templates, or code from multiple sources.
+Perfect for standardizing CI/CD configs, pre-commit hooks, and other repository infrastructure across projects.
 
 ## Features
 
@@ -270,60 +273,75 @@ The project uses [Release Please](https://github.com/googleapis/release-please) 
 
 ```
 .
-├── .github/
-│   └── workflows/         # GitHub Actions CI/CD workflows
+├── .github/workflows/     # GitHub Actions CI/CD workflows
 ├── src/
-│   ├── lib.rs             # Library entry point and public API
-│   ├── main.rs            # Binary entry point (placeholder)
-│   ├── cache.rs           # In-process repository caching
-│   ├── config.rs          # YAML configuration parsing
-│   ├── error.rs           # Error types and handling
-│   ├── filesystem.rs      # In-memory filesystem implementation
-│   ├── git.rs             # Git operations (clone, tags, etc.)
+│   ├── main.rs            # CLI entry point
+│   ├── lib.rs             # Library entry point
+│   ├── cli.rs             # CLI argument parsing
+│   ├── commands/          # CLI command implementations
+│   │   ├── apply.rs       # Apply configuration
+│   │   ├── check.rs       # Validate and check for updates
+│   │   ├── diff.rs        # Preview changes
+│   │   ├── init.rs        # Initialize new config
+│   │   └── ...            # Other commands
+│   ├── phases/            # 6-phase processing pipeline
+│   ├── merge/             # Format-specific merge logic (YAML, JSON, etc.)
+│   ├── config.rs          # Configuration parsing
 │   ├── operators.rs       # File operation implementations
-│   ├── path.rs            # Path manipulation utilities
-│   ├── phases.rs          # 6-phase processing pipeline
-│   └── repository.rs      # High-level repository management
-├── tests/
-│   └── integration_test.rs # Integration tests (feature-gated)
-├── Cargo.toml             # Rust package manifest
-├── .pre-commit-config.yaml # Pre-commit hooks configuration
-├── .commitlintrc.yml      # Commit message linting rules
-└── README.md              # This file
+│   └── ...                # Other modules
+├── tests/                 # Unit, integration, and E2E tests
+├── docs/                  # Design documentation
+└── context/               # Development context and planning
 ```
-
-Note: This is primarily a library crate. Use it by adding `common-repo` as a dependency
-in your Cargo.toml.
 
 ## Usage
 
-Add `common-repo` to your `Cargo.toml`:
+### CLI Commands
 
-```toml
-[dependencies]
-common-repo = "0.1"
+```bash
+# Initialize a new .common-repo.yaml
+common-repo init
+
+# Apply configuration (runs full 6-phase pipeline)
+common-repo apply
+
+# Preview what would change
+common-repo apply --dry-run
+common-repo diff
+
+# Check for available updates
+common-repo check --updates
+
+# Update refs to newer versions
+common-repo update
+
+# Other commands
+common-repo validate    # Validate configuration
+common-repo info        # Show configuration overview
+common-repo ls          # List files that would be created
+common-repo tree        # Show inheritance tree
+common-repo cache       # Manage repository cache
 ```
 
-### Basic Example
+### Example Configuration
 
-```rust
-use common_repo::{RepositoryManager, Config};
-use std::path::Path;
+```yaml
+# .common-repo.yaml
+- repo:
+    url: https://github.com/common-repo/rust-cli
+    ref: v1.0.0
+    with:
+      - include: [".*", "**/*"]
+      - exclude: [".git/**"]
 
-// Load configuration from YAML
-let config_yaml = r#"
-repositories:
-  - url: https://github.com/example/shared-config.git
-    ref: main
-    operations:
-      - include: "config/*.yaml"
-"#;
+- template:
+    - "**/*.template"
 
-let config: Config = serde_yaml::from_str(config_yaml)?;
-let manager = RepositoryManager::new()?;
-
-// Execute the repository composition
-manager.execute(&config, Path::new("output"))?;
+- yaml:
+    source: ci-fragment.yml
+    dest: .github/workflows/ci.yml
+    path: jobs.test
+    append: true
 ```
 
 ## Contributing
