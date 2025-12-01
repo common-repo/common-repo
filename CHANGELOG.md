@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.18.0](https://github.com/common-repo/common-repo/compare/v0.17.0...v0.18.0) (2025-12-01)
+
+
+### Features
+
+* **tests:** add INI merge operation tests ([1b83f69](https://github.com/common-repo/common-repo/commit/1b83f69c01670aa53e61d74417e6aaeeb8fa01a6))
+* **tests:** add Markdown merge operation tests ([5738bb7](https://github.com/common-repo/common-repo/commit/5738bb768ee98a65b8b7f4940afbe12b3933c3b9))
+* **tests:** add merge configuration parsing tests ([7fb82c9](https://github.com/common-repo/common-repo/commit/7fb82c951b4f9a583fcbf1a029a308c69493a877))
+* **tests:** add TOML merge operation tests ([45479d1](https://github.com/common-repo/common-repo/commit/45479d11559e87d4c97f4ad80418cdca5abae94a))
+
+
+### Bug Fixes
+
+* **test:** update integration test for archived file ([705f2b4](https://github.com/common-repo/common-repo/commit/705f2b4af4408e06256dfa6c55c0f5cb192f00ad))
+
 ## [0.17.0](https://github.com/common-repo/common-repo/compare/v0.16.0...v0.17.0) (2025-12-01)
 
 
