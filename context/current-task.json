@@ -1,9 +1,5 @@
 {
-  "task": null,
-  "plan": null,
-  "instructions": "All tasks in improving-test-coverage-plan.json complete. Plan archived to context/completed/",
-  "completed_plans": [
-    "merge-operator-testing-plan (archived to context/completed/)",
-    "improving-test-coverage-plan (archived to context/completed/)"
-  ]
+  "task": "Create usage documentation for open source adoption",
+  "plan": "context/usage-docs-plan.json",
+  "instructions": "Create comprehensive user-facing documentation: getting-started, configuration reference, CLI reference, and recipes"
 }
