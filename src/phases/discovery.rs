@@ -1045,7 +1045,9 @@ mod tests {
 
         // Error should be from repo2
         let error = result.unwrap_err();
-        assert!(matches!(error, Error::GitClone { url, .. } if url == "https://github.com/example/repo2"));
+        assert!(
+            matches!(error, Error::GitClone { url, .. } if url == "https://github.com/example/repo2")
+        );
     }
 
     // ========================================================================
