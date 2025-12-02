@@ -76,10 +76,7 @@ fn test_clone_cache_and_load_repository() {
     assert!(fs1.exists("Cargo.toml"), "Cargo.toml should be present");
     assert!(fs1.exists("README.md"), "README.md should be present");
     assert!(fs1.exists("src/main.rs"), "src/main.rs should be present");
-    assert!(
-        fs1.exists("context/completed/feature-status.json"),
-        "context/completed/feature-status.json should be present"
-    );
+    assert!(fs1.exists("src/lib.rs"), "src/lib.rs should be present");
     assert!(fs1.exists(".gitignore"), ".gitignore should be present");
 
     // Verify some files are NOT present (like build artifacts)
