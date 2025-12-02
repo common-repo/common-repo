@@ -6,6 +6,9 @@
   "completed_task": {
     "name": "Implement parallel clones",
     "plan": "context/completed/parallel-clones-plan.json",
-    "completed_at": "2025-12-02"
+    "completed_at": "2025-12-02",
+    "coverage_verified": true,
+    "test_count": 8,
+    "coverage_note": "8 unit tests cover all code paths: empty tree, single repo, parallel at same level, nested repos, network error with/without cache, non-network error, parallel error collection"
   }
 }
