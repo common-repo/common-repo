@@ -29,15 +29,3 @@ repos:
         # - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
-
-  # Local hook for common-repo sync check
-  # Detects drift from inherited repos and auto-fixes small changes
-  - repo: local
-    hooks:
-      - id: common-repo-sync-check
-        name: common-repo sync-check
-        description: Check if local files are in sync with inherited repositories
-        entry: common-repo sync-check --auto-fix
-        language: system
-        pass_filenames: false
-        always_run: true
