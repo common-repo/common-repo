@@ -1,0 +1,7 @@
+- id: common-repo-update
+  name: common-repo update
+  description: Sync dependencies and update lock files using common-repo
+  entry: common-repo update
+  language: system
+  pass_filenames: false
+  always_run: true
