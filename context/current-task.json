@@ -2,7 +2,7 @@
   "task": "Implement parallel clones",
   "plan": "context/parallel-clones-plan.json",
   "last_updated": "2025-12-02",
-  "status": "pending",
+  "status": "in_progress",
   "instructions": [
     "Read context/parallel-clones-plan.json",
     "Find first task where status=pending and blocked_by=null",
@@ -11,12 +11,12 @@
   ],
   "context": {
     "research_complete": true,
-    "approach": "Use rayon for parallel iteration in clone_parallel()",
+    "next_task": "add-rayon-dependency",
+    "approach": "Use rayon for parallel iteration in clone_parallel() - parallel is DEFAULT behavior",
     "key_files": [
+      "Cargo.toml",
       "src/phases/discovery.rs",
-      "src/repository.rs",
-      "src/cli.rs",
-      "src/commands/apply.rs"
+      "src/repository.rs"
     ]
   }
 }
