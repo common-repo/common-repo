@@ -1,0 +1,148 @@
+{
+  "plan_name": "Homebrew Distribution for common-repo",
+  "last_updated": "2025-12-02",
+  "research_summary": {
+    "distribution_options": [
+      {
+        "name": "Build from source",
+        "pros": ["Single formula for all architectures", "Always builds latest compatible binary"],
+        "cons": ["Requires Rust toolchain installation", "Slower install time"]
+      },
+      {
+        "name": "Pre-built binaries",
+        "pros": ["Fast installation", "No build dependencies needed"],
+        "cons": ["Must build/upload binaries for each architecture", "More CI complexity"]
+      }
+    ],
+    "recommended_approach": "Pre-built binaries with source fallback",
+    "target_platforms": [
+      "x86_64-apple-darwin (macOS Intel)",
+      "aarch64-apple-darwin (macOS ARM/Apple Silicon)",
+      "x86_64-unknown-linux-gnu (Linux x86_64, optional)"
+    ],
+    "sources": [
+      "https://federicoterzi.com/blog/how-to-publish-your-rust-project-on-homebrew/",
+      "https://mehuaniket.com/blog/create-cli-using-rust-build-release-brew/",
+      "https://docs.brew.sh/Formula-Cookbook",
+      "https://github.com/rcoh/rust-brew-template"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "create-tap-repo",
+      "name": "Create homebrew-tap repository",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create new GitHub repo: common-repo/homebrew-tap (or homebrew-common-repo)",
+        "Add README.md with installation instructions",
+        "Create Formula/ directory"
+      ],
+      "acceptance_criteria": [
+        "Repository exists at github.com/common-repo/homebrew-tap",
+        "Formula/ directory exists"
+      ]
+    },
+    {
+      "id": "create-release-workflow",
+      "name": "Create GitHub Actions workflow for multi-arch releases",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Create .github/workflows/release.yml in common-repo",
+        "Configure matrix build for: x86_64-apple-darwin, aarch64-apple-darwin, x86_64-unknown-linux-gnu",
+        "Use taiki-e/upload-rust-binary-action for cross-compilation",
+        "Generate tar.gz archives with naming: common-repo-{version}-{target}.tar.gz",
+        "Upload as GitHub release assets"
+      ],
+      "acceptance_criteria": [
+        "Workflow triggers on version tags (v*.*.*)",
+        "Builds for all target platforms",
+        "Uploads .tar.gz binaries to GitHub releases"
+      ],
+      "notes": "Consider using taiki-e/create-gh-release-action for release notes from CHANGELOG"
+    },
+    {
+      "id": "create-formula-file",
+      "name": "Create Homebrew formula with multi-arch support",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "create-tap-repo",
+      "steps": [
+        "Create Formula/common-repo.rb in tap repo",
+        "Add desc, homepage, license fields",
+        "Use on_macos/on_linux and on_arm/on_intel blocks for architecture-specific URLs",
+        "Add sha256 checksums for each binary",
+        "Implement install method: bin.install 'common-repo'"
+      ],
+      "acceptance_criteria": [
+        "Formula installs correctly on macOS Intel",
+        "Formula installs correctly on macOS ARM",
+        "Formula installs correctly on Linux x86_64"
+      ],
+      "example_formula": "See notes for template"
+    },
+    {
+      "id": "add-formula-update-automation",
+      "name": "Automate formula updates on release",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-release-workflow", "create-formula-file"],
+      "steps": [
+        "Add step to release workflow to update formula",
+        "Calculate SHA256 for each binary",
+        "Update version, URLs, and checksums in formula",
+        "Commit and push to homebrew-tap repo"
+      ],
+      "acceptance_criteria": [
+        "Formula auto-updates when new release is tagged",
+        "SHA256 checksums are correct"
+      ],
+      "notes": "May need GitHub token with write access to tap repo"
+    },
+    {
+      "id": "document-installation",
+      "name": "Document Homebrew installation in README",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "create-formula-file",
+      "steps": [
+        "Add Homebrew installation section to main repo README",
+        "Include: brew tap common-repo/tap && brew install common-repo",
+        "Add to tap repo README as well"
+      ],
+      "acceptance_criteria": [
+        "Installation instructions are clear and accurate"
+      ]
+    },
+    {
+      "id": "test-installation",
+      "name": "Test installation on all platforms",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "add-formula-update-automation",
+      "steps": [
+        "Test brew tap and install on macOS Intel",
+        "Test brew tap and install on macOS ARM",
+        "Test brew tap and install on Linux (if supported)",
+        "Verify common-repo --version works after install"
+      ],
+      "acceptance_criteria": [
+        "Installation succeeds on all supported platforms",
+        "Binary is functional after installation"
+      ]
+    }
+  ],
+  "notes": [
+    "Tap naming: homebrew-tap allows multiple formulas, homebrew-common-repo is project-specific",
+    "Users install via: brew tap common-repo/tap && brew install common-repo",
+    "Formula DSL: use on_arm/on_intel for arch-specific URLs, Hardware::CPU.arm? in install blocks",
+    "Consider adding shell completions to formula (bash, zsh, fish)"
+  ],
+  "formula_template": {
+    "description": "Example formula structure for reference",
+    "content": "class CommonRepo < Formula\n  desc \"Tool description\"\n  homepage \"https://github.com/common-repo/common-repo\"\n  license \"MIT\"\n  version \"0.1.0\"\n\n  on_macos do\n    on_arm do\n      url \"https://github.com/common-repo/common-repo/releases/download/v#{version}/common-repo-#{version}-aarch64-apple-darwin.tar.gz\"\n      sha256 \"ARM_SHA256_HERE\"\n    end\n    on_intel do\n      url \"https://github.com/common-repo/common-repo/releases/download/v#{version}/common-repo-#{version}-x86_64-apple-darwin.tar.gz\"\n      sha256 \"INTEL_SHA256_HERE\"\n    end\n  end\n\n  on_linux do\n    url \"https://github.com/common-repo/common-repo/releases/download/v#{version}/common-repo-#{version}-x86_64-unknown-linux-gnu.tar.gz\"\n    sha256 \"LINUX_SHA256_HERE\"\n  end\n\n  def install\n    bin.install \"common-repo\"\n  end\n\n  test do\n    system \"#{bin}/common-repo\", \"--version\"\n  end\nend"
+  }
+}
