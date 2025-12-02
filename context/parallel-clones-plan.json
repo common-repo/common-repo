@@ -77,28 +77,6 @@
       ]
     },
     {
-      "id": "add-cli-parallel-override",
-      "name": "(Optional) Add --parallel CLI flag for override",
-      "status": "pending",
-      "priority": 6,
-      "blocked_by": "implement-parallel-clone",
-      "output_files": ["src/cli.rs", "src/commands/apply.rs", "src/phases/discovery.rs"],
-      "steps": [
-        "Add --parallel <n> option to ApplyArgs in src/cli.rs",
-        "Add COMMON_REPO_PARALLEL env var support",
-        "Pass override value through pipeline to clone_parallel()",
-        "Use rayon::ThreadPoolBuilder to limit threads when override specified",
-        "Run cargo build to verify changes compile"
-      ],
-      "acceptance_criteria": [
-        "--parallel flag overrides default parallelism",
-        "COMMON_REPO_PARALLEL env var works as override",
-        "Without flag, uses default (all CPUs)",
-        "cargo build succeeds"
-      ],
-      "notes": "This task is optional - parallel works by default without it"
-    },
-    {
       "id": "add-unit-tests",
       "name": "Add unit tests for parallel cloning",
       "status": "pending",
@@ -118,11 +96,30 @@
       ]
     },
     {
-      "id": "update-documentation",
-      "name": "Update documentation for parallel cloning",
+      "id": "add-e2e-tests",
+      "name": "Add E2E tests for parallel cloning",
       "status": "pending",
       "priority": 5,
       "blocked_by": "add-unit-tests",
+      "output_file": "tests/cli_e2e_apply.rs",
+      "steps": [
+        "Add E2E test for apply with multiple inherited repos (verifies parallel works)",
+        "Add E2E test for apply with nested inheritance (multiple depth levels)",
+        "Add E2E test for error handling when clone fails",
+        "Run cargo nextest run to verify tests pass"
+      ],
+      "acceptance_criteria": [
+        "E2E tests verify parallel cloning works end-to-end",
+        "E2E tests cover multi-repo and nested scenarios",
+        "All tests pass: cargo nextest run"
+      ]
+    },
+    {
+      "id": "update-documentation",
+      "name": "Update documentation for parallel cloning",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "add-e2e-tests",
       "output_files": ["docs/design.md", "context/completed/feature-status.json"],
       "steps": [
         "Update Phase 1 section in docs/design.md to reflect parallel is now default",
@@ -137,10 +134,32 @@
       ]
     },
     {
-      "id": "add-e2e-tests-optional",
-      "name": "(Optional) Add E2E tests for --parallel override flag",
+      "id": "add-cli-parallel-override",
+      "name": "(Optional) Add --parallel CLI flag for override",
       "status": "pending",
       "priority": 7,
+      "blocked_by": "update-documentation",
+      "output_files": ["src/cli.rs", "src/commands/apply.rs", "src/phases/discovery.rs"],
+      "steps": [
+        "Add --parallel <n> option to ApplyArgs in src/cli.rs",
+        "Add COMMON_REPO_PARALLEL env var support",
+        "Pass override value through pipeline to clone_parallel()",
+        "Use rayon::ThreadPoolBuilder to limit threads when override specified",
+        "Run cargo build to verify changes compile"
+      ],
+      "acceptance_criteria": [
+        "--parallel flag overrides default parallelism",
+        "COMMON_REPO_PARALLEL env var works as override",
+        "Without flag, uses default (all CPUs)",
+        "cargo build succeeds"
+      ],
+      "notes": "This task is optional - parallel works by default without it"
+    },
+    {
+      "id": "add-e2e-tests-override",
+      "name": "(Optional) Add E2E tests for --parallel override flag",
+      "status": "pending",
+      "priority": 8,
       "blocked_by": "add-cli-parallel-override",
       "output_file": "tests/cli_e2e_apply.rs",
       "steps": [
