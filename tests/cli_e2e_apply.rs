@@ -378,3 +378,70 @@ fn test_apply_env_cache() {
         .success()
         .stdout(predicate::str::contains("Applied successfully"));
 }
+
+/// Test that apply with multiple repo operations shows appropriate error for invalid URLs
+/// This tests that the parallel cloning error handling works correctly
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_apply_multiple_repos_invalid_urls() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Config with multiple repo operations that should fail
+    // This tests the parallel error collection mechanism
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: "https://invalid-domain-that-does-not-exist.example/repo1"
+    ref: "main"
+- repo:
+    url: "https://invalid-domain-that-does-not-exist.example/repo2"
+    ref: "main"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    // Should fail with error about cloning
+    cmd.arg("apply")
+        .arg("--config")
+        .arg(config_file.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("clone").or(predicate::str::contains("Git")));
+}
+
+/// Test that apply with nested repo inheritance produces appropriate error for invalid URLs
+/// This tests multi-level parallel cloning behavior
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_apply_nested_repo_inheritance_invalid() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Config with nested repo operations
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: "https://invalid-domain-that-does-not-exist.example/parent"
+    ref: "main"
+    with:
+      - include:
+          patterns: ["**/*"]
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    // Should fail with error about cloning
+    cmd.arg("apply")
+        .arg("--config")
+        .arg(config_file.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("clone").or(predicate::str::contains("Git")));
+}

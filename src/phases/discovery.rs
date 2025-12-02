@@ -27,8 +27,10 @@
 //! before the processing and merging phases begin.
 
 use std::collections::HashSet;
+use std::sync::Mutex;
 
 use log::warn;
+use rayon::prelude::*;
 
 use super::{RepoNode, RepoTree};
 use crate::cache::RepoCache;
@@ -271,9 +273,8 @@ fn process_config_to_node(config: &Schema) -> Result<RepoNode> {
 /// - If clone fails but cache exists, continue with cached version and warn
 /// - If clone fails and no cache exists, abort with error
 ///
-/// Note: Currently implements sequential cloning per level. To enable true parallel cloning,
-/// RepositoryManager would need to be wrapped in Arc or made Clone, or we could use
-/// rayon/tokio for parallelization. The structure is ready for parallelization.
+/// Clones all repositories at the same depth level in parallel using rayon.
+/// This is the default behavior - no CLI flag needed to enable it.
 pub fn clone_parallel(
     tree: &RepoTree,
     repo_manager: &RepositoryManager,
@@ -295,10 +296,11 @@ pub fn clone_parallel(
             })
             .collect();
 
-        // Clone all repos at current depth level
-        // TODO: Parallelize this loop when RepositoryManager supports Arc/Clone or when
-        // using rayon/tokio. For now, sequential cloning ensures correctness.
-        for (url, ref_) in repos_to_clone {
+        // Clone all repos at current depth level in parallel
+        // Collect errors from all parallel operations
+        let errors: Mutex<Vec<Error>> = Mutex::new(Vec::new());
+
+        repos_to_clone.par_iter().for_each(|(url, ref_)| {
             // Try to fetch the repository
             if let Err(e) = repo_manager.fetch_repository(url, ref_) {
                 // Check if this is a network-related error and if we have a cached version
@@ -313,10 +315,16 @@ pub fn clone_parallel(
                     );
                     // Continue - the repository is already cached and will be used
                 } else {
-                    // Either not a network error, or no cache available - propagate the error
-                    return Err(e);
+                    // Either not a network error, or no cache available - collect the error
+                    errors.lock().unwrap().push(e);
                 }
             }
+        });
+
+        // Return the first error if any occurred
+        let collected_errors = errors.into_inner().unwrap();
+        if let Some(first_error) = collected_errors.into_iter().next() {
+            return Err(first_error);
         }
 
         // Collect next level
@@ -955,6 +963,89 @@ mod tests {
 
         let error = result.unwrap_err();
         assert!(matches!(error, Error::ConfigParse { .. }));
+    }
+
+    /// Mock git operations that can selectively fail for specific URLs
+    struct SelectiveFailGitOperations {
+        clone_calls: Arc<Mutex<Vec<(String, String, PathBuf)>>>,
+        fail_urls: Vec<String>,
+    }
+
+    impl SelectiveFailGitOperations {
+        fn with_fail_urls(urls: Vec<String>) -> Self {
+            Self {
+                clone_calls: Arc::new(Mutex::new(Vec::new())),
+                fail_urls: urls,
+            }
+        }
+    }
+
+    impl GitOperations for SelectiveFailGitOperations {
+        fn clone_shallow(&self, url: &str, ref_name: &str, target_dir: &Path) -> Result<()> {
+            self.clone_calls.lock().unwrap().push((
+                url.to_string(),
+                ref_name.to_string(),
+                target_dir.to_path_buf(),
+            ));
+            if self.fail_urls.contains(&url.to_string()) {
+                Err(Error::GitClone {
+                    url: url.to_string(),
+                    r#ref: ref_name.to_string(),
+                    message: "Clone failed".to_string(),
+                })
+            } else {
+                Ok(())
+            }
+        }
+
+        fn list_tags(&self, _url: &str) -> Result<Vec<String>> {
+            Ok(vec!["v1.0.0".to_string()])
+        }
+    }
+
+    #[test]
+    fn test_clone_parallel_multiple_repos_one_fails() {
+        // Test that when multiple repos are cloned in parallel and one fails,
+        // we get an error even though others succeed
+        let child1 = RepoNode::new(
+            "https://github.com/example/repo1".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let child2 = RepoNode::new(
+            "https://github.com/example/repo2".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let child3 = RepoNode::new(
+            "https://github.com/example/repo3".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child1, child2, child3];
+        let tree = RepoTree::new(root);
+
+        // Only repo2 fails
+        let git_ops = Box::new(SelectiveFailGitOperations::with_fail_urls(vec![
+            "https://github.com/example/repo2".to_string(),
+        ]));
+        let clone_calls = git_ops.clone_calls.clone();
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        // Should fail because one repo failed
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_err());
+
+        // But all repos should have been attempted (parallel execution)
+        let calls = clone_calls.lock().unwrap();
+        assert_eq!(calls.len(), 3);
+
+        // Error should be from repo2
+        let error = result.unwrap_err();
+        assert!(matches!(error, Error::GitClone { url, .. } if url == "https://github.com/example/repo2"));
     }
 
     // ========================================================================
