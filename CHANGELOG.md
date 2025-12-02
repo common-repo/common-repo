@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.19.0](https://github.com/common-repo/common-repo/compare/v0.18.0...v0.19.0) (2025-12-02)
+
+
+### Features
+
+* add pre-commit hook for common-repo update ([bd8aaf8](https://github.com/common-repo/common-repo/commit/bd8aaf8a63449f223af294949e073a8dd9271ea3))
+* add sync-check and hooks commands for dependency sync ([7bd2d3b](https://github.com/common-repo/common-repo/commit/7bd2d3bf886ea11b9d266c108dd94067751f846f))
+* **phase1:** implement parallel cloning using rayon ([7862833](https://github.com/common-repo/common-repo/commit/78628332f7e9fecdbd4cff83fa4d4373f5f750d7))
+
+
+### Bug Fixes
+
+* **context:** add required E2E tests for parallel cloning ([d1d034f](https://github.com/common-repo/common-repo/commit/d1d034f56890fb10c1c0f11212040670efad673a))
+* **context:** make parallel cloning the default behavior in plan ([9d34646](https://github.com/common-repo/common-repo/commit/9d346465ecbb3b51177bde6851862d4afc09e1e2))
+* **test:** update integration test for archived file ([748147d](https://github.com/common-repo/common-repo/commit/748147d4db53041f440069ade82a4837ff699903))
+
 ## [0.18.0](https://github.com/common-repo/common-repo/compare/v0.17.0...v0.18.0) (2025-12-01)
 
 
