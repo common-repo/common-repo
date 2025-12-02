@@ -1,6 +1,26 @@
 {
-  "task": "Complete Homebrew distribution setup",
-  "plan": "context/homebrew-distribution-plan.json",
+  "task": "Research and plan parallel clones implementation",
+  "plan": null,
   "last_updated": "2025-12-02",
-  "notes": "Research complete. Plan created with 6 tasks for Homebrew tap setup."
+  "status": "pending",
+  "instructions": [
+    "Research current implementation state in src/phases/discovery.rs",
+    "Review design docs: docs/design.md (parallel clone strategy at depth levels)",
+    "Review CLI design: context/cli-design.md (--parallel flag, COMMON_REPO_PARALLEL env)",
+    "Check feature-status: context/completed/feature-status.json (notes parallelism deferred)",
+    "Create context/parallel-clones-plan.json with implementation tasks"
+  ],
+  "context": {
+    "current_state": "clone_parallel() is sequential currently, parallelism deferred",
+    "design_goal": "Clone repos at same depth level in parallel (breadth-first)",
+    "relevant_files": [
+      "src/phases/discovery.rs",
+      "docs/design.md",
+      "context/cli-design.md"
+    ]
+  },
+  "deferred_task": {
+    "task": "Complete Homebrew distribution setup",
+    "plan": "context/homebrew-distribution-plan.json"
+  }
 }
