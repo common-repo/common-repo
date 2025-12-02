@@ -1,8 +1,36 @@
 {
-  "task": null,
+  "task": "Investigate slow tarpaulin coverage due to ignored E2E tests",
   "plan": null,
   "last_updated": "2025-12-02",
-  "status": "complete",
+  "status": "pending",
+  "context": {
+    "problem": "Tarpaulin takes ~25 minutes because it instruments all 27 test binaries, even when tests are #[ignore]",
+    "root_cause": "E2E tests in tests/cli_e2e_*.rs are gated behind 'integration-tests' feature flag. Without the feature, all tests are ignored, but tarpaulin still spends ~55 seconds instrumenting each binary.",
+    "workaround": "cargo tarpaulin --lib --ignore-tests runs in ~2 minutes but skips E2E coverage entirely",
+    "coverage_result": "89.18% coverage (1434/1608 lines) with --lib --ignore-tests",
+    "files_affected": [
+      "tests/cli_e2e_apply.rs",
+      "tests/cli_e2e_cache.rs",
+      "tests/cli_e2e_check.rs",
+      "tests/cli_e2e_diff.rs",
+      "tests/cli_e2e_info.rs",
+      "tests/cli_e2e_ini_merge.rs",
+      "tests/cli_e2e_json_merge.rs",
+      "tests/cli_e2e_ls.rs",
+      "tests/cli_e2e_markdown_merge.rs",
+      "tests/cli_e2e_tree.rs",
+      "tests/cli_e2e_update.rs",
+      "tests/cli_e2e_validate.rs",
+      "tests/cli_e2e_yaml_merge.rs"
+    ],
+    "investigation_areas": [
+      "Why are E2E tests feature-gated instead of using cfg(test)?",
+      "Can tarpaulin be configured to exclude certain test binaries?",
+      "Should E2E tests be consolidated into fewer binaries?",
+      "Is there a better test organization pattern for Rust CLI tools?",
+      "Consider using cargo tarpaulin --exclude-files 'tests/*' as alternative"
+    ]
+  },
   "completed_task": {
     "name": "Implement parallel clones",
     "plan": "context/completed/parallel-clones-plan.json",
