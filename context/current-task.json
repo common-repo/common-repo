@@ -1,5 +1,40 @@
 {
-  "task": null,
-  "plan": null,
-  "instructions": "All planned tasks are complete. Archived files are in context/completed/."
+  "plan_name": "Add pre-commit hook for common-repo update",
+  "last_updated": "2025-12-02",
+  "tasks": [
+    {
+      "id": "create-precommit-hooks-yaml",
+      "name": "Create .pre-commit-hooks.yaml file",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create .pre-commit-hooks.yaml at repo root",
+        "Define hook with id, name, entry for common-repo update",
+        "Use language: system (assumes common-repo is installed)",
+        "Set pass_filenames: false since update doesn't need them"
+      ],
+      "acceptance_criteria": [
+        ".pre-commit-hooks.yaml exists at repo root",
+        "Hook is properly formatted YAML",
+        "Entry runs common-repo update command"
+      ]
+    },
+    {
+      "id": "commit-and-push",
+      "name": "Commit and push changes",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-precommit-hooks-yaml",
+      "steps": [
+        "Stage the new file",
+        "Commit with conventional commit message",
+        "Push to feature branch"
+      ],
+      "acceptance_criteria": [
+        "Changes committed with proper message",
+        "Pushed to claude/add-precommit-hook-* branch"
+      ]
+    }
+  ]
 }
