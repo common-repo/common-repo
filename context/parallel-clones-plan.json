@@ -9,12 +9,12 @@
   ],
   "context": {
     "current_state": "clone_parallel() in src/phases/discovery.rs:277-334 is sequential despite its name. It already uses breadth-first traversal (all repos at depth N before depth N+1). The structure is ready for parallelization.",
-    "design_goal": "Clone repos at same depth level in parallel. Total time determined by tree depth, not breadth. Performance target: execution time approaches minimum network transfer time.",
+    "design_goal": "Clone repos at same depth level in parallel BY DEFAULT. Total time determined by tree depth, not breadth. Performance target: execution time approaches minimum network transfer time.",
     "cli_requirements": {
-      "flag": "--parallel <n> for apply command (default: auto)",
-      "env_var": "COMMON_REPO_PARALLEL for default parallel clone operations"
+      "flag": "--parallel <n> for apply command - OPTIONAL override (default: auto/num_cpus)",
+      "env_var": "COMMON_REPO_PARALLEL - OPTIONAL override for default parallel clone operations"
     },
-    "implementation_approach": "Use rayon for parallel iteration. While git clone is I/O-bound, rayon's thread pool handles blocking I/O fine by running multiple threads in parallel. This avoids async complexity.",
+    "implementation_approach": "Use rayon for parallel iteration. Parallelism is the DEFAULT behavior - no CLI flag needed to enable it. The --parallel flag only exists to limit/override. Rayon handles blocking I/O fine via thread pool.",
     "key_blocker": "RepositoryManager needs to be accessible across threads. Options: Arc wrapper, or Clone trait, or pass by reference with rayon's par_iter."
   },
   "tasks": [
@@ -55,79 +55,58 @@
       ]
     },
     {
-      "id": "add-parallel-config",
-      "name": "Add parallel configuration to CLI and apply command",
+      "id": "implement-parallel-clone",
+      "name": "Implement parallel cloning in clone_parallel() - DEFAULT behavior",
       "status": "pending",
       "priority": 3,
-      "blocked_by": "add-rayon-dependency",
-      "output_files": ["src/cli.rs", "src/commands/apply.rs"],
-      "steps": [
-        "Add --parallel <n> option to ApplyArgs in src/cli.rs",
-        "Add COMMON_REPO_PARALLEL env var support",
-        "Default to num_cpus or auto-detect optimal parallelism",
-        "Pass parallel config through to discovery phase",
-        "Run cargo build to verify changes compile"
-      ],
-      "acceptance_criteria": [
-        "--parallel flag is available on apply command",
-        "COMMON_REPO_PARALLEL env var is read",
-        "Default parallelism is auto-detected",
-        "cargo build succeeds"
-      ]
-    },
-    {
-      "id": "implement-parallel-clone",
-      "name": "Implement parallel cloning in clone_parallel()",
-      "status": "pending",
-      "priority": 4,
       "blocked_by": "make-repo-manager-sync",
       "output_file": "src/phases/discovery.rs",
       "steps": [
         "Import rayon::prelude::* in discovery.rs",
-        "Update clone_parallel() signature to accept parallel count option",
-        "Replace sequential for loop with rayon par_iter",
-        "Configure rayon thread pool size based on parallel option",
-        "Collect errors from parallel operations properly",
+        "Replace sequential for loop with rayon par_iter (uses all available CPUs by default)",
+        "Collect errors from parallel operations properly using Mutex or channel",
         "Preserve cache fallback behavior for network errors",
-        "Update module documentation to reflect parallel behavior"
+        "Update module documentation to reflect parallel behavior is now default"
       ],
       "acceptance_criteria": [
-        "clone_parallel() uses rayon for parallel iteration",
-        "Thread pool size is configurable",
+        "clone_parallel() uses rayon for parallel iteration BY DEFAULT",
+        "No CLI flag needed - parallel just works",
         "All errors are properly collected and reported",
         "Cache fallback still works for network errors",
         "Existing tests pass"
       ]
     },
     {
-      "id": "wire-parallel-to-pipeline",
-      "name": "Wire parallel config through pipeline",
+      "id": "add-cli-parallel-override",
+      "name": "(Optional) Add --parallel CLI flag for override",
       "status": "pending",
-      "priority": 5,
-      "blocked_by": ["add-parallel-config", "implement-parallel-clone"],
-      "output_files": ["src/phases/discovery.rs", "src/commands/apply.rs"],
+      "priority": 6,
+      "blocked_by": "implement-parallel-clone",
+      "output_files": ["src/cli.rs", "src/commands/apply.rs", "src/phases/discovery.rs"],
       "steps": [
-        "Update discovery::execute() to accept parallel config",
-        "Pass parallel config from apply command to discovery phase",
-        "Ensure config flows through the entire pipeline",
-        "Run cargo build to verify integration"
+        "Add --parallel <n> option to ApplyArgs in src/cli.rs",
+        "Add COMMON_REPO_PARALLEL env var support",
+        "Pass override value through pipeline to clone_parallel()",
+        "Use rayon::ThreadPoolBuilder to limit threads when override specified",
+        "Run cargo build to verify changes compile"
       ],
       "acceptance_criteria": [
-        "--parallel flag value is used in clone_parallel()",
-        "End-to-end config flow works",
+        "--parallel flag overrides default parallelism",
+        "COMMON_REPO_PARALLEL env var works as override",
+        "Without flag, uses default (all CPUs)",
         "cargo build succeeds"
-      ]
+      ],
+      "notes": "This task is optional - parallel works by default without it"
     },
     {
       "id": "add-unit-tests",
       "name": "Add unit tests for parallel cloning",
       "status": "pending",
-      "priority": 6,
+      "priority": 4,
       "blocked_by": "implement-parallel-clone",
       "output_file": "src/phases/discovery.rs",
       "steps": [
         "Add test for parallel clone with multiple repos at same depth",
-        "Add test for parallel clone respects thread pool size",
         "Add test for error collection from parallel operations",
         "Add test for cache fallback in parallel context",
         "Run cargo nextest run to verify tests pass"
@@ -139,49 +118,49 @@
       ]
     },
     {
-      "id": "add-e2e-tests",
-      "name": "Add E2E tests for --parallel flag",
-      "status": "pending",
-      "priority": 7,
-      "blocked_by": "wire-parallel-to-pipeline",
-      "output_file": "tests/cli_e2e_apply.rs",
-      "steps": [
-        "Add test for apply --parallel 1 (sequential)",
-        "Add test for apply --parallel 4 (parallel)",
-        "Add test for COMMON_REPO_PARALLEL env var",
-        "Run cargo nextest run to verify tests pass"
-      ],
-      "acceptance_criteria": [
-        "E2E tests verify --parallel flag works",
-        "E2E tests verify env var works",
-        "All tests pass: cargo nextest run"
-      ]
-    },
-    {
       "id": "update-documentation",
       "name": "Update documentation for parallel cloning",
       "status": "pending",
-      "priority": 8,
-      "blocked_by": "add-e2e-tests",
+      "priority": 5,
+      "blocked_by": "add-unit-tests",
       "output_files": ["docs/design.md", "context/completed/feature-status.json"],
       "steps": [
-        "Update Phase 1 section in docs/design.md to reflect implemented parallelism",
+        "Update Phase 1 section in docs/design.md to reflect parallel is now default",
         "Update feature-status.json to mark parallelism as complete",
         "Remove 'parallelism deferred' notes",
-        "Document thread pool configuration options"
+        "Note that --parallel flag is optional override"
       ],
       "acceptance_criteria": [
-        "Design doc reflects current implementation",
+        "Design doc reflects parallel is default behavior",
         "Feature status shows parallelism complete",
         "No outdated references to deferred parallelism"
       ]
+    },
+    {
+      "id": "add-e2e-tests-optional",
+      "name": "(Optional) Add E2E tests for --parallel override flag",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "add-cli-parallel-override",
+      "output_file": "tests/cli_e2e_apply.rs",
+      "steps": [
+        "Add test for apply --parallel 1 (force sequential)",
+        "Add test for COMMON_REPO_PARALLEL env var override",
+        "Run cargo nextest run to verify tests pass"
+      ],
+      "acceptance_criteria": [
+        "E2E tests verify --parallel override flag works",
+        "E2E tests verify env var override works",
+        "All tests pass: cargo nextest run"
+      ],
+      "notes": "Only needed if add-cli-parallel-override task is completed"
     }
   ],
   "notes": [
+    "PARALLEL IS THE DEFAULT - no flag needed to enable it",
     "Rayon chosen over tokio to avoid async complexity throughout codebase",
     "Git clone is I/O-bound but rayon handles blocking I/O via thread pool",
-    "Thread pool size configurable via --parallel flag or COMMON_REPO_PARALLEL env",
-    "Default parallelism should be auto-detected (num_cpus or similar)",
+    "--parallel flag and COMMON_REPO_PARALLEL env are OPTIONAL overrides",
     "Error handling must collect all parallel errors, not just first"
   ],
   "risks": [
