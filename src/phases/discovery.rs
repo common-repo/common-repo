@@ -18,17 +18,20 @@
 //!     (e.g., repository A inherits from B, which in turn inherits from A).
 //!
 //! 3.  **Parallel Cloning (`clone_parallel`)**: Once the complete dependency
-//!     tree is built, all the repositories are cloned in parallel to maximize
-//!     performance. The `RepositoryManager` is used for this, which automatically
-//!     handles on-disk caching to avoid re-downloading repositories that are
-//!     already up to date.
+//!     tree is built, all repositories at the same depth level are cloned in
+//!     parallel using rayon. This means total clone time is determined by tree
+//!     depth, not breadth. The `RepositoryManager` is used for this, which
+//!     automatically handles on-disk caching to avoid re-downloading repositories
+//!     that are already up to date.
 //!
 //! This phase ensures that all the necessary source material is available locally
 //! before the processing and merging phases begin.
 
 use std::collections::HashSet;
+use std::sync::Mutex;
 
 use log::warn;
+use rayon::prelude::*;
 
 use super::{RepoNode, RepoTree};
 use crate::cache::RepoCache;
@@ -265,15 +268,13 @@ fn process_config_to_node(config: &Schema) -> Result<RepoNode> {
 /// Clone all repositories in the tree in parallel
 ///
 /// Uses breadth-first ordering to maximize parallelism - all repos at depth N
-/// are cloned before moving to depth N+1.
+/// are cloned in parallel before moving to depth N+1. This means total clone time
+/// is determined by tree depth, not breadth.
 ///
 /// Network Failure Behavior:
 /// - If clone fails but cache exists, continue with cached version and warn
-/// - If clone fails and no cache exists, abort with error
-///
-/// Note: Currently implements sequential cloning per level. To enable true parallel cloning,
-/// RepositoryManager would need to be wrapped in Arc or made Clone, or we could use
-/// rayon/tokio for parallelization. The structure is ready for parallelization.
+/// - If clone fails and no cache exists, collect the error
+/// - All errors are reported after the parallel operation completes
 pub fn clone_parallel(
     tree: &RepoTree,
     repo_manager: &RepositoryManager,
@@ -295,10 +296,11 @@ pub fn clone_parallel(
             })
             .collect();
 
-        // Clone all repos at current depth level
-        // TODO: Parallelize this loop when RepositoryManager supports Arc/Clone or when
-        // using rayon/tokio. For now, sequential cloning ensures correctness.
-        for (url, ref_) in repos_to_clone {
+        // Clone all repos at current depth level IN PARALLEL using rayon
+        // Errors are collected and reported after all clones complete
+        let errors: Mutex<Vec<Error>> = Mutex::new(Vec::new());
+
+        repos_to_clone.par_iter().for_each(|(url, ref_)| {
             // Try to fetch the repository
             if let Err(e) = repo_manager.fetch_repository(url, ref_) {
                 // Check if this is a network-related error and if we have a cached version
@@ -313,10 +315,16 @@ pub fn clone_parallel(
                     );
                     // Continue - the repository is already cached and will be used
                 } else {
-                    // Either not a network error, or no cache available - propagate the error
-                    return Err(e);
+                    // Either not a network error, or no cache available - collect error
+                    errors.lock().unwrap().push(e);
                 }
             }
+        });
+
+        // Check if any fatal errors occurred during parallel cloning
+        let collected_errors = errors.into_inner().unwrap();
+        if let Some(first_error) = collected_errors.into_iter().next() {
+            return Err(first_error);
         }
 
         // Collect next level
@@ -380,6 +388,44 @@ mod tests {
                 fail_with_network_error: false,
                 error_message: message,
             }
+        }
+    }
+
+    /// Mock git operations that can selectively fail on specific URLs
+    struct SelectiveFailMockGitOperations {
+        clone_calls: Arc<Mutex<Vec<(String, String, PathBuf)>>>,
+        fail_urls: Vec<String>,
+    }
+
+    impl SelectiveFailMockGitOperations {
+        fn failing_on(urls: Vec<&str>) -> Self {
+            Self {
+                clone_calls: Arc::new(Mutex::new(Vec::new())),
+                fail_urls: urls.into_iter().map(String::from).collect(),
+            }
+        }
+    }
+
+    impl GitOperations for SelectiveFailMockGitOperations {
+        fn clone_shallow(&self, url: &str, ref_name: &str, target_dir: &Path) -> Result<()> {
+            self.clone_calls.lock().unwrap().push((
+                url.to_string(),
+                ref_name.to_string(),
+                target_dir.to_path_buf(),
+            ));
+            if self.fail_urls.contains(&url.to_string()) {
+                Err(Error::GitClone {
+                    url: url.to_string(),
+                    r#ref: ref_name.to_string(),
+                    message: "Selective failure".to_string(),
+                })
+            } else {
+                Ok(())
+            }
+        }
+
+        fn list_tags(&self, _url: &str) -> Result<Vec<String>> {
+            Ok(vec!["v1.0.0".to_string()])
         }
     }
 
@@ -955,6 +1001,83 @@ mod tests {
 
         let error = result.unwrap_err();
         assert!(matches!(error, Error::ConfigParse { .. }));
+    }
+
+    #[test]
+    fn test_clone_parallel_attempts_all_repos_before_reporting_error() {
+        // Test that parallel cloning attempts ALL repos at a level before reporting errors
+        let child1 = RepoNode::new(
+            "https://github.com/example/repo1".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let child2 = RepoNode::new(
+            "https://github.com/example/repo2".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let child3 = RepoNode::new(
+            "https://github.com/example/repo3".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child1, child2, child3];
+        let tree = RepoTree::new(root);
+
+        // Repo2 will fail, but repo1 and repo3 should still be attempted
+        let git_ops = Box::new(SelectiveFailMockGitOperations::failing_on(vec![
+            "https://github.com/example/repo2",
+        ]));
+        let clone_calls = git_ops.clone_calls.clone();
+        let cache_ops = Box::new(MockCacheOperations::new());
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+
+        // Should fail because repo2 failed
+        assert!(result.is_err());
+
+        // But all three repos should have been attempted (parallel behavior)
+        let calls = clone_calls.lock().unwrap();
+        assert_eq!(calls.len(), 3, "All repos should be attempted in parallel");
+    }
+
+    #[test]
+    fn test_clone_parallel_mixed_cached_and_uncached() {
+        // Test that parallel cloning handles a mix of cached and uncached repos
+        // When a repo is cached, fetch_repository loads from cache without cloning
+        let child1 = RepoNode::new(
+            "https://github.com/example/repo1".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let child2 = RepoNode::new(
+            "https://github.com/example/repo2".to_string(),
+            "main".to_string(),
+            vec![],
+        );
+        let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+        root.children = vec![child1, child2];
+        let tree = RepoTree::new(root);
+
+        let git_ops = Box::new(MockGitOperations::new());
+        let clone_calls = git_ops.clone_calls.clone();
+
+        // Pre-populate cache for repo1 only
+        let cache_path = PathBuf::from("/mock/cache/https---github.com-example-repo1-main");
+        let cache_ops = Box::new(MockCacheOperations::with_cached(vec![cache_path]));
+        let repo_manager = RepositoryManager::with_operations(git_ops, cache_ops);
+        let cache = RepoCache::new();
+
+        let result = clone_parallel(&tree, &repo_manager, &cache);
+        assert!(result.is_ok());
+
+        // Only repo2 should have been cloned (repo1 was already cached)
+        let calls = clone_calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].0, "https://github.com/example/repo2");
     }
 
     // ========================================================================

@@ -262,6 +262,13 @@ mod tests {
     use super::*;
     use std::sync::{Arc, Mutex};
 
+    // Compile-time assertion that RepositoryManager is Send + Sync
+    // This is required for parallel cloning with rayon
+    fn _assert_send_sync<T: Send + Sync>() {}
+    fn _verify_repository_manager_is_thread_safe() {
+        _assert_send_sync::<RepositoryManager>();
+    }
+
     /// Mock git operations for testing
     struct MockGitOperations {
         clone_calls: Arc<Mutex<Vec<(String, String, PathBuf)>>>,

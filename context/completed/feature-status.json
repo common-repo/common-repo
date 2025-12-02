@@ -202,7 +202,7 @@
       "files": ["src/phases.rs"],
       "steps": [
         "Implement phase1::discover_repos() for recursive discovery",
-        "Implement phase1::clone_parallel() (sequential currently, parallelism deferred)",
+        "Implement phase1::clone_parallel() with rayon for parallel cloning",
         "Implement phase1::detect_cycles() for circular dependency detection",
         "Add network failure fallback to cache"
       ],
@@ -353,7 +353,7 @@
   "notes": [
     "All Layer 0-4 features are complete",
     "All planned CLI commands are implemented: apply, check, update, validate, init, cache, info, tree, ls, diff",
-    "Parallelism optimization for Phase 1 cloning is deferred as future enhancement",
+    "Phase 1 cloning uses rayon for parallel cloning by default",
     "Comprehensive test suite covers unit, integration, E2E, and doc tests"
   ]
 }
