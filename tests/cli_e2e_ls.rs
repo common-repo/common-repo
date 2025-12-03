@@ -8,6 +8,7 @@ use assert_fs::prelude::*;
 use predicates::prelude::*;
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_help() {
     let mut cmd = cargo_bin_cmd!("common-repo");
     cmd.arg("ls")
@@ -20,6 +21,7 @@ fn test_ls_help() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_missing_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -32,6 +34,7 @@ fn test_ls_missing_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_simple_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -60,6 +63,7 @@ fn test_ls_with_simple_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_count_flag() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -90,6 +94,7 @@ fn test_ls_with_count_flag() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_long_format() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -120,6 +125,7 @@ fn test_ls_with_long_format() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_pattern_filter() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -152,6 +158,7 @@ fn test_ls_with_pattern_filter() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_sort_by_path() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -184,6 +191,7 @@ fn test_ls_with_sort_by_path() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_reverse_sort() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -214,6 +222,7 @@ fn test_ls_with_reverse_sort() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_empty_result() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -238,6 +247,7 @@ fn test_ls_empty_result() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_invalid_pattern() {
     let temp = assert_fs::TempDir::new().unwrap();
 

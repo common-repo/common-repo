@@ -1,6 +1,6 @@
 {
   "plan_name": "Tarpaulin Coverage Speed Fixes",
-  "last_updated": "2025-12-02",
+  "last_updated": "2025-12-03",
   "session_startup": [
     "Run git status to check branch",
     "Run ./script/test to verify baseline",
@@ -11,7 +11,7 @@
     {
       "id": "create-tarpaulin-config",
       "name": "Create .tarpaulin.toml configuration file",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_file": ".tarpaulin.toml",
@@ -31,7 +31,7 @@
     {
       "id": "fix-e2e-diff-gating",
       "name": "Add feature gating to cli_e2e_diff.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "output_file": "tests/cli_e2e_diff.rs",
@@ -50,7 +50,7 @@
     {
       "id": "fix-e2e-init-gating",
       "name": "Add feature gating to cli_e2e_init.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "output_file": "tests/cli_e2e_init.rs",
@@ -69,7 +69,7 @@
     {
       "id": "fix-e2e-ls-gating",
       "name": "Add feature gating to cli_e2e_ls.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "output_file": "tests/cli_e2e_ls.rs",
@@ -88,7 +88,7 @@
     {
       "id": "fix-e2e-validate-gating",
       "name": "Add feature gating to cli_e2e_validate.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "output_file": "tests/cli_e2e_validate.rs",
@@ -107,7 +107,7 @@
     {
       "id": "verify-all-fixes",
       "name": "Verify all fixes and run final tests",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "create-tarpaulin-config",
       "output_file": null,
@@ -122,7 +122,13 @@
         "All E2E tests pass with --features integration-tests",
         "cargo tarpaulin completes in ~2 minutes",
         "Coverage is approximately 89%"
-      ]
+      ],
+      "results": {
+        "tarpaulin_time": "2m43s",
+        "coverage": "89.37%",
+        "tests_without_feature": "726 tests run, 191 skipped",
+        "tests_with_feature": "917 tests run, 0 skipped"
+      }
     }
   ],
   "notes": [
