@@ -8,6 +8,7 @@ use assert_fs::prelude::*;
 use predicates::prelude::*;
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_minimal_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -36,6 +37,7 @@ fn test_init_minimal_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_empty_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -67,6 +69,7 @@ fn test_init_empty_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_template_rust_cli() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -96,6 +99,7 @@ fn test_init_template_rust_cli() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_template_python_django() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -120,6 +124,7 @@ fn test_init_template_python_django() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_template_unknown() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -137,6 +142,7 @@ fn test_init_template_unknown() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_force_overwrite() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -171,6 +177,7 @@ fn test_init_force_overwrite() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_interactive_mode() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -194,6 +201,7 @@ fn test_init_interactive_mode() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_init_default_is_minimal() {
     let temp = assert_fs::TempDir::new().unwrap();
 

@@ -8,6 +8,7 @@ use assert_fs::prelude::*;
 use predicates::prelude::*;
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_help() {
     let mut cmd = cargo_bin_cmd!("common-repo");
     cmd.arg("diff")
@@ -20,6 +21,7 @@ fn test_diff_help() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_missing_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -32,6 +34,7 @@ fn test_diff_missing_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_no_changes() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -59,6 +62,7 @@ fn test_diff_no_changes() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_with_changes_exits_nonzero() {
     let temp = assert_fs::TempDir::new().unwrap();
     let source_dir = assert_fs::TempDir::new().unwrap();
@@ -94,6 +98,7 @@ fn test_diff_with_changes_exits_nonzero() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_with_summary_flag() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -122,6 +127,7 @@ fn test_diff_with_summary_flag() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_detects_file_content_change() {
     // This test verifies that diff can detect when file contents differ.
     // We create a scenario where the config includes a file, but the version
@@ -155,6 +161,7 @@ fn test_diff_detects_file_content_change() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_shows_modified_files() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -186,6 +193,7 @@ fn test_diff_shows_modified_files() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_custom_config_path() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -215,6 +223,7 @@ fn test_diff_custom_config_path() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_invalid_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -232,6 +241,7 @@ fn test_diff_invalid_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_summary_flag_works() {
     // Test that the --summary flag works correctly
     let temp = assert_fs::TempDir::new().unwrap();
@@ -262,6 +272,7 @@ fn test_diff_summary_flag_works() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_empty_config_no_changes() {
     // Test that an empty pattern produces no changes
     let temp = assert_fs::TempDir::new().unwrap();

@@ -1,0 +1,18 @@
+# Tarpaulin coverage configuration
+#
+# This configuration optimizes coverage runs by only instrumenting library tests,
+# which reduces coverage time from ~25 minutes to ~2 minutes.
+
+[default]
+# Only run library tests (not integration tests, binaries, benchmarks, or examples)
+# This dramatically reduces coverage time as there are 27+ test binaries otherwise
+run-types = ["Lib"]
+
+# Don't count test function lines themselves in coverage
+ignore-tests = true
+
+# Set a reasonable timeout for test execution
+timeout = "120s"
+
+# Output formats
+out = ["Html", "Stdout"]

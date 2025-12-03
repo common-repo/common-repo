@@ -7,6 +7,7 @@ use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_valid_config() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -32,6 +33,7 @@ fn test_validate_valid_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_invalid_yaml() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -58,6 +60,7 @@ fn test_validate_invalid_yaml() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_invalid_regex_pattern() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -84,6 +87,7 @@ fn test_validate_invalid_regex_pattern() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_invalid_glob_pattern() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -109,6 +113,7 @@ fn test_validate_invalid_glob_pattern() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_empty_tools_warning() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -134,6 +139,7 @@ fn test_validate_empty_tools_warning() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_empty_tools_strict_mode() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -160,6 +166,7 @@ fn test_validate_empty_tools_strict_mode() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_missing_config_file() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -174,6 +181,7 @@ fn test_validate_missing_config_file() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_default_config_path() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -198,6 +206,7 @@ fn test_validate_default_config_path() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_complex_valid_config() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
@@ -243,6 +252,7 @@ fn test_validate_complex_valid_config() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_validate_with_custom_cache_root() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config_file = temp.child(".common-repo.yaml");
