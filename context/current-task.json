@@ -1,66 +1,11 @@
 {
-  "task": null,
-  "plan": null,
+  "task": "Implement tarpaulin coverage speed fixes",
+  "plan": "context/tarpaulin-coverage-fixes.json",
   "last_updated": "2025-12-02",
-  "status": "complete",
-  "completed_task": {
-    "name": "Investigate slow tarpaulin coverage due to ignored E2E tests",
-    "completed_at": "2025-12-02",
-    "investigation_findings": {
-      "problem_confirmed": "Tarpaulin instruments all 27 test binaries regardless of #[ignore] status, spending ~55 seconds per binary",
-      "test_structure": {
-        "total_e2e_files": 15,
-        "total_e2e_lines": 5420,
-        "files_without_feature_gating": [
-          "cli_e2e_diff.rs",
-          "cli_e2e_init.rs",
-          "cli_e2e_ls.rs",
-          "cli_e2e_validate.rs"
-        ],
-        "files_with_feature_gating": 11
-      },
-      "tarpaulin_options_evaluated": {
-        "lib_only": {
-          "command": "cargo tarpaulin --lib --ignore-tests",
-          "time": "~2 minutes",
-          "coverage": "89.18%",
-          "limitation": "No E2E coverage"
-        },
-        "exclude_files": {
-          "command": "cargo tarpaulin --exclude-files 'tests/*'",
-          "limitation": "Still instruments binaries, only excludes from results"
-        },
-        "test_flag": {
-          "command": "cargo tarpaulin --test <name>",
-          "limitation": "Must specify each test manually"
-        },
-        "config_file": {
-          "file": "tarpaulin.toml or .tarpaulin.toml",
-          "option": "run-types = [\"Lib\"]",
-          "benefit": "Codifies --lib behavior in config"
-        }
-      },
-      "root_cause_analysis": {
-        "why_feature_gated": "E2E tests require network access (clone repos) and binary compilation. Feature gating allows cargo test to skip them by default while cargo test --features integration-tests runs them explicitly.",
-        "why_not_cfg_test": "cfg(test) would still compile the tests. Feature gating with #[ignore] allows the binary to exist but tests to be skipped at runtime.",
-        "inconsistency_found": "4 of 15 E2E files lack the feature gating pattern"
-      },
-      "recommendations": {
-        "immediate": {
-          "action": "Create .tarpaulin.toml with run-types = [\"Lib\"]",
-          "benefit": "Fast coverage (~2 min) without command-line flags",
-          "tradeoff": "No E2E coverage in tarpaulin"
-        },
-        "short_term": {
-          "action": "Add #[cfg_attr(not(feature = \"integration-tests\"), ignore)] to 4 ungated E2E files",
-          "benefit": "Consistent test behavior across all E2E files"
-        },
-        "long_term": {
-          "action": "Consolidate 15 cli_e2e_*.rs files into one tests/cli_e2e.rs with modules",
-          "benefit": "Reduces binaries from 15 to 1, cutting E2E instrumentation time by ~14x",
-          "effort": "Refactor ~5400 lines of test code"
-        }
-      }
-    }
+  "status": "pending",
+  "context": {
+    "investigation_completed": true,
+    "problem": "Tarpaulin takes ~25 minutes because it instruments all 27 test binaries",
+    "solution": "Create tarpaulin config for lib-only coverage and fix inconsistent E2E feature gating"
   }
 }
