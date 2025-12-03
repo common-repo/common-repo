@@ -17,28 +17,21 @@ This project adheres to a Code of Conduct that all contributors are expected to 
 
 ### Setting Up Your Development Environment
 
-1. **Fork and clone the repository**
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/common-repo.git
-   cd common-repo
-   ```
+This project follows the [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-them-all) pattern:
 
-2. **Install pre-commit hooks**
-   ```bash
-   pip install pre-commit
-   pre-commit install
-   pre-commit install --hook-type commit-msg
-   ```
+```bash
+git clone https://github.com/YOUR-USERNAME/common-repo.git
+cd common-repo
+./script/setup    # First-time setup (installs deps, configures hooks, builds)
+./script/test     # Run test suite
+```
 
-3. **Build the project**
-   ```bash
-   cargo build
-   ```
-
-4. **Run tests to verify setup**
-   ```bash
-   cargo nextest run
-   ```
+**Available scripts:**
+- `./script/bootstrap` — Install dependencies (cargo-nextest, pre-commit)
+- `./script/setup` — First-time setup (runs bootstrap + configures environment)
+- `./script/update` — Update after pulling changes
+- `./script/test` — Run tests (uses cargo-nextest)
+- `./script/cibuild` — Run full CI checks locally
 
 ## Development Workflow
 
