@@ -1,10 +1,10 @@
 {
-  "task": "research-architecture",
+  "task": "research-cli-ux",
   "plan": "context/project-review-plan.json",
   "last_updated": "2025-12-03",
   "status": "pending",
   "context": {
-    "previous_task": "research-cicd",
-    "completed_research": ["documentation-practices.md", "testing-practices.md", "cicd-practices.md"]
+    "previous_task": "research-architecture",
+    "completed_research": ["documentation-practices.md", "testing-practices.md", "cicd-practices.md", "architecture-practices.md"]
   }
 }
