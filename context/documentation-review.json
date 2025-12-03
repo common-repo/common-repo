@@ -3,16 +3,16 @@
   "description": "Improve documentation to meet OSS best practices",
   "last_updated": "2025-12-03",
   "audit_summary": {
-    "current_score": "4/10",
-    "pass": ["1.6 CHANGELOG exists", "1.7 Getting started tutorial exists"],
-    "partial": ["1.3 Rustdoc (lib.rs good, needs audit of all public items)", "1.8 API reference (not published yet)", "1.9 External docs (docs/ exists but not a proper site)"],
-    "fail": ["1.1 README structure (no logo/badges)", "1.2 Installation methods (only 2, need 5+)", "1.4 README sync via include_str!", "1.5 Standard badges", "1.10 FAQ/troubleshooting"]
+    "current_score": "5/10",
+    "pass": ["1.6 CHANGELOG exists", "1.7 Getting started tutorial exists", "1.2 Installation methods", "1.5 Standard badges"],
+    "partial": ["1.3 Rustdoc (lib.rs good, needs audit of all public items)", "1.8 API reference (not published yet)", "1.9 External docs (docs/ exists but not a proper site)", "1.1 README structure (badges added, no logo)"],
+    "fail": ["1.4 README sync via include_str!", "1.10 FAQ/troubleshooting"]
   },
   "tasks": [
     {
       "id": "add-readme-badges",
       "name": "Add standard badges to README",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -30,7 +30,7 @@
     {
       "id": "expand-installation-methods",
       "name": "Document 5+ installation methods",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
