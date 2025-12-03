@@ -22,11 +22,12 @@ Other scripts: `./script/bootstrap` (install deps), `./script/update` (after pul
 
 Each session starts with no memory of previous work. Follow this protocol:
 
-1. **Check repository state**: Run `git status` to verify branch and working tree
-2. **Start baseline tests**: Run `./script/test` with `run_in_background: true` (skip for docs/context-only changes)
-3. **Find current task**: Read `context/current-task.json` for active work
-4. **Review recent history**: Run `git log --oneline -5`
-5. **Execute**: Find first task where `status=pending` and `blocked_by=null`, complete it, update status
+1. **Verify clean state**: Run `git status`, `git stash list`, check for unpushed commits. Ask user if any pending changes exist.
+2. **Create feature branch**: Checkout main, pull latest, create branch `<type>/<description>-<session-id>`
+3. **Start baseline tests**: Run `./script/test` with `run_in_background: true` (skip for docs/context-only changes)
+4. **Find current task**: Read `context/current-task.json` for active work
+5. **Review recent history**: Run `git log --oneline -5`
+6. **Execute**: Find first task where `status=pending` and `blocked_by=null`, complete it, update status
 
 **Using background tests**: After making code changes, use `BashOutput` to check results. Start a new background test run after edits to verify changes.
 
@@ -235,9 +236,6 @@ cargo test                                             # Run tests
 ```
 
 Pre-commit hooks (configured in `.pre-commit-config.yaml`) automatically run: cargo fmt, cargo check, cargo clippy, conventional commit validation, trailing whitespace/YAML checks.
-
-**Also remember:**
-- Branch names for Claude agents must end with session ID
 
 **Common CI failures:**
 - Commit message >100 chars or wrong format
