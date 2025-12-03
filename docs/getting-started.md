@@ -4,6 +4,40 @@ This guide walks you through installing common-repo and applying your first conf
 
 ## Installation
 
+### Quick Install (Recommended)
+
+Install the latest release with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+```
+
+This automatically detects your platform and installs the appropriate binary to `~/.local/bin`.
+
+**Installation options:**
+
+```bash
+# Install a specific version
+VERSION=v0.20.0 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+
+# Install to a custom directory
+INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+
+# Install with sudo (for system-wide installation)
+curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sudo sh
+```
+
+### From Pre-built Binaries
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/common-repo/common-repo/releases).
+
+Available platforms:
+- Linux x86_64 (glibc): `common-repo-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz`
+- Linux x86_64 (musl): `common-repo-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz`
+- Linux ARM64: `common-repo-vX.Y.Z-aarch64-unknown-linux-gnu.tar.gz`
+- macOS ARM64 (Apple Silicon): `common-repo-vX.Y.Z-aarch64-apple-darwin.tar.gz`
+- Windows x86_64: `common-repo-vX.Y.Z-x86_64-pc-windows-msvc.zip`
+
 ### From Source
 
 ```bash
@@ -13,6 +47,12 @@ cd common-repo
 
 # Build and install
 cargo install --path .
+```
+
+Or install directly from GitHub:
+
+```bash
+cargo install --git https://github.com/common-repo/common-repo
 ```
 
 ### Verify Installation
