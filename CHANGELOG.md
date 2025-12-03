@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/common-repo/common-repo/compare/v0.20.0...v0.21.0) (2025-12-03)
+
+
+### Features
+
+* add install.sh for easy one-liner installation ([452aa42](https://github.com/common-repo/common-repo/commit/452aa4254e76cbb201a0aaf8d4582fefd09d1d12))
+
 ## [0.20.0](https://github.com/common-repo/common-repo/compare/v0.19.0...v0.20.0) (2025-12-03)
 
 
