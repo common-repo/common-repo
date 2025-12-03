@@ -11,7 +11,7 @@
     {
       "id": "research-documentation",
       "name": "Research documentation best practices",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
