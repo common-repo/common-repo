@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.0](https://github.com/common-repo/common-repo/compare/v0.19.0...v0.20.0) (2025-12-03)
+
+
+### Features
+
+* **ci:** add precompiled binary publishing to releases ([f02461d](https://github.com/common-repo/common-repo/commit/f02461da73115ae7e7db04896ea72283039aea63))
+
+
+### Performance Improvements
+
+* speed up tarpaulin coverage from ~25min to ~2min ([77666c5](https://github.com/common-repo/common-repo/commit/77666c5320fd8fd1382cbc47477288c2c1379d3c))
+
 ## [0.19.0](https://github.com/common-repo/common-repo/compare/v0.18.0...v0.19.0) (2025-12-02)
 
 
