@@ -23,7 +23,7 @@ Other scripts: `./script/bootstrap` (install deps), `./script/update` (after pul
 Each session starts with no memory of previous work. Follow this protocol:
 
 1. **Verify clean state**: Run `git status`, `git stash list`, check for unpushed commits. Ask user if any pending changes exist.
-2. **Create feature branch**: Checkout main, pull latest, create branch `<type>/<description>-<session-id>`
+2. **Create feature branch**: Checkout main, pull latest changes on main branch, create branch `<type>/<description>-<session-id>`
 3. **Start baseline tests**: Run `./script/test` with `run_in_background: true` (skip for docs/context-only changes)
 4. **Find current task**: Read `context/current-task.json` for active work
 5. **Review recent history**: Run `git log --oneline -5`
