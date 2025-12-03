@@ -1,0 +1,76 @@
+{
+  "plan_name": "README Rewrite",
+  "last_updated": "2025-12-03",
+  "goal": "Rewrite README to remove AI-sounding language and shift focus from developer/contributor orientation to user orientation",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "create-contributing-md",
+      "name": "Create CONTRIBUTING.md with developer content",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create CONTRIBUTING.md",
+        "Move development workflow section from README",
+        "Move pre-commit hooks section",
+        "Move commit message format section",
+        "Move testing details (unit tests, integration tests, coverage)",
+        "Move CI/CD pipeline section",
+        "Move project structure section",
+        "Keep content mostly as-is but remove redundancy"
+      ],
+      "acceptance_criteria": [
+        "CONTRIBUTING.md exists with all developer-focused content",
+        "File is well-organized and readable"
+      ]
+    },
+    {
+      "id": "rewrite-readme",
+      "name": "Rewrite README for users",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-contributing-md",
+      "steps": [
+        "Write brief 2-3 sentence description (no marketing language)",
+        "Add concise installation section (one-liner + cargo)",
+        "Add usage section with real example config and commands",
+        "Keep documentation links table",
+        "Add minimal contributing section pointing to CONTRIBUTING.md",
+        "Remove all AI-sounding phrases",
+        "Use direct, imperative tone throughout"
+      ],
+      "acceptance_criteria": [
+        "README is under 150 lines",
+        "No phrases like 'Key features', 'Perfect for', 'Intelligent', 'Smart', 'Comprehensive'",
+        "Usage examples appear within first 50 lines",
+        "Development workflow details are gone (moved to CONTRIBUTING.md)"
+      ]
+    },
+    {
+      "id": "review-and-commit",
+      "name": "Review changes and commit",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "rewrite-readme",
+      "steps": [
+        "Read both files to verify quality",
+        "Check for any remaining AI-sounding language",
+        "Commit with conventional commit message",
+        "Push to branch"
+      ],
+      "acceptance_criteria": [
+        "Both files pass review",
+        "Commit is pushed to branch"
+      ]
+    }
+  ],
+  "notes": [
+    "User requested to wait before execution",
+    "Goal is to match tone of top developer tools (ripgrep, fd, jq, bat)"
+  ]
+}
