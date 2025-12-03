@@ -1,0 +1,327 @@
+{
+  "plan_name": "Project Review Plan",
+  "description": "Meta-plan to review common-repo against open source best practices and create sub-plans for improvements",
+  "last_updated": "2025-12-03",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "research-documentation",
+      "name": "Research documentation best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for OSS documentation best practices (2024-2025)",
+        "Examine docs structure of uv, ruff, ripgrep, starship, tokio",
+        "Note: README patterns, docs site structure, API docs, examples",
+        "Document findings in context/research/documentation-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with findings from 5+ projects",
+        "Includes specific examples and links"
+      ]
+    },
+    {
+      "id": "research-testing",
+      "name": "Research testing best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for Rust testing best practices, OSS testing strategies",
+        "Examine test structure of uv, ripgrep, serde, axum",
+        "Note: Coverage targets, test organization, fixtures, CI integration",
+        "Document findings in context/research/testing-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with findings from 5+ projects",
+        "Includes coverage strategies, test patterns"
+      ]
+    },
+    {
+      "id": "research-cicd",
+      "name": "Research CI/CD best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for GitHub Actions best practices, Rust CI patterns",
+        "Examine CI workflows of uv, ruff, ripgrep, deno",
+        "Note: Job structure, caching, release automation, matrix builds",
+        "Document findings in context/research/cicd-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with workflow patterns",
+        "Includes release automation strategies"
+      ]
+    },
+    {
+      "id": "research-architecture",
+      "name": "Research code architecture best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for Rust project structure, module organization",
+        "Examine architecture of uv, ripgrep, tokio, clap",
+        "Note: Module boundaries, error handling, API design",
+        "Document findings in context/research/architecture-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with architectural patterns",
+        "Includes module organization examples"
+      ]
+    },
+    {
+      "id": "research-cli-ux",
+      "name": "Research CLI/UX best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for CLI UX design, error message best practices",
+        "Examine CLI design of uv, ruff, ripgrep, gh, starship",
+        "Note: Help text, error messages, progress indicators, colors",
+        "Document findings in context/research/cli-ux-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with CLI UX patterns",
+        "Includes error message examples"
+      ]
+    },
+    {
+      "id": "research-security",
+      "name": "Research security best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for OSS security practices, Rust security",
+        "Examine security policies of popular projects",
+        "Note: Dependency auditing, SECURITY.md, SBOM, signing",
+        "Document findings in context/research/security-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with security practices",
+        "Includes audit tooling recommendations"
+      ]
+    },
+    {
+      "id": "research-distribution",
+      "name": "Research distribution best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for Rust binary distribution, packaging",
+        "Examine distribution of uv, ruff, ripgrep, starship",
+        "Note: Homebrew, cargo-binstall, shell installers, containers",
+        "Document findings in context/research/distribution-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with distribution strategies",
+        "Includes platform coverage patterns"
+      ]
+    },
+    {
+      "id": "research-community",
+      "name": "Research community/governance best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for OSS community management, governance models",
+        "Examine community practices of popular projects",
+        "Note: Issue templates, PR templates, CODEOWNERS, discussions",
+        "Document findings in context/research/community-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with community patterns",
+        "Includes template examples"
+      ]
+    },
+    {
+      "id": "research-performance",
+      "name": "Research performance best practices",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Web search for Rust performance, benchmarking practices",
+        "Examine performance strategies of uv, ripgrep, tokio",
+        "Note: Benchmarks, profiling, optimization patterns",
+        "Document findings in context/research/performance-practices.md"
+      ],
+      "acceptance_criteria": [
+        "Research file exists with performance patterns",
+        "Includes benchmarking strategies"
+      ]
+    },
+    {
+      "id": "compile-research",
+      "name": "Compile research into reference document",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": [
+        "research-documentation",
+        "research-testing",
+        "research-cicd",
+        "research-architecture",
+        "research-cli-ux",
+        "research-security",
+        "research-distribution",
+        "research-community",
+        "research-performance"
+      ],
+      "steps": [
+        "Read all research files in context/research/",
+        "Synthesize into context/research/best-practices-reference.md",
+        "Organize by area with key takeaways and exemplar projects"
+      ],
+      "acceptance_criteria": [
+        "Reference document exists",
+        "Covers all 9 areas with actionable insights"
+      ]
+    },
+    {
+      "id": "create-evaluation-framework",
+      "name": "Create evaluation checklist",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": ["compile-research"],
+      "steps": [
+        "Read best-practices-reference.md",
+        "Create context/evaluation-checklist.md with scorable criteria",
+        "Organize by area with pass/fail/partial indicators"
+      ],
+      "acceptance_criteria": [
+        "Checklist exists with clear criteria",
+        "Each area has 5-10 checkable items"
+      ]
+    },
+    {
+      "id": "create-subplan-documentation",
+      "name": "Create documentation-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current documentation against checklist",
+        "Create context/documentation-review.json with unit-of-work tasks",
+        "Each task addresses a specific gap or improvement"
+      ],
+      "acceptance_criteria": [
+        "Sub-plan JSON exists",
+        "Tasks are atomic and actionable"
+      ]
+    },
+    {
+      "id": "create-subplan-testing",
+      "name": "Create testing-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current testing against checklist",
+        "Create context/testing-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    },
+    {
+      "id": "create-subplan-cicd",
+      "name": "Create cicd-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current CI/CD against checklist",
+        "Create context/cicd-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    },
+    {
+      "id": "create-subplan-architecture",
+      "name": "Create architecture-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current architecture against checklist",
+        "Create context/architecture-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    },
+    {
+      "id": "create-subplan-cli-ux",
+      "name": "Create cli-ux-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current CLI/UX against checklist",
+        "Create context/cli-ux-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    },
+    {
+      "id": "create-subplan-security",
+      "name": "Create security-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current security practices against checklist",
+        "Create context/security-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    },
+    {
+      "id": "create-subplan-distribution",
+      "name": "Create distribution-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current distribution against checklist",
+        "Create context/distribution-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    },
+    {
+      "id": "create-subplan-community",
+      "name": "Create community-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current community practices against checklist",
+        "Create context/community-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    },
+    {
+      "id": "create-subplan-performance",
+      "name": "Create performance-review.json sub-plan",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["create-evaluation-framework"],
+      "steps": [
+        "Audit current performance practices against checklist",
+        "Create context/performance-review.json with unit-of-work tasks"
+      ],
+      "acceptance_criteria": ["Sub-plan JSON exists with atomic tasks"]
+    }
+  ],
+  "notes": [
+    "Phase 1 (priority 1): All research tasks can run in parallel",
+    "Phase 2 (priority 2-3): Compile research, then create evaluation framework",
+    "Phase 3 (priority 4): Create all sub-plans (can run in parallel after framework)",
+    "Phase 4: Execute sub-plans (tracked separately via current-task.json)",
+    "Research emphasizes up-and-coming projects like uv, ruff alongside established ones",
+    "Sub-plans are separate JSON files in context/ directory"
+  ]
+}
