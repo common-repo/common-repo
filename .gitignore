@@ -10,3 +10,6 @@
 
 # LLM files
 *prompt.md
+
+# Coverage reports
+tarpaulin-report.html
