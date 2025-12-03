@@ -449,11 +449,21 @@ fn test_exit_codes() {
 
 ```
 tests/
-├── cli_integration_test.rs      # Layer 2: Command integration tests
-├── cli_e2e_test.rs               # Layer 3: End-to-end CLI tests
 ├── cli_e2e_apply.rs              # Layer 3: E2E for apply command
-├── cli_e2e_validate.rs           # Layer 3: E2E for validate command
 ├── cli_e2e_cache.rs              # Layer 3: E2E for cache commands
+├── cli_e2e_check.rs              # Layer 3: E2E for check command
+├── cli_e2e_diff.rs               # Layer 3: E2E for diff command
+├── cli_e2e_info.rs               # Layer 3: E2E for info command
+├── cli_e2e_init.rs               # Layer 3: E2E for init command
+├── cli_e2e_ini_merge.rs          # Layer 3: E2E for INI file merging
+├── cli_e2e_json_merge.rs         # Layer 3: E2E for JSON file merging
+├── cli_e2e_ls.rs                 # Layer 3: E2E for ls command
+├── cli_e2e_markdown_merge.rs     # Layer 3: E2E for Markdown file merging
+├── cli_e2e_toml_merge.rs         # Layer 3: E2E for TOML file merging
+├── cli_e2e_tree.rs               # Layer 3: E2E for tree command
+├── cli_e2e_update.rs             # Layer 3: E2E for update command
+├── cli_e2e_validate.rs           # Layer 3: E2E for validate command
+├── cli_e2e_yaml_merge.rs         # Layer 3: E2E for YAML file merging
 ├── integration_test.rs           # Existing library integration tests
 ├── schema_parsing_test.rs        # Existing datatest tests
 └── testdata/                     # Test fixtures
@@ -907,13 +917,14 @@ fn test_apply_missing_config() {
 - [x] Test `info` command - `tests/cli_e2e_info.rs`
 - [x] Test `ls` command - `tests/cli_e2e_ls.rs`
 - [x] Test `check` command - `tests/cli_e2e_check.rs`
-- [ ] Add performance benchmarks
 
 ### Phase 3: Comprehensive Testing (with Phase 3 commands)
 
-- [ ] Test `diff` command (not yet implemented)
+- [x] Test `diff` command - `tests/cli_e2e_diff.rs`
 - [x] Test `update` command - `tests/cli_e2e_update.rs`
+- [x] Test file merge operations - `tests/cli_e2e_*_merge.rs` (JSON, YAML, TOML, INI, Markdown)
 - [ ] Test `init --interactive` (input simulation)
+- [ ] Add performance benchmarks
 - [ ] Add network mocking for isolated E2E tests
 - [ ] Cross-platform testing in CI
 
@@ -1026,5 +1037,5 @@ Plus existing library tests = comprehensive test coverage
 
 ---
 
-**Last updated**: 2025-11-29
-**Status**: Phase 1 and Phase 2 complete; Phase 3 partially complete (diff pending)
+**Last updated**: 2025-12-03
+**Status**: Phase 1, Phase 2, and Phase 3 core testing complete; remaining items are enhancements (benchmarks, interactive testing, network mocking, cross-platform CI)
