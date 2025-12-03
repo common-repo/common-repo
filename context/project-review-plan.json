@@ -190,7 +190,7 @@
     {
       "id": "create-evaluation-framework",
       "name": "Create evaluation checklist",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": ["compile-research"],
       "steps": [

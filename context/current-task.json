@@ -1,11 +1,13 @@
 {
-  "task": "create-evaluation-framework",
+  "task": "create-subplans",
   "plan": "context/project-review-plan.json",
   "last_updated": "2025-12-03",
   "status": "pending",
   "context": {
-    "previous_task": "compile-research",
+    "previous_task": "create-evaluation-framework",
     "completed_research": ["documentation-practices.md", "testing-practices.md", "cicd-practices.md", "architecture-practices.md", "cli-ux-practices.md", "security-practices.md", "distribution-practices.md", "community-practices.md", "performance-practices.md"],
-    "reference_document": "best-practices-reference.md"
+    "reference_document": "best-practices-reference.md",
+    "evaluation_checklist": "evaluation-checklist.md",
+    "pending_subplans": ["documentation-review.json", "testing-review.json", "cicd-review.json", "architecture-review.json", "cli-ux-review.json", "security-review.json", "distribution-review.json", "community-review.json", "performance-review.json"]
   }
 }
