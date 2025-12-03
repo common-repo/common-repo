@@ -1,0 +1,146 @@
+{
+  "plan_name": "Documentation Review",
+  "description": "Improve documentation to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "4/10",
+    "pass": ["1.6 CHANGELOG exists", "1.7 Getting started tutorial exists"],
+    "partial": ["1.3 Rustdoc (lib.rs good, needs audit of all public items)", "1.8 API reference (not published yet)", "1.9 External docs (docs/ exists but not a proper site)"],
+    "fail": ["1.1 README structure (no logo/badges)", "1.2 Installation methods (only 2, need 5+)", "1.4 README sync via include_str!", "1.5 Standard badges", "1.10 FAQ/troubleshooting"]
+  },
+  "tasks": [
+    {
+      "id": "add-readme-badges",
+      "name": "Add standard badges to README",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add CI status badge from GitHub Actions",
+        "Add license badge (linking to LICENSE.md)",
+        "Add crates.io version badge (placeholder until published)",
+        "Add docs.rs badge (placeholder until published)",
+        "Place badges at top of README after title"
+      ],
+      "acceptance_criteria": [
+        "README.md has 4+ badges at the top",
+        "Badges link to appropriate resources"
+      ]
+    },
+    {
+      "id": "expand-installation-methods",
+      "name": "Document 5+ installation methods",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Document shell installer (curl)",
+        "Document cargo install from git",
+        "Document cargo install from crates.io (when published)",
+        "Document cargo-binstall method",
+        "Document GitHub Releases download",
+        "Add platform-specific notes (Windows, macOS, Linux)"
+      ],
+      "acceptance_criteria": [
+        "README has 5+ installation methods documented",
+        "Each method has clear commands"
+      ]
+    },
+    {
+      "id": "add-readme-logo",
+      "name": "Add logo/branding to README",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Create or source a simple logo for common-repo",
+        "Add logo to assets/ or docs/assets/ directory",
+        "Reference logo at top of README.md",
+        "Ensure logo looks good in both light and dark mode"
+      ],
+      "acceptance_criteria": [
+        "Logo file exists in repository",
+        "README displays logo at top"
+      ]
+    },
+    {
+      "id": "audit-rustdoc-coverage",
+      "name": "Audit and improve rustdoc coverage",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Run cargo doc --document-private-items to generate docs",
+        "Review each public module for documentation",
+        "Add missing summary lines to all public items",
+        "Add examples to key functions and structs",
+        "Ensure error types are documented"
+      ],
+      "acceptance_criteria": [
+        "All public items have rustdoc comments",
+        "Key functions have ## Examples sections",
+        "cargo doc generates without warnings"
+      ]
+    },
+    {
+      "id": "sync-readme-crate-docs",
+      "name": "Sync README with crate docs using include_str!",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": ["audit-rustdoc-coverage"],
+      "steps": [
+        "Review lib.rs module-level documentation",
+        "Use #![doc = include_str!(\"../README.md\")] or similar pattern",
+        "Ensure markdown renders correctly in docs.rs",
+        "Test with cargo doc"
+      ],
+      "acceptance_criteria": [
+        "lib.rs uses include_str! to include README content",
+        "cargo doc renders README content"
+      ]
+    },
+    {
+      "id": "add-faq-section",
+      "name": "Add FAQ/troubleshooting documentation",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Review common issues from development",
+        "Create docs/troubleshooting.md or add FAQ section to README",
+        "Document common error messages and solutions",
+        "Add troubleshooting for Git authentication issues",
+        "Link FAQ from main README"
+      ],
+      "acceptance_criteria": [
+        "FAQ or troubleshooting documentation exists",
+        "At least 5 common issues documented",
+        "README links to troubleshooting"
+      ]
+    },
+    {
+      "id": "setup-docs-site",
+      "name": "Set up external documentation site",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["audit-rustdoc-coverage", "add-faq-section"],
+      "steps": [
+        "Choose mdBook or mkdocs-material for docs",
+        "Configure docs site in docs/ directory",
+        "Set up GitHub Pages workflow for deployment",
+        "Migrate existing docs/* content to site structure",
+        "Add navigation and search"
+      ],
+      "acceptance_criteria": [
+        "Docs site configuration exists",
+        "GitHub workflow deploys to GitHub Pages",
+        "All existing docs are accessible"
+      ]
+    }
+  ],
+  "notes": [
+    "Priority 1 items should be completed first (quick wins)",
+    "Logo creation may require user input or external design",
+    "docs.rs publication depends on crates.io publication"
+  ]
+}

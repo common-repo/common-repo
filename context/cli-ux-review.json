@@ -1,0 +1,147 @@
+{
+  "plan_name": "CLI/UX Review",
+  "description": "Improve CLI user experience to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "5/10",
+    "pass": ["5.1 Help via -h/--help (clap)", "5.5 Progress indicators (indicatif)", "5.7 Colors (console crate)"],
+    "partial": ["5.2 Help text examples (needs review)", "5.3 Error messages (needs review)", "5.6 Progress auto-hidden (needs verification)", "5.8 NO_COLOR support (needs verification)", "5.10 Exit codes (needs audit)"],
+    "fail": ["5.4 Error suggestions", "5.9 Shell completions"]
+  },
+  "tasks": [
+    {
+      "id": "add-shell-completions",
+      "name": "Add shell completion generation",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add clap_complete to dependencies",
+        "Create completions subcommand",
+        "Generate completions for bash, zsh, fish, powershell",
+        "Document completion installation in README",
+        "Add completions to release artifacts"
+      ],
+      "acceptance_criteria": [
+        "common-repo completions <shell> generates valid completions",
+        "Completions work for all major shells",
+        "Installation documented"
+      ]
+    },
+    {
+      "id": "improve-help-examples",
+      "name": "Add examples to help text",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Review each command's help text",
+        "Add #[command(after_help = ...)] with examples",
+        "Show common use cases in help",
+        "Ensure examples are copy-pasteable"
+      ],
+      "acceptance_criteria": [
+        "Each command shows usage examples",
+        "Examples cover common use cases",
+        "Examples are accurate and work"
+      ]
+    },
+    {
+      "id": "add-error-suggestions",
+      "name": "Add suggestions to error messages",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Review common error scenarios",
+        "Add 'Did you mean?' suggestions for typos",
+        "Add 'Try running...' suggestions for fixable errors",
+        "Include documentation links in errors",
+        "Test error messages with users"
+      ],
+      "acceptance_criteria": [
+        "Errors include actionable suggestions",
+        "Common mistakes have helpful hints",
+        "Links to docs where appropriate"
+      ]
+    },
+    {
+      "id": "verify-no-color-support",
+      "name": "Verify NO_COLOR and TTY detection",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Test with NO_COLOR=1 environment variable",
+        "Test with TERM=dumb",
+        "Test piping output (non-TTY)",
+        "Ensure colors are disabled appropriately",
+        "Add tests for color detection"
+      ],
+      "acceptance_criteria": [
+        "NO_COLOR=1 disables colors",
+        "Non-TTY output has no colors",
+        "TERM=dumb disables colors"
+      ]
+    },
+    {
+      "id": "audit-exit-codes",
+      "name": "Audit and standardize exit codes",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Document expected exit codes",
+        "0 = success, 1 = error, 2 = usage error",
+        "Review main.rs for exit code handling",
+        "Add tests for exit codes",
+        "Document exit codes in CLI reference"
+      ],
+      "acceptance_criteria": [
+        "Exit codes follow standard conventions",
+        "Exit codes documented",
+        "Tests verify exit codes"
+      ]
+    },
+    {
+      "id": "verify-progress-tty-detection",
+      "name": "Verify progress bar TTY detection",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Test progress bars when piping output",
+        "Ensure progress is hidden in non-TTY",
+        "Verify indicatif is configured correctly",
+        "Add --no-progress flag if needed"
+      ],
+      "acceptance_criteria": [
+        "Progress bars hidden when not TTY",
+        "Output clean when piped"
+      ]
+    },
+    {
+      "id": "add-verbose-quiet-flags",
+      "name": "Add --verbose and --quiet global flags",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Add -v/--verbose flag (can be repeated for more verbosity)",
+        "Add -q/--quiet flag for minimal output",
+        "Integrate with logging/output levels",
+        "Document flag behavior"
+      ],
+      "acceptance_criteria": [
+        "--verbose increases output detail",
+        "--quiet minimizes output",
+        "Flags work consistently across commands"
+      ]
+    }
+  ],
+  "notes": [
+    "Shell completions are highly requested UX feature",
+    "Error suggestions greatly improve user experience",
+    "Exit codes matter for scripting and CI integration"
+  ]
+}

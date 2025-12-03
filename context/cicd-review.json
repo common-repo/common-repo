@@ -1,0 +1,161 @@
+{
+  "plan_name": "CI/CD Review",
+  "description": "Improve CI/CD practices to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "4/10",
+    "pass": ["3.1 Tiered job architecture (lint/test/fmt/clippy)", "3.7 Release automation (release-please)"],
+    "partial": ["3.2 Rust cache (using actions/cache, not Swatinem)", "3.8 Environment defaults (CARGO_TERM_COLOR set, not CARGO_INCREMENTAL)"],
+    "fail": ["3.3 Concurrency cancellation", "3.4 cargo-audit in CI", "3.5 cargo-deny", "3.6 MSRV verification", "3.9 Coverage in CI", "3.10 Action versions pinned with SHA"]
+  },
+  "tasks": [
+    {
+      "id": "add-concurrency-cancellation",
+      "name": "Add concurrency cancellation for in-progress jobs",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add concurrency block to ci.yml",
+        "Set group to ${{ github.workflow }}-${{ github.ref }}",
+        "Set cancel-in-progress: true",
+        "Test by pushing multiple commits in quick succession"
+      ],
+      "acceptance_criteria": [
+        "ci.yml has concurrency block",
+        "Older runs are cancelled when new push occurs"
+      ]
+    },
+    {
+      "id": "switch-to-swatinem-cache",
+      "name": "Switch to Swatinem/rust-cache",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Replace actions/cache with Swatinem/rust-cache@v2",
+        "Configure save-if: ${{ github.ref == 'refs/heads/main' }}",
+        "Remove manual cache key configuration",
+        "Verify cache hits in CI logs"
+      ],
+      "acceptance_criteria": [
+        "ci.yml uses Swatinem/rust-cache",
+        "Cache saves only on main branch",
+        "Build times improved"
+      ]
+    },
+    {
+      "id": "add-cargo-audit",
+      "name": "Add cargo-audit to CI",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add security job to ci.yml",
+        "Install cargo-audit using taiki-e/install-action",
+        "Run cargo audit on every PR",
+        "Consider adding RUSTSEC advisories to allow list if needed"
+      ],
+      "acceptance_criteria": [
+        "ci.yml has cargo audit step",
+        "Audit runs on every PR",
+        "No unaddressed security advisories"
+      ]
+    },
+    {
+      "id": "add-cargo-deny",
+      "name": "Configure and add cargo-deny to CI",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Run cargo deny init to create deny.toml",
+        "Configure license checking (allow list)",
+        "Configure source checking",
+        "Add cargo deny check to CI workflow",
+        "Fix any initial license or source violations"
+      ],
+      "acceptance_criteria": [
+        "deny.toml exists with sensible defaults",
+        "cargo deny check passes",
+        "CI runs cargo deny on every PR"
+      ]
+    },
+    {
+      "id": "add-msrv-verification",
+      "name": "Add MSRV verification to CI",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Define MSRV in Cargo.toml (rust-version field)",
+        "Add MSRV job to CI matrix",
+        "Use dtolnay/rust-toolchain with MSRV version",
+        "Run cargo check with MSRV toolchain"
+      ],
+      "acceptance_criteria": [
+        "Cargo.toml has rust-version field",
+        "CI tests with MSRV toolchain",
+        "MSRV documented in README"
+      ]
+    },
+    {
+      "id": "add-coverage-reporting",
+      "name": "Add coverage reporting to CI",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Add coverage job to CI workflow",
+        "Install cargo-tarpaulin",
+        "Generate coverage report (lcov or cobertura)",
+        "Upload coverage artifact",
+        "Consider codecov or coveralls integration"
+      ],
+      "acceptance_criteria": [
+        "CI generates coverage report",
+        "Coverage artifact uploaded",
+        "Coverage visible in PR"
+      ]
+    },
+    {
+      "id": "pin-action-versions",
+      "name": "Pin action versions with SHA",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Replace @v4 style tags with full SHA",
+        "Pin actions/checkout to specific commit SHA",
+        "Pin dtolnay/rust-toolchain to specific commit SHA",
+        "Pin all other actions to specific SHAs",
+        "Add comment with version number for reference"
+      ],
+      "acceptance_criteria": [
+        "All action versions use SHA, not tags",
+        "Comments indicate version numbers"
+      ]
+    },
+    {
+      "id": "add-environment-defaults",
+      "name": "Add recommended environment defaults",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Add CARGO_INCREMENTAL: 0 to env block",
+        "Add RUSTFLAGS: -D warnings to env block",
+        "Consider adding RUST_BACKTRACE: 1 for test debugging"
+      ],
+      "acceptance_criteria": [
+        "CARGO_INCREMENTAL=0 set in CI",
+        "RUSTFLAGS=-D warnings set in CI"
+      ]
+    }
+  ],
+  "notes": [
+    "Swatinem/rust-cache is more efficient than manual cache configuration",
+    "cargo-audit and cargo-deny address different concerns (advisories vs licenses)",
+    "SHA pinning is a security best practice"
+  ]
+}
