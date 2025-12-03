@@ -1,10 +1,10 @@
 {
-  "task": "README Rewrite",
-  "plan": "context/readme-rewrite-plan.json",
+  "task": null,
+  "plan": null,
   "last_updated": "2025-12-03",
-  "status": "pending",
+  "status": "idle",
   "context": {
-    "previous_task": "Archive CLI design and testing strategy docs",
-    "previous_plan": null
+    "previous_task": "README Rewrite",
+    "previous_plan": "context/completed/readme-rewrite-plan.json"
   }
 }
