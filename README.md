@@ -29,8 +29,11 @@ Perfect for standardizing CI/CD configs, pre-commit hooks, and other repository 
 ## Quick Start
 
 ```bash
-# Install
-cargo install --path .
+# Install (one-liner)
+curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+
+# Or install from source
+cargo install --git https://github.com/common-repo/common-repo
 
 # Initialize configuration
 common-repo init
