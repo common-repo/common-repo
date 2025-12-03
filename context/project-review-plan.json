@@ -113,7 +113,7 @@
     {
       "id": "research-distribution",
       "name": "Research distribution best practices",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
