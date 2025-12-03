@@ -130,7 +130,7 @@
     {
       "id": "research-community",
       "name": "Research community/governance best practices",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [

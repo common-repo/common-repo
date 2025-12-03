@@ -1,10 +1,10 @@
 {
-  "task": "research-community",
+  "task": "research-performance",
   "plan": "context/project-review-plan.json",
   "last_updated": "2025-12-03",
   "status": "pending",
   "context": {
-    "previous_task": "research-distribution",
-    "completed_research": ["documentation-practices.md", "testing-practices.md", "cicd-practices.md", "architecture-practices.md", "cli-ux-practices.md", "security-practices.md", "distribution-practices.md"]
+    "previous_task": "research-community",
+    "completed_research": ["documentation-practices.md", "testing-practices.md", "cicd-practices.md", "architecture-practices.md", "cli-ux-practices.md", "security-practices.md", "distribution-practices.md", "community-practices.md"]
   }
 }
