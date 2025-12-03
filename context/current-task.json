@@ -1,10 +1,11 @@
 {
-  "task": "compile-research",
+  "task": "create-evaluation-framework",
   "plan": "context/project-review-plan.json",
   "last_updated": "2025-12-03",
   "status": "pending",
   "context": {
-    "previous_task": "research-performance",
-    "completed_research": ["documentation-practices.md", "testing-practices.md", "cicd-practices.md", "architecture-practices.md", "cli-ux-practices.md", "security-practices.md", "distribution-practices.md", "community-practices.md", "performance-practices.md"]
+    "previous_task": "compile-research",
+    "completed_research": ["documentation-practices.md", "testing-practices.md", "cicd-practices.md", "architecture-practices.md", "cli-ux-practices.md", "security-practices.md", "distribution-practices.md", "community-practices.md", "performance-practices.md"],
+    "reference_document": "best-practices-reference.md"
   }
 }
