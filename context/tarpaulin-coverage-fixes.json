@@ -1,0 +1,134 @@
+{
+  "plan_name": "Tarpaulin Coverage Speed Fixes",
+  "last_updated": "2025-12-02",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "create-tarpaulin-config",
+      "name": "Create .tarpaulin.toml configuration file",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": ".tarpaulin.toml",
+      "steps": [
+        "Create .tarpaulin.toml in project root",
+        "Set run-types = [\"Lib\"] to only run library tests",
+        "Add ignore-tests = true to exclude test function lines from coverage",
+        "Add timeout = \"120s\" for reasonable test timeout",
+        "Verify with: cargo tarpaulin --print-rust-flags"
+      ],
+      "acceptance_criteria": [
+        "File .tarpaulin.toml exists in project root",
+        "Running cargo tarpaulin uses config automatically",
+        "Coverage runs in ~2 minutes instead of ~25 minutes"
+      ]
+    },
+    {
+      "id": "fix-e2e-diff-gating",
+      "name": "Add feature gating to cli_e2e_diff.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "tests/cli_e2e_diff.rs",
+      "steps": [
+        "Read tests/cli_e2e_diff.rs to understand current structure",
+        "Add #[cfg_attr(not(feature = \"integration-tests\"), ignore)] to each #[test] function",
+        "Run cargo test to verify tests are ignored without feature",
+        "Run cargo test --features integration-tests to verify tests run with feature"
+      ],
+      "acceptance_criteria": [
+        "All tests in file have the cfg_attr ignore attribute",
+        "cargo test shows tests as ignored",
+        "cargo test --features integration-tests runs the tests"
+      ]
+    },
+    {
+      "id": "fix-e2e-init-gating",
+      "name": "Add feature gating to cli_e2e_init.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "tests/cli_e2e_init.rs",
+      "steps": [
+        "Read tests/cli_e2e_init.rs to understand current structure",
+        "Add #[cfg_attr(not(feature = \"integration-tests\"), ignore)] to each #[test] function",
+        "Run cargo test to verify tests are ignored without feature",
+        "Run cargo test --features integration-tests to verify tests run with feature"
+      ],
+      "acceptance_criteria": [
+        "All tests in file have the cfg_attr ignore attribute",
+        "cargo test shows tests as ignored",
+        "cargo test --features integration-tests runs the tests"
+      ]
+    },
+    {
+      "id": "fix-e2e-ls-gating",
+      "name": "Add feature gating to cli_e2e_ls.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "tests/cli_e2e_ls.rs",
+      "steps": [
+        "Read tests/cli_e2e_ls.rs to understand current structure",
+        "Add #[cfg_attr(not(feature = \"integration-tests\"), ignore)] to each #[test] function",
+        "Run cargo test to verify tests are ignored without feature",
+        "Run cargo test --features integration-tests to verify tests run with feature"
+      ],
+      "acceptance_criteria": [
+        "All tests in file have the cfg_attr ignore attribute",
+        "cargo test shows tests as ignored",
+        "cargo test --features integration-tests runs the tests"
+      ]
+    },
+    {
+      "id": "fix-e2e-validate-gating",
+      "name": "Add feature gating to cli_e2e_validate.rs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "tests/cli_e2e_validate.rs",
+      "steps": [
+        "Read tests/cli_e2e_validate.rs to understand current structure",
+        "Add #[cfg_attr(not(feature = \"integration-tests\"), ignore)] to each #[test] function",
+        "Run cargo test to verify tests are ignored without feature",
+        "Run cargo test --features integration-tests to verify tests run with feature"
+      ],
+      "acceptance_criteria": [
+        "All tests in file have the cfg_attr ignore attribute",
+        "cargo test shows tests as ignored",
+        "cargo test --features integration-tests runs the tests"
+      ]
+    },
+    {
+      "id": "verify-all-fixes",
+      "name": "Verify all fixes and run final tests",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "create-tarpaulin-config",
+      "output_file": null,
+      "steps": [
+        "Run ./script/test to ensure all unit tests pass",
+        "Run cargo test --features integration-tests to verify E2E tests work",
+        "Run cargo tarpaulin to verify fast coverage (~2 min)",
+        "Verify coverage percentage is still ~89%"
+      ],
+      "acceptance_criteria": [
+        "All unit tests pass",
+        "All E2E tests pass with --features integration-tests",
+        "cargo tarpaulin completes in ~2 minutes",
+        "Coverage is approximately 89%"
+      ]
+    }
+  ],
+  "notes": [
+    "Tasks with priority 2 can run in parallel (feature gating fixes are independent)",
+    "The tarpaulin config task should be done first as it provides immediate benefit",
+    "Feature gating fixes improve consistency but don't directly speed up tarpaulin",
+    "E2E test consolidation is deferred as a future optimization"
+  ]
+}
