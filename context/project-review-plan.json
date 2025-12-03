@@ -164,7 +164,7 @@
     {
       "id": "compile-research",
       "name": "Compile research into reference document",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": [
         "research-documentation",
