@@ -1,0 +1,170 @@
+{
+  "plan_name": "Performance Review",
+  "description": "Improve performance practices to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "1/10",
+    "pass": [],
+    "partial": ["9.9 Critical paths (rayon for parallel cloning implemented)"],
+    "fail": ["9.1 Benchmarks", "9.2 Benchmarks in CI", "9.3 Release profile optimization", "9.4 Profiling documentation", "9.5 Memory tracking", "9.6 Performance regression detection", "9.7 Size-optimized profile", "9.8 Compile time optimization", "9.10 Performance documentation"]
+  },
+  "tasks": [
+    {
+      "id": "add-release-profile-optimizations",
+      "name": "Add release profile optimizations",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add [profile.release] to Cargo.toml",
+        "Set lto = true for link-time optimization",
+        "Set codegen-units = 1 for better optimization",
+        "Set strip = true for smaller binaries",
+        "Verify build still works with cargo build --release"
+      ],
+      "acceptance_criteria": [
+        "Cargo.toml has [profile.release] with LTO",
+        "Release builds are optimized",
+        "Binary size reduced"
+      ]
+    },
+    {
+      "id": "add-benchmarks",
+      "name": "Add benchmarks using Criterion or Divan",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create benches/ directory",
+        "Add criterion or divan to dev-dependencies",
+        "Create benchmarks for core operations",
+        "Benchmark config parsing",
+        "Benchmark filesystem operations",
+        "Benchmark phase pipeline",
+        "Document how to run benchmarks"
+      ],
+      "acceptance_criteria": [
+        "benches/ directory exists",
+        "At least 3 benchmarks for core operations",
+        "cargo bench runs successfully"
+      ]
+    },
+    {
+      "id": "add-size-optimized-profile",
+      "name": "Add size-optimized build profile",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Add [profile.release-small] to Cargo.toml",
+        "Configure opt-level = 'z' for size",
+        "Enable LTO and strip",
+        "Document when to use this profile",
+        "Compare binary sizes"
+      ],
+      "acceptance_criteria": [
+        "release-small profile exists",
+        "Binary size significantly smaller",
+        "Usage documented"
+      ]
+    },
+    {
+      "id": "document-profiling",
+      "name": "Document profiling workflows",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Create docs/profiling.md or add to CONTRIBUTING.md",
+        "Document how to generate flamegraphs",
+        "Document CPU profiling with perf or samply",
+        "Document memory profiling with heaptrack",
+        "Add common profiling scenarios"
+      ],
+      "acceptance_criteria": [
+        "Profiling documentation exists",
+        "CPU profiling workflow documented",
+        "Memory profiling mentioned"
+      ]
+    },
+    {
+      "id": "add-benchmark-ci",
+      "name": "Add benchmark runs to CI",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": ["add-benchmarks"],
+      "steps": [
+        "Add benchmark job to CI (nightly or scheduled)",
+        "Consider bencher or critcmp for comparison",
+        "Store benchmark results as artifacts",
+        "Consider GitHub Action for benchmark comments"
+      ],
+      "acceptance_criteria": [
+        "Benchmarks run in CI",
+        "Results stored or displayed",
+        "Regressions detectable"
+      ]
+    },
+    {
+      "id": "add-memory-tracking",
+      "name": "Add memory usage tracking",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Add dhat-rs or similar for memory profiling",
+        "Create memory benchmark for large repos",
+        "Document expected memory usage",
+        "Add memory limit tests if applicable"
+      ],
+      "acceptance_criteria": [
+        "Memory profiling available",
+        "Memory usage documented",
+        "Large repo handling verified"
+      ]
+    },
+    {
+      "id": "create-performance-docs",
+      "name": "Create performance documentation",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Create docs/performance.md",
+        "Document expected performance characteristics",
+        "Document scaling behavior",
+        "Include tips for large configurations",
+        "Document parallel processing"
+      ],
+      "acceptance_criteria": [
+        "Performance documentation exists",
+        "Scaling characteristics documented",
+        "Tips for optimization included"
+      ]
+    },
+    {
+      "id": "add-compile-time-optimization",
+      "name": "Optimize compile times",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": null,
+      "steps": [
+        "Measure current compile times",
+        "Analyze dependency graph with cargo tree",
+        "Consider workspace-hack if beneficial",
+        "Evaluate feature flag optimization",
+        "Document compile time expectations"
+      ],
+      "acceptance_criteria": [
+        "Compile times measured and documented",
+        "Obvious optimizations applied",
+        "Expectations documented"
+      ]
+    }
+  ],
+  "notes": [
+    "Release profile optimization is quick win",
+    "Benchmarks provide visibility into performance",
+    "Parallel cloning already implemented (good start)"
+  ]
+}

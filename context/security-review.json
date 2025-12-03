@@ -1,0 +1,168 @@
+{
+  "plan_name": "Security Review",
+  "description": "Improve security practices to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "1/10",
+    "pass": [],
+    "partial": ["6.7 GitHub secret scanning (likely enabled by default)"],
+    "fail": ["6.1 SECURITY.md", "6.2 Response timeline", "6.3 cargo-audit in CI", "6.4 cargo-deny in CI", "6.5 Dependabot", "6.6 Miri tests", "6.8 Action SHA pinning", "6.9 SBOM generation", "6.10 Release signing"]
+  },
+  "tasks": [
+    {
+      "id": "create-security-md",
+      "name": "Create SECURITY.md with reporting process",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create SECURITY.md in repository root",
+        "Document security vulnerability reporting process",
+        "Include private disclosure method (email or GitHub Security Advisories)",
+        "State response timeline expectations (e.g., 48h acknowledgment, 7d assessment)",
+        "List supported versions for security updates"
+      ],
+      "acceptance_criteria": [
+        "SECURITY.md exists",
+        "Reporting process is clear",
+        "Response timeline documented",
+        "Contact method specified"
+      ]
+    },
+    {
+      "id": "enable-dependabot",
+      "name": "Enable Dependabot for automated updates",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create .github/dependabot.yml",
+        "Configure for cargo (Rust dependencies)",
+        "Configure for github-actions",
+        "Set update frequency (weekly recommended)",
+        "Configure commit message prefix"
+      ],
+      "acceptance_criteria": [
+        "dependabot.yml exists",
+        "Dependabot creates PRs for outdated dependencies",
+        "Both cargo and actions are monitored"
+      ]
+    },
+    {
+      "id": "add-cargo-audit-ci",
+      "name": "Add cargo-audit to CI pipeline",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add security job to ci.yml",
+        "Install cargo-audit using taiki-e/install-action",
+        "Run cargo audit on every PR",
+        "Create audit.toml for any necessary ignore entries",
+        "Fail build on security advisories"
+      ],
+      "acceptance_criteria": [
+        "cargo audit runs on every PR",
+        "Known vulnerabilities block merge",
+        "Ignore file exists for false positives"
+      ]
+    },
+    {
+      "id": "add-cargo-deny-ci",
+      "name": "Configure cargo-deny for license and source checking",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Run cargo deny init to create deny.toml",
+        "Configure allowed licenses (MIT, Apache-2.0, etc.)",
+        "Configure source requirements (crates.io only)",
+        "Add cargo deny check to CI",
+        "Document license policy"
+      ],
+      "acceptance_criteria": [
+        "deny.toml configured",
+        "CI runs cargo deny check",
+        "License policy documented"
+      ]
+    },
+    {
+      "id": "pin-action-shas",
+      "name": "Pin all GitHub Action versions to SHA",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Audit all workflow files for action versions",
+        "Replace @v4 style tags with full commit SHA",
+        "Add comment with version number for maintainability",
+        "Update release-please.yml, ci.yml, commitlint.yml"
+      ],
+      "acceptance_criteria": [
+        "All actions use SHA, not tags",
+        "Version comments added",
+        "No @v style references remain"
+      ]
+    },
+    {
+      "id": "add-sbom-generation",
+      "name": "Add SBOM generation to releases",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Add cargo-sbom to release workflow",
+        "Generate SBOM in SPDX or CycloneDX format",
+        "Attach SBOM to GitHub Release",
+        "Document SBOM availability"
+      ],
+      "acceptance_criteria": [
+        "SBOM generated for each release",
+        "SBOM attached to release assets",
+        "Format is standard (SPDX/CycloneDX)"
+      ]
+    },
+    {
+      "id": "add-release-attestation",
+      "name": "Add release artifact attestation",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Research GitHub artifact attestation",
+        "Add attestation step to release workflow",
+        "Sign binaries or create attestation",
+        "Document verification process"
+      ],
+      "acceptance_criteria": [
+        "Release binaries have attestation",
+        "Verification documented",
+        "Users can verify binary authenticity"
+      ]
+    },
+    {
+      "id": "add-miri-tests",
+      "name": "Add Miri tests for unsafe code",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": null,
+      "steps": [
+        "Audit codebase for unsafe blocks",
+        "Add Miri to CI (nightly toolchain)",
+        "Run Miri on test suite",
+        "Fix any issues found"
+      ],
+      "acceptance_criteria": [
+        "Miri runs in CI (if unsafe code exists)",
+        "No undefined behavior detected",
+        "Or: documented as N/A if no unsafe code"
+      ]
+    }
+  ],
+  "notes": [
+    "SECURITY.md is critical for responsible disclosure",
+    "Dependabot is free and low-effort to enable",
+    "cargo-audit and cargo-deny address different concerns",
+    "SBOM is increasingly required for enterprise users"
+  ]
+}

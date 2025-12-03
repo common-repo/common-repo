@@ -1,0 +1,165 @@
+{
+  "plan_name": "Community Review",
+  "description": "Improve community practices to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "4/10",
+    "pass": ["8.1 CONTRIBUTING.md exists", "8.2 CODE_OF_CONDUCT.md exists", "8.10 License clearly stated (LICENSE.md + Cargo.toml)"],
+    "partial": ["8.7 GitHub Discussions (may be enabled)", "8.8 Label system (may exist)"],
+    "fail": ["8.3 Bug report template", "8.4 Feature request template", "8.5 Pull request template", "8.6 CODEOWNERS", "8.9 Good first issues labeled"]
+  },
+  "tasks": [
+    {
+      "id": "create-bug-report-template",
+      "name": "Create bug report issue template",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create .github/ISSUE_TEMPLATE/bug_report.yml",
+        "Include sections: description, reproduction, expected, environment",
+        "Add version information field",
+        "Add labels: bug, needs-triage",
+        "Test template by creating a test issue"
+      ],
+      "acceptance_criteria": [
+        "Bug report template exists",
+        "Template uses YAML format",
+        "All key fields included"
+      ]
+    },
+    {
+      "id": "create-feature-request-template",
+      "name": "Create feature request issue template",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create .github/ISSUE_TEMPLATE/feature_request.yml",
+        "Include sections: problem, solution, alternatives, context",
+        "Add labels: enhancement, needs-triage",
+        "Test template"
+      ],
+      "acceptance_criteria": [
+        "Feature request template exists",
+        "Template uses YAML format",
+        "Encourages clear use cases"
+      ]
+    },
+    {
+      "id": "create-pr-template",
+      "name": "Create pull request template",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create .github/PULL_REQUEST_TEMPLATE.md",
+        "Include sections: summary, changes, testing, checklist",
+        "Add checklist items: tests, docs, conventional commit",
+        "Reference issue linking"
+      ],
+      "acceptance_criteria": [
+        "PR template exists",
+        "Includes testing checklist",
+        "Prompts for issue reference"
+      ]
+    },
+    {
+      "id": "create-codeowners",
+      "name": "Create CODEOWNERS file",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Create .github/CODEOWNERS",
+        "Add default owner for all files",
+        "Add specific owners for key areas (docs, CI, etc.)",
+        "Test with a sample PR"
+      ],
+      "acceptance_criteria": [
+        "CODEOWNERS file exists",
+        "PRs request appropriate reviews",
+        "Key areas have specific owners"
+      ]
+    },
+    {
+      "id": "enable-discussions",
+      "name": "Enable GitHub Discussions",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Enable Discussions in repository settings",
+        "Set up categories: Q&A, Ideas, Show and Tell, General",
+        "Add link to Discussions in README",
+        "Create welcome discussion or pinned post"
+      ],
+      "acceptance_criteria": [
+        "Discussions enabled",
+        "Categories configured",
+        "README links to Discussions"
+      ]
+    },
+    {
+      "id": "setup-labels",
+      "name": "Set up consistent label system",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Create standard labels: bug, enhancement, documentation",
+        "Add priority labels: priority-high, priority-medium, priority-low",
+        "Add status labels: needs-triage, in-progress, blocked",
+        "Add area labels: cli, config, merge, phases",
+        "Add good first issue and help wanted labels"
+      ],
+      "acceptance_criteria": [
+        "Consistent label system exists",
+        "Labels have colors and descriptions",
+        "Labels cover common needs"
+      ]
+    },
+    {
+      "id": "tag-good-first-issues",
+      "name": "Identify and tag good first issues",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": ["setup-labels"],
+      "steps": [
+        "Review existing issues for beginner-friendly work",
+        "Create new issues for easy improvements",
+        "Add good first issue label",
+        "Add clear context and guidance in issue description",
+        "Mention good first issues in CONTRIBUTING.md"
+      ],
+      "acceptance_criteria": [
+        "At least 3 issues labeled good first issue",
+        "Issues have clear guidance",
+        "CONTRIBUTING.md references these issues"
+      ]
+    },
+    {
+      "id": "create-config-template",
+      "name": "Create issue template config",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create .github/ISSUE_TEMPLATE/config.yml",
+        "Add links to Discussions for questions",
+        "Add blank issue option for other reports",
+        "Configure contact links"
+      ],
+      "acceptance_criteria": [
+        "Issue template config exists",
+        "Questions directed to Discussions",
+        "Blank issue available"
+      ]
+    }
+  ],
+  "notes": [
+    "Issue templates improve bug report quality",
+    "PR templates ensure consistent contribution process",
+    "Good first issues help onboard new contributors"
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "plan_name": "Testing Review",
+  "description": "Improve testing practices to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "5/10",
+    "pass": ["2.1 Unit tests inline", "2.2 Integration tests in tests/", "2.3 Uses cargo-nextest", "2.5 Coverage measured (tarpaulin)", "2.8 CI profile configured"],
+    "partial": ["2.6 Coverage target (mentioned but not enforced in CI)", "2.7 Test helpers (exist but could be improved)"],
+    "fail": ["2.4 Doctests run separately", "2.9 Snapshot testing (insta)", "2.10 Property-based testing (proptest)"]
+  },
+  "tasks": [
+    {
+      "id": "add-doctest-ci-step",
+      "name": "Add separate doctest step in CI",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add cargo test --doc step to CI workflow",
+        "Run doctests separately from unit tests",
+        "Ensure doctests pass before integration tests"
+      ],
+      "acceptance_criteria": [
+        "CI workflow has dedicated doctest step",
+        "Doctests run and pass in CI"
+      ]
+    },
+    {
+      "id": "enforce-coverage-in-ci",
+      "name": "Enforce coverage threshold in CI",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add cargo-tarpaulin step to CI workflow",
+        "Configure --fail-under 80 threshold",
+        "Generate coverage report artifact",
+        "Consider adding coverage badge to README"
+      ],
+      "acceptance_criteria": [
+        "CI fails if coverage drops below 80%",
+        "Coverage report generated as artifact"
+      ]
+    },
+    {
+      "id": "add-snapshot-testing",
+      "name": "Add insta for snapshot testing",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Add insta to dev-dependencies",
+        "Identify CLI output suitable for snapshot tests",
+        "Add snapshot tests for help text output",
+        "Add snapshot tests for error message formatting",
+        "Document snapshot testing workflow in CONTRIBUTING.md"
+      ],
+      "acceptance_criteria": [
+        "insta is added as dev-dependency",
+        "At least 3 snapshot tests exist",
+        "Snapshot files committed to repo"
+      ]
+    },
+    {
+      "id": "add-property-testing",
+      "name": "Add proptest for property-based testing",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Add proptest to dev-dependencies",
+        "Identify parsing/validation code suitable for property tests",
+        "Add property tests for path handling edge cases",
+        "Add property tests for glob pattern matching",
+        "Add property tests for YAML/JSON parsing"
+      ],
+      "acceptance_criteria": [
+        "proptest is added as dev-dependency",
+        "At least 3 property-based tests exist",
+        "Tests cover edge cases in core parsing logic"
+      ]
+    },
+    {
+      "id": "consolidate-test-helpers",
+      "name": "Consolidate test helpers in shared location",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Create tests/common/mod.rs for shared test utilities",
+        "Move common fixture setup code to shared module",
+        "Create helper macros for common assertions",
+        "Document test helper usage"
+      ],
+      "acceptance_criteria": [
+        "tests/common/mod.rs exists",
+        "Shared helpers are reused across tests",
+        "No duplicate test setup code"
+      ]
+    },
+    {
+      "id": "add-test-retry-config",
+      "name": "Configure test retries for flaky tests",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Review .config/nextest.toml for retry configuration",
+        "Add retries=2 for network-dependent tests",
+        "Configure appropriate timeouts per test type",
+        "Document which tests are allowed to retry"
+      ],
+      "acceptance_criteria": [
+        "nextest.toml has retry configuration",
+        "Network tests have appropriate retry settings",
+        "Timeouts are configured appropriately"
+      ]
+    }
+  ],
+  "notes": [
+    "Snapshot testing is particularly valuable for CLI output",
+    "Property testing helps find edge cases in parsing",
+    "Coverage enforcement should happen after current coverage is measured"
+  ]
+}

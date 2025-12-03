@@ -1,0 +1,147 @@
+{
+  "plan_name": "Distribution Review",
+  "description": "Improve distribution practices to meet OSS best practices",
+  "last_updated": "2025-12-03",
+  "audit_summary": {
+    "current_score": "6/10",
+    "pass": ["7.1 Pre-compiled binaries (GitHub Releases)", "7.2 Shell installer (install.sh)", "7.4 cargo-binstall compatible naming", "7.6 Target platforms (5 targets)", "7.7 Static MUSL builds"],
+    "partial": ["7.3 cargo install (git only, not crates.io)", "7.10 Installation instructions (needs expansion)"],
+    "fail": ["7.5 Homebrew formula", "7.8 Checksums with releases", "7.9 Container images"]
+  },
+  "tasks": [
+    {
+      "id": "publish-to-crates-io",
+      "name": "Publish to crates.io",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Review Cargo.toml metadata for publishing",
+        "Add description, repository, documentation, keywords, categories",
+        "Verify license is properly specified",
+        "Run cargo publish --dry-run",
+        "Publish to crates.io",
+        "Update README with crates.io install method"
+      ],
+      "acceptance_criteria": [
+        "Package published on crates.io",
+        "cargo install common-repo works",
+        "docs.rs documentation generated"
+      ]
+    },
+    {
+      "id": "add-release-checksums",
+      "name": "Add checksums to releases",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Generate SHA256 checksums for each binary",
+        "Create checksums.txt with all file hashes",
+        "Upload checksums.txt to GitHub Release",
+        "Document checksum verification in README"
+      ],
+      "acceptance_criteria": [
+        "Each release has checksums.txt",
+        "Checksums cover all binary artifacts",
+        "Verification documented"
+      ]
+    },
+    {
+      "id": "create-homebrew-formula",
+      "name": "Create Homebrew formula",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": ["add-release-checksums"],
+      "steps": [
+        "Create homebrew-tap repository or use inline formula",
+        "Write Homebrew formula with binary installation",
+        "Test formula installation on macOS",
+        "Add Homebrew installation method to README",
+        "Consider submitting to homebrew-core"
+      ],
+      "acceptance_criteria": [
+        "Homebrew formula exists",
+        "brew install works",
+        "README documents Homebrew install"
+      ]
+    },
+    {
+      "id": "expand-installation-docs",
+      "name": "Expand installation documentation",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add all installation methods to README",
+        "Create dedicated docs/installation.md with details",
+        "Include platform-specific notes",
+        "Document requirements and dependencies",
+        "Add troubleshooting for common install issues"
+      ],
+      "acceptance_criteria": [
+        "All install methods documented",
+        "Platform notes included",
+        "Troubleshooting section exists"
+      ]
+    },
+    {
+      "id": "add-container-images",
+      "name": "Create and publish container images",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Create Dockerfile for common-repo",
+        "Use multi-stage build with MUSL for small image",
+        "Add Docker build to release workflow",
+        "Publish to GitHub Container Registry (ghcr.io)",
+        "Document container usage"
+      ],
+      "acceptance_criteria": [
+        "Container image available on ghcr.io",
+        "Image is reasonably small (<50MB)",
+        "Container usage documented"
+      ]
+    },
+    {
+      "id": "add-windows-installer",
+      "name": "Add Windows installer or Scoop manifest",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Create Scoop manifest for Windows",
+        "Consider WinGet manifest",
+        "Add Windows-specific installation docs",
+        "Test installation on Windows"
+      ],
+      "acceptance_criteria": [
+        "Scoop manifest exists",
+        "Windows installation documented",
+        "Windows install tested"
+      ]
+    },
+    {
+      "id": "add-aur-package",
+      "name": "Create Arch Linux AUR package",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": null,
+      "steps": [
+        "Create PKGBUILD for common-repo",
+        "Submit to AUR",
+        "Document AUR installation method"
+      ],
+      "acceptance_criteria": [
+        "AUR package exists",
+        "yay/paru install works"
+      ]
+    }
+  ],
+  "notes": [
+    "crates.io publication is essential for Rust ecosystem visibility",
+    "Checksums are important for verification and security",
+    "Homebrew is expected for macOS CLI tools"
+  ]
+}
