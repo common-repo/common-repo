@@ -4,7 +4,11 @@
   "last_updated": "2025-12-03",
   "status": "idle",
   "context": {
-    "previous_task": "Implement tarpaulin coverage speed fixes",
-    "previous_plan": "context/completed/tarpaulin-coverage-fixes.json"
+    "previous_task": "Archive CLI design and testing strategy docs",
+    "previous_plan": null,
+    "archived_docs": [
+      "context/completed/cli-design.md",
+      "context/completed/cli-testing-strategy.md"
+    ]
   }
 }
