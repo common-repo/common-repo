@@ -79,7 +79,7 @@
     {
       "id": "research-cli-ux",
       "name": "Research CLI/UX best practices",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
