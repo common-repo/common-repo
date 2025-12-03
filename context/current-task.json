@@ -1,8 +1,8 @@
 {
-  "task": null,
-  "plan": null,
+  "task": "research-documentation",
+  "plan": "context/project-review-plan.json",
   "last_updated": "2025-12-03",
-  "status": "idle",
+  "status": "pending",
   "context": {
     "previous_task": "README Rewrite",
     "previous_plan": "context/completed/readme-rewrite-plan.json"
