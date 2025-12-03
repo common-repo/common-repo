@@ -1,16 +1,47 @@
 # common-repo
 
+[![CI](https://github.com/common-repo/common-repo/actions/workflows/ci.yml/badge.svg)](https://github.com/common-repo/common-repo/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE.md)
+[![crates.io](https://img.shields.io/crates/v/common-repo.svg)](https://crates.io/crates/common-repo)
+[![docs.rs](https://docs.rs/common-repo/badge.svg)](https://docs.rs/common-repo)
+
 Manage repository configuration files as dependencies. Define inheritance in `.common-repo.yaml`, pull files from multiple Git repositories, and merge them with version pinning.
 
 ## Install
 
-```bash
-# One-liner
-curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+### Shell installer (recommended)
 
-# From source
+```bash
+curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+```
+
+### cargo-binstall (pre-built binary)
+
+```bash
+cargo binstall common-repo
+```
+
+### From crates.io
+
+```bash
+cargo install common-repo
+```
+
+### From source (latest development)
+
+```bash
 cargo install --git https://github.com/common-repo/common-repo
 ```
+
+### GitHub Releases
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/common-repo/common-repo/releases) and add it to your PATH.
+
+### Platform notes
+
+- **Linux/macOS**: Shell installer auto-detects architecture (x86_64, aarch64)
+- **Windows**: Use `cargo install` or download from GitHub Releases
+- **Nix**: `nix run github:common-repo/common-repo` (flake available)
 
 ## Usage
 
@@ -90,4 +121,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and guide
 
 ## License
 
-[Add your license here]
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE.md).
