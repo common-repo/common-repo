@@ -114,6 +114,7 @@ cache      Manage repository cache
 | [Configuration](docs/configuration.md) | All operators and options |
 | [CLI Reference](docs/cli.md) | Command documentation |
 | [Recipes](docs/recipes.md) | Common patterns |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
 
 ## Contributing
 
