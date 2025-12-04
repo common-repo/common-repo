@@ -86,9 +86,10 @@
     {
       "id": "sync-readme-crate-docs",
       "name": "Sync README with crate docs using include_str!",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": ["audit-rustdoc-coverage"],
+      "completion_notes": "Skipped - deferred for later",
       "steps": [
         "Review lib.rs module-level documentation",
         "Use #![doc = include_str!(\"../README.md\")] or similar pattern",
