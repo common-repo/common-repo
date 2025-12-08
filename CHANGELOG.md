@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/common-repo/common-repo/compare/v0.21.0...v0.21.1) (2025-12-08)
+
+
+### Bug Fixes
+
+* remove hooks ([d4a9fbd](https://github.com/common-repo/common-repo/commit/d4a9fbd0e67db386d8cb7846e56e09694f63daa8))
+
 ## [0.21.0](https://github.com/common-repo/common-repo/compare/v0.20.0...v0.21.0) (2025-12-03)
 
 
