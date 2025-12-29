@@ -1,0 +1,95 @@
+{
+  "plan_name": "Configuration Documentation Improvements",
+  "description": "Improve docs/configuration.md with ToC and operator descriptions",
+  "created": "2025-12-29",
+  "last_updated": "2025-12-29",
+  "source": "context/session-notes.md",
+  "tasks": [
+    {
+      "id": "add-toc-tool",
+      "name": "Set up ToC generation tooling",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Evaluate mktoc vs mtoc CLI tools",
+        "Install chosen tool (cargo install)",
+        "Add ToC generation to script/cibuild or pre-commit",
+        "Document tool usage in CLAUDE.md or CONTRIBUTING.md"
+      ],
+      "acceptance_criteria": [
+        "ToC tool installed and configured",
+        "ToC can be regenerated with a single command"
+      ]
+    },
+    {
+      "id": "add-toc-to-configuration-md",
+      "name": "Add table of contents to docs/configuration.md",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "add-toc-tool",
+      "steps": [
+        "Run ToC generator on docs/configuration.md",
+        "Place ToC after the intro paragraph",
+        "Verify all sections are linked correctly",
+        "Add ToC markers for auto-regeneration if tool supports it"
+      ],
+      "acceptance_criteria": [
+        "docs/configuration.md has a ToC at the top",
+        "All headings are linked",
+        "ToC is auto-generated (not manually maintained)"
+      ]
+    },
+    {
+      "id": "add-operator-descriptions",
+      "name": "Add descriptions to operator listing at top of file",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Replace raw YAML block with a table or annotated list",
+        "Add one-line description for each operator",
+        "Link each operator to its detailed section"
+      ],
+      "acceptance_criteria": [
+        "Operator listing includes descriptions",
+        "Each operator links to its section"
+      ]
+    },
+    {
+      "id": "review-and-cleanup",
+      "name": "Review full document for consistency",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": ["add-toc-to-configuration-md", "add-operator-descriptions"],
+      "steps": [
+        "Read through entire document",
+        "Fix any broken links",
+        "Ensure consistent formatting",
+        "Verify examples are valid YAML"
+      ],
+      "acceptance_criteria": [
+        "Document is consistent and well-formatted",
+        "All links work",
+        "Examples are valid"
+      ]
+    }
+  ],
+  "toc_tool_options": {
+    "mktoc": {
+      "install": "cargo install mktoc",
+      "usage": "mktoc docs/configuration.md",
+      "features": ["Min/max depth", "Stdout output", "Details wrapper"]
+    },
+    "mtoc": {
+      "install": "cargo install mtoc",
+      "usage": "mtoc docs/configuration.md",
+      "features": ["Directory scanning", "File exclusion", "In-place update"]
+    }
+  },
+  "notes": [
+    "docs/configuration.md is currently 482 lines",
+    "ToC should be auto-generated to avoid maintenance burden",
+    "Operator listing at lines 9-22 needs descriptions added"
+  ]
+}

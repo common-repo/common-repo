@@ -1,0 +1,141 @@
+{
+  "plan_name": "Master Plan Tracker",
+  "description": "High-level tracking of all active and pending plans",
+  "last_updated": "2025-12-29",
+  "active_plan": "context/documentation-review.json",
+  "next_plan": "context/init-redesign.json",
+  "plans": [
+    {
+      "id": "documentation-review",
+      "name": "Documentation Review",
+      "file": "context/documentation-review.json",
+      "status": "in_progress",
+      "priority": 1,
+      "category": "review",
+      "tasks_total": 7,
+      "tasks_complete": 6,
+      "notes": "Last task: setup-docs-site"
+    },
+    {
+      "id": "init-redesign",
+      "name": "Init Command Redesign",
+      "file": "context/init-redesign.json",
+      "status": "pending",
+      "priority": 2,
+      "category": "feature",
+      "tasks_total": 7,
+      "tasks_complete": 0,
+      "notes": "Interactive wizard, prek integration, URI arg"
+    },
+    {
+      "id": "add-command",
+      "name": "Add Command Implementation",
+      "file": "context/add-command.json",
+      "status": "pending",
+      "priority": 3,
+      "category": "feature",
+      "tasks_total": 6,
+      "tasks_complete": 0,
+      "notes": "Quick repo addition, --quiet for automation"
+    },
+    {
+      "id": "cr-alias",
+      "name": "Short Alias cr",
+      "file": "context/cr-alias.json",
+      "status": "pending",
+      "priority": 4,
+      "category": "feature",
+      "tasks_total": 4,
+      "tasks_complete": 0,
+      "notes": "Symlink in install script"
+    },
+    {
+      "id": "configuration-docs",
+      "name": "Configuration Documentation Improvements",
+      "file": "context/configuration-docs.json",
+      "status": "pending",
+      "priority": 5,
+      "category": "docs",
+      "tasks_total": 4,
+      "tasks_complete": 0,
+      "notes": "ToC generation, operator descriptions"
+    },
+    {
+      "id": "source-authoring-docs",
+      "name": "Source Repository Authoring Documentation",
+      "file": "context/source-authoring-docs.json",
+      "status": "pending",
+      "priority": 6,
+      "category": "docs",
+      "tasks_total": 4,
+      "tasks_complete": 0,
+      "notes": "New guide for source repo authors"
+    },
+    {
+      "id": "source-declared-merge",
+      "name": "Source-Declared Merge Behavior",
+      "file": "context/source-declared-merge.json",
+      "status": "pending",
+      "priority": 7,
+      "category": "feature",
+      "tasks_total": 3,
+      "tasks_complete": 0,
+      "notes": "Stub - needs design exploration first"
+    }
+  ],
+  "deferred_reviews": [
+    {
+      "id": "testing-review",
+      "file": "context/testing-review.json",
+      "category": "review"
+    },
+    {
+      "id": "cicd-review",
+      "file": "context/cicd-review.json",
+      "category": "review"
+    },
+    {
+      "id": "architecture-review",
+      "file": "context/architecture-review.json",
+      "category": "review"
+    },
+    {
+      "id": "cli-ux-review",
+      "file": "context/cli-ux-review.json",
+      "category": "review"
+    },
+    {
+      "id": "security-review",
+      "file": "context/security-review.json",
+      "category": "review"
+    },
+    {
+      "id": "distribution-review",
+      "file": "context/distribution-review.json",
+      "category": "review"
+    },
+    {
+      "id": "community-review",
+      "file": "context/community-review.json",
+      "category": "review"
+    },
+    {
+      "id": "performance-review",
+      "file": "context/performance-review.json",
+      "category": "review"
+    }
+  ],
+  "summary": {
+    "total_plans": 7,
+    "in_progress": 1,
+    "pending": 6,
+    "complete": 0,
+    "deferred_reviews": 8
+  },
+  "notes": [
+    "Feature plans take priority over remaining review subplans",
+    "Reviews can be tackled opportunistically or after features",
+    "Update tasks_complete counts as work progresses",
+    "Move completed plans to context/completed/"
+  ]
+}

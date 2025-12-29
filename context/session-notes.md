@@ -1,6 +1,17 @@
 # Session Notes
 
 Captured during session on 2025-12-20.
+Plans created: 2025-12-29.
+
+## Status
+
+All items below have been converted to plan JSON files:
+- `context/init-redesign.json` - Init command redesign
+- `context/add-command.json` - New add command
+- `context/source-declared-merge.json` - Source-declared merge (stub for exploration)
+- `context/cr-alias.json` - Short alias `cr`
+- `context/configuration-docs.json` - Configuration.md improvements
+- `context/source-authoring-docs.json` - Source repository authoring docs
 
 ## Notes
 

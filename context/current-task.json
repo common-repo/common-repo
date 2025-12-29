@@ -1,12 +1,13 @@
 {
   "task": "execute-documentation-review",
   "plan": "context/documentation-review.json",
-  "last_updated": "2025-12-03",
+  "last_updated": "2025-12-29",
   "status": "pending",
+  "master_plan": "context/plan-of-plans.json",
   "context": {
     "completed_plan": "context/completed/project-review-plan.json",
     "current_subplan": "context/documentation-review.json",
-    "remaining_subplans": [
+    "remaining_review_subplans": [
       "context/testing-review.json",
       "context/cicd-review.json",
       "context/architecture-review.json",
@@ -16,6 +17,15 @@
       "context/community-review.json",
       "context/performance-review.json"
     ],
-    "audit_score": "4/10"
+    "feature_plans": [
+      "context/init-redesign.json",
+      "context/add-command.json",
+      "context/source-declared-merge.json",
+      "context/cr-alias.json",
+      "context/configuration-docs.json",
+      "context/source-authoring-docs.json"
+    ],
+    "audit_score": "4/10",
+    "notes": "Feature plans created from session-notes.md on 2025-12-29. init-redesign designated as next active plan after documentation-review."
   }
 }
