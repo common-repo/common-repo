@@ -121,5 +121,23 @@
     "--quiet flag name chosen over --no-init for clarity in automation contexts",
     "Semver detection logic can be shared with init command",
     "Consider extracting shared semver logic to src/git.rs or similar"
+  ],
+  "decisions": {
+    "flag_name": {
+      "chosen": "--quiet",
+      "alternatives_considered": ["--no-init", "--non-interactive"],
+      "rationale": "--quiet is clearer for automation/scripting contexts"
+    },
+    "append_position": {
+      "chosen": "end of file",
+      "alternatives_considered": ["after last repo: entry", "user-specified position"],
+      "rationale": "Simple and predictable; user can manually reorder if needed"
+    }
+  },
+  "out_of_scope": [
+    {
+      "feature": "Multi-repo add (common-repo add repo1 repo2)",
+      "rationale": "Keep initial implementation simple; can add later if needed"
+    }
   ]
 }

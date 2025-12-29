@@ -91,5 +91,16 @@
     "docs/configuration.md is currently 482 lines",
     "ToC should be auto-generated to avoid maintenance burden",
     "Operator listing at lines 9-22 needs descriptions added"
-  ]
+  ],
+  "design_decisions": {
+    "operator_descriptions_format": {
+      "options": [
+        "Inline YAML comments in the code block",
+        "Table after the code block with operator name, description, and section link",
+        "Include descriptions directly in the ToC entries"
+      ],
+      "recommendation": "Table format - cleaner than inline comments, more discoverable than ToC-only",
+      "rationale": "Tables are scannable, allow linking to sections, and don't clutter the YAML example"
+    }
+  }
 }

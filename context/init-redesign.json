@@ -155,5 +155,52 @@
     "prek is a Rust-based pre-commit alternative that's faster than Python pre-commit",
     "Semver detection should handle both v1.0.0 and 1.0.0 tag formats",
     "0.x.x versions are valid semver but warrant a stability warning"
+  ],
+  "decisions": {
+    "interactive_crate": {
+      "chosen": "dialoguer",
+      "alternatives_considered": ["inquire", "requestty", "console + manual prompts"],
+      "rationale": "dialoguer is the most popular and well-maintained; no existing interactive crate in project"
+    },
+    "uri_argument_style": {
+      "chosen": "Positional argument",
+      "alternatives_considered": ["--from <URI> flag"],
+      "rationale": "Cleaner UX for the common case: common-repo init https://github.com/org/repo"
+    },
+    "precommit_tool_support": {
+      "chosen": "Support both prek and pre-commit CLI",
+      "rationale": "prek preferred (Rust, faster) but pre-commit is more widely installed; detect and use whichever is available"
+    },
+    "prek_installation": {
+      "chosen": "Prompt in interactive install, auto-install with INSTALL_PREK=1",
+      "rationale": "Don't force installation, but make it easy to opt-in"
+    },
+    "default_behavior": {
+      "chosen": "Interactive wizard by default (remove --minimal, --empty, --template flags)",
+      "rationale": "Current default (dump example YAML) is not useful; wizard provides better onboarding"
+    }
+  },
+  "future_enhancements": [
+    {
+      "id": "dogfood-precommit-config",
+      "description": "Publish common-repo's own .pre-commit-config.yaml as a source repository",
+      "rationale": "The pre-commit hook config common-repo uses should itself be a source repo that others can inherit. This dogfoods the tool and provides a real-world example.",
+      "steps": [
+        "Create a common-repo/precommit-rust source repo (or similar)",
+        "Move .pre-commit-config.yaml content there",
+        "Have common-repo itself inherit from that source",
+        "Offer this as a default option in init wizard"
+      ]
+    },
+    {
+      "id": "base-template-registry",
+      "description": "Offer choices for common base templates/configurations in wizard",
+      "rationale": "Users should be able to pick from curated starting points rather than just a URI",
+      "steps": [
+        "Define a list of known good source repos (rust-cli, python-django, etc.)",
+        "Allow wizard to present these as quick-start options",
+        "Could be hardcoded initially, later fetched from a registry"
+      ]
+    }
   ]
 }

@@ -80,5 +80,24 @@
     "The existing 'cr' command (for newline conversion) is obscure and rarely installed",
     "Symlink approach avoids building two binaries",
     "Windows may require special handling (symlinks are restricted)"
-  ]
+  ],
+  "decisions": {
+    "implementation_approach": {
+      "chosen": "Symlink cr -> common-repo created by install script",
+      "alternatives_considered": [
+        "Two separate binaries in Cargo.toml (doubles artifact size)",
+        "Shell alias added to user profile (intrusive)",
+        "Binary named cr with common-repo as symlink (less discoverable)"
+      ],
+      "rationale": "Symlink is lightweight, non-intrusive, and keeps common-repo as the primary discoverable name"
+    },
+    "opt_out_mechanism": {
+      "chosen": "SKIP_ALIAS=1 environment variable",
+      "rationale": "Consistent with other install script options like INSTALL_DIR"
+    },
+    "existing_file_handling": {
+      "chosen": "Skip with warning, never overwrite",
+      "rationale": "Avoid breaking user's existing setup; they may have a different cr command they rely on"
+    }
+  }
 }
