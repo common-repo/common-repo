@@ -5,6 +5,13 @@
   "last_updated": "2025-12-29",
   "source": "context/session-notes.md",
   "status": "stub",
+  "primary_use_case": {
+    "scenario": "CLAUDE.md rules distribution",
+    "problem": "An org has a common repo with CLAUDE.md rules that should merge into many consumer repos. Currently, each consumer must explicitly declare the markdown merge operator.",
+    "current_approach": "Consumer config requires explicit merge operator:\n- repo: org/my-claude-rules\n  ref: v1.0.0\n- markdown:\n    source: CLAUDE.md\n    dest: CLAUDE.md\n    append: true",
+    "desired_approach": "Consumer just declares the repo, source declares merge behavior:\n- repo: org/my-claude-rules\n  ref: v1.0.0\n# Source repo's CLAUDE.md auto-merges into consumer's CLAUDE.md",
+    "benefit": "Reduces boilerplate, centralizes merge logic in source repo"
+  },
   "tasks": [
     {
       "id": "research-design-options",
