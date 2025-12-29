@@ -1,0 +1,130 @@
+{
+  "plan_name": "Source Repository Authoring Documentation",
+  "description": "Create documentation for authoring source repositories",
+  "created": "2025-12-29",
+  "last_updated": "2025-12-29",
+  "source": "context/session-notes.md",
+  "tasks": [
+    {
+      "id": "create-authoring-guide",
+      "name": "Create docs/authoring-source-repos.md",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create docs/authoring-source-repos.md file",
+        "Write introduction explaining source repos vs consumer repos",
+        "Add section: Getting Started (minimal source repo structure)",
+        "Add section: File Organization best practices",
+        "Add section: Template Variables conventions",
+        "Add section: Versioning and Releases (semver, tagging)",
+        "Add section: Testing Your Source Repo",
+        "Add section: Composability (working alongside other source repos)",
+        "Add section: What to Include/Exclude"
+      ],
+      "acceptance_criteria": [
+        "docs/authoring-source-repos.md exists",
+        "All sections listed above are present",
+        "Document follows project style guide"
+      ]
+    },
+    {
+      "id": "add-readme-section",
+      "name": "Add source authoring section to main README",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-authoring-guide",
+      "steps": [
+        "Add brief section about creating source repos",
+        "Link to full docs/authoring-source-repos.md",
+        "Include 1-2 sentence summary of key concepts"
+      ],
+      "acceptance_criteria": [
+        "README has section linking to authoring guide",
+        "Section is concise (not duplicating full guide)"
+      ]
+    },
+    {
+      "id": "add-docs-readme-section",
+      "name": "Add source authoring to docs/README.md",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-authoring-guide",
+      "steps": [
+        "Check if docs/README.md exists (create if needed)",
+        "Add entry for authoring-source-repos.md",
+        "Ensure docs index is consistent"
+      ],
+      "acceptance_criteria": [
+        "docs/README.md lists authoring guide",
+        "Docs index is complete and consistent"
+      ]
+    },
+    {
+      "id": "add-example-source-repo",
+      "name": "Consider creating example source repo reference",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "create-authoring-guide",
+      "steps": [
+        "Evaluate whether to create a minimal example source repo",
+        "If yes, create as separate repo or examples/ directory",
+        "Link from authoring guide",
+        "Consider common-repo/common-repo as dogfooding example"
+      ],
+      "acceptance_criteria": [
+        "Decision made on example repo approach",
+        "If created, example is linked from docs"
+      ]
+    }
+  ],
+  "content_outline": {
+    "introduction": [
+      "What is a source repository",
+      "Difference between source and consumer repos",
+      "Use cases: org-wide standards, project templates, shared configs"
+    ],
+    "getting_started": [
+      "Minimal structure needed",
+      "The role of .common-repo.yaml in source repos (optional)",
+      "Publishing your first version"
+    ],
+    "file_organization": [
+      "Root vs subdirectory as source (path: option)",
+      "Separating files by concern",
+      "Hidden files and dotfiles"
+    ],
+    "template_variables": [
+      "Naming conventions for variables",
+      "Required vs optional variables",
+      "Documentation of available variables",
+      "Environment variable defaults"
+    ],
+    "versioning": [
+      "Semantic versioning for source repos",
+      "When to bump major/minor/patch",
+      "Git tagging best practices",
+      "Changelog maintenance"
+    ],
+    "testing": [
+      "Testing your source repo locally",
+      "Using common-repo apply with local path",
+      "CI testing strategies"
+    ],
+    "composability": [
+      "Designing for use alongside other source repos",
+      "Avoiding file conflicts",
+      "Namespace considerations"
+    ],
+    "what_to_include": [
+      "Good candidates for source repos",
+      "What to avoid putting in source repos",
+      "Sensitive data and secrets"
+    ]
+  },
+  "notes": [
+    "This is new software, patterns/conventions not yet settled",
+    "Document current best understanding, expect to iterate",
+    "Dogfooding: common-repo itself could be documented as an example"
+  ]
+}

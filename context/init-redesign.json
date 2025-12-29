@@ -1,0 +1,159 @@
+{
+  "plan_name": "Init Command Redesign",
+  "description": "Redesign common-repo init to be an interactive setup wizard with pre-commit integration",
+  "created": "2025-12-29",
+  "last_updated": "2025-12-29",
+  "source": "context/session-notes.md",
+  "tasks": [
+    {
+      "id": "add-dialoguer-dependency",
+      "name": "Add dialoguer crate for interactive prompts",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add dialoguer = \"0.11\" to Cargo.toml dependencies",
+        "Run cargo check to verify dependency resolves"
+      ],
+      "acceptance_criteria": [
+        "dialoguer is in Cargo.toml",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "implement-interactive-wizard",
+      "name": "Implement full interactive setup wizard",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "add-dialoguer-dependency",
+      "steps": [
+        "Replace stub prompts in generate_interactive_config() with real dialoguer prompts",
+        "Add project type selection (Rust CLI, Python, Node, Go, Custom)",
+        "Add configuration choices (pre-commit hooks, CI/CD, linters)",
+        "Add version pinning preference (stable vs latest)",
+        "Generate appropriate config based on selections"
+      ],
+      "acceptance_criteria": [
+        "common-repo init -i launches interactive wizard",
+        "User can navigate prompts with keyboard",
+        "Generated config reflects user choices"
+      ]
+    },
+    {
+      "id": "add-uri-positional-arg",
+      "name": "Add URI positional argument for init from existing repo",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Add optional positional argument to InitArgs struct",
+        "When URI provided, fetch repo metadata",
+        "Auto-detect latest semver tag (including 0.x.x)",
+        "Warn if no semver tags found or only 0.x.x versions",
+        "Generate config with that repo as starting point"
+      ],
+      "acceptance_criteria": [
+        "common-repo init https://github.com/org/repo creates config with that repo",
+        "Latest semver tag is auto-detected for ref field",
+        "Warning shown for 0.x.x versions"
+      ]
+    },
+    {
+      "id": "implement-precommit-setup",
+      "name": "Add pre-commit hook setup to init wizard",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "implement-interactive-wizard",
+      "steps": [
+        "Add prompt asking if user wants pre-commit hooks",
+        "Generate .pre-commit-config.yaml when selected",
+        "Detect if prek or pre-commit CLI is available",
+        "If available, offer to run hook installation (optional)",
+        "Run prek install or pre-commit install if user agrees"
+      ],
+      "acceptance_criteria": [
+        ".pre-commit-config.yaml created when hooks selected",
+        "Hook installation runs if CLI detected and user agrees",
+        "Works with both prek and pre-commit CLIs"
+      ]
+    },
+    {
+      "id": "update-install-script-prek",
+      "name": "Add optional prek installation to install.sh",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Add INSTALL_PREK env var check to install.sh",
+        "If INSTALL_PREK=1, install prek automatically",
+        "If interactive (TTY), prompt user whether to install prek",
+        "Download and install prek binary alongside common-repo",
+        "Show success message with prek version"
+      ],
+      "acceptance_criteria": [
+        "INSTALL_PREK=1 installs prek without prompting",
+        "Interactive install prompts user about prek",
+        "prek binary installed to same directory as common-repo"
+      ]
+    },
+    {
+      "id": "remove-deprecated-flags",
+      "name": "Remove deprecated init flags (--minimal, --empty, --template)",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "implement-interactive-wizard",
+      "steps": [
+        "Remove --minimal, --empty flags from InitArgs",
+        "Remove --template flag (superseded by URI arg)",
+        "Remove generate_*_template() functions",
+        "Update tests to reflect new behavior",
+        "Default behavior becomes interactive wizard"
+      ],
+      "acceptance_criteria": [
+        "common-repo init launches interactive wizard by default",
+        "Old flags removed",
+        "Tests updated and passing"
+      ]
+    },
+    {
+      "id": "update-init-documentation",
+      "name": "Update documentation for new init behavior",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "remove-deprecated-flags",
+      "steps": [
+        "Update README.md quick start section",
+        "Update docs/configuration.md if it references init",
+        "Add examples of init with URI argument",
+        "Document INSTALL_PREK env var"
+      ],
+      "acceptance_criteria": [
+        "README reflects new init behavior",
+        "URI argument documented with examples"
+      ]
+    },
+    {
+      "id": "add-init-e2e-tests",
+      "name": "Add E2E tests for new init behavior",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "implement-interactive-wizard",
+      "steps": [
+        "Add test for init with URI argument",
+        "Add test for non-interactive mode (if added)",
+        "Test semver detection logic",
+        "Test .pre-commit-config.yaml generation"
+      ],
+      "acceptance_criteria": [
+        "E2E tests cover new init functionality",
+        "./script/test passes"
+      ]
+    }
+  ],
+  "notes": [
+    "dialoguer is the standard Rust crate for interactive CLI prompts",
+    "prek is a Rust-based pre-commit alternative that's faster than Python pre-commit",
+    "Semver detection should handle both v1.0.0 and 1.0.0 tag formats",
+    "0.x.x versions are valid semver but warrant a stability warning"
+  ]
+}

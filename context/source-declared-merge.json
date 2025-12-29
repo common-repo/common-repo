@@ -1,0 +1,93 @@
+{
+  "plan_name": "Source-Declared Merge Behavior",
+  "description": "Allow source repos to declare how their files should be merged into consumers",
+  "created": "2025-12-29",
+  "last_updated": "2025-12-29",
+  "source": "context/session-notes.md",
+  "status": "stub",
+  "tasks": [
+    {
+      "id": "research-design-options",
+      "name": "Research and design merge declaration syntax",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Review existing merge operator implementations",
+        "Evaluate manifest file approach (.common-repo-source.yaml)",
+        "Evaluate file metadata approach (frontmatter/comments)",
+        "Evaluate naming convention approach (*.merge.md)",
+        "Consider hybrid approaches",
+        "Document tradeoffs and recommendation"
+      ],
+      "acceptance_criteria": [
+        "Design document created with recommendation",
+        "Syntax examples for each approach documented"
+      ]
+    },
+    {
+      "id": "design-consumer-override",
+      "name": "Design consumer override mechanism",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "research-design-options",
+      "steps": [
+        "Define how consumers can disable source-declared merge",
+        "Define how consumers can override merge options",
+        "Consider priority/precedence rules",
+        "Document the override syntax"
+      ],
+      "acceptance_criteria": [
+        "Override mechanism designed and documented"
+      ]
+    },
+    {
+      "id": "create-implementation-plan",
+      "name": "Create detailed implementation plan",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "design-consumer-override",
+      "steps": [
+        "Break down implementation into tasks",
+        "Identify files to modify",
+        "Estimate complexity",
+        "Create sub-plan JSON if needed"
+      ],
+      "acceptance_criteria": [
+        "Detailed implementation plan ready for execution"
+      ]
+    }
+  ],
+  "open_questions": [
+    "How does source repo declare 'this file should merge, not overwrite'?",
+    "What's the syntax? Metadata in the file? Separate manifest? Convention-based?",
+    "What if consumer wants to override the merge behavior?",
+    "Priority: Start with Markdown merge, then extend to other formats?",
+    "How to handle conflicts between multiple source repos declaring merge for same dest?"
+  ],
+  "design_options": {
+    "manifest_file": {
+      "description": "A .common-repo-source.yaml file in source repo root",
+      "example": "merge-rules:\n  - pattern: \"CLAUDE.md\"\n    operator: markdown\n    options:\n      section: \"## Inherited Rules\"\n      append: true",
+      "pros": ["Clean separation", "Can declare for many files", "Explicit"],
+      "cons": ["Extra file to maintain", "May be overlooked"]
+    },
+    "file_metadata": {
+      "description": "Frontmatter or comments in the files themselves",
+      "example": "---\ncommon-repo:\n  merge: markdown\n  section: '## Rules'\n---",
+      "pros": ["Self-contained", "No extra files"],
+      "cons": ["Pollutes file content", "Format-specific parsing needed"]
+    },
+    "naming_convention": {
+      "description": "Special file extensions like *.merge.md",
+      "example": "CLAUDE.merge.md -> merges into CLAUDE.md",
+      "pros": ["Zero config", "Obvious intent"],
+      "cons": ["Rigid", "Doesn't work for exact filenames"]
+    }
+  },
+  "notes": [
+    "This feature requires more exploration before implementation",
+    "Start with markdown merge use case as primary driver",
+    "Consider how this interacts with existing with: inline operations"
+  ]
+}

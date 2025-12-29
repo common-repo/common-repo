@@ -1,0 +1,125 @@
+{
+  "plan_name": "Add Command Implementation",
+  "description": "Implement common-repo add command for quickly adding repos to config",
+  "created": "2025-12-29",
+  "last_updated": "2025-12-29",
+  "source": "context/session-notes.md",
+  "tasks": [
+    {
+      "id": "create-add-command-module",
+      "name": "Create src/commands/add.rs module",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Create src/commands/add.rs file",
+        "Define AddArgs struct with URI positional arg",
+        "Add --quiet flag for non-interactive mode",
+        "Register command in src/cli.rs",
+        "Implement basic execute() function skeleton"
+      ],
+      "acceptance_criteria": [
+        "src/commands/add.rs exists",
+        "common-repo add --help works",
+        "Command registered in CLI"
+      ]
+    },
+    {
+      "id": "implement-config-detection",
+      "name": "Implement config file detection and creation logic",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-add-command-module",
+      "steps": [
+        "Check if .common-repo.yaml exists",
+        "If exists, parse existing config",
+        "If not exists and not --quiet, invoke init wizard",
+        "If not exists and --quiet, create minimal config with just the repo",
+        "Handle --force flag for edge cases"
+      ],
+      "acceptance_criteria": [
+        "Existing config file is detected and preserved",
+        "Missing config triggers init (unless --quiet)",
+        "--quiet creates minimal config without prompting"
+      ]
+    },
+    {
+      "id": "implement-semver-detection",
+      "name": "Implement semver tag auto-detection for added repos",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-add-command-module",
+      "steps": [
+        "Fetch git tags from remote repo",
+        "Parse tags as semver versions",
+        "Select latest stable version (prefer non-0.x if available)",
+        "Warn if only 0.x.x versions found",
+        "Fall back to 'main' or 'master' if no semver tags"
+      ],
+      "acceptance_criteria": [
+        "Latest semver tag auto-detected",
+        "Warning shown for 0.x.x versions",
+        "Graceful fallback when no tags exist"
+      ]
+    },
+    {
+      "id": "implement-yaml-append",
+      "name": "Implement YAML config appending",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "implement-config-detection",
+      "steps": [
+        "Read existing .common-repo.yaml content",
+        "Generate new repo entry YAML",
+        "Append to end of file with proper formatting",
+        "Preserve existing comments and structure",
+        "Write updated config back to file"
+      ],
+      "acceptance_criteria": [
+        "New repo appended to end of config",
+        "Existing content preserved",
+        "YAML remains valid after append"
+      ]
+    },
+    {
+      "id": "add-add-command-tests",
+      "name": "Add unit and E2E tests for add command",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "implement-yaml-append",
+      "steps": [
+        "Add unit tests for semver detection",
+        "Add unit tests for YAML append logic",
+        "Add E2E test: add to existing config",
+        "Add E2E test: add to non-existent config with --quiet",
+        "Add E2E test: add triggers init without --quiet"
+      ],
+      "acceptance_criteria": [
+        "Unit tests pass",
+        "E2E tests pass",
+        "./script/test passes"
+      ]
+    },
+    {
+      "id": "document-add-command",
+      "name": "Document add command",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "implement-yaml-append",
+      "steps": [
+        "Add add command to README.md",
+        "Add add command to docs/configuration.md",
+        "Include examples of common usage patterns"
+      ],
+      "acceptance_criteria": [
+        "README documents add command",
+        "Configuration reference includes add"
+      ]
+    }
+  ],
+  "notes": [
+    "--quiet flag name chosen over --no-init for clarity in automation contexts",
+    "Semver detection logic can be shared with init command",
+    "Consider extracting shared semver logic to src/git.rs or similar"
+  ]
+}

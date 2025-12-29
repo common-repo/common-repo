@@ -1,0 +1,84 @@
+{
+  "plan_name": "Short Alias cr",
+  "description": "Add cr as a short alias symlink for common-repo",
+  "created": "2025-12-29",
+  "last_updated": "2025-12-29",
+  "source": "context/session-notes.md",
+  "tasks": [
+    {
+      "id": "update-install-script-symlink",
+      "name": "Update install.sh to create cr symlink",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Add SKIP_ALIAS env var check",
+        "Check if cr already exists in install directory",
+        "If cr exists and is not our symlink, skip with warning",
+        "Create symlink: cr -> common-repo",
+        "Handle Windows case (may need .cmd wrapper or skip)"
+      ],
+      "acceptance_criteria": [
+        "Install script creates cr symlink by default",
+        "SKIP_ALIAS=1 prevents symlink creation",
+        "Existing cr files are not overwritten",
+        "Warning shown when skipping due to existing file"
+      ]
+    },
+    {
+      "id": "update-release-workflow",
+      "name": "Update GitHub release workflow for cr symlink",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Check if release archives can include symlinks",
+        "If yes, add cr symlink to release archives",
+        "If no, document that cr is created by install script only",
+        "Update release notes template to mention cr alias"
+      ],
+      "acceptance_criteria": [
+        "Release process handles cr alias appropriately",
+        "Documentation reflects how cr is installed"
+      ]
+    },
+    {
+      "id": "document-cr-alias",
+      "name": "Document cr alias in README and docs",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "update-install-script-symlink",
+      "steps": [
+        "Add note about cr alias to README installation section",
+        "Show examples using both common-repo and cr",
+        "Document SKIP_ALIAS env var"
+      ],
+      "acceptance_criteria": [
+        "README mentions cr alias",
+        "Installation docs explain how to skip alias"
+      ]
+    },
+    {
+      "id": "add-symlink-tests",
+      "name": "Add tests for symlink creation",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "update-install-script-symlink",
+      "steps": [
+        "Add shell script test for install.sh symlink behavior",
+        "Test SKIP_ALIAS=1 behavior",
+        "Test existing file protection",
+        "Consider integration test in CI"
+      ],
+      "acceptance_criteria": [
+        "Install script symlink behavior is tested",
+        "Tests pass in CI"
+      ]
+    }
+  ],
+  "notes": [
+    "The existing 'cr' command (for newline conversion) is obscure and rarely installed",
+    "Symlink approach avoids building two binaries",
+    "Windows may require special handling (symlinks are restricted)"
+  ]
+}
