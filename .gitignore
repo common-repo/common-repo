@@ -13,3 +13,6 @@
 
 # Coverage reports
 tarpaulin-report.html
+
+# mdBook output
+docs/book/
