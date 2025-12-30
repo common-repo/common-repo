@@ -1,0 +1,26 @@
+[book]
+title = "common-repo"
+description = "Manage repository configuration files as dependencies"
+authors = ["common-repo contributors"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+git-repository-url = "https://github.com/common-repo/common-repo"
+edit-url-template = "https://github.com/common-repo/common-repo/edit/main/docs/{path}"
+default-theme = "rust"
+preferred-dark-theme = "navy"
+smart-punctuation = true
+
+[output.html.search]
+enable = true
+limit-results = 30
+use-hierarchical-headlines = true
+
+[output.html.fold]
+enable = true
+level = 0

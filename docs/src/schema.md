@@ -1,3 +1,12 @@
+# Schema Reference
+
+This page documents the configuration schemas for common-repo.
+
+## v1 Schema (Legacy)
+
+The original v1 schema from [commonrepo](https://github.com/shakefu/commonrepo). This has been superseded by the v2 schema with operators.
+
+```yaml
 ######################
 # CommonRepo v1 schema
 #
@@ -95,3 +104,8 @@ upstream:
 # Template context for all upstreams...
 template-vars:
   project: ${PROJECT_NAME:-myprojectname}  # Steal bash syntax env vars from docker-compose?
+```
+
+## v2 Schema (Current)
+
+For the current v2 schema with operators, see the [Configuration Reference](configuration.md).
