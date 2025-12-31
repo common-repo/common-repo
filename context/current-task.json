@@ -1,5 +1,5 @@
 {
-  "task": "add-init-e2e-tests",
+  "task": "add-uri-positional-arg",
   "plan": "context/init-redesign.json",
   "last_updated": "2025-12-31",
   "status": "pending",
@@ -12,33 +12,10 @@
       "context/completed/cicd-review.json"
     ],
     "current_subplan": "context/init-redesign.json",
-    "notes": "Add E2E tests for interactive wizard using rexpect for TTY simulation.",
-    "implementation_context": {
-      "interactive_wizard_location": "src/commands/init.rs:generate_interactive_config()",
-      "key_functions": [
-        "generate_interactive_config() - main wizard flow with dialoguer Input prompts",
-        "normalize_repo_url() - expands GitHub shorthand org/repo to full URL",
-        "find_latest_version() - finds highest semver from tag list",
-        "build_config_from_repos() - generates YAML config from RepoEntry list"
-      ],
-      "unit_tests_exist": "normalize_repo_url, find_latest_version, build_config_from_repos have unit tests",
-      "interactive_test_skipped": "dialoguer requires TTY - see comment at line 498-500"
-    },
-    "testing_approach": {
-      "tool": "rexpect crate for TTY simulation",
-      "platform_limitation": "rexpect only works on *nix and WSL, not Windows native",
-      "github_issue": "https://github.com/console-rs/dialoguer/issues/95",
-      "alternatives_considered": [
-        "Abstract behind trait and mock (more invasive)",
-        "Stub Term implementation (complex)",
-        "Enigo for GUI automation (overkill)"
-      ]
-    },
-    "test_scenarios": [
-      "Enter valid repo URL, verify semver detection, enter empty to finish",
-      "Enter GitHub shorthand (org/repo), verify URL expansion in output",
-      "Enter invalid/unreachable URL, verify fallback to main branch",
-      "Enter empty immediately, verify empty config generated"
-    ]
+    "notes": "Next unblocked task: Add URI positional argument for init from existing repo",
+    "recently_completed": {
+      "task": "add-init-e2e-tests",
+      "summary": "Added E2E tests for interactive wizard using rexpect for TTY simulation. Tests cover: empty input, GitHub shorthand expansion, full URL with semver detection, invalid URL fallback to main, multiple repos, force overwrite."
+    }
   }
 }
