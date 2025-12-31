@@ -15,6 +15,46 @@ These options are available for all commands:
 
 ## Commands
 
+### `add` - Add Repository
+
+Add a repository to an existing `.common-repo.yaml` configuration file. Automatically detects the latest semver tag.
+
+```bash
+common-repo add [OPTIONS] <URI>
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `<URI>` | Repository URL to add (e.g., `https://github.com/org/repo` or `org/repo` GitHub shorthand) |
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-q, --quiet` | Non-interactive mode: create minimal config without prompting if none exists |
+
+#### Examples
+
+```bash
+# Add a repo to existing config
+common-repo add your-org/shared-configs
+
+# Add using full URL
+common-repo add https://github.com/your-org/shared-configs
+
+# Create new config with --quiet (non-interactive)
+common-repo add --quiet your-org/shared-configs
+```
+
+#### Behavior
+
+- If `.common-repo.yaml` exists: appends the new repository before the `include` section
+- If no config exists: prompts for confirmation to create a minimal config (use `--quiet` to skip prompt)
+- Automatically fetches and uses the latest semver tag, or falls back to `main` if no tags found
+- Warns when adding repositories with only 0.x.x versions (unstable API)
+
 ### `apply` - Apply Configuration
 
 Apply the `.common-repo.yaml` configuration to your repository. This runs the full 6-phase pipeline: discover repos, clone, process, merge, and write files.
@@ -399,10 +439,12 @@ my-project
 ### First-Time Setup
 
 ```bash
-# Initialize config
+# Initialize config interactively
 common-repo init
 
-# Edit .common-repo.yaml to add your repos
+# Or add repos one at a time
+common-repo add your-org/shared-configs
+common-repo add your-org/ci-templates
 
 # Preview what would be created
 common-repo ls

@@ -1,6 +1,6 @@
 ---
 source: tests/cli_snapshot_tests.rs
-assertion_line: 28
+assertion_line: 37
 expression: normalized
 ---
 Common Repository - Manage repository configuration inheritance
@@ -8,6 +8,7 @@ Common Repository - Manage repository configuration inheritance
 Usage: common-repo [OPTIONS] <COMMAND>
 
 Commands:
+  add       Add a repository to the configuration file
   apply     Apply the .common-repo.yaml configuration to the current repository
   check     Check configuration validity and check for repository updates
   diff      Show differences between current files and configuration result
