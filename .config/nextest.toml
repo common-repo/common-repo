@@ -30,3 +30,37 @@ path = "target/nextest/default/junit.xml"
 [profile.ci.junit]
 # JUnit output for CI profile
 path = "target/nextest/ci/junit.xml"
+
+# =============================================================================
+# Test retry configuration for network-dependent tests
+# =============================================================================
+#
+# Network-dependent tests (integration tests) can be flaky due to:
+# - Network timeouts
+# - GitHub rate limiting
+# - DNS resolution issues
+#
+# These tests are identified by the 'integration_test' prefix or 'network' in
+# their names. They are allowed 2 retries with exponential backoff.
+
+[[profile.default.overrides]]
+# Integration tests with network access get 2 retries
+filter = 'test(integration_test::) | test(::test_clone) | test(::test_fetch)'
+retries = 2
+
+[[profile.ci.overrides]]
+# In CI, integration tests get 3 retries for added resilience
+filter = 'test(integration_test::) | test(::test_clone) | test(::test_fetch)'
+retries = 3
+
+# =============================================================================
+# Property-based tests may need more time for shrinking
+# =============================================================================
+
+[[profile.default.overrides]]
+filter = 'test(proptest)'
+slow-timeout = { period = "10s", terminate-after = 3, grace-period = "60s" }
+
+[[profile.ci.overrides]]
+filter = 'test(proptest)'
+slow-timeout = { period = "15s", terminate-after = 3, grace-period = "60s" }
