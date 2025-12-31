@@ -13,10 +13,11 @@
       "3.6 MSRV verification",
       "3.7 Release automation (release-please)",
       "3.8 Environment defaults (CARGO_TERM_COLOR, CARGO_INCREMENTAL, RUSTFLAGS)",
-      "3.9 Coverage in CI",
-      "3.10 Action versions pinned with SHA"
+      "3.9 Coverage in CI"
     ],
-    "partial": [],
+    "partial": [
+      "3.10 Action versions pinned with SHA (using version tags for compatibility)"
+    ],
     "fail": []
   },
   "tasks": [
