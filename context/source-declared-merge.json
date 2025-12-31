@@ -2,9 +2,10 @@
   "plan_name": "Source-Declared Merge Behavior",
   "description": "Allow source repos to declare how their files should be merged into consumers",
   "created": "2025-12-29",
-  "last_updated": "2025-12-29",
+  "last_updated": "2025-12-31",
   "source": "context/session-notes.md",
-  "status": "stub",
+  "status": "in_progress",
+  "design_document": "context/source-declared-merge-design.md",
   "primary_use_case": {
     "scenario": "CLAUDE.md rules distribution",
     "problem": "An org has a common repo with CLAUDE.md rules that should merge into many consumer repos. Currently, each consumer must explicitly declare the markdown merge operator.",
@@ -16,7 +17,7 @@
     {
       "id": "research-design-options",
       "name": "Research and design merge declaration syntax",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -35,7 +36,7 @@
     {
       "id": "design-consumer-override",
       "name": "Design consumer override mechanism",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "research-design-options",
       "steps": [
