@@ -123,37 +123,53 @@ common-repo diff --working-dir ./other-project
 
 ### `init` - Initialize Configuration
 
-Create a new `.common-repo.yaml` configuration file.
+Create a new `.common-repo.yaml` configuration file. By default, launches an interactive wizard that guides you through adding repositories with automatic version detection.
 
 ```bash
-common-repo init [OPTIONS]
+common-repo init [OPTIONS] [URI]
 ```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `[URI]` | Repository URL to initialize from (e.g., `https://github.com/org/repo` or `org/repo` GitHub shorthand) |
 
 #### Options
 
 | Option | Description |
 |--------|-------------|
-| `-i, --interactive` | Interactive setup wizard |
-| `-t, --template <TEMPLATE>` | Start from a predefined template |
-| `--minimal` | Create minimal configuration with examples (default) |
-| `--empty` | Create empty configuration file |
+| `-i, --interactive` | Interactive setup wizard (default when no URI provided) |
 | `-f, --force` | Overwrite existing configuration |
 
 #### Examples
 
 ```bash
-# Create minimal config with examples
+# Launch interactive wizard (default)
 common-repo init
 
-# Create empty config
-common-repo init --empty
+# Initialize from a specific repository
+common-repo init https://github.com/your-org/shared-configs
+
+# Use GitHub shorthand
+common-repo init your-org/shared-configs
 
 # Overwrite existing config
 common-repo init --force
 
-# Use a template (if available)
-common-repo init --template rust-cli
+# Explicitly use interactive mode
+common-repo init --interactive
 ```
+
+#### Interactive Wizard
+
+When run without arguments, `init` launches an interactive wizard that:
+
+1. Prompts for repository URLs (supports GitHub shorthand like `org/repo`)
+2. Auto-detects the latest semver tag for each repository
+3. Falls back to `main` branch if no semver tags are found
+4. Optionally sets up pre-commit hooks (detects `prek` or `pre-commit` CLI)
+5. Generates a ready-to-use `.common-repo.yaml`
 
 ### `update` - Update Repository Refs
 
