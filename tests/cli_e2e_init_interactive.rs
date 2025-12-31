@@ -55,6 +55,16 @@ fn spawn_interactive_init(temp_dir: &TempDir) -> Result<PtySession, rexpect::err
     spawn_command(cmd, Some(30_000)) // 30 second timeout
 }
 
+/// Skip the pre-commit hooks prompt by declining (for tests that don't focus on pre-commit).
+fn skip_precommit_prompt(session: &mut PtySession) {
+    session
+        .exp_string("Set up pre-commit hooks?")
+        .expect("Should see pre-commit prompt");
+    session
+        .send_line("n")
+        .expect("Failed to decline pre-commit");
+}
+
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_interactive_empty_input_creates_empty_config() {
@@ -78,6 +88,10 @@ fn test_interactive_empty_input_creates_empty_config() {
     session
         .exp_string("No repositories added")
         .expect("Should see empty message");
+
+    // Skip the pre-commit prompt
+    skip_precommit_prompt(&mut session);
+
     session
         .exp_string("Created .common-repo.yaml")
         .expect("Should see success message");
@@ -140,6 +154,9 @@ fn test_interactive_github_shorthand_expansion() {
     // Finish the wizard
     session.send_line("").expect("Failed to send empty line");
 
+    // Skip the pre-commit prompt
+    skip_precommit_prompt(&mut session);
+
     // Verify success
     session
         .exp_string("Created .common-repo.yaml")
@@ -196,6 +213,9 @@ fn test_interactive_full_url_with_semver() {
 
     // Finish the wizard
     session.send_line("").expect("Failed to send empty line");
+
+    // Skip the pre-commit prompt
+    skip_precommit_prompt(&mut session);
 
     // Verify success
     session
@@ -257,6 +277,9 @@ fn test_interactive_invalid_url_fallback_to_main() {
 
     // Finish the wizard
     session.send_line("").expect("Failed to send empty line");
+
+    // Skip the pre-commit prompt
+    skip_precommit_prompt(&mut session);
 
     // Verify success
     session
@@ -326,6 +349,9 @@ fn test_interactive_multiple_repos() {
 
     // Finish the wizard
     session.send_line("").expect("Failed to send empty line");
+
+    // Skip the pre-commit prompt
+    skip_precommit_prompt(&mut session);
 
     // Verify success
     session
@@ -399,6 +425,9 @@ fn test_interactive_force_overwrite() {
         .exp_string("Repository URL")
         .expect("Should see prompt");
     session.send_line("").expect("Failed to send empty line");
+
+    // Skip the pre-commit prompt
+    skip_precommit_prompt(&mut session);
 
     // Verify success
     session
