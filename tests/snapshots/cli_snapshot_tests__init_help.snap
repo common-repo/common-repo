@@ -1,6 +1,6 @@
 ---
 source: tests/cli_snapshot_tests.rs
-assertion_line: 84
+assertion_line: 93
 expression: normalized
 ---
 Initialize a new .common-repo.yaml configuration file
@@ -11,11 +11,8 @@ Arguments:
   [URI]  Repository URL to initialize from (e.g., https://github.com/org/repo or org/repo)
 
 Options:
-  -i, --interactive          Interactive setup wizard for configuration creation
-  -t, --template <TEMPLATE>  Start from a predefined template (e.g., rust-cli, python-django)
-      --minimal              Create minimal configuration with examples (default)
-      --empty                Create empty configuration file
-  -f, --force                Overwrite existing configuration file
-      --color <WHEN>         Colorize output (always, never, auto) [default: auto]
-      --log-level <LEVEL>    Set log level (error, warn, info, debug, trace) [default: info]
-  -h, --help                 Print help
+  -i, --interactive        Interactive setup wizard for configuration creation (default when no URI provided)
+  -f, --force              Overwrite existing configuration file
+      --color <WHEN>       Colorize output (always, never, auto) [default: auto]
+      --log-level <LEVEL>  Set log level (error, warn, info, debug, trace) [default: info]
+  -h, --help               Print help

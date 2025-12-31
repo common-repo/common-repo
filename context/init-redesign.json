@@ -99,7 +99,7 @@
     {
       "id": "remove-deprecated-flags",
       "name": "Remove deprecated init flags (--minimal, --empty, --template)",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "implement-interactive-wizard",
       "steps": [
