@@ -2,8 +2,8 @@
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
   "last_updated": "2025-12-31",
-  "active_plan": "context/cr-alias.json",
-  "next_plan": "context/configuration-docs.json",
+  "active_plan": "context/configuration-docs.json",
+  "next_plan": "context/source-authoring-docs.json",
   "plans": [
     {
       "id": "documentation-review",
@@ -41,19 +41,19 @@
     {
       "id": "cr-alias",
       "name": "Short Alias cr",
-      "file": "context/cr-alias.json",
+      "file": "context/completed/cr-alias.json",
       "status": "complete",
       "priority": 4,
       "category": "feature",
       "tasks_total": 4,
       "tasks_complete": 4,
-      "notes": "Symlink in install script - COMPLETED"
+      "notes": "Symlink in install script - COMPLETED, ARCHIVED"
     },
     {
       "id": "configuration-docs",
       "name": "Configuration Documentation Improvements",
       "file": "context/configuration-docs.json",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 5,
       "category": "docs",
       "tasks_total": 4,
@@ -130,8 +130,8 @@
   "summary": {
     "total_plans": 7,
     "in_progress": 1,
-    "pending": 4,
-    "complete": 3,
+    "pending": 3,
+    "complete": 4,
     "deferred_reviews": 8
   },
   "notes": [
