@@ -1,5 +1,5 @@
 {
-  "task": "update-install-script-prek",
+  "task": "remove-deprecated-flags",
   "plan": "context/init-redesign.json",
   "last_updated": "2025-12-31",
   "status": "pending",
@@ -12,10 +12,10 @@
       "context/completed/cicd-review.json"
     ],
     "current_subplan": "context/init-redesign.json",
-    "notes": "Next unblocked tasks: update-install-script-prek (priority 3) and remove-deprecated-flags (priority 4)",
+    "notes": "Next unblocked task: remove-deprecated-flags (priority 4). After this, update-init-documentation (priority 5) is blocked by remove-deprecated-flags.",
     "recently_completed": {
-      "task": "implement-precommit-setup",
-      "summary": "Added pre-commit hook setup to init wizard. After collecting repos, prompts user if they want pre-commit hooks. If yes, generates .pre-commit-config.yaml with standard hooks. Detects prek or pre-commit CLI availability, offers to run hook installation if CLI is found. Added unit tests for generate_precommit_config(), detect_precommit_cli(), and config file creation."
+      "task": "update-install-script-prek",
+      "summary": "Added optional prek installation to install.sh. INSTALL_PREK=1 env var installs prek automatically. Interactive installs (TTY detected) prompt user. Downloads prek binary from GitHub releases to same directory as common-repo. Shows success message with prek version after installation."
     }
   }
 }
