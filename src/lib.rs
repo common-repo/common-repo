@@ -50,3 +50,6 @@ pub mod path;
 pub mod phases;
 pub mod repository;
 pub mod version;
+
+#[cfg(test)]
+mod path_proptest;
