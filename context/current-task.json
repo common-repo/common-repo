@@ -1,8 +1,8 @@
 {
-  "task": null,
-  "plan": "context/source-authoring-docs.json",
+  "task": "research-design-options",
+  "plan": "context/source-declared-merge.json",
   "last_updated": "2025-12-31",
-  "status": "complete",
+  "status": "in_progress",
   "master_plan": "context/plan-of-plans.json",
   "context": {
     "completed_plans": [
@@ -13,14 +13,10 @@
       "context/completed/init-redesign.json",
       "context/completed/add-command.json",
       "context/completed/cr-alias.json",
-      "context/completed/configuration-docs.json"
+      "context/completed/configuration-docs.json",
+      "context/completed/source-authoring-docs.json"
     ],
-    "current_subplan": "context/source-authoring-docs.json",
-    "notes": "All source-authoring-docs tasks complete. Created comprehensive authoring guide.",
-    "recently_completed": {
-      "task": "add-example-source-repo",
-      "plan": "source-authoring-docs",
-      "summary": "Created docs/src/authoring-source-repos.md with all required sections, updated SUMMARY.md and README.md"
-    }
+    "current_subplan": "context/source-declared-merge.json",
+    "notes": "Starting source-declared merge feature design exploration."
   }
 }
