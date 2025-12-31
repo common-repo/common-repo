@@ -16,3 +16,7 @@ tarpaulin-report.html
 
 # mdBook output
 docs/book/
+
+# Coverage artifacts
+cobertura.xml
+tarpaulin-report.html
