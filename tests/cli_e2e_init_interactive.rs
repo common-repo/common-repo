@@ -418,3 +418,115 @@ fn test_interactive_force_overwrite() {
         "Should have new content"
     );
 }
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_interactive_precommit_config_generation() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+    let mut session =
+        spawn_interactive_init(&temp_dir).expect("Failed to spawn interactive session");
+
+    // Wait for the welcome message and initial prompt
+    session
+        .exp_string("Welcome to common-repo!")
+        .expect("Should see welcome message");
+    session
+        .exp_string("Repository URL")
+        .expect("Should see first prompt");
+
+    // Skip adding repos
+    session.send_line("").expect("Failed to send empty line");
+
+    // Should see the pre-commit hooks prompt
+    session
+        .exp_string("Set up pre-commit hooks?")
+        .expect("Should see pre-commit prompt");
+
+    // Accept the default (yes)
+    session.send_line("").expect("Failed to accept pre-commit");
+
+    // Should create the pre-commit config
+    session
+        .exp_string("Created .pre-commit-config.yaml")
+        .expect("Should see pre-commit config created");
+
+    // Wait for final success message
+    session
+        .exp_string("Created .common-repo.yaml")
+        .expect("Should see success message");
+
+    session.exp_eof().expect("Process should exit");
+
+    // Verify both config files were created
+    let common_repo_config = temp_dir.path().join(".common-repo.yaml");
+    assert!(
+        common_repo_config.exists(),
+        "common-repo config should exist"
+    );
+
+    let precommit_config = temp_dir.path().join(".pre-commit-config.yaml");
+    assert!(precommit_config.exists(), "pre-commit config should exist");
+
+    let content = fs::read_to_string(&precommit_config).expect("Failed to read pre-commit config");
+    assert!(content.contains("repos:"), "Should have repos section");
+    assert!(
+        content.contains("pre-commit/pre-commit-hooks"),
+        "Should reference pre-commit-hooks"
+    );
+    assert!(
+        content.contains("trailing-whitespace"),
+        "Should include trailing-whitespace hook"
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_interactive_precommit_decline() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+    let mut session =
+        spawn_interactive_init(&temp_dir).expect("Failed to spawn interactive session");
+
+    // Wait for the welcome message and initial prompt
+    session
+        .exp_string("Welcome to common-repo!")
+        .expect("Should see welcome message");
+    session
+        .exp_string("Repository URL")
+        .expect("Should see first prompt");
+
+    // Skip adding repos
+    session.send_line("").expect("Failed to send empty line");
+
+    // Should see the pre-commit hooks prompt
+    session
+        .exp_string("Set up pre-commit hooks?")
+        .expect("Should see pre-commit prompt");
+
+    // Decline
+    session
+        .send_line("n")
+        .expect("Failed to decline pre-commit");
+
+    // Should NOT create the pre-commit config (shouldn't see that message)
+    // Just proceed to final success
+    session
+        .exp_string("Created .common-repo.yaml")
+        .expect("Should see success message");
+
+    session.exp_eof().expect("Process should exit");
+
+    // Verify only the common-repo config was created
+    let common_repo_config = temp_dir.path().join(".common-repo.yaml");
+    assert!(
+        common_repo_config.exists(),
+        "common-repo config should exist"
+    );
+
+    let precommit_config = temp_dir.path().join(".pre-commit-config.yaml");
+    assert!(
+        !precommit_config.exists(),
+        "pre-commit config should NOT exist when declined"
+    );
+}
