@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# script/ci: Run non-test CI checks locally. Use this for quick validation
+#            before committing. Does not run tests (use script/test for that).
+#
+# Environment variables:
+#   SKIP_SECURITY=1  - Skip security checks (cargo audit, cargo deny)
+#   OFFLINE=1        - Skip checks that require network
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> Running CI checks for common-repo..."
+
+# Check code formatting
+echo "==> Checking code formatting..."
+cargo fmt --all -- --check
+
+# Run clippy linting
+echo "==> Running clippy..."
+cargo clippy --all-targets --all-features -- -D warnings
+
+# Run pre-commit checks (prek preferred, pre-commit as fallback)
+echo "==> Running pre-commit checks..."
+if command -v prek >/dev/null 2>&1; then
+  prek run --all-files
+elif command -v pre-commit >/dev/null 2>&1; then
+  pre-commit run --all-files
+else
+  echo "    Warning: Neither prek nor pre-commit found, skipping pre-commit checks"
+  echo "    Install prek with: cargo install prek"
+fi
+
+# Security checks (skip if SKIP_SECURITY or OFFLINE is set)
+if [[ -z "${SKIP_SECURITY:-}" && -z "${OFFLINE:-}" ]]; then
+  echo "==> Running security checks..."
+
+  if command -v cargo-audit >/dev/null 2>&1; then
+    echo "==> Running cargo audit..."
+    cargo audit
+  else
+    echo "    Warning: cargo-audit not found, skipping"
+    echo "    Install with: cargo install cargo-audit"
+  fi
+
+  if command -v cargo-deny >/dev/null 2>&1; then
+    echo "==> Running cargo deny..."
+    cargo deny check
+  else
+    echo "    Warning: cargo-deny not found, skipping"
+    echo "    Install with: cargo install cargo-deny"
+  fi
+else
+  echo "==> Skipping security checks (SKIP_SECURITY or OFFLINE is set)"
+fi
+
+echo "==> CI checks complete!"
