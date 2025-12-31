@@ -10,6 +10,10 @@
 - [Recipes](recipes.md)
 - [Troubleshooting](troubleshooting.md)
 
+# For Source Repo Authors
+
+- [Authoring Source Repositories](authoring-source-repos.md)
+
 # Reference
 
 - [Schema](schema.md)

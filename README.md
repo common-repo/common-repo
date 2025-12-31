@@ -131,11 +131,12 @@ cache      Manage repository cache
 
 | Guide | Description |
 |-------|-------------|
-| [Getting Started](docs/getting-started.md) | Installation and first steps |
-| [Configuration](docs/configuration.md) | All operators and options |
-| [CLI Reference](docs/cli.md) | Command documentation |
-| [Recipes](docs/recipes.md) | Common patterns |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
+| [Getting Started](docs/src/getting-started.md) | Installation and first steps |
+| [Configuration](docs/src/configuration.md) | All operators and options |
+| [CLI Reference](docs/src/cli.md) | Command documentation |
+| [Recipes](docs/src/recipes.md) | Common patterns |
+| [Troubleshooting](docs/src/troubleshooting.md) | Common issues and solutions |
+| [Authoring Source Repos](docs/src/authoring-source-repos.md) | Create your own source repos |
 
 ## Contributing
 
