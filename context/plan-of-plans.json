@@ -2,7 +2,7 @@
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
   "last_updated": "2025-12-31",
-  "active_plan": "context/source-authoring-docs.json",
+  "active_plan": "context/source-declared-merge.json",
   "next_plan": "context/source-declared-merge.json",
   "plans": [
     {
@@ -63,24 +63,24 @@
     {
       "id": "source-authoring-docs",
       "name": "Source Repository Authoring Documentation",
-      "file": "context/source-authoring-docs.json",
+      "file": "context/completed/source-authoring-docs.json",
       "status": "complete",
       "priority": 6,
       "category": "docs",
       "tasks_total": 4,
       "tasks_complete": 4,
-      "notes": "Complete authoring guide with all sections"
+      "notes": "Complete authoring guide with all sections - ARCHIVED"
     },
     {
       "id": "source-declared-merge",
       "name": "Source-Declared Merge Behavior",
       "file": "context/source-declared-merge.json",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 7,
       "category": "feature",
       "tasks_total": 3,
       "tasks_complete": 0,
-      "notes": "Stub - needs design exploration first"
+      "notes": "Design exploration in progress"
     }
   ],
   "deferred_reviews": [
@@ -129,8 +129,8 @@
   ],
   "summary": {
     "total_plans": 7,
-    "in_progress": 0,
-    "pending": 1,
+    "in_progress": 1,
+    "pending": 0,
     "complete": 6,
     "deferred_reviews": 8
   },
