@@ -168,6 +168,33 @@ Breaking changes should be indicated with either:
 - Aim for 80%+ code coverage
 - Use descriptive test names: `test_function_does_something_when_condition()`
 
+#### Snapshot Testing
+
+This project uses [insta](https://insta.rs) for snapshot testing of CLI output. Snapshot tests capture CLI help text and error messages to detect unintended changes.
+
+**Running snapshot tests:**
+```bash
+cargo test --test cli_snapshot_tests
+```
+
+**Updating snapshots after intentional changes:**
+```bash
+# Review and accept pending snapshots interactively
+cargo insta review
+
+# Or accept all pending snapshots at once
+cargo insta accept
+```
+
+**Adding new snapshot tests:**
+1. Add a new test function in `tests/cli_snapshot_tests.rs`
+2. Use `insta::assert_snapshot!("name", output)` to capture output
+3. Run the test to generate a `.snap.new` file
+4. Review and accept the snapshot
+5. Commit both the test and the `.snap` file
+
+Snapshot files are stored in `tests/snapshots/` and should be committed to version control.
+
 ### Performance
 
 - Avoid unnecessary allocations
