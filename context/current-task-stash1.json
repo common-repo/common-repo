@@ -12,6 +12,10 @@
       "context/completed/cicd-review.json"
     ],
     "current_subplan": "context/init-redesign.json",
-    "notes": "Interactive wizard complete. Next: add URI positional arg for common-repo init <url>."
+    "notes": "Next unblocked task: Add URI positional argument for init from existing repo",
+    "recently_completed": {
+      "task": "add-init-e2e-tests",
+      "summary": "Added E2E tests for interactive wizard using rexpect for TTY simulation. Tests cover: empty input, GitHub shorthand expansion, full URL with semver detection, invalid URL fallback to main, multiple repos, force overwrite."
+    }
   }
 }

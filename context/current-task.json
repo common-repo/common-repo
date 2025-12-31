@@ -1,21 +1,28 @@
 {
-  "task": "add-uri-positional-arg",
-  "plan": "context/init-redesign.json",
+  "task": "reorganize-context-docs",
+  "plan": null,
   "last_updated": "2025-12-31",
   "status": "pending",
-  "master_plan": "context/plan-of-plans.json",
+  "description": "Move purpose.md and design.md from docs/src to context/ as they are development context docs, not user-facing documentation",
+  "steps": [
+    "Move docs/src/design.md to context/design.md",
+    "Move docs/src/purpose.md to context/purpose.md",
+    "Update docs/src/SUMMARY.md to remove Development section entries",
+    "Update CLAUDE.md reference from docs/purpose.md, docs/design.md to context/purpose.md, context/design.md",
+    "Update DEVIN.md references similarly",
+    "Update GEMINI.md references similarly",
+    "Update context/traceability-map.md relative links from ../docs/design.md to design.md",
+    "Verify no broken links remain"
+  ],
+  "acceptance_criteria": [
+    "design.md and purpose.md exist in context/",
+    "No design.md or purpose.md in docs/src/",
+    "All references in CLAUDE.md, DEVIN.md, GEMINI.md updated",
+    "traceability-map.md links work",
+    "docs/src/SUMMARY.md no longer references design.md or purpose.md"
+  ],
   "context": {
-    "completed_plans": [
-      "context/completed/project-review-plan.json",
-      "context/completed/documentation-review.json",
-      "context/completed/testing-review.json",
-      "context/completed/cicd-review.json"
-    ],
-    "current_subplan": "context/init-redesign.json",
-    "notes": "Next unblocked task: Add URI positional argument for init from existing repo",
-    "recently_completed": {
-      "task": "add-init-e2e-tests",
-      "summary": "Added E2E tests for interactive wizard using rexpect for TTY simulation. Tests cover: empty input, GitHub shorthand expansion, full URL with semver detection, invalid URL fallback to main, multiple repos, force overwrite."
-    }
+    "reason": "purpose.md and design.md are development/context documentation for agents and developers, not user-facing docs. They should not be in the mdbook user documentation.",
+    "stashed_task": "current-task-stash1.json contains add-uri-positional-arg task"
   }
 }
