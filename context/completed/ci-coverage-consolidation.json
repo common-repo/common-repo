@@ -43,7 +43,7 @@
     {
       "id": "verify-ci-time-reduction",
       "name": "Verify CI time is reduced",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "steps": [
