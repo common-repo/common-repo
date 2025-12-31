@@ -176,8 +176,12 @@ fn test_init_force_overwrite() {
     config_file.assert(predicate::str::contains("existing content").not());
 }
 
+// Note: Interactive mode requires TTY simulation (e.g., rexpect) because dialoguer
+// reads from terminal. This test is disabled until rexpect-based E2E tests are added.
+// See: context/init-redesign.json task "add-init-e2e-tests" for testing plan.
+// See: https://github.com/console-rs/dialoguer/issues/95
 #[test]
-#[cfg_attr(not(feature = "integration-tests"), ignore)]
+#[ignore = "interactive mode requires TTY - use rexpect for E2E testing"]
 fn test_init_interactive_mode() {
     let temp = assert_fs::TempDir::new().unwrap();
 
@@ -188,9 +192,9 @@ fn test_init_interactive_mode() {
         .arg("--interactive")
         .assert()
         .success()
-        .stdout(predicate::str::contains("🎉 Welcome to common-repo!"))
+        .stdout(predicate::str::contains("Welcome to common-repo!"))
         .stdout(predicate::str::contains(
-            "Let's set up your repository configuration",
+            "Enter repository URLs to inherit from",
         ))
         .stdout(predicate::str::contains("✅ Created .common-repo.yaml"));
 
