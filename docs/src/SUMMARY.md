@@ -10,11 +10,6 @@
 - [Recipes](recipes.md)
 - [Troubleshooting](troubleshooting.md)
 
-# Development
-
-- [Design](design.md)
-- [Purpose](purpose.md)
-
 # Reference
 
 - [Schema](schema.md)

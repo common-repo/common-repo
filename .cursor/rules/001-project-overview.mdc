@@ -17,7 +17,7 @@ The `context/` directory contains task tracking for LLM assistants:
 - `context/completed/` - Archived plans and status files
 
 **Important Notes:**
-- For human-readable documentation, see `docs/purpose.md` and `docs/design.md`
+- For human-readable documentation, see `context/purpose.md` and `context/design.md`
 - Use archived files in `context/completed/` to understand project architecture and completed work
 
 ## Requirements
