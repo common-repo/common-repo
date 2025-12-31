@@ -61,7 +61,7 @@
     {
       "id": "implement-precommit-setup",
       "name": "Add pre-commit hook setup to init wizard",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "implement-interactive-wizard",
       "steps": [
