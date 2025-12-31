@@ -68,14 +68,28 @@ common-repo --version
 
 ### 1. Initialize a Configuration File
 
-Navigate to your project directory and create a `.common-repo.yaml`:
+Navigate to your project directory and run the interactive wizard:
 
 ```bash
 cd your-project
 common-repo init
 ```
 
-This creates a minimal configuration file with examples.
+The wizard will:
+- Prompt you to enter repository URLs (supports GitHub shorthand like `org/repo`)
+- Auto-detect the latest semver tag for each repository
+- Optionally set up pre-commit hooks
+- Generate a ready-to-use `.common-repo.yaml`
+
+**Alternative: Initialize from an existing repo**
+
+```bash
+# Full URL
+common-repo init https://github.com/your-org/shared-configs
+
+# GitHub shorthand
+common-repo init your-org/shared-configs
+```
 
 ### 2. Define What to Inherit
 

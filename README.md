@@ -47,6 +47,17 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 This project supports Rust 1.85.0 and later. MSRV updates are considered non-breaking changes.
 
+## Quick Start
+
+```bash
+# Initialize interactively - add repos, auto-detect versions
+common-repo init
+
+# Or initialize from an existing repo
+common-repo init https://github.com/your-org/shared-configs
+common-repo init your-org/shared-configs  # GitHub shorthand
+```
+
 ## Usage
 
 Create `.common-repo.yaml` in your repository:
