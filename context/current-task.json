@@ -1,8 +1,8 @@
 {
-  "task": null,
-  "plan": "context/cr-alias.json",
+  "task": "add-toc-tool",
+  "plan": "context/configuration-docs.json",
   "last_updated": "2025-12-31",
-  "status": "complete",
+  "status": "in_progress",
   "master_plan": "context/plan-of-plans.json",
   "context": {
     "completed_plans": [
@@ -11,14 +11,15 @@
       "context/completed/testing-review.json",
       "context/completed/cicd-review.json",
       "context/completed/init-redesign.json",
-      "context/completed/add-command.json"
+      "context/completed/add-command.json",
+      "context/completed/cr-alias.json"
     ],
-    "current_subplan": "context/cr-alias.json",
-    "notes": "All cr-alias tasks complete. Install script now creates 'cr' symlink by default (or .cmd wrapper on Windows). SKIP_ALIAS=1 can opt out. Documented in README and getting-started.md.",
+    "current_subplan": "context/configuration-docs.json",
+    "notes": "Starting configuration-docs plan. First task: evaluate and set up ToC generation tooling.",
     "recently_completed": {
       "task": "add-symlink-tests",
       "plan": "cr-alias",
-      "summary": "Added cr alias symlink/wrapper to install.sh with tests. Unix gets symlink, Windows gets .cmd batch wrapper. Existing files are preserved."
+      "summary": "Added cr alias symlink/wrapper to install.sh with tests. Archived to completed/"
     }
   }
 }
