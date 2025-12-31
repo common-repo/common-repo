@@ -45,7 +45,7 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 ### Minimum Supported Rust Version (MSRV)
 
-This project supports Rust 1.80.0 and later. MSRV updates are considered non-breaking changes.
+This project supports Rust 1.85.0 and later. MSRV updates are considered non-breaking changes.
 
 ## Usage
 
