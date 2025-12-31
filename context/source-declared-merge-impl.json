@@ -1,0 +1,272 @@
+{
+  "plan_name": "Source-Declared Merge Implementation",
+  "description": "Implementation plan for .common-repo-source.yaml manifest parsing and integration",
+  "created": "2025-12-31",
+  "last_updated": "2025-12-31",
+  "parent_plan": "context/source-declared-merge.json",
+  "design_document": "context/source-declared-merge-design.md",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Basic Manifest Parsing",
+      "description": "Parse .common-repo-source.yaml and convert to merge operations"
+    },
+    {
+      "id": "phase-2",
+      "name": "Integration with Apply Flow",
+      "description": "Integrate manifest processing into repo apply workflow"
+    },
+    {
+      "id": "phase-3",
+      "name": "Consumer Override Support",
+      "description": "Allow consumers to override source-declared merge behavior"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "create-source-manifest-types",
+      "name": "Create SourceManifest data structures",
+      "status": "pending",
+      "priority": 1,
+      "phase": "phase-1",
+      "blocked_by": null,
+      "output_file": "src/source_manifest.rs",
+      "steps": [
+        "Create new module src/source_manifest.rs",
+        "Define SourceManifest struct with version field",
+        "Define MergeRule struct with files, operator, and options",
+        "Define OperatorDefaults struct for default options",
+        "Add serde derives for YAML parsing",
+        "Add unit tests for struct serialization"
+      ],
+      "acceptance_criteria": [
+        "src/source_manifest.rs exists with types",
+        "Types can deserialize from YAML",
+        "cargo test passes"
+      ],
+      "files_to_modify": [
+        "src/lib.rs (add mod source_manifest)",
+        "src/source_manifest.rs (new file)"
+      ]
+    },
+    {
+      "id": "implement-manifest-parsing",
+      "name": "Implement manifest file parsing",
+      "status": "pending",
+      "priority": 2,
+      "phase": "phase-1",
+      "blocked_by": "create-source-manifest-types",
+      "output_file": "src/source_manifest.rs",
+      "steps": [
+        "Add parse_manifest() function to read .common-repo-source.yaml",
+        "Handle missing manifest (return empty/None)",
+        "Validate manifest version field",
+        "Add error types for invalid manifest",
+        "Add tests for parsing valid/invalid manifests"
+      ],
+      "acceptance_criteria": [
+        "parse_manifest() function works",
+        "Missing manifest returns None gracefully",
+        "Invalid manifest returns descriptive error",
+        "cargo test passes"
+      ],
+      "files_to_modify": [
+        "src/source_manifest.rs",
+        "src/error.rs (add manifest error variants)"
+      ]
+    },
+    {
+      "id": "convert-rules-to-operations",
+      "name": "Convert merge rules to Operation enum",
+      "status": "pending",
+      "priority": 3,
+      "phase": "phase-1",
+      "blocked_by": "implement-manifest-parsing",
+      "output_file": "src/source_manifest.rs",
+      "steps": [
+        "Add to_operations() method on SourceManifest",
+        "Map MergeRule to appropriate Operation variant",
+        "Apply defaults from defaults section",
+        "Handle all operator types (yaml, json, toml, ini, markdown)",
+        "Add tests for conversion logic"
+      ],
+      "acceptance_criteria": [
+        "MergeRule converts to correct Operation",
+        "Defaults are applied correctly",
+        "All 5 merge operators supported",
+        "cargo test passes"
+      ],
+      "files_to_modify": [
+        "src/source_manifest.rs",
+        "src/config.rs (may need to expose constructors)"
+      ]
+    },
+    {
+      "id": "integrate-with-git-module",
+      "name": "Read manifest when loading source repo",
+      "status": "pending",
+      "priority": 4,
+      "phase": "phase-2",
+      "blocked_by": "convert-rules-to-operations",
+      "output_file": "src/git.rs",
+      "steps": [
+        "Modify load_from_cache or similar to look for manifest",
+        "Parse manifest if present in source repo",
+        "Store manifest operations for later use",
+        "Ensure manifest is loaded before file processing"
+      ],
+      "acceptance_criteria": [
+        "Manifest is read when loading source repo",
+        "Manifest operations are available for processing"
+      ],
+      "files_to_modify": [
+        "src/git.rs",
+        "src/lib.rs (may need to thread manifest through)"
+      ]
+    },
+    {
+      "id": "apply-manifest-operations",
+      "name": "Apply manifest merge operations during file processing",
+      "status": "pending",
+      "priority": 5,
+      "phase": "phase-2",
+      "blocked_by": "integrate-with-git-module",
+      "output_file": "src/operators.rs",
+      "steps": [
+        "Identify where file operations are processed",
+        "Check if file matches a manifest merge rule",
+        "Apply merge operation instead of copy for matching files",
+        "Ensure manifest operations don't conflict with explicit with: operations",
+        "Add integration test for manifest-based merge"
+      ],
+      "acceptance_criteria": [
+        "Files matching merge rules are merged not copied",
+        "Explicit with: operations take precedence",
+        "Integration test passes"
+      ],
+      "files_to_modify": [
+        "src/operators.rs",
+        "src/lib.rs",
+        "tests/cli_e2e_*.rs (new integration test)"
+      ]
+    },
+    {
+      "id": "add-glob-pattern-support",
+      "name": "Support glob patterns in merge rules",
+      "status": "pending",
+      "priority": 6,
+      "phase": "phase-2",
+      "blocked_by": "apply-manifest-operations",
+      "output_file": "src/source_manifest.rs",
+      "steps": [
+        "Add glob matching for files field",
+        "Support single file, array of files, or glob pattern",
+        "Use existing glob crate from project",
+        "Add tests for glob matching"
+      ],
+      "acceptance_criteria": [
+        "Glob patterns like '*.yaml' work",
+        "Array of files ['a.md', 'b.md'] works",
+        "Single file 'CLAUDE.md' works",
+        "cargo test passes"
+      ],
+      "files_to_modify": [
+        "src/source_manifest.rs"
+      ]
+    },
+    {
+      "id": "implement-consumer-override",
+      "name": "Implement consumer override mechanism",
+      "status": "pending",
+      "priority": 7,
+      "phase": "phase-3",
+      "blocked_by": "add-glob-pattern-support",
+      "output_file": "src/config.rs",
+      "steps": [
+        "Add override field to repo config in consumer YAML",
+        "Parse override rules (disable merge, change options)",
+        "Apply overrides after reading source manifest",
+        "Document override syntax in schema.yaml"
+      ],
+      "acceptance_criteria": [
+        "Consumer can disable source merge with override",
+        "Consumer can change merge options",
+        "schema.yaml updated with override syntax"
+      ],
+      "files_to_modify": [
+        "src/config.rs",
+        "src/source_manifest.rs",
+        "schema.yaml"
+      ]
+    },
+    {
+      "id": "add-e2e-tests",
+      "name": "Add end-to-end tests for source-declared merge",
+      "status": "pending",
+      "priority": 8,
+      "phase": "phase-3",
+      "blocked_by": "implement-consumer-override",
+      "output_file": "tests/cli_e2e_source_manifest.rs",
+      "steps": [
+        "Create test source repo with .common-repo-source.yaml",
+        "Test basic markdown merge from manifest",
+        "Test consumer override disabling merge",
+        "Test multiple merge rules",
+        "Test missing manifest (normal copy behavior)"
+      ],
+      "acceptance_criteria": [
+        "E2E tests cover main scenarios",
+        "All tests pass",
+        "cargo nextest run passes"
+      ],
+      "files_to_modify": [
+        "tests/cli_e2e_source_manifest.rs (new file)"
+      ]
+    },
+    {
+      "id": "update-documentation",
+      "name": "Update documentation for source-declared merge",
+      "status": "pending",
+      "priority": 9,
+      "phase": "phase-3",
+      "blocked_by": "add-e2e-tests",
+      "output_file": "docs/src/authoring-source-repos.md",
+      "steps": [
+        "Add section about .common-repo-source.yaml to authoring guide",
+        "Document merge rule syntax with examples",
+        "Document consumer override mechanism",
+        "Update schema.yaml with full manifest schema",
+        "Add example to README if appropriate"
+      ],
+      "acceptance_criteria": [
+        "Authoring guide documents manifest format",
+        "schema.yaml includes manifest schema",
+        "Examples are clear and complete"
+      ],
+      "files_to_modify": [
+        "docs/src/authoring-source-repos.md",
+        "schema.yaml",
+        "README.md (optional)"
+      ]
+    }
+  ],
+  "complexity_estimate": {
+    "total_tasks": 9,
+    "phase_1_tasks": 3,
+    "phase_2_tasks": 3,
+    "phase_3_tasks": 3,
+    "estimated_loc": "500-800",
+    "key_challenges": [
+      "Threading manifest through the apply workflow",
+      "Ensuring with: operations take precedence over manifest",
+      "Glob pattern matching performance"
+    ]
+  },
+  "notes": [
+    "Phase 1 can be done without modifying existing code paths",
+    "Phase 2 is the integration work - most risk here",
+    "Phase 3 is polish and documentation",
+    "Start with markdown merge as primary test case",
+    "Consider feature flag for initial rollout"
+  ]
+}

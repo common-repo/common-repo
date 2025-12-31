@@ -2,8 +2,8 @@
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
   "last_updated": "2025-12-31",
-  "active_plan": "context/source-declared-merge.json",
-  "next_plan": "context/source-declared-merge.json",
+  "active_plan": "context/source-declared-merge-impl.json",
+  "next_plan": null,
   "plans": [
     {
       "id": "documentation-review",
@@ -75,12 +75,23 @@
       "id": "source-declared-merge",
       "name": "Source-Declared Merge Behavior",
       "file": "context/source-declared-merge.json",
-      "status": "in_progress",
+      "status": "complete",
       "priority": 7,
       "category": "feature",
       "tasks_total": 3,
-      "tasks_complete": 2,
-      "notes": "Design complete, implementation plan next"
+      "tasks_complete": 3,
+      "notes": "Design phase complete, implementation plan created"
+    },
+    {
+      "id": "source-declared-merge-impl",
+      "name": "Source-Declared Merge Implementation",
+      "file": "context/source-declared-merge-impl.json",
+      "status": "in_progress",
+      "priority": 8,
+      "category": "feature",
+      "tasks_total": 9,
+      "tasks_complete": 0,
+      "notes": "Implementation of manifest file approach"
     }
   ],
   "deferred_reviews": [
@@ -128,8 +139,8 @@
     }
   ],
   "summary": {
-    "total_plans": 7,
-    "in_progress": 1,
+    "total_plans": 8,
+    "in_progress": 2,
     "pending": 0,
     "complete": 6,
     "deferred_reviews": 8
