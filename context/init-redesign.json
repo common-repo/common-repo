@@ -139,15 +139,34 @@
       "priority": 5,
       "blocked_by": "implement-interactive-wizard",
       "steps": [
-        "Add test for init with URI argument",
-        "Add test for non-interactive mode (if added)",
-        "Test semver detection logic",
-        "Test .pre-commit-config.yaml generation"
+        "Add rexpect as dev dependency for TTY simulation (cargo add rexpect --dev)",
+        "Create tests/cli_e2e_init_interactive.rs for interactive wizard tests",
+        "Use rexpect spawn_command to launch common-repo init -i",
+        "Test: enter repo URL, verify semver detection output, enter empty to finish",
+        "Test: enter invalid URL, verify error handling and fallback to main",
+        "Test: enter GitHub shorthand (org/repo), verify URL expansion",
+        "Add #[cfg(unix)] to interactive tests (rexpect requires *nix/WSL)",
+        "Add non-interactive tests for init with URI positional arg (when implemented)",
+        "Test .pre-commit-config.yaml generation (when implemented)"
       ],
       "acceptance_criteria": [
-        "E2E tests cover new init functionality",
-        "./script/test passes"
-      ]
+        "E2E tests cover interactive wizard with real TTY simulation",
+        "Tests verify semver detection, URL normalization, error handling",
+        "Interactive tests gated to unix platforms",
+        "./script/test passes on Linux/macOS"
+      ],
+      "context": {
+        "testing_approach": "Use rexpect crate for TTY simulation - dialoguer requires real terminal",
+        "platform_limitation": "rexpect only works on *nix and WSL, not Windows native",
+        "github_issue": "https://github.com/console-rs/dialoguer/issues/95 - no built-in test support",
+        "key_functions_to_test": [
+          "generate_interactive_config() - main wizard flow",
+          "normalize_repo_url() - GitHub shorthand expansion",
+          "find_latest_version() - semver tag selection",
+          "build_config_from_repos() - YAML generation"
+        ],
+        "unit_tests_exist": "normalize_repo_url, find_latest_version, build_config_from_repos have unit tests in src/commands/init.rs"
+      }
     }
   ],
   "notes": [
