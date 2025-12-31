@@ -1,6 +1,6 @@
 {
   "task": null,
-  "plan": "context/configuration-docs.json",
+  "plan": "context/source-authoring-docs.json",
   "last_updated": "2025-12-31",
   "status": "complete",
   "master_plan": "context/plan-of-plans.json",
@@ -12,14 +12,15 @@
       "context/completed/cicd-review.json",
       "context/completed/init-redesign.json",
       "context/completed/add-command.json",
-      "context/completed/cr-alias.json"
+      "context/completed/cr-alias.json",
+      "context/completed/configuration-docs.json"
     ],
-    "current_subplan": "context/configuration-docs.json",
-    "notes": "All configuration-docs tasks complete. Added ToC with mktoc, operator quick reference table, and reviewed document for consistency.",
+    "current_subplan": "context/source-authoring-docs.json",
+    "notes": "All source-authoring-docs tasks complete. Created comprehensive authoring guide.",
     "recently_completed": {
-      "task": "review-and-cleanup",
-      "plan": "configuration-docs",
-      "summary": "Added mktoc for ToC generation, operator descriptions table, and reviewed configuration.md for consistency."
+      "task": "add-example-source-repo",
+      "plan": "source-authoring-docs",
+      "summary": "Created docs/src/authoring-source-repos.md with all required sections, updated SUMMARY.md and README.md"
     }
   }
 }

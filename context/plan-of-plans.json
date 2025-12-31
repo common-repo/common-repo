@@ -2,8 +2,8 @@
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
   "last_updated": "2025-12-31",
-  "active_plan": "context/configuration-docs.json",
-  "next_plan": "context/source-authoring-docs.json",
+  "active_plan": "context/source-authoring-docs.json",
+  "next_plan": "context/source-declared-merge.json",
   "plans": [
     {
       "id": "documentation-review",
@@ -64,12 +64,12 @@
       "id": "source-authoring-docs",
       "name": "Source Repository Authoring Documentation",
       "file": "context/source-authoring-docs.json",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "category": "docs",
       "tasks_total": 4,
-      "tasks_complete": 0,
-      "notes": "New guide for source repo authors"
+      "tasks_complete": 4,
+      "notes": "Complete authoring guide with all sections"
     },
     {
       "id": "source-declared-merge",
@@ -130,8 +130,8 @@
   "summary": {
     "total_plans": 7,
     "in_progress": 0,
-    "pending": 2,
-    "complete": 5,
+    "pending": 1,
+    "complete": 6,
     "deferred_reviews": 8
   },
   "notes": [
