@@ -43,7 +43,7 @@ Each session starts with no memory of previous work. Follow this protocol:
 
 **Archived files** (in `context/completed/`): feature-status.json, implementation plans, testing guides
 
-**Reference docs:** `context/cli-design.md`, `docs/purpose.md`, `docs/design.md`, `README.md`
+**Reference docs:** `context/cli-design.md`, `context/purpose.md`, `context/design.md`, `README.md`
 
 ### Task Stash Stack
 
