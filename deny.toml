@@ -1,0 +1,62 @@
+# Configuration for cargo-deny
+# See https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Targets to check (empty = all supported targets)
+targets = []
+# Include all features when checking
+all-features = true
+
+[advisories]
+# RUSTSEC advisory database
+version = 2
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# Allow specific advisories if needed (add RUSTSEC IDs here)
+ignore = []
+
+[licenses]
+version = 2
+# Confidence threshold for license detection
+confidence-threshold = 0.8
+# Allow common permissive licenses and project license
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "MPL-2.0",
+    "AGPL-3.0-or-later",
+]
+# Allow specific crates with different licenses
+exceptions = []
+
+[[licenses.clarify]]
+# ring crate uses a custom license text
+crate = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
+
+[bans]
+# Lint level for multiple versions of same crate
+multiple-versions = "warn"
+# Deny wildcards in dependencies
+wildcards = "deny"
+# Allow specific duplicate crates if needed
+skip = []
+skip-tree = []
+
+[sources]
+# Only allow crates from crates.io
+unknown-registry = "deny"
+unknown-git = "deny"
+# Allow specific git sources if needed
+allow-git = []

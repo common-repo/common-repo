@@ -43,6 +43,10 @@ Download the latest release for your platform from [GitHub Releases](https://git
 - **Windows**: Use `cargo install` or download from GitHub Releases
 - **Nix**: `nix run github:common-repo/common-repo` (flake available)
 
+### Minimum Supported Rust Version (MSRV)
+
+This project supports Rust 1.80.0 and later. MSRV updates are considered non-breaking changes.
+
 ## Usage
 
 Create `.common-repo.yaml` in your repository:

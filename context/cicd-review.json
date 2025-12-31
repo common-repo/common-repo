@@ -1,18 +1,29 @@
 {
   "plan_name": "CI/CD Review",
   "description": "Improve CI/CD practices to meet OSS best practices",
-  "last_updated": "2025-12-03",
+  "last_updated": "2025-12-31",
   "audit_summary": {
-    "current_score": "4/10",
-    "pass": ["3.1 Tiered job architecture (lint/test/fmt/clippy)", "3.7 Release automation (release-please)"],
-    "partial": ["3.2 Rust cache (using actions/cache, not Swatinem)", "3.8 Environment defaults (CARGO_TERM_COLOR set, not CARGO_INCREMENTAL)"],
-    "fail": ["3.3 Concurrency cancellation", "3.4 cargo-audit in CI", "3.5 cargo-deny", "3.6 MSRV verification", "3.9 Coverage in CI", "3.10 Action versions pinned with SHA"]
+    "current_score": "10/10",
+    "pass": [
+      "3.1 Tiered job architecture (lint/test/fmt/clippy)",
+      "3.2 Rust cache (Swatinem/rust-cache with save-if)",
+      "3.3 Concurrency cancellation",
+      "3.4 cargo-audit in CI",
+      "3.5 cargo-deny",
+      "3.6 MSRV verification",
+      "3.7 Release automation (release-please)",
+      "3.8 Environment defaults (CARGO_TERM_COLOR, CARGO_INCREMENTAL, RUSTFLAGS)",
+      "3.9 Coverage in CI",
+      "3.10 Action versions pinned with SHA"
+    ],
+    "partial": [],
+    "fail": []
   },
   "tasks": [
     {
       "id": "add-concurrency-cancellation",
       "name": "Add concurrency cancellation for in-progress jobs",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -29,7 +40,7 @@
     {
       "id": "switch-to-swatinem-cache",
       "name": "Switch to Swatinem/rust-cache",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -47,7 +58,7 @@
     {
       "id": "add-cargo-audit",
       "name": "Add cargo-audit to CI",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -65,7 +76,7 @@
     {
       "id": "add-cargo-deny",
       "name": "Configure and add cargo-deny to CI",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
@@ -84,7 +95,7 @@
     {
       "id": "add-msrv-verification",
       "name": "Add MSRV verification to CI",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
@@ -102,7 +113,7 @@
     {
       "id": "add-coverage-reporting",
       "name": "Add coverage reporting to CI",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
@@ -121,7 +132,7 @@
     {
       "id": "pin-action-versions",
       "name": "Pin action versions with SHA",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "steps": [
@@ -139,7 +150,7 @@
     {
       "id": "add-environment-defaults",
       "name": "Add recommended environment defaults",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "steps": [
@@ -154,6 +165,8 @@
     }
   ],
   "notes": [
+    "All CI/CD review tasks completed 2025-12-31",
+    "Score improved from 4/10 to 10/10",
     "Swatinem/rust-cache is more efficient than manual cache configuration",
     "cargo-audit and cargo-deny address different concerns (advisories vs licenses)",
     "SHA pinning is a security best practice"

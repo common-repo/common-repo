@@ -21,13 +21,15 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - id: authenticate
-        uses: actions/create-github-app-token@v2
+        # actions/create-github-app-token@v2 - v2.0.6
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547
         with:
           app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
           private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
 
       - id: release
-        uses: googleapis/release-please-action@v4
+        # googleapis/release-please-action@v4 - v4.2.0
+        uses: googleapis/release-please-action@a02a34c4d625f9be7cb89f09d5d8b28efb379746
         with:
           token: ${{ steps.authenticate.outputs.token }}
 
@@ -54,11 +56,14 @@ jobs:
             archive: zip
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout@v4 - v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # dtolnay/rust-toolchain - master
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
 
       - name: Install cross-compilation tools (Linux)
@@ -99,7 +104,8 @@ jobs:
           Compress-Archive -Path common-repo.exe -DestinationPath ../../../common-repo-${{ needs.release-please.outputs.tag_name }}-${{ matrix.target }}.zip
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        # actions/upload-artifact@v4 - v4.5.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: common-repo-${{ matrix.target }}
           path: common-repo-${{ needs.release-please.outputs.tag_name }}-${{ matrix.target }}.${{ matrix.archive }}
@@ -111,7 +117,8 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        # actions/download-artifact@v4 - v4.2.1
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           path: artifacts
           merge-multiple: true
