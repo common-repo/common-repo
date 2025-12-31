@@ -15,6 +15,8 @@ Manage repository configuration files as dependencies. Define inheritance in `.c
 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
 ```
 
+The installer creates both `common-repo` and a short alias `cr`. To skip the alias: `SKIP_ALIAS=1 sh -s < install.sh`
+
 ### cargo-binstall (pre-built binary)
 
 ```bash

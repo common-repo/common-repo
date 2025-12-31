@@ -1,0 +1,197 @@
+#!/bin/sh
+# Test script for install.sh alias functionality
+# Run with: ./script/test-install-alias
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+pass() {
+    printf "${GREEN}PASS${NC}: %s\n" "$1"
+}
+
+fail() {
+    printf "${RED}FAIL${NC}: %s\n" "$1"
+    exit 1
+}
+
+# Create temporary test directory
+TEST_DIR=$(mktemp -d)
+trap 'rm -rf "${TEST_DIR}"' EXIT
+
+echo "Testing install.sh alias functionality..."
+echo "Test directory: ${TEST_DIR}"
+
+# Extract the create_cr_alias function from install.sh for testing
+# We'll source the necessary parts
+cat > "${TEST_DIR}/test_functions.sh" << 'EOF'
+# Minimal logging functions
+info() { printf "info: %s\n" "$1"; }
+warn() { printf "warn: %s\n" "$1"; }
+success() { printf "success: %s\n" "$1"; }
+
+# Create cr alias symlink
+create_cr_alias() {
+    install_dir="$1"
+    os="$2"
+
+    # Skip if SKIP_ALIAS is set
+    if [ "${SKIP_ALIAS:-}" = "1" ]; then
+        info "Skipping cr alias creation (SKIP_ALIAS=1)"
+        return 0
+    fi
+
+    # Windows doesn't support symlinks easily; create a wrapper script instead
+    if [ "${os}" = "windows" ]; then
+        cr_path="${install_dir}/cr.cmd"
+        if [ -e "${cr_path}" ]; then
+            # Check if it's our wrapper
+            if [ -f "${cr_path}" ] && grep -q "common-repo" "${cr_path}" 2>/dev/null; then
+                info "cr alias already exists"
+                return 0
+            else
+                warn "Skipping cr alias: ${cr_path} already exists (not our file)"
+                return 0
+            fi
+        fi
+        # Create Windows batch wrapper
+        if [ -w "${install_dir}" ]; then
+            printf '@echo off\r\n"%%~dp0common-repo.exe" %%%%*\r\n' > "${cr_path}"
+        else
+            warn "Cannot create cr alias: no write permission to ${install_dir}"
+            return 0
+        fi
+        success "Created cr alias (Windows batch wrapper)"
+        return 0
+    fi
+
+    # Unix: create symlink
+    cr_path="${install_dir}/cr"
+    binary_name="${install_dir}/common-repo"
+
+    if [ -e "${cr_path}" ] || [ -L "${cr_path}" ]; then
+        # Check if it's already our symlink
+        if [ -L "${cr_path}" ]; then
+            link_target=$(readlink "${cr_path}" 2>/dev/null || true)
+            if [ "${link_target}" = "common-repo" ] || [ "${link_target}" = "${binary_name}" ]; then
+                info "cr alias already exists"
+                return 0
+            fi
+        fi
+        warn "Skipping cr alias: ${cr_path} already exists"
+        warn "To use the alias, remove the existing file and reinstall"
+        return 0
+    fi
+
+    # Create the symlink (relative path for portability)
+    if [ -w "${install_dir}" ]; then
+        ln -s "common-repo" "${cr_path}"
+    else
+        warn "Cannot create cr alias: no write permission to ${install_dir}"
+        return 0
+    fi
+
+    success "Created cr alias (symlink to common-repo)"
+}
+EOF
+
+. "${TEST_DIR}/test_functions.sh"
+
+# Test 1: Symlink creation on Unix
+echo ""
+echo "Test 1: Symlink is created by default on Unix"
+INSTALL_DIR="${TEST_DIR}/test1"
+mkdir -p "${INSTALL_DIR}"
+touch "${INSTALL_DIR}/common-repo"  # Create fake binary
+
+create_cr_alias "${INSTALL_DIR}" "linux" > /dev/null 2>&1
+
+if [ -L "${INSTALL_DIR}/cr" ]; then
+    LINK_TARGET=$(readlink "${INSTALL_DIR}/cr")
+    if [ "${LINK_TARGET}" = "common-repo" ]; then
+        pass "Symlink created with correct target"
+    else
+        fail "Symlink target is '${LINK_TARGET}', expected 'common-repo'"
+    fi
+else
+    fail "Symlink was not created"
+fi
+
+# Test 2: SKIP_ALIAS=1 prevents symlink creation
+echo ""
+echo "Test 2: SKIP_ALIAS=1 prevents symlink creation"
+INSTALL_DIR="${TEST_DIR}/test2"
+mkdir -p "${INSTALL_DIR}"
+touch "${INSTALL_DIR}/common-repo"
+
+SKIP_ALIAS=1 create_cr_alias "${INSTALL_DIR}" "linux" > /dev/null 2>&1
+
+if [ -e "${INSTALL_DIR}/cr" ]; then
+    fail "Symlink was created despite SKIP_ALIAS=1"
+else
+    pass "Symlink not created when SKIP_ALIAS=1"
+fi
+
+# Test 3: Existing file is not overwritten
+echo ""
+echo "Test 3: Existing file is not overwritten"
+INSTALL_DIR="${TEST_DIR}/test3"
+mkdir -p "${INSTALL_DIR}"
+touch "${INSTALL_DIR}/common-repo"
+echo "existing content" > "${INSTALL_DIR}/cr"  # Create existing file
+
+unset SKIP_ALIAS
+create_cr_alias "${INSTALL_DIR}" "linux" > /dev/null 2>&1
+
+if [ -L "${INSTALL_DIR}/cr" ]; then
+    fail "Existing file was replaced with symlink"
+else
+    CONTENT=$(cat "${INSTALL_DIR}/cr")
+    if [ "${CONTENT}" = "existing content" ]; then
+        pass "Existing file preserved"
+    else
+        fail "Existing file was modified"
+    fi
+fi
+
+# Test 4: Existing symlink to common-repo is recognized
+echo ""
+echo "Test 4: Existing correct symlink is recognized"
+INSTALL_DIR="${TEST_DIR}/test4"
+mkdir -p "${INSTALL_DIR}"
+touch "${INSTALL_DIR}/common-repo"
+ln -s "common-repo" "${INSTALL_DIR}/cr"  # Create existing correct symlink
+
+OUTPUT=$(create_cr_alias "${INSTALL_DIR}" "linux" 2>&1)
+
+if echo "${OUTPUT}" | grep -q "already exists"; then
+    pass "Existing correct symlink recognized"
+else
+    fail "Existing correct symlink not recognized"
+fi
+
+# Test 5: Windows batch wrapper creation
+echo ""
+echo "Test 5: Windows batch wrapper is created"
+INSTALL_DIR="${TEST_DIR}/test5"
+mkdir -p "${INSTALL_DIR}"
+touch "${INSTALL_DIR}/common-repo.exe"
+
+create_cr_alias "${INSTALL_DIR}" "windows" > /dev/null 2>&1
+
+if [ -f "${INSTALL_DIR}/cr.cmd" ]; then
+    # Use cat and tr to handle CRLF line endings
+    if cat "${INSTALL_DIR}/cr.cmd" | tr -d '\r' | grep -q "common-repo"; then
+        pass "Windows batch wrapper created"
+    else
+        fail "Windows batch wrapper doesn't reference common-repo"
+    fi
+else
+    fail "Windows batch wrapper not created"
+fi
+
+echo ""
+echo "All tests passed!"

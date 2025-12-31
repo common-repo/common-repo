@@ -2,13 +2,13 @@
   "plan_name": "Short Alias cr",
   "description": "Add cr as a short alias symlink for common-repo",
   "created": "2025-12-29",
-  "last_updated": "2025-12-29",
+  "last_updated": "2025-12-31",
   "source": "context/session-notes.md",
   "tasks": [
     {
       "id": "update-install-script-symlink",
       "name": "Update install.sh to create cr symlink",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -28,7 +28,7 @@
     {
       "id": "update-release-workflow",
       "name": "Update GitHub release workflow for cr symlink",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
@@ -40,12 +40,13 @@
       "acceptance_criteria": [
         "Release process handles cr alias appropriately",
         "Documentation reflects how cr is installed"
-      ]
+      ],
+      "notes": "Decided not to add symlinks to archives - Windows .zip doesn't support them and portability is problematic. Documented in README that cr is created by install script."
     },
     {
       "id": "document-cr-alias",
       "name": "Document cr alias in README and docs",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "update-install-script-symlink",
       "steps": [
@@ -61,7 +62,7 @@
     {
       "id": "add-symlink-tests",
       "name": "Add tests for symlink creation",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "update-install-script-symlink",
       "steps": [

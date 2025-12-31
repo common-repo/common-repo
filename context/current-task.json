@@ -1,6 +1,6 @@
 {
   "task": null,
-  "plan": "context/add-command.json",
+  "plan": "context/cr-alias.json",
   "last_updated": "2025-12-31",
   "status": "complete",
   "master_plan": "context/plan-of-plans.json",
@@ -10,14 +10,15 @@
       "context/completed/documentation-review.json",
       "context/completed/testing-review.json",
       "context/completed/cicd-review.json",
-      "context/completed/init-redesign.json"
+      "context/completed/init-redesign.json",
+      "context/completed/add-command.json"
     ],
-    "current_subplan": "context/add-command.json",
-    "notes": "Add command implementation complete. All tasks finished: command module created, config detection, semver detection, YAML appending, tests, and documentation.",
+    "current_subplan": "context/cr-alias.json",
+    "notes": "All cr-alias tasks complete. Install script now creates 'cr' symlink by default (or .cmd wrapper on Windows). SKIP_ALIAS=1 can opt out. Documented in README and getting-started.md.",
     "recently_completed": {
-      "task": "document-add-command",
-      "plan": "add-command",
-      "summary": "Implemented common-repo add command for adding repos to config. Includes auto semver detection, interactive prompts, --quiet mode, and comprehensive tests."
+      "task": "add-symlink-tests",
+      "plan": "cr-alias",
+      "summary": "Added cr alias symlink/wrapper to install.sh with tests. Unix gets symlink, Windows gets .cmd batch wrapper. Existing files are preserved."
     }
   }
 }

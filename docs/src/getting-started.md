@@ -12,7 +12,7 @@ Install the latest release with a single command:
 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
 ```
 
-This automatically detects your platform and installs the appropriate binary to `~/.local/bin`.
+This automatically detects your platform and installs the appropriate binary to `~/.local/bin`. The installer also creates a short alias `cr` so you can use either `common-repo` or `cr` to run commands.
 
 **Installation options:**
 
@@ -28,6 +28,9 @@ INSTALL_PREK=1 curl -fsSL https://raw.githubusercontent.com/common-repo/common-r
 
 # Install with sudo (for system-wide installation)
 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sudo sh
+
+# Skip creating the 'cr' alias
+SKIP_ALIAS=1 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
 ```
 
 ### From Pre-built Binaries
@@ -62,6 +65,8 @@ cargo install --git https://github.com/common-repo/common-repo
 
 ```bash
 common-repo --version
+# Or use the short alias
+cr --version
 ```
 
 ## Your First Configuration

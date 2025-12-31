@@ -2,8 +2,8 @@
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
   "last_updated": "2025-12-31",
-  "active_plan": "context/add-command.json",
-  "next_plan": "context/cr-alias.json",
+  "active_plan": "context/cr-alias.json",
+  "next_plan": "context/configuration-docs.json",
   "plans": [
     {
       "id": "documentation-review",
@@ -30,24 +30,24 @@
     {
       "id": "add-command",
       "name": "Add Command Implementation",
-      "file": "context/add-command.json",
-      "status": "pending",
+      "file": "context/completed/add-command.json",
+      "status": "complete",
       "priority": 3,
       "category": "feature",
       "tasks_total": 6,
-      "tasks_complete": 0,
-      "notes": "Quick repo addition, --quiet for automation"
+      "tasks_complete": 6,
+      "notes": "Quick repo addition, --quiet for automation - COMPLETED"
     },
     {
       "id": "cr-alias",
       "name": "Short Alias cr",
       "file": "context/cr-alias.json",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "category": "feature",
       "tasks_total": 4,
-      "tasks_complete": 0,
-      "notes": "Symlink in install script"
+      "tasks_complete": 4,
+      "notes": "Symlink in install script - COMPLETED"
     },
     {
       "id": "configuration-docs",
@@ -130,8 +130,8 @@
   "summary": {
     "total_plans": 7,
     "in_progress": 1,
-    "pending": 5,
-    "complete": 1,
+    "pending": 4,
+    "complete": 3,
     "deferred_reviews": 8
   },
   "notes": [
