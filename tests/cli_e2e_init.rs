@@ -220,3 +220,53 @@ fn test_init_default_is_minimal() {
     config_file.assert(predicate::str::contains("include:"));
     config_file.assert(predicate::str::contains("exclude:"));
 }
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_init_with_uri_positional_arg() {
+    let temp = assert_fs::TempDir::new().unwrap();
+
+    // Use a known repo with semver tags
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(temp.path())
+        .arg("init")
+        .arg("https://github.com/rust-lang/rust-clippy")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Fetching tags from"))
+        .stdout(predicate::str::contains("✅ Created .common-repo.yaml"));
+
+    // Check that the config file was created with the repo
+    let config_file = temp.child(".common-repo.yaml");
+    config_file.assert(predicate::path::exists());
+    config_file.assert(predicate::str::contains(
+        "url: https://github.com/rust-lang/rust-clippy",
+    ));
+    config_file.assert(predicate::str::contains("ref:"));
+}
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_init_with_uri_github_shorthand() {
+    let temp = assert_fs::TempDir::new().unwrap();
+
+    // Use GitHub shorthand format
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(temp.path())
+        .arg("init")
+        .arg("rust-lang/rust-clippy")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Fetching tags from https://github.com/rust-lang/rust-clippy",
+        ));
+
+    // Check that the config file was created with expanded URL
+    let config_file = temp.child(".common-repo.yaml");
+    config_file.assert(predicate::path::exists());
+    config_file.assert(predicate::str::contains(
+        "url: https://github.com/rust-lang/rust-clippy",
+    ));
+}

@@ -5,7 +5,10 @@ expression: normalized
 ---
 Initialize a new .common-repo.yaml configuration file
 
-Usage: common-repo init [OPTIONS]
+Usage: common-repo init [OPTIONS] [URI]
+
+Arguments:
+  [URI]  Repository URL to initialize from (e.g., https://github.com/org/repo or org/repo)
 
 Options:
   -i, --interactive          Interactive setup wizard for configuration creation

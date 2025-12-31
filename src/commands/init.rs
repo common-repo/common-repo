@@ -23,6 +23,10 @@ use common_repo::version;
 /// Initialize a new .common-repo.yaml configuration file
 #[derive(Args, Debug)]
 pub struct InitArgs {
+    /// Repository URL to initialize from (e.g., https://github.com/org/repo or org/repo)
+    #[arg(value_name = "URI")]
+    pub uri: Option<String>,
+
     /// Interactive setup wizard for configuration creation
     #[arg(short, long)]
     pub interactive: bool,
@@ -64,6 +68,8 @@ pub fn execute(args: InitArgs) -> Result<()> {
         generate_empty_config()
     } else if let Some(template) = &args.template {
         generate_template_config(template)?
+    } else if let Some(uri) = &args.uri {
+        generate_config_from_uri(uri)?
     } else if args.interactive {
         generate_interactive_config()?
     } else {
@@ -143,6 +149,79 @@ fn generate_template_config(template_name: &str) -> Result<String> {
             template_name
         )),
     }
+}
+
+/// Generate configuration from a repository URI.
+///
+/// Fetches the repository tags, finds the latest semver version,
+/// and generates a configuration with that repository.
+fn generate_config_from_uri(uri: &str) -> Result<String> {
+    // Normalize URL (expand GitHub shorthand)
+    let url = normalize_repo_url(uri);
+
+    print!("Fetching tags from {}... ", url);
+    let (version, warnings) = match git::list_tags(&url) {
+        Ok(tags) => {
+            let semver_tags = version::filter_semver_tags(&tags);
+            if let Some((latest_tag, parsed_version)) = find_latest_version(&semver_tags) {
+                println!("found {}", latest_tag);
+
+                // Check for 0.x.x versions
+                let mut warnings = Vec::new();
+                if parsed_version.major == 0 {
+                    warnings.push(format!(
+                        "Warning: {} is a 0.x.x version, which may indicate unstable API",
+                        latest_tag
+                    ));
+                }
+                (latest_tag, warnings)
+            } else if !tags.is_empty() {
+                // No semver tags, warn and use main
+                println!("no semver tags found");
+                (
+                    "main".to_string(),
+                    vec![
+                        "Warning: No semantic version tags found. Using 'main' branch.".to_string(),
+                        "Consider pinning to a specific commit hash for reproducibility."
+                            .to_string(),
+                    ],
+                )
+            } else {
+                println!("no tags found");
+                (
+                    "main".to_string(),
+                    vec![
+                        "Warning: No tags found. Using 'main' branch.".to_string(),
+                        "Consider pinning to a specific commit hash for reproducibility."
+                            .to_string(),
+                    ],
+                )
+            }
+        }
+        Err(e) => {
+            println!("failed");
+            (
+                "main".to_string(),
+                vec![
+                    format!("Warning: Error fetching tags: {}. Using 'main' branch.", e),
+                    "Consider pinning to a specific commit hash for reproducibility.".to_string(),
+                ],
+            )
+        }
+    };
+
+    // Print warnings
+    for warning in &warnings {
+        println!("  ⚠️  {}", warning);
+    }
+
+    // Build the config
+    let repos = vec![RepoEntry {
+        url: url.clone(),
+        version,
+    }];
+
+    Ok(build_config_from_repos(&repos))
 }
 
 /// A repository entry collected during the interactive wizard.
@@ -504,6 +583,7 @@ mod tests {
 
         // Try to init without force - should fail
         let args = InitArgs {
+            uri: None,
             interactive: false,
             template: None,
             minimal: true,
@@ -517,6 +597,7 @@ mod tests {
 
         // Try with force - should succeed
         let args = InitArgs {
+            uri: None,
             interactive: false,
             template: None,
             minimal: true,
@@ -541,6 +622,7 @@ mod tests {
         env::set_current_dir(&temp_dir).unwrap();
 
         let args = InitArgs {
+            uri: None,
             interactive: false,
             template: None,
             minimal: false,
@@ -566,6 +648,7 @@ mod tests {
         env::set_current_dir(&temp_dir).unwrap();
 
         let args = InitArgs {
+            uri: None,
             interactive: false,
             template: None,
             minimal: true,
@@ -591,6 +674,7 @@ mod tests {
         env::set_current_dir(&temp_dir).unwrap();
 
         let args = InitArgs {
+            uri: None,
             interactive: false,
             template: Some("rust-cli".to_string()),
             minimal: false,
@@ -700,5 +784,37 @@ mod tests {
         let tags = vec!["main".to_string(), "develop".to_string()];
         let result = super::find_latest_version(&tags);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_latest_version_zero_major() {
+        // 0.x.x versions are valid semver and should be returned
+        let tags = vec![
+            "v0.1.0".to_string(),
+            "v0.5.0".to_string(),
+            "v0.2.3".to_string(),
+        ];
+        let result = super::find_latest_version(&tags);
+        assert!(result.is_some());
+        let (tag, version) = result.unwrap();
+        assert_eq!(tag, "v0.5.0");
+        assert_eq!(version.major, 0);
+        assert_eq!(version.minor, 5);
+        assert_eq!(version.patch, 0);
+    }
+
+    #[test]
+    fn test_find_latest_version_mixed_zero_and_stable() {
+        // Stable versions should be preferred over 0.x.x
+        let tags = vec![
+            "v0.9.9".to_string(),
+            "v1.0.0".to_string(),
+            "v0.10.0".to_string(),
+        ];
+        let result = super::find_latest_version(&tags);
+        assert!(result.is_some());
+        let (tag, version) = result.unwrap();
+        assert_eq!(tag, "v1.0.0");
+        assert_eq!(version.major, 1);
     }
 }
