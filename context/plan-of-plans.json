@@ -79,8 +79,8 @@
       "priority": 7,
       "category": "feature",
       "tasks_total": 3,
-      "tasks_complete": 0,
-      "notes": "Design exploration in progress"
+      "tasks_complete": 2,
+      "notes": "Design complete, implementation plan next"
     }
   ],
   "deferred_reviews": [
