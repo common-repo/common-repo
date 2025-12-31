@@ -3,9 +3,8 @@
 //! These tests verify the CLI behavior of the `ls` command by invoking
 //! the binary directly and checking its output.
 
-use assert_cmd::cargo::cargo_bin_cmd;
-use assert_fs::prelude::*;
-use predicates::prelude::*;
+mod common;
+use common::prelude::*;
 
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
@@ -23,10 +22,10 @@ fn test_ls_help() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_missing_config() {
-    let temp = assert_fs::TempDir::new().unwrap();
+    let fixture = TestFixture::new();
 
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .assert()
         .failure()
@@ -36,26 +35,15 @@ fn test_ls_missing_config() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_simple_config() {
-    let temp = assert_fs::TempDir::new().unwrap();
+    let fixture = TestFixture::new()
+        .with_minimal_config()
+        .with_file("test.txt", "hello world");
 
-    // Create config file
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
-- include:
-    patterns: ["**/*"]
-"#,
-        )
-        .unwrap();
-
-    // Create a test file
-    temp.child("test.txt").write_str("hello world").unwrap();
-
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .assert()
         .success()
         .stdout(predicate::str::contains("test.txt"))
@@ -65,27 +53,16 @@ fn test_ls_with_simple_config() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_count_flag() {
-    let temp = assert_fs::TempDir::new().unwrap();
+    let fixture = TestFixture::new()
+        .with_minimal_config()
+        .with_file("file1.txt", "content1")
+        .with_file("file2.txt", "content2");
 
-    // Create config file
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
-- include:
-    patterns: ["**/*"]
-"#,
-        )
-        .unwrap();
-
-    // Create test files
-    temp.child("file1.txt").write_str("content1").unwrap();
-    temp.child("file2.txt").write_str("content2").unwrap();
-
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .arg("--count")
         .assert()
         .success()
@@ -96,26 +73,15 @@ fn test_ls_with_count_flag() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_long_format() {
-    let temp = assert_fs::TempDir::new().unwrap();
+    let fixture = TestFixture::new()
+        .with_minimal_config()
+        .with_file("test.txt", "hello");
 
-    // Create config file
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
-- include:
-    patterns: ["**/*"]
-"#,
-        )
-        .unwrap();
-
-    // Create a test file
-    temp.child("test.txt").write_str("hello").unwrap();
-
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .arg("--long")
         .assert()
         .success()
@@ -127,28 +93,17 @@ fn test_ls_with_long_format() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_pattern_filter() {
-    let temp = assert_fs::TempDir::new().unwrap();
-
-    // Create config file
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
-- include:
-    patterns: ["**/*"]
-"#,
-        )
-        .unwrap();
-
-    // Create test files
-    temp.child("file.txt").write_str("text").unwrap();
-    temp.child("file.rs").write_str("rust").unwrap();
+    let fixture = TestFixture::new()
+        .with_minimal_config()
+        .with_file("file.txt", "text")
+        .with_file("file.rs", "rust");
 
     // Filter to only .rs files
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .arg("--pattern")
         .arg("*.rs")
         .assert()
@@ -160,27 +115,16 @@ fn test_ls_with_pattern_filter() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_sort_by_path() {
-    let temp = assert_fs::TempDir::new().unwrap();
+    let fixture = TestFixture::new()
+        .with_minimal_config()
+        .with_file("zebra.txt", "z")
+        .with_file("alpha.txt", "a");
 
-    // Create config file
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
-- include:
-    patterns: ["**/*"]
-"#,
-        )
-        .unwrap();
-
-    // Create test files
-    temp.child("zebra.txt").write_str("z").unwrap();
-    temp.child("alpha.txt").write_str("a").unwrap();
-
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .arg("--sort")
         .arg("path")
         .assert()
@@ -193,27 +137,16 @@ fn test_ls_with_sort_by_path() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_with_reverse_sort() {
-    let temp = assert_fs::TempDir::new().unwrap();
+    let fixture = TestFixture::new()
+        .with_minimal_config()
+        .with_file("aaa.txt", "a")
+        .with_file("zzz.txt", "z");
 
-    // Create config file
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
-- include:
-    patterns: ["**/*"]
-"#,
-        )
-        .unwrap();
-
-    // Create test files
-    temp.child("aaa.txt").write_str("a").unwrap();
-    temp.child("zzz.txt").write_str("z").unwrap();
-
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .arg("--sort")
         .arg("name")
         .arg("--reverse")
@@ -224,23 +157,18 @@ fn test_ls_with_reverse_sort() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_empty_result() {
-    let temp = assert_fs::TempDir::new().unwrap();
-
-    // Create config file that excludes everything
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
+    let fixture = TestFixture::new().with_config(
+        r#"
 - include:
     patterns: ["*.nonexistent"]
 "#,
-        )
-        .unwrap();
+    );
 
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .assert()
         .success()
         .stdout(predicate::str::contains("No files would be created"));
@@ -249,26 +177,15 @@ fn test_ls_empty_result() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_invalid_pattern() {
-    let temp = assert_fs::TempDir::new().unwrap();
+    let fixture = TestFixture::new()
+        .with_minimal_config()
+        .with_file("test.txt", "content");
 
-    // Create config file
-    temp.child(".common-repo.yaml")
-        .write_str(
-            r#"
-- include:
-    patterns: ["**/*"]
-"#,
-        )
-        .unwrap();
-
-    // Create a test file so the pipeline produces results
-    temp.child("test.txt").write_str("content").unwrap();
-
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path())
+    fixture
+        .command()
         .arg("ls")
         .arg("--working-dir")
-        .arg(temp.path())
+        .arg(fixture.path())
         .arg("--pattern")
         .arg("[invalid") // Invalid glob pattern
         .assert()
