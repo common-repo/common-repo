@@ -13,10 +13,16 @@ This project follows the [Scripts to Rule Them All](https://github.com/github/sc
 ```bash
 ./script/setup    # First-time setup (installs deps, configures environment)
 ./script/test     # Run test suite (uses cargo-nextest)
-./script/cibuild  # Run CI checks locally
+./script/ci       # Run CI checks locally (no tests)
+./script/cibuild  # Run full CI locally (checks + tests)
 ```
 
 Other scripts: `./script/bootstrap` (install deps), `./script/update` (after pulling changes)
+
+**When to use each script:**
+- `./script/ci` - Quick validation before committing (fmt, clippy, pre-commit, security audits)
+- `./script/test` - Run tests only
+- `./script/cibuild` - Full CI validation (update deps + checks + tests)
 
 ## Agent Session Protocol
 
@@ -224,9 +230,13 @@ cargo tarpaulin --fail-under 80         # Enforce minimum coverage
 
 **Before every commit**, run:
 ```bash
-prek run --all-files  # Recommended: runs all checks automatically
-# Or: ./script/cibuild  # Run full CI checks locally
+./script/ci           # Recommended: runs all CI checks (no tests)
+prek run --all-files  # Alternative: runs pre-commit hooks only
 ```
+
+Environment variables for `./script/ci`:
+- `SKIP_SECURITY=1` - Skip cargo audit and cargo deny checks
+- `OFFLINE=1` - Skip network-dependent checks
 
 Or individually:
 ```bash
