@@ -8,6 +8,7 @@
 #   GITHUB_TOKEN - Token for GitHub API (optional, helps avoid rate limits)
 #   INSTALL_PREK - Set to "1" to also install prek (fast pre-commit alternative)
 #                  If unset and running interactively, will prompt
+#   SKIP_ALIAS   - Set to "1" to skip creating the 'cr' short alias
 
 set -e
 
@@ -240,6 +241,78 @@ get_prek_target() {
     esac
 }
 
+# Create cr alias symlink
+create_cr_alias() {
+    install_dir="$1"
+    os="$2"
+
+    # Skip if SKIP_ALIAS is set
+    if [ "${SKIP_ALIAS:-}" = "1" ]; then
+        info "Skipping cr alias creation (SKIP_ALIAS=1)"
+        return 0
+    fi
+
+    # Windows doesn't support symlinks easily; create a wrapper script instead
+    if [ "${os}" = "windows" ]; then
+        cr_path="${install_dir}/cr.cmd"
+        if [ -e "${cr_path}" ]; then
+            # Check if it's our wrapper
+            if [ -f "${cr_path}" ] && grep -q "common-repo" "${cr_path}" 2>/dev/null; then
+                info "cr alias already exists"
+                return 0
+            else
+                warn "Skipping cr alias: ${cr_path} already exists (not our file)"
+                return 0
+            fi
+        fi
+        # Create Windows batch wrapper
+        if [ -w "${install_dir}" ]; then
+            printf '@echo off\r\n"%%~dp0common-repo.exe" %%%%*\r\n' > "${cr_path}"
+        else
+            if command -v sudo >/dev/null 2>&1; then
+                printf '@echo off\r\n"%%~dp0common-repo.exe" %%%%*\r\n' | sudo tee "${cr_path}" > /dev/null
+            else
+                warn "Cannot create cr alias: no write permission to ${install_dir}"
+                return 0
+            fi
+        fi
+        success "Created cr alias (Windows batch wrapper)"
+        return 0
+    fi
+
+    # Unix: create symlink
+    cr_path="${install_dir}/cr"
+    binary_name="${install_dir}/common-repo"
+
+    if [ -e "${cr_path}" ] || [ -L "${cr_path}" ]; then
+        # Check if it's already our symlink
+        if [ -L "${cr_path}" ]; then
+            link_target=$(readlink "${cr_path}" 2>/dev/null || true)
+            if [ "${link_target}" = "common-repo" ] || [ "${link_target}" = "${binary_name}" ]; then
+                info "cr alias already exists"
+                return 0
+            fi
+        fi
+        warn "Skipping cr alias: ${cr_path} already exists"
+        warn "To use the alias, remove the existing file and reinstall"
+        return 0
+    fi
+
+    # Create the symlink (relative path for portability)
+    if [ -w "${install_dir}" ]; then
+        ln -s "common-repo" "${cr_path}"
+    else
+        if command -v sudo >/dev/null 2>&1; then
+            sudo ln -s "common-repo" "${cr_path}"
+        else
+            warn "Cannot create cr alias: no write permission to ${install_dir}"
+            return 0
+        fi
+    fi
+
+    success "Created cr alias (symlink to common-repo)"
+}
+
 # Install prek to the specified directory
 install_prek() {
     install_dir="$1"
@@ -443,6 +516,9 @@ main() {
     fi
 
     success "${BINARY_NAME} ${version} installed successfully!"
+
+    # Create cr alias (short name)
+    create_cr_alias "${install_dir}" "${os}"
 
     # Optionally install prek
     if should_install_prek; then
