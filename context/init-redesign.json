@@ -2,13 +2,13 @@
   "plan_name": "Init Command Redesign",
   "description": "Redesign common-repo init to be an interactive setup wizard with pre-commit integration",
   "created": "2025-12-29",
-  "last_updated": "2025-12-29",
+  "last_updated": "2025-12-31",
   "source": "context/session-notes.md",
   "tasks": [
     {
       "id": "add-dialoguer-dependency",
       "name": "Add dialoguer crate for interactive prompts",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
