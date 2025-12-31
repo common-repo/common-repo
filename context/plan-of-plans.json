@@ -1,7 +1,7 @@
 {
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
-  "last_updated": "2025-12-29",
+  "last_updated": "2025-12-31",
   "active_plan": "context/documentation-review.json",
   "next_plan": "context/init-redesign.json",
   "plans": [
@@ -86,13 +86,15 @@
   "deferred_reviews": [
     {
       "id": "testing-review",
-      "file": "context/testing-review.json",
-      "category": "review"
+      "file": "context/completed/testing-review.json",
+      "category": "review",
+      "status": "complete"
     },
     {
       "id": "cicd-review",
-      "file": "context/cicd-review.json",
-      "category": "review"
+      "file": "context/completed/cicd-review.json",
+      "category": "review",
+      "status": "complete"
     },
     {
       "id": "architecture-review",
