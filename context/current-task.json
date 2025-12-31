@@ -1,5 +1,5 @@
 {
-  "task": "parse-source-config",
+  "task": "add-defer-field",
   "plan": "context/source-declared-merge-impl.json",
   "last_updated": "2025-12-31",
   "status": "pending",
@@ -18,11 +18,11 @@
     ],
     "current_subplan": "context/source-declared-merge-impl.json",
     "design_complete": "context/source-declared-merge.json",
-    "notes": "Simplified to 4 tasks using Option 6 (reuse operator syntax). First task: parse source config.",
+    "notes": "Corrected approach: defer flag on operators, top-level ops in .common-repo.yaml",
     "recently_completed": {
       "task": "design-revision",
       "plan": "source-declared-merge",
-      "summary": "Revised design to Option 6 - reuse existing operator syntax instead of new manifest schema"
+      "summary": "Corrected to defer flag approach - no new file, just defer: true on operators"
     }
   }
 }

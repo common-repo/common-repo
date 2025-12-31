@@ -193,54 +193,56 @@ append: true
 - Easy to forget sidecar
 - Unusual pattern
 
-### Option 6: Reuse Existing Operator Syntax (RECOMMENDED)
+### Option 6: Reuse Operator Syntax with `defer` Flag (RECOMMENDED)
 
-Instead of inventing a new schema, reuse the existing `with:` operator syntax in a source-side config file. Source repos declare operations using the same familiar syntax consumers already use.
+Source repos use the same `.common-repo.yaml` file with top-level operators marked as deferred. No new file needed - just a flag that says "apply this when I'm used as a source."
 
 **Example:**
 ```yaml
-# Source repo: .common-repo-source.yaml
-with:
-  - markdown:
-      source: CLAUDE.md
-      dest: CLAUDE.md
-      section: "## Inherited Rules"
-      append: true
-  - yaml:
-      source: config/labels.yaml
-      dest: config.yaml
-      path: metadata.labels
-      array_mode: append
-  - toml:
-      source: deps.toml
-      dest: Cargo.toml
-      path: dependencies
+# Source repo: .common-repo.yaml
+include:
+  - "**/*"  # files to export (optional, defaults to all)
+
+# Top-level operators with defer flag
+markdown:
+  source: CLAUDE.md
+  dest: CLAUDE.md
+  section: "## Inherited Rules"
+  append: true
+  defer: true  # Apply when used as a source
+
+yaml:
+  source: config/labels.yaml
+  dest: config.yaml
+  path: metadata.labels
+  array_mode: append
+  defer: true
+
+toml:
+  source: deps.toml
+  dest: Cargo.toml
+  path: dependencies
+  defer: true
 ```
 
-These operations auto-apply when a consumer references the source repo.
+When a consumer references this repo, the deferred operations auto-apply.
 
 **Pros:**
-- **Zero new syntax**: Uses existing, familiar operator format
-- **Minimal implementation**: Reuses existing `Operation` enum and parsing
-- **Full operator power**: All existing options available (path, section, array_mode, etc.)
-- **Validated already**: Existing schema validation works
-- **Consistent mental model**: Same syntax in source and consumer configs
-- **Easy to test**: Source authors can test their config as if it were a consumer
+- **Same file name**: No new `.common-repo-source.yaml` - just `.common-repo.yaml`
+- **Minimal new syntax**: Just add `defer: true` to existing operators
+- **Full operator power**: All existing options available
+- **Clear intent**: `defer: true` explicitly marks source-side behavior
+- **Reuses parsing**: Existing operator parsing, just check for defer flag
 
 **Cons:**
-- Slightly more verbose than a pattern-based approach
-- No glob patterns (must list each file explicitly)
-- `source` field is redundant when source == dest
+- Top-level operators are a new pattern (currently only `with:` uses operators)
+- Need to add `defer` field to all operator structs
 
-**Simplification variant** - omit redundant fields:
-```yaml
-# When source == dest, allow shorthand
-with:
-  - markdown:
-      file: CLAUDE.md  # Instead of source: + dest:
-      section: "## Inherited Rules"
-      append: true
-```
+**Alternative flag names:**
+- `defer: true`
+- `deferred: true`
+- `apply-as-source: true`
+- `auto-apply: true`
 
 ## Consumer Override Mechanism
 
@@ -291,80 +293,76 @@ When multiple source repos declare merge for the same destination:
 
 ## Recommendation
 
-**Primary: Option 6 (Reuse Existing Operator Syntax)**
+**Primary: Option 6 (Reuse Operator Syntax with `defer` Flag)**
 
 ### Rationale
 
-1. **Minimal new code**: Reuses existing `Operation` enum, parsing, and validation
-2. **Zero learning curve**: Source authors already know the `with:` syntax
+1. **Same file**: Uses `.common-repo.yaml` - no new file to learn
+2. **Minimal new syntax**: Just add `defer: true` to existing operators
 3. **Battle-tested**: Existing operator implementations handle edge cases
-4. **Consistent**: Same syntax works in both source and consumer configs
+4. **Clear intent**: `defer` flag explicitly marks source-side behavior
 5. **Full flexibility**: All operator options immediately available
-6. **Easy testing**: Source authors can validate their config locally
 
 ### Proposed Schema
 
 ```yaml
-# .common-repo-source.yaml
-with:
-  - markdown:
-      source: CLAUDE.md
-      dest: CLAUDE.md
-      section: "## Inherited Rules"
-      append: true
+# Source repo: .common-repo.yaml
+include:
+  - "**/*"  # optional, defaults to all files
 
-  - yaml:
-      source: labels.yaml
-      dest: config.yaml
-      path: metadata.labels
-      array_mode: append
+# Deferred operators - apply when used as a source
+markdown:
+  source: CLAUDE.md
+  dest: CLAUDE.md
+  section: "## Inherited Rules"
+  append: true
+  defer: true
 
-  - toml:
-      source: deps.toml
-      dest: Cargo.toml
-      path: dependencies
+yaml:
+  source: labels.yaml
+  dest: config.yaml
+  path: metadata.labels
+  array_mode: append
+  defer: true
 
-# Files not listed here: normal copy/overwrite behavior
+# Files not listed here: normal copy behavior
 ```
 
 ### Processing Order
 
 1. Load source repo files
-2. Parse `.common-repo-source.yaml` if present
-3. Apply source-declared operations (merge operators)
+2. Parse source's `.common-repo.yaml`, extract deferred operations
+3. Apply deferred operations (merge operators from source)
 4. Apply consumer `with:` operations (override source declarations)
 5. Copy remaining files normally
 
 Consumer operations always take precedence over source declarations.
 
-### Implementation Phases
+### Implementation Tasks
 
-1. **Phase 1**: Parse `.common-repo-source.yaml` using existing config parser
-2. **Phase 2**: Apply source operations before consumer operations
-3. **Phase 3**: Consumer override mechanism (explicit `with:` overrides)
-
-### Implementation Simplifications
-
-Since we reuse existing types:
-- No new `SourceManifest` struct needed - just parse as `Vec<Operation>`
-- No new validation logic - existing operator validation works
-- No new error types - existing `ConfigError` covers it
-- Glob patterns deferred - can add later if needed
+1. **Add `defer` field** to merge operator structs (MarkdownMergeOp, YamlMergeOp, etc.)
+2. **Parse top-level operators** in `.common-repo.yaml` (currently only parses `with:`)
+3. **Collect deferred ops** when loading source repo
+4. **Apply deferred ops** before consumer `with:` operations
 
 ### Open Questions
 
-1. **File name**: `.common-repo-source.yaml` vs `.common-repo.yaml` with different semantics?
-   - **Recommendation**: Use `.common-repo-source.yaml` to avoid confusion with consumer configs.
+1. **Flag name**: `defer` vs `deferred` vs `auto-apply`?
+   - **Recommendation**: `defer: true` - short, clear meaning
 
-2. **Consumer override syntax**: Explicit `override:` field or implicit via `with:`?
-   - **Recommendation**: Implicit. Any consumer `with:` operation for the same dest file overrides source declaration.
+2. **Consumer override**: Explicit disable or implicit via `with:`?
+   - **Recommendation**: Implicit. Consumer `with:` for same dest file overrides.
 
-3. **What about `copy`, `rename`, `delete` operators in source config?**
-   - **Recommendation**: Allow all operators, not just merge. Source can declare any file transformations.
+3. **Non-merge operators**: Allow `copy`, `rename`, `delete` with `defer`?
+   - **Recommendation**: Yes, any operator can be deferred.
+
+4. **`include:` field**: Required or optional?
+   - **Recommendation**: Optional, defaults to all files.
 
 ## Next Steps
 
-1. Update implementation plan to reflect simpler approach
-2. Modify config parser to handle source-side config
-3. Integrate source operations into apply workflow
-4. Update documentation and schema.yaml
+1. Update implementation plan for `defer` flag approach
+2. Add `defer` field to operator structs in `src/config.rs`
+3. Parse top-level operators in config
+4. Integrate deferred ops into apply workflow
+5. Update documentation and schema.yaml
