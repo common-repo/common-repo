@@ -1,0 +1,10 @@
+---
+source: tests/cli_snapshot_tests.rs
+assertion_line: 116
+expression: normalized
+---
+error: unrecognized subcommand 'nonexistent-command'
+
+Usage: common-repo [OPTIONS] <COMMAND>
+
+For more information, try '--help'.

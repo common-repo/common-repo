@@ -286,6 +286,7 @@ dependencies = [
  "env_logger",
  "glob",
  "indicatif",
+ "insta",
  "log",
  "predicates",
  "ptree",
@@ -905,6 +906,19 @@ dependencies = [
  "portable-atomic",
  "unicode-width",
  "web-time",
+]
+
+[[package]]
+name = "insta"
+version = "1.45.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "983e3b24350c84ab8a65151f537d67afbbf7153bb9f1110e03e9fa9b07f67a5c"
+dependencies = [
+ "console",
+ "once_cell",
+ "serde 1.0.228",
+ "similar",
+ "tempfile",
 ]
 
 [[package]]
@@ -1667,6 +1681,12 @@ dependencies = [
  "quote",
  "syn 2.0.110",
 ]
+
+[[package]]
+name = "similar"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
 name = "slab"

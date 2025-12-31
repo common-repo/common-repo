@@ -1,0 +1,56 @@
+---
+source: tests/cli_snapshot_tests.rs
+assertion_line: 42
+expression: normalized
+---
+Apply the .common-repo.yaml configuration to the current repository
+
+Usage: common-repo apply [OPTIONS]
+
+Options:
+  -c, --config <PATH>
+          Path to the configuration file.
+
+          If not provided, it defaults to `.common-repo.yaml` in the current directory. Can also be set with the `COMMON_REPO_CONFIG` environment variable.
+
+          [env: COMMON_REPO_CONFIG=]
+
+  -o, --output <PATH>
+          The directory where the final files will be written.
+
+          If not provided, it defaults to the current working directory.
+
+      --cache-root <PATH>
+          The root directory for the repository cache.
+
+          If not provided, it defaults to `~/.common-repo/cache`. Can also be set with the `COMMON_REPO_CACHE` environment variable.
+
+          [env: COMMON_REPO_CACHE=]
+
+  -n, --dry-run
+          If set, the command will show what would be done without making any actual changes to the filesystem
+
+  -f, --force
+          If set, the command will overwrite existing files without prompting. (Currently, there is no prompting, so this is reserved for future use)
+
+  -v, --verbose
+          If set, the command will show detailed progress information during execution
+
+      --no-cache
+          If set, the command will bypass the repository cache and fetch fresh clones of all repositories
+
+  -q, --quiet
+          If set, the command will suppress all output except for errors
+
+      --color <WHEN>
+          Colorize output (always, never, auto)
+
+          [default: auto]
+
+      --log-level <LEVEL>
+          Set log level (error, warn, info, debug, trace)
+
+          [default: info]
+
+  -h, --help
+          Print help (see a summary with '-h')

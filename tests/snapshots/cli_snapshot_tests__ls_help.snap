@@ -1,0 +1,61 @@
+---
+source: tests/cli_snapshot_tests.rs
+assertion_line: 70
+expression: normalized
+---
+List files that would be created/modified by the configuration
+
+Usage: common-repo ls [OPTIONS]
+
+Options:
+  -c, --config <FILE>
+          Path to the .common-repo.yaml configuration file
+
+          [default: .common-repo.yaml]
+
+      --cache-root <DIR>
+          The root directory for the repository cache.
+
+          If not provided, it defaults to the system's cache directory (e.g., `~/.cache/common-repo` on Linux). Can also be set with the `COMMON_REPO_CACHE` environment variable.
+
+          [env: COMMON_REPO_CACHE=]
+
+      --working-dir <DIR>
+          The working directory for local file operations.
+
+          If not provided, it defaults to the current working directory.
+
+  -p, --pattern <PATTERN>
+          Filter files by glob pattern (e.g., "*.rs", "src/**/*.ts")
+
+  -l, --long
+          Use long listing format showing size and permissions
+
+  -s, --sort <SORT>
+          Sort order for file listing
+
+          Possible values:
+          - name: Sort alphabetically by file name
+          - size: Sort by file size
+          - path: Sort by full path
+
+          [default: name]
+
+      --count
+          Show only the total count of files
+
+  -r, --reverse
+          Reverse the sort order
+
+      --color <WHEN>
+          Colorize output (always, never, auto)
+
+          [default: auto]
+
+      --log-level <LEVEL>
+          Set log level (error, warn, info, debug, trace)
+
+          [default: info]
+
+  -h, --help
+          Print help (see a summary with '-h')
