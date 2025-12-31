@@ -2,7 +2,7 @@
   "plan_name": "Init Command Redesign",
   "description": "Redesign common-repo init to be an interactive setup wizard with pre-commit integration",
   "created": "2025-12-29",
-  "last_updated": "2025-12-31T09:00:00Z",
+  "last_updated": "2025-12-31",
   "source": "context/session-notes.md",
   "tasks": [
     {
@@ -42,7 +42,7 @@
     {
       "id": "add-uri-positional-arg",
       "name": "Add URI positional argument for init from existing repo",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
