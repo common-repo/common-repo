@@ -2,13 +2,13 @@
   "plan_name": "Add Command Implementation",
   "description": "Implement common-repo add command for quickly adding repos to config",
   "created": "2025-12-29",
-  "last_updated": "2025-12-29",
+  "last_updated": "2025-12-31",
   "source": "context/session-notes.md",
   "tasks": [
     {
       "id": "create-add-command-module",
       "name": "Create src/commands/add.rs module",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -27,7 +27,7 @@
     {
       "id": "implement-config-detection",
       "name": "Implement config file detection and creation logic",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "create-add-command-module",
       "steps": [
@@ -46,7 +46,7 @@
     {
       "id": "implement-semver-detection",
       "name": "Implement semver tag auto-detection for added repos",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "create-add-command-module",
       "steps": [
@@ -65,7 +65,7 @@
     {
       "id": "implement-yaml-append",
       "name": "Implement YAML config appending",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "implement-config-detection",
       "steps": [
@@ -84,7 +84,7 @@
     {
       "id": "add-add-command-tests",
       "name": "Add unit and E2E tests for add command",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "implement-yaml-append",
       "steps": [
@@ -103,7 +103,7 @@
     {
       "id": "document-add-command",
       "name": "Document add command",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "implement-yaml-append",
       "steps": [

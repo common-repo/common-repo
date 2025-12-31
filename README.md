@@ -56,6 +56,9 @@ common-repo init
 # Or initialize from an existing repo
 common-repo init https://github.com/your-org/shared-configs
 common-repo init your-org/shared-configs  # GitHub shorthand
+
+# Add more repos to an existing config
+common-repo add your-org/another-repo
 ```
 
 ## Usage
@@ -110,6 +113,7 @@ common-repo update            # Update refs
 
 ```
 init       Create a new .common-repo.yaml
+add        Add a repository to existing config
 apply      Apply configuration (runs 6-phase pipeline)
 diff       Preview changes
 ls         List files that would be created

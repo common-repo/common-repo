@@ -16,6 +16,7 @@
 //! responsible for orchestrating the necessary operations, calling into the
 //! `common_repo` library to perform the core logic.
 
+pub mod add;
 pub mod apply;
 pub mod cache;
 pub mod check;

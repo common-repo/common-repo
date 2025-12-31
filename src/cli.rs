@@ -43,6 +43,9 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Add a repository to the configuration file
+    Add(commands::add::AddArgs),
+
     /// Apply the .common-repo.yaml configuration to the current repository
     Apply(commands::apply::ApplyArgs),
 
@@ -81,6 +84,7 @@ impl Cli {
         self.init_logger()?;
 
         match self.command {
+            Commands::Add(args) => commands::add::execute(args),
             Commands::Apply(args) => commands::apply::execute(args),
             Commands::Check(args) => commands::check::execute(args),
             Commands::Diff(args) => {
