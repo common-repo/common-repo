@@ -2,8 +2,8 @@
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
   "last_updated": "2025-12-31",
-  "active_plan": "context/documentation-review.json",
-  "next_plan": "context/init-redesign.json",
+  "active_plan": "context/add-command.json",
+  "next_plan": "context/cr-alias.json",
   "plans": [
     {
       "id": "documentation-review",
@@ -19,13 +19,13 @@
     {
       "id": "init-redesign",
       "name": "Init Command Redesign",
-      "file": "context/init-redesign.json",
-      "status": "pending",
+      "file": "context/completed/init-redesign.json",
+      "status": "complete",
       "priority": 2,
       "category": "feature",
-      "tasks_total": 7,
-      "tasks_complete": 0,
-      "notes": "Interactive wizard, prek integration, URI arg"
+      "tasks_total": 8,
+      "tasks_complete": 8,
+      "notes": "Interactive wizard, prek integration, URI arg - COMPLETED"
     },
     {
       "id": "add-command",
@@ -130,8 +130,8 @@
   "summary": {
     "total_plans": 7,
     "in_progress": 1,
-    "pending": 6,
-    "complete": 0,
+    "pending": 5,
+    "complete": 1,
     "deferred_reviews": 8
   },
   "notes": [
