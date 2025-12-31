@@ -160,6 +160,30 @@ Breaking changes should be indicated with either:
 - Update relevant documentation files when making changes
 - Keep README.md up to date with new features
 
+#### Table of Contents Generation
+
+This project uses [mktoc](https://github.com/kevingimbel/mktoc) to generate and maintain tables of contents in markdown files. To regenerate a ToC:
+
+```bash
+# Install mktoc (first time only)
+cargo install mktoc
+
+# Regenerate ToC for a specific file
+mktoc docs/src/configuration.md
+
+# Preview ToC without modifying the file
+mktoc --stdout docs/src/configuration.md
+```
+
+ToC markers in markdown files look like:
+```markdown
+<!-- BEGIN mktoc {"min_depth": 2, "max_depth": 3} -->
+... generated content ...
+<!-- END mktoc -->
+```
+
+The inline JSON configuration controls which heading levels are included.
+
 ### Testing
 
 - Write unit tests for all new functions

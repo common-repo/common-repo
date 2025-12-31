@@ -2,13 +2,13 @@
   "plan_name": "Configuration Documentation Improvements",
   "description": "Improve docs/configuration.md with ToC and operator descriptions",
   "created": "2025-12-29",
-  "last_updated": "2025-12-29",
+  "last_updated": "2025-12-31",
   "source": "context/session-notes.md",
   "tasks": [
     {
       "id": "add-toc-tool",
       "name": "Set up ToC generation tooling",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -20,12 +20,13 @@
       "acceptance_criteria": [
         "ToC tool installed and configured",
         "ToC can be regenerated with a single command"
-      ]
+      ],
+      "notes": "Chose mktoc v5.1.1 (more mature than mtoc v0.5.0). Documented in CONTRIBUTING.md."
     },
     {
       "id": "add-toc-to-configuration-md",
       "name": "Add table of contents to docs/configuration.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "add-toc-tool",
       "steps": [
@@ -38,12 +39,13 @@
         "docs/configuration.md has a ToC at the top",
         "All headings are linked",
         "ToC is auto-generated (not manually maintained)"
-      ]
+      ],
+      "notes": "Added mktoc markers with min_depth=2, max_depth=3. ToC generated successfully."
     },
     {
       "id": "add-operator-descriptions",
       "name": "Add descriptions to operator listing at top of file",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
@@ -54,12 +56,13 @@
       "acceptance_criteria": [
         "Operator listing includes descriptions",
         "Each operator links to its section"
-      ]
+      ],
+      "notes": "Added Operator Quick Reference table with descriptions and links to all 12 operators."
     },
     {
       "id": "review-and-cleanup",
       "name": "Review full document for consistency",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": ["add-toc-to-configuration-md", "add-operator-descriptions"],
       "steps": [
@@ -72,7 +75,8 @@
         "Document is consistent and well-formatted",
         "All links work",
         "Examples are valid"
-      ]
+      ],
+      "notes": "Added missing Examples section to ini operator for consistency. All YAML examples are valid. Formatting is consistent across sections."
     }
   ],
   "toc_tool_options": {
