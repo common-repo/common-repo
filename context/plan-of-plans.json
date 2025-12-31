@@ -89,9 +89,9 @@
       "status": "in_progress",
       "priority": 8,
       "category": "feature",
-      "tasks_total": 9,
+      "tasks_total": 4,
       "tasks_complete": 0,
-      "notes": "Implementation of manifest file approach"
+      "notes": "Simplified: reuse existing operator syntax (Option 6)"
     }
   ],
   "deferred_reviews": [

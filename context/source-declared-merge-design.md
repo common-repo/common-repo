@@ -193,6 +193,55 @@ append: true
 - Easy to forget sidecar
 - Unusual pattern
 
+### Option 6: Reuse Existing Operator Syntax (RECOMMENDED)
+
+Instead of inventing a new schema, reuse the existing `with:` operator syntax in a source-side config file. Source repos declare operations using the same familiar syntax consumers already use.
+
+**Example:**
+```yaml
+# Source repo: .common-repo-source.yaml
+with:
+  - markdown:
+      source: CLAUDE.md
+      dest: CLAUDE.md
+      section: "## Inherited Rules"
+      append: true
+  - yaml:
+      source: config/labels.yaml
+      dest: config.yaml
+      path: metadata.labels
+      array_mode: append
+  - toml:
+      source: deps.toml
+      dest: Cargo.toml
+      path: dependencies
+```
+
+These operations auto-apply when a consumer references the source repo.
+
+**Pros:**
+- **Zero new syntax**: Uses existing, familiar operator format
+- **Minimal implementation**: Reuses existing `Operation` enum and parsing
+- **Full operator power**: All existing options available (path, section, array_mode, etc.)
+- **Validated already**: Existing schema validation works
+- **Consistent mental model**: Same syntax in source and consumer configs
+- **Easy to test**: Source authors can test their config as if it were a consumer
+
+**Cons:**
+- Slightly more verbose than a pattern-based approach
+- No glob patterns (must list each file explicitly)
+- `source` field is redundant when source == dest
+
+**Simplification variant** - omit redundant fields:
+```yaml
+# When source == dest, allow shorthand
+with:
+  - markdown:
+      file: CLAUDE.md  # Instead of source: + dest:
+      section: "## Inherited Rules"
+      append: true
+```
+
 ## Consumer Override Mechanism
 
 Regardless of source declaration, consumers should be able to:
@@ -242,79 +291,80 @@ When multiple source repos declare merge for the same destination:
 
 ## Recommendation
 
-**Primary: Option 1 (Manifest File)** with elements of Option 4 (defaults).
+**Primary: Option 6 (Reuse Existing Operator Syntax)**
 
 ### Rationale
 
-1. **Separation of concerns**: Merge rules are infrastructure config, not content
-2. **Discoverability**: Single file to check for all merge behavior
-3. **Validation**: Easy to validate manifest schema
-4. **No file pollution**: Original files remain clean
-5. **Familiar pattern**: Similar to `.gitignore`, `package.json` scripts, etc.
-6. **Extensible**: Can add new features (defaults, conditions) without changing file format
+1. **Minimal new code**: Reuses existing `Operation` enum, parsing, and validation
+2. **Zero learning curve**: Source authors already know the `with:` syntax
+3. **Battle-tested**: Existing operator implementations handle edge cases
+4. **Consistent**: Same syntax works in both source and consumer configs
+5. **Full flexibility**: All operator options immediately available
+6. **Easy testing**: Source authors can validate their config locally
 
 ### Proposed Schema
 
 ```yaml
 # .common-repo-source.yaml
-version: 1
+with:
+  - markdown:
+      source: CLAUDE.md
+      dest: CLAUDE.md
+      section: "## Inherited Rules"
+      append: true
 
-# Optional: default options per operator
-defaults:
-  markdown:
-    append: true
-    create-section: true
-    position: end
-  yaml:
-    array_mode: append_unique
-  json:
-    append: true
+  - yaml:
+      source: labels.yaml
+      dest: config.yaml
+      path: metadata.labels
+      array_mode: append
 
-# Required: explicit merge rules
-merge:
-  - files: "CLAUDE.md"
-    operator: markdown
-    section: "## Inherited Rules"
-    # inherits append: true from defaults
-
-  - files: "config/**/*.yaml"
-    operator: yaml
-    path: metadata.labels
-    # inherits array_mode from defaults
-
-  - files: ["Cargo.toml", "pyproject.toml"]
-    operator: toml
-    path: dependencies
-    array_mode: append
+  - toml:
+      source: deps.toml
+      dest: Cargo.toml
+      path: dependencies
 
 # Files not listed here: normal copy/overwrite behavior
 ```
 
+### Processing Order
+
+1. Load source repo files
+2. Parse `.common-repo-source.yaml` if present
+3. Apply source-declared operations (merge operators)
+4. Apply consumer `with:` operations (override source declarations)
+5. Copy remaining files normally
+
+Consumer operations always take precedence over source declarations.
+
 ### Implementation Phases
 
-1. **Phase 1**: Basic manifest parsing and single-file rules
-2. **Phase 2**: Glob pattern support for `files:`
-3. **Phase 3**: Defaults system
-4. **Phase 4**: Consumer override mechanism
+1. **Phase 1**: Parse `.common-repo-source.yaml` using existing config parser
+2. **Phase 2**: Apply source operations before consumer operations
+3. **Phase 3**: Consumer override mechanism (explicit `with:` overrides)
 
-### Open Questions for Implementation
+### Implementation Simplifications
 
-1. Should `.common-repo-source.yaml` be processed before or after consumer `with:` clauses?
-   - **Recommendation**: Before. Consumer `with:` overrides source declarations.
+Since we reuse existing types:
+- No new `SourceManifest` struct needed - just parse as `Vec<Operation>`
+- No new validation logic - existing operator validation works
+- No new error types - existing `ConfigError` covers it
+- Glob patterns deferred - can add later if needed
 
-2. Should we support the `path:` option in the source config to use a subdirectory?
-   - **Recommendation**: Yes, source manifest applies relative to `path:` if specified.
+### Open Questions
 
-3. How to handle version compatibility?
-   - **Recommendation**: `version: 1` field allows future schema changes.
+1. **File name**: `.common-repo-source.yaml` vs `.common-repo.yaml` with different semantics?
+   - **Recommendation**: Use `.common-repo-source.yaml` to avoid confusion with consumer configs.
 
-4. Should merge rules be additive or exclusive?
-   - **Recommendation**: Additive. Files matching merge rules are merged; others copy normally.
+2. **Consumer override syntax**: Explicit `override:` field or implicit via `with:`?
+   - **Recommendation**: Implicit. Any consumer `with:` operation for the same dest file overrides source declaration.
+
+3. **What about `copy`, `rename`, `delete` operators in source config?**
+   - **Recommendation**: Allow all operators, not just merge. Source can declare any file transformations.
 
 ## Next Steps
 
-1. Create implementation sub-plan with detailed tasks
-2. Start with manifest parsing (new module: `src/source_manifest.rs`)
-3. Integrate with existing repo processing flow
-4. Add consumer override support
-5. Update documentation and schema.yaml
+1. Update implementation plan to reflect simpler approach
+2. Modify config parser to handle source-side config
+3. Integrate source operations into apply workflow
+4. Update documentation and schema.yaml
