@@ -8,7 +8,7 @@
     {
       "id": "analyze-current-workflows",
       "name": "Analyze current CI workflow structure",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -25,9 +25,9 @@
     {
       "id": "merge-coverage-into-test-job",
       "name": "Merge coverage step into test job",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
-      "blocked_by": "analyze-current-workflows",
+      "blocked_by": null,
       "steps": [
         "Add tarpaulin step after test step in test job",
         "Use --skip-clean flag to reuse test artifacts",
@@ -45,7 +45,7 @@
       "name": "Verify CI time is reduced",
       "status": "pending",
       "priority": 3,
-      "blocked_by": "merge-coverage-into-test-job",
+      "blocked_by": null,
       "steps": [
         "Push changes and monitor CI run",
         "Compare total CI time with previous runs",
