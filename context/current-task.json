@@ -1,7 +1,7 @@
 {
-  "task": "create-script-ci",
-  "plan": "context/script-ci.json",
+  "task": null,
+  "plan": null,
   "last_updated": "2025-12-31",
-  "status": "complete",
-  "notes": "Created script/ci for local non-test CI checks and updated CLAUDE.md"
+  "status": null,
+  "notes": "No active task"
 }
