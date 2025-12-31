@@ -1,0 +1,54 @@
+{
+  "plan_name": "Create script/ci for local CI checks",
+  "description": "Create a script/ci that runs non-test CI checks locally (audit, deny, fmt, clippy, etc.)",
+  "last_updated": "2025-12-31",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": "create-script-ci",
+      "name": "Create script/ci script",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "script/ci",
+      "steps": [
+        "Create script/ci following Scripts to Rule Them All pattern",
+        "Include: cargo fmt --check",
+        "Include: cargo clippy --all-targets --all-features -- -D warnings",
+        "Include: cargo audit",
+        "Include: cargo deny check",
+        "Include: pre-commit run --all-files (if available)",
+        "Make script executable",
+        "Test script runs successfully"
+      ],
+      "acceptance_criteria": [
+        "script/ci exists and is executable",
+        "Running ./script/ci performs all non-test CI checks",
+        "Script exits with appropriate error codes",
+        "Script works without network if possible (skip audit/deny network checks)"
+      ]
+    },
+    {
+      "id": "update-claude-md",
+      "name": "Update CLAUDE.md to reference script/ci",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-script-ci",
+      "steps": [
+        "Update Quick Setup section to mention script/ci",
+        "Update Development Commands section with script/ci usage",
+        "Ensure script/cibuild reference is still accurate",
+        "Document when to use script/ci vs script/cibuild vs script/test"
+      ],
+      "acceptance_criteria": [
+        "CLAUDE.md documents script/ci",
+        "Clear guidance on when to use each script"
+      ]
+    }
+  ],
+  "notes": [
+    "This script provides a quick way to run CI checks locally without running tests",
+    "Complements script/test (tests only) and script/cibuild (full CI)",
+    "Useful for quick validation before committing"
+  ]
+}
