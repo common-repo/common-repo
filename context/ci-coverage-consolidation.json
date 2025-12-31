@@ -1,0 +1,66 @@
+{
+  "plan_name": "CI Coverage Consolidation",
+  "description": "Merge coverage into test job to avoid double compilation",
+  "created": "2025-12-31",
+  "last_updated": "2025-12-31",
+  "source": "User request - CI compiles project twice (tests and coverage separately)",
+  "tasks": [
+    {
+      "id": "analyze-current-workflows",
+      "name": "Analyze current CI workflow structure",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Read .github/workflows/ci.yml to understand current test job",
+        "Read .github/workflows/coverage.yml (if separate) or coverage job",
+        "Identify the duplication: both compile the project",
+        "Document current workflow structure"
+      ],
+      "acceptance_criteria": [
+        "Understand where tests and coverage are run",
+        "Identify what's being compiled twice"
+      ]
+    },
+    {
+      "id": "merge-coverage-into-test-job",
+      "name": "Merge coverage step into test job",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "analyze-current-workflows",
+      "steps": [
+        "Add tarpaulin step after test step in test job",
+        "Use --skip-clean flag to reuse test artifacts",
+        "Configure tarpaulin to use existing build cache",
+        "Remove separate coverage job/workflow if exists"
+      ],
+      "acceptance_criteria": [
+        "Coverage runs in same job as tests",
+        "Project only compiles once",
+        "Coverage report still generated and uploaded"
+      ]
+    },
+    {
+      "id": "verify-ci-time-reduction",
+      "name": "Verify CI time is reduced",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "merge-coverage-into-test-job",
+      "steps": [
+        "Push changes and monitor CI run",
+        "Compare total CI time with previous runs",
+        "Verify coverage report is still correct"
+      ],
+      "acceptance_criteria": [
+        "CI time reduced by eliminating duplicate compilation",
+        "Coverage report uploads successfully",
+        "All tests still pass"
+      ]
+    }
+  ],
+  "notes": [
+    "tarpaulin --skip-clean prevents recompilation",
+    "Coverage should run after tests to reuse compiled artifacts",
+    "May need to adjust cache configuration for shared artifacts"
+  ]
+}
