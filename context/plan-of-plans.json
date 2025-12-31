@@ -53,12 +53,12 @@
       "id": "configuration-docs",
       "name": "Configuration Documentation Improvements",
       "file": "context/configuration-docs.json",
-      "status": "in_progress",
+      "status": "complete",
       "priority": 5,
       "category": "docs",
       "tasks_total": 4,
-      "tasks_complete": 0,
-      "notes": "ToC generation, operator descriptions"
+      "tasks_complete": 4,
+      "notes": "ToC generation with mktoc, operator descriptions table - COMPLETED"
     },
     {
       "id": "source-authoring-docs",
@@ -129,9 +129,9 @@
   ],
   "summary": {
     "total_plans": 7,
-    "in_progress": 1,
-    "pending": 3,
-    "complete": 4,
+    "in_progress": 0,
+    "pending": 2,
+    "complete": 5,
     "deferred_reviews": 8
   },
   "notes": [

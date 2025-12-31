@@ -2,9 +2,51 @@
 
 This document covers all operators and options available in `.common-repo.yaml`.
 
+<!-- BEGIN mktoc {"min_depth": 2, "max_depth": 3} -->
+
+- [Configuration File](#configuration-file)
+  - [Operator Quick Reference](#operator-quick-reference)
+- [Core Operators](#core-operators)
+  - [`repo` - Inherit from a Repository](#repo---inherit-from-a-repository)
+  - [`include` - Add Files](#include---add-files)
+  - [`exclude` - Remove Files](#exclude---remove-files)
+  - [`rename` - Transform Paths](#rename---transform-paths)
+  - [`template` - Mark Template Files](#template---mark-template-files)
+  - [`template-vars` - Define Variables](#template-vars---define-variables)
+  - [`tools` - Validate Required Tools](#tools---validate-required-tools)
+- [Merge Operators](#merge-operators)
+  - [`yaml` - Merge YAML Files](#yaml---merge-yaml-files)
+  - [`json` - Merge JSON Files](#json---merge-json-files)
+  - [`toml` - Merge TOML Files](#toml---merge-toml-files)
+  - [`ini` - Merge INI Files](#ini---merge-ini-files)
+  - [`markdown` - Merge Markdown Files](#markdown---merge-markdown-files)
+- [Operation Order](#operation-order)
+  - [Example Order](#example-order)
+- [Complete Example](#complete-example)
+<!-- END mktoc -->
+
 ## Configuration File
 
 The `.common-repo.yaml` file is a list of operations executed in order. Each operation is a YAML map with a single key indicating the operator type.
+
+### Operator Quick Reference
+
+| Operator | Description |
+|----------|-------------|
+| [`repo`](#repo---inherit-from-a-repository) | Inherit files from a remote Git repository |
+| [`include`](#include---add-files) | Add files from the current repository |
+| [`exclude`](#exclude---remove-files) | Remove files from the in-memory filesystem |
+| [`rename`](#rename---transform-paths) | Transform file paths using regex patterns |
+| [`template`](#template---mark-template-files) | Mark files for variable substitution |
+| [`template-vars`](#template-vars---define-variables) | Define variables for template substitution |
+| [`tools`](#tools---validate-required-tools) | Validate that required tools are installed |
+| [`yaml`](#yaml---merge-yaml-files) | Merge YAML configuration fragments |
+| [`json`](#json---merge-json-files) | Merge JSON configuration fragments |
+| [`toml`](#toml---merge-toml-files) | Merge TOML configuration fragments |
+| [`ini`](#ini---merge-ini-files) | Merge INI configuration fragments |
+| [`markdown`](#markdown---merge-markdown-files) | Merge markdown document fragments |
+
+Example configuration:
 
 ```yaml
 # .common-repo.yaml
@@ -354,6 +396,16 @@ Merge operators intelligently combine configuration fragments into destination f
 | `section` | No | - | INI section to merge into |
 | `append` | No | false | Append values instead of replace |
 | `allow-duplicates` | No | false | Allow duplicate keys |
+
+#### Examples
+
+**Merge database settings:**
+```yaml
+- ini:
+    source: db-settings.ini
+    dest: config.ini
+    section: database
+```
 
 ### `markdown` - Merge Markdown Files
 

@@ -1,8 +1,8 @@
 {
-  "task": "add-toc-tool",
+  "task": null,
   "plan": "context/configuration-docs.json",
   "last_updated": "2025-12-31",
-  "status": "in_progress",
+  "status": "complete",
   "master_plan": "context/plan-of-plans.json",
   "context": {
     "completed_plans": [
@@ -15,11 +15,11 @@
       "context/completed/cr-alias.json"
     ],
     "current_subplan": "context/configuration-docs.json",
-    "notes": "Starting configuration-docs plan. First task: evaluate and set up ToC generation tooling.",
+    "notes": "All configuration-docs tasks complete. Added ToC with mktoc, operator quick reference table, and reviewed document for consistency.",
     "recently_completed": {
-      "task": "add-symlink-tests",
-      "plan": "cr-alias",
-      "summary": "Added cr alias symlink/wrapper to install.sh with tests. Archived to completed/"
+      "task": "review-and-cleanup",
+      "plan": "configuration-docs",
+      "summary": "Added mktoc for ToC generation, operator descriptions table, and reviewed configuration.md for consistency."
     }
   }
 }
