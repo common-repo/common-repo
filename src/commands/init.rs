@@ -13,8 +13,12 @@
 
 use anyhow::Result;
 use clap::Args;
+use dialoguer::{theme::ColorfulTheme, Input};
 use std::fs;
 use std::path::Path;
+
+use common_repo::git;
+use common_repo::version;
 
 /// Initialize a new .common-repo.yaml configuration file
 #[derive(Args, Debug)]
@@ -141,37 +145,146 @@ fn generate_template_config(template_name: &str) -> Result<String> {
     }
 }
 
+/// A repository entry collected during the interactive wizard.
+struct RepoEntry {
+    url: String,
+    version: String,
+}
+
 /// Generate interactive configuration through CLI wizard.
 fn generate_interactive_config() -> Result<String> {
-    println!("🎉 Welcome to common-repo!");
-    println!("Let's set up your repository configuration.");
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("Welcome to common-repo!");
+    println!("Enter repository URLs to inherit from. Leave empty when done.");
     println!();
 
-    // For now, return minimal config
-    // TODO: Implement full interactive wizard with dialoguer
-    println!("? What type of project is this?");
-    println!("  ❯ Rust CLI application");
-    println!("    Python web application");
-    println!("    Node.js/TypeScript project");
-    println!("    Go service");
-    println!("    Custom/Other");
-    println!();
+    let mut repos: Vec<RepoEntry> = Vec::new();
 
-    println!("? Which common configurations do you want?");
-    println!("  ◉ Pre-commit hooks");
-    println!("  ◉ CI/CD workflows (GitHub Actions)");
-    println!("  ◯ Semantic versioning");
-    println!("  ◉ Linters and formatters");
-    println!();
+    loop {
+        let prompt = if repos.is_empty() {
+            "Repository URL (e.g., https://github.com/org/repo)"
+        } else {
+            "Add another repository (leave empty to finish)"
+        };
 
-    println!("? Pin to stable versions or track latest?");
-    println!("  ❯ Stable (recommended)");
-    println!("    Latest (auto-update to newest)");
-    println!("    Custom");
-    println!();
+        let input: String = Input::with_theme(&theme)
+            .with_prompt(prompt)
+            .allow_empty(true)
+            .interact_text()?;
 
-    // Return minimal config for now
-    Ok(generate_minimal_config())
+        let input = input.trim();
+        if input.is_empty() {
+            if repos.is_empty() {
+                println!("No repositories added. Creating empty configuration.");
+            }
+            break;
+        }
+
+        // Normalize URL
+        let url = normalize_repo_url(input);
+
+        // Fetch tags and find latest semver
+        print!("  Fetching tags from {}... ", url);
+        match git::list_tags(&url) {
+            Ok(tags) => {
+                let semver_tags = version::filter_semver_tags(&tags);
+                if let Some((latest_tag, _)) = find_latest_version(&semver_tags) {
+                    println!("found {}", latest_tag);
+                    repos.push(RepoEntry {
+                        url: url.clone(),
+                        version: latest_tag,
+                    });
+                } else if !tags.is_empty() {
+                    // No semver tags, warn and use first tag or main
+                    println!("no semver tags found");
+                    println!("  Warning: No semantic version tags found. Using 'main' branch.");
+                    repos.push(RepoEntry {
+                        url: url.clone(),
+                        version: "main".to_string(),
+                    });
+                } else {
+                    println!("no tags found");
+                    println!("  Warning: No tags found. Using 'main' branch.");
+                    repos.push(RepoEntry {
+                        url: url.clone(),
+                        version: "main".to_string(),
+                    });
+                }
+            }
+            Err(e) => {
+                println!("failed");
+                println!("  Error fetching tags: {}. Using 'main' branch.", e);
+                repos.push(RepoEntry {
+                    url: url.clone(),
+                    version: "main".to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(build_config_from_repos(&repos))
+}
+
+/// Normalize a repository URL, expanding GitHub shorthand.
+fn normalize_repo_url(input: &str) -> String {
+    // If it already looks like a URL, use as-is
+    if input.starts_with("https://") || input.starts_with("git@") || input.starts_with("http://") {
+        return input.to_string();
+    }
+
+    // Expand GitHub shorthand: org/repo -> https://github.com/org/repo
+    if input.contains('/') && !input.contains(':') {
+        return format!("https://github.com/{}", input);
+    }
+
+    input.to_string()
+}
+
+/// Find the latest semantic version from a list of tags.
+fn find_latest_version(tags: &[String]) -> Option<(String, semver::Version)> {
+    let mut latest: Option<(String, semver::Version)> = None;
+
+    for tag in tags {
+        if let Some(version) = git::parse_semver_tag(tag) {
+            if let Some((_, ref latest_ver)) = latest {
+                if version > *latest_ver {
+                    latest = Some((tag.clone(), version));
+                }
+            } else {
+                latest = Some((tag.clone(), version));
+            }
+        }
+    }
+
+    latest
+}
+
+/// Build configuration YAML from collected repository entries.
+fn build_config_from_repos(repos: &[RepoEntry]) -> String {
+    let mut config = String::from("# common-repo configuration\n");
+    config.push_str("# Generated by interactive wizard\n\n");
+
+    if repos.is_empty() {
+        config.push_str("# Add your repository configurations here:\n");
+        config.push_str("# - repo:\n");
+        config.push_str("#     url: https://github.com/your-org/your-repo\n");
+        config.push_str("#     ref: v1.0.0\n");
+    } else {
+        for repo in repos {
+            config.push_str("- repo:\n");
+            config.push_str(&format!("    url: {}\n", repo.url));
+            config.push_str(&format!("    ref: {}\n", repo.version));
+            config.push('\n');
+        }
+
+        config.push_str("- include:\n");
+        config.push_str("    patterns:\n");
+        config.push_str("      - \"**/*\"\n");
+    }
+
+    config
 }
 
 /// Generate Rust CLI template configuration.
@@ -495,27 +608,97 @@ mod tests {
         env::set_current_dir(original_dir).unwrap();
     }
 
+    // Note: test_execute_interactive_config is skipped because dialoguer
+    // requires a TTY for interactive prompts. Interactive mode is tested
+    // manually or via E2E tests with TTY simulation.
+
     #[test]
-    #[serial]
-    fn test_execute_interactive_config() {
-        let original_dir = env::current_dir().unwrap();
-        let temp_dir = TempDir::new().unwrap();
-        env::set_current_dir(&temp_dir).unwrap();
+    fn test_normalize_repo_url_full_url() {
+        assert_eq!(
+            normalize_repo_url("https://github.com/org/repo"),
+            "https://github.com/org/repo"
+        );
+        assert_eq!(
+            normalize_repo_url("git@github.com:org/repo.git"),
+            "git@github.com:org/repo.git"
+        );
+    }
 
-        let args = InitArgs {
-            interactive: true,
-            template: None,
-            minimal: false,
-            empty: false,
-            force: false,
-        };
+    #[test]
+    fn test_normalize_repo_url_shorthand() {
+        assert_eq!(
+            normalize_repo_url("org/repo"),
+            "https://github.com/org/repo"
+        );
+        assert_eq!(
+            normalize_repo_url("common-repo/rust-cli"),
+            "https://github.com/common-repo/rust-cli"
+        );
+    }
 
-        let result = execute(args);
-        assert!(result.is_ok());
+    #[test]
+    fn test_build_config_from_repos_empty() {
+        let repos: Vec<RepoEntry> = vec![];
+        let config = build_config_from_repos(&repos);
+        assert!(config.contains("# common-repo configuration"));
+        assert!(config.contains("# Add your repository configurations here"));
+    }
 
-        let content = fs::read_to_string(".common-repo.yaml").unwrap();
-        assert!(content.contains("# common-repo configuration"));
+    #[test]
+    fn test_build_config_from_repos_single() {
+        let repos = vec![RepoEntry {
+            url: "https://github.com/org/repo".to_string(),
+            version: "v1.0.0".to_string(),
+        }];
+        let config = build_config_from_repos(&repos);
+        assert!(config.contains("url: https://github.com/org/repo"));
+        assert!(config.contains("ref: v1.0.0"));
+        assert!(config.contains("- include:"));
+    }
 
-        env::set_current_dir(original_dir).unwrap();
+    #[test]
+    fn test_build_config_from_repos_multiple() {
+        let repos = vec![
+            RepoEntry {
+                url: "https://github.com/org/repo1".to_string(),
+                version: "v1.0.0".to_string(),
+            },
+            RepoEntry {
+                url: "https://github.com/org/repo2".to_string(),
+                version: "v2.0.0".to_string(),
+            },
+        ];
+        let config = build_config_from_repos(&repos);
+        assert!(config.contains("url: https://github.com/org/repo1"));
+        assert!(config.contains("ref: v1.0.0"));
+        assert!(config.contains("url: https://github.com/org/repo2"));
+        assert!(config.contains("ref: v2.0.0"));
+    }
+
+    #[test]
+    fn test_find_latest_version() {
+        let tags = vec![
+            "v1.0.0".to_string(),
+            "v2.0.0".to_string(),
+            "v1.5.0".to_string(),
+        ];
+        let result = super::find_latest_version(&tags);
+        assert!(result.is_some());
+        let (tag, _) = result.unwrap();
+        assert_eq!(tag, "v2.0.0");
+    }
+
+    #[test]
+    fn test_find_latest_version_empty() {
+        let tags: Vec<String> = vec![];
+        let result = super::find_latest_version(&tags);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_latest_version_no_semver() {
+        let tags = vec!["main".to_string(), "develop".to_string()];
+        let result = super::find_latest_version(&tags);
+        assert!(result.is_none());
     }
 }

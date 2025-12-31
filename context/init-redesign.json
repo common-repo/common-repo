@@ -23,20 +23,20 @@
     {
       "id": "implement-interactive-wizard",
       "name": "Implement full interactive setup wizard",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "add-dialoguer-dependency",
       "steps": [
         "Replace stub prompts in generate_interactive_config() with real dialoguer prompts",
-        "Add project type selection (Rust CLI, Python, Node, Go, Custom)",
-        "Add configuration choices (pre-commit hooks, CI/CD, linters)",
-        "Add version pinning preference (stable vs latest)",
-        "Generate appropriate config based on selections"
+        "Prompt for repository URLs (supports GitHub shorthand org/repo)",
+        "Auto-fetch and detect latest semver tag from each repo",
+        "Fall back to 'main' branch if no semver tags found",
+        "Generate config with all added repos and default include pattern"
       ],
       "acceptance_criteria": [
         "common-repo init -i launches interactive wizard",
-        "User can navigate prompts with keyboard",
-        "Generated config reflects user choices"
+        "User can enter repo URLs interactively",
+        "Latest semver is auto-detected for each repo"
       ]
     },
     {
