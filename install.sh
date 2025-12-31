@@ -6,6 +6,8 @@
 #   VERSION      - Specific version to install (e.g., "v0.20.0"). Default: latest
 #   INSTALL_DIR  - Directory to install to. Default: ~/.local/bin (or /usr/local/bin with sudo)
 #   GITHUB_TOKEN - Token for GitHub API (optional, helps avoid rate limits)
+#   INSTALL_PREK - Set to "1" to also install prek (fast pre-commit alternative)
+#                  If unset and running interactively, will prompt
 
 set -e
 
@@ -165,6 +167,173 @@ get_install_dir() {
     fi
 }
 
+# Check if prek should be installed
+should_install_prek() {
+    # Already have prek installed
+    if command -v prek >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Explicit env var takes precedence
+    if [ "${INSTALL_PREK:-}" = "1" ]; then
+        return 0
+    elif [ -n "${INSTALL_PREK:-}" ]; then
+        # Any other non-empty value means no
+        return 1
+    fi
+
+    # If not interactive, don't prompt
+    if [ ! -t 0 ] || [ ! -t 1 ]; then
+        return 1
+    fi
+
+    # Interactive prompt
+    printf "%s" "${BLUE}?${NC} Would you like to install prek (fast pre-commit hooks)? [y/N] "
+    read -r response
+    case "${response}" in
+        [yY]|[yY][eE][sS]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Get latest prek version from GitHub
+get_prek_version() {
+    api_url="https://api.github.com/repos/j178/prek/releases/latest"
+
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        auth_header="Authorization: token ${GITHUB_TOKEN}"
+    else
+        auth_header=""
+    fi
+
+    if command -v curl >/dev/null 2>&1; then
+        if [ -n "${auth_header}" ]; then
+            response=$(curl -fsSL -H "${auth_header}" "${api_url}" 2>/dev/null) || return 1
+        else
+            response=$(curl -fsSL "${api_url}" 2>/dev/null) || return 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if [ -n "${auth_header}" ]; then
+            response=$(wget -qO- --header="${auth_header}" "${api_url}" 2>/dev/null) || return 1
+        else
+            response=$(wget -qO- "${api_url}" 2>/dev/null) || return 1
+        fi
+    else
+        return 1
+    fi
+
+    echo "${response}" | grep -o '"tag_name":\s*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/'
+}
+
+# Get prek target triple
+get_prek_target() {
+    os="$1"
+    arch="$2"
+
+    case "${os}-${arch}" in
+        linux-x86_64)   echo "x86_64-unknown-linux-gnu" ;;
+        linux-aarch64)  echo "aarch64-unknown-linux-gnu" ;;
+        macos-aarch64)  echo "aarch64-apple-darwin" ;;
+        macos-x86_64)   echo "x86_64-apple-darwin" ;;
+        windows-x86_64) echo "x86_64-pc-windows-msvc" ;;
+        *) return 1 ;;
+    esac
+}
+
+# Install prek to the specified directory
+install_prek() {
+    install_dir="$1"
+    os="$2"
+    arch="$3"
+
+    info "Installing prek..."
+
+    prek_target=$(get_prek_target "${os}" "${arch}") || {
+        warn "No prek binary available for ${os}-${arch}, skipping prek installation"
+        return 0
+    }
+
+    prek_version=$(get_prek_version) || {
+        warn "Could not determine latest prek version, skipping prek installation"
+        return 0
+    }
+
+    info "Downloading prek ${prek_version}..."
+
+    # prek releases use .tar.gz for all platforms except Windows
+    if [ "${os}" = "windows" ]; then
+        prek_archive="prek-${arch}-pc-windows-msvc.zip"
+        prek_ext="zip"
+    else
+        prek_archive="prek-${prek_target}.tar.gz"
+        prek_ext="tar.gz"
+    fi
+
+    prek_url="https://github.com/j178/prek/releases/download/${prek_version}/${prek_archive}"
+
+    prek_tmp=$(mktemp -d)
+    prek_archive_path="${prek_tmp}/${prek_archive}"
+
+    if ! download_file "${prek_url}" "${prek_archive_path}"; then
+        warn "Failed to download prek, skipping installation"
+        rm -rf "${prek_tmp}"
+        return 0
+    fi
+
+    # Extract prek
+    cd "${prek_tmp}"
+    if [ "${prek_ext}" = "zip" ]; then
+        if command -v unzip >/dev/null 2>&1; then
+            unzip -q "${prek_archive_path}"
+        else
+            warn "unzip not available, skipping prek installation"
+            rm -rf "${prek_tmp}"
+            return 0
+        fi
+        prek_binary="${prek_tmp}/prek.exe"
+    else
+        tar xzf "${prek_archive_path}"
+        prek_binary="${prek_tmp}/prek"
+    fi
+
+    if [ ! -f "${prek_binary}" ]; then
+        warn "prek binary not found in archive, skipping installation"
+        rm -rf "${prek_tmp}"
+        return 0
+    fi
+
+    # Install prek binary
+    if [ "${os}" = "windows" ]; then
+        prek_install_path="${install_dir}/prek.exe"
+    else
+        prek_install_path="${install_dir}/prek"
+    fi
+
+    if [ -w "${install_dir}" ]; then
+        cp "${prek_binary}" "${prek_install_path}"
+        chmod +x "${prek_install_path}"
+    else
+        if command -v sudo >/dev/null 2>&1; then
+            sudo cp "${prek_binary}" "${prek_install_path}"
+            sudo chmod +x "${prek_install_path}"
+        else
+            warn "Cannot write to ${install_dir}, skipping prek installation"
+            rm -rf "${prek_tmp}"
+            return 0
+        fi
+    fi
+
+    rm -rf "${prek_tmp}"
+
+    # Show version
+    if [ -x "${prek_install_path}" ]; then
+        prek_installed_version=$("${prek_install_path}" --version 2>/dev/null || echo "unknown")
+        success "prek ${prek_installed_version} installed successfully!"
+    else
+        success "prek installed successfully!"
+    fi
+}
+
 # Main installation logic
 main() {
     info "Installing ${BINARY_NAME}..."
@@ -274,6 +443,11 @@ main() {
     fi
 
     success "${BINARY_NAME} ${version} installed successfully!"
+
+    # Optionally install prek
+    if should_install_prek; then
+        install_prek "${install_dir}" "${os}" "${arch}"
+    fi
 
     # Check if install directory is in PATH
     case ":${PATH}:" in

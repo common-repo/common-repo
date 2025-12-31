@@ -23,6 +23,9 @@ VERSION=v0.20.0 curl -fsSL https://raw.githubusercontent.com/common-repo/common-
 # Install to a custom directory
 INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
 
+# Also install prek (fast pre-commit hooks)
+INSTALL_PREK=1 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+
 # Install with sudo (for system-wide installation)
 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sudo sh
 ```

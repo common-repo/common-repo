@@ -80,7 +80,7 @@
     {
       "id": "update-install-script-prek",
       "name": "Add optional prek installation to install.sh",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "steps": [
