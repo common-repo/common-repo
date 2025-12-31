@@ -1,6 +1,6 @@
 {
-  "task": "update-init-documentation",
-  "plan": "context/init-redesign.json",
+  "task": null,
+  "plan": "context/add-command.json",
   "last_updated": "2025-12-31",
   "status": "pending",
   "master_plan": "context/plan-of-plans.json",
@@ -9,13 +9,15 @@
       "context/completed/project-review-plan.json",
       "context/completed/documentation-review.json",
       "context/completed/testing-review.json",
-      "context/completed/cicd-review.json"
+      "context/completed/cicd-review.json",
+      "context/completed/init-redesign.json"
     ],
-    "current_subplan": "context/init-redesign.json",
-    "notes": "Next unblocked task: update-init-documentation (priority 5). This is the final task in the init-redesign plan.",
+    "current_subplan": "context/add-command.json",
+    "notes": "Init redesign complete. Next plan: add-command for quick repo addition feature.",
     "recently_completed": {
-      "task": "remove-deprecated-flags",
-      "summary": "Removed deprecated --minimal, --empty, and --template flags from InitArgs. Removed generate_empty_config(), generate_minimal_config(), generate_template_config(), and all template generation functions. Updated execute() to default to interactive wizard. Updated unit tests and E2E tests. Updated snapshot test for init --help output."
+      "task": "update-init-documentation",
+      "plan": "init-redesign",
+      "summary": "Updated README.md with Quick Start section, updated docs/src/cli.md with new init command options (URI arg, removed deprecated flags), updated docs/src/getting-started.md with interactive wizard description."
     }
   }
 }

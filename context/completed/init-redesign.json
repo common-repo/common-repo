@@ -118,7 +118,7 @@
     {
       "id": "update-init-documentation",
       "name": "Update documentation for new init behavior",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "remove-deprecated-flags",
       "steps": [
