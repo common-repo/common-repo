@@ -85,7 +85,7 @@
     {
       "id": "commit-cleanup",
       "name": "Commit all cleanup changes",
-      "status": "in_progress",
+      "status": "complete",
       "priority": 5,
       "blocked_by": ["review-evaluation-checklist", "review-session-notes", "review-source-declared-merge-design", "review-traceability-map"],
       "steps": [
