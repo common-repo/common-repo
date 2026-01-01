@@ -100,6 +100,10 @@ fn discover_inherited_configs(
             // Try to fetch and parse the inherited config
             match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
                 Ok(inherited_config) => {
+                    // Extract deferred operations from the source repo's config
+                    // These will be prepended to the consumer's operations
+                    let deferred_ops = extract_deferred_operations(&inherited_config);
+
                     // Process the inherited config to get its repo operations
                     let inherited_node = process_config_to_node(&inherited_config)?;
 
@@ -107,13 +111,14 @@ fn discover_inherited_configs(
                     let inherited_node =
                         discover_inherited_configs(inherited_node, repo_manager, visited)?;
 
-                    // The inherited node becomes a child, but we also need to preserve
-                    // the operations from the current child's `with:` clause
-                    let mut combined_node = RepoNode::new(
-                        child.url.clone(),
-                        child.ref_.clone(),
-                        child.operations.clone(),
-                    );
+                    // Combine deferred ops with consumer's with: operations
+                    // Deferred ops come first, then consumer ops (which can override)
+                    let mut combined_operations = deferred_ops;
+                    combined_operations.extend(child.operations.clone());
+
+                    // The inherited node becomes a child with combined operations
+                    let mut combined_node =
+                        RepoNode::new(child.url.clone(), child.ref_.clone(), combined_operations);
 
                     // Add all the inherited repos as children
                     for inherited_child in inherited_node.children {
@@ -173,6 +178,18 @@ fn fetch_and_parse_config(
     })?;
 
     crate::config::parse(&yaml_str)
+}
+
+/// Extract deferred operations from a source repository's config
+///
+/// Deferred operations have `defer: true` or `auto-merge` set.
+/// These will be applied before the consumer's `with:` operations.
+fn extract_deferred_operations(config: &Schema) -> Vec<Operation> {
+    config
+        .iter()
+        .filter(|op| op.is_deferred())
+        .cloned()
+        .collect()
 }
 
 /// Detect cycles in the repository dependency tree
@@ -1096,5 +1113,166 @@ mod tests {
         assert_eq!(tree.root.url, "local");
         assert!(tree.root.children.is_empty());
         assert_eq!(tree.root.operations.len(), 2);
+    }
+
+    // ========================================================================
+    // Tests for extract_deferred_operations
+    // ========================================================================
+
+    mod extract_deferred_ops_tests {
+        use super::*;
+        use crate::config::{ExcludeOp, IncludeOp, MarkdownMergeOp, Operation, YamlMergeOp};
+
+        #[test]
+        fn test_extract_deferred_operations_empty_config() {
+            let config: Schema = vec![];
+            let result = extract_deferred_operations(&config);
+            assert!(result.is_empty());
+        }
+
+        #[test]
+        fn test_extract_deferred_operations_no_deferred() {
+            let config: Schema = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["*.rs".to_string()],
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.tmp".to_string()],
+                    },
+                },
+                // Regular merge op (not deferred)
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        source: Some("s.yaml".to_string()),
+                        dest: Some("d.yaml".to_string()),
+                        ..Default::default()
+                    },
+                },
+            ];
+            let result = extract_deferred_operations(&config);
+            assert!(result.is_empty());
+        }
+
+        #[test]
+        fn test_extract_deferred_operations_with_auto_merge() {
+            let config: Schema = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["*.rs".to_string()],
+                    },
+                },
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some("config.yaml".to_string()),
+                        ..Default::default()
+                    },
+                },
+            ];
+            let result = extract_deferred_operations(&config);
+            assert_eq!(result.len(), 1);
+            assert!(matches!(result[0], Operation::Yaml { .. }));
+        }
+
+        #[test]
+        fn test_extract_deferred_operations_with_defer_flag() {
+            let config: Schema = vec![Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: Some("s.yaml".to_string()),
+                    dest: Some("d.yaml".to_string()),
+                    defer: Some(true),
+                    ..Default::default()
+                },
+            }];
+            let result = extract_deferred_operations(&config);
+            assert_eq!(result.len(), 1);
+        }
+
+        #[test]
+        fn test_extract_deferred_operations_multiple() {
+            let config: Schema = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["**/*".to_string()],
+                    },
+                },
+                // First deferred op
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some("config.yaml".to_string()),
+                        ..Default::default()
+                    },
+                },
+                // Non-deferred merge op
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        source: Some("other.yaml".to_string()),
+                        dest: Some("out.yaml".to_string()),
+                        ..Default::default()
+                    },
+                },
+                // Second deferred op
+                Operation::Markdown {
+                    markdown: MarkdownMergeOp {
+                        auto_merge: Some("CLAUDE.md".to_string()),
+                        section: "## Rules".to_string(),
+                        ..Default::default()
+                    },
+                },
+            ];
+            let result = extract_deferred_operations(&config);
+            assert_eq!(result.len(), 2);
+            assert!(matches!(result[0], Operation::Yaml { .. }));
+            assert!(matches!(result[1], Operation::Markdown { .. }));
+        }
+
+        #[test]
+        fn test_extract_deferred_operations_preserves_order() {
+            let config: Schema = vec![
+                Operation::Markdown {
+                    markdown: MarkdownMergeOp {
+                        auto_merge: Some("A.md".to_string()),
+                        section: "## A".to_string(),
+                        ..Default::default()
+                    },
+                },
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some("B.yaml".to_string()),
+                        ..Default::default()
+                    },
+                },
+                Operation::Markdown {
+                    markdown: MarkdownMergeOp {
+                        auto_merge: Some("C.md".to_string()),
+                        section: "## C".to_string(),
+                        ..Default::default()
+                    },
+                },
+            ];
+            let result = extract_deferred_operations(&config);
+            assert_eq!(result.len(), 3);
+            // Check order is preserved
+            match &result[0] {
+                Operation::Markdown { markdown } => {
+                    assert_eq!(markdown.auto_merge, Some("A.md".to_string()));
+                }
+                _ => panic!("Expected Markdown"),
+            }
+            match &result[1] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.auto_merge, Some("B.yaml".to_string()));
+                }
+                _ => panic!("Expected Yaml"),
+            }
+            match &result[2] {
+                Operation::Markdown { markdown } => {
+                    assert_eq!(markdown.auto_merge, Some("C.md".to_string()));
+                }
+                _ => panic!("Expected Markdown"),
+            }
+        }
     }
 }

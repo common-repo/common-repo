@@ -64,7 +64,7 @@
     {
       "id": "apply-deferred-ops",
       "name": "Apply deferred operations from source repos",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "phase": "phase-2",
       "blocked_by": null,
@@ -79,9 +79,9 @@
         "Consumer with: takes precedence",
         "Source without .common-repo.yaml works normally"
       ],
-      "files_to_modify": [
-        "src/lib.rs",
-        "src/operators.rs"
+      "files_modified": [
+        "src/config.rs (added Operation::is_deferred())",
+        "src/phases/discovery.rs (added extract_deferred_operations, modified discover_inherited_configs)"
       ],
       "complexity": "medium"
     },
