@@ -1406,6 +1406,7 @@ pub(crate) mod template {
                             path.display(),
                             e
                         ),
+                        variable: None,
                     })?;
 
                 // Process variable substitution
@@ -1437,6 +1438,7 @@ pub(crate) mod template {
         // Regex to match ${VAR} and ${VAR:-default} patterns
         let re = Regex::new(r"\$\{([^:}]+)(?::-(.+?))?\}").map_err(|e| Error::Template {
             message: format!("Invalid regex pattern: {}", e),
+            variable: None,
         })?;
 
         let mut result = content.to_string();
@@ -1454,7 +1456,8 @@ pub(crate) mod template {
                 default.to_string()
             } else {
                 return Err(Error::Template {
-                    message: format!("Undefined variable: {}", var_name),
+                    message: "Undefined variable with no default value".to_string(),
+                    variable: Some(var_name.to_string()),
                 });
             };
 
@@ -1622,8 +1625,9 @@ mod template_tests {
         let result = template::process(&mut fs, &vars);
         assert!(result.is_err());
 
-        if let Err(Error::Template { message }) = result {
+        if let Err(Error::Template { message, variable }) = result {
             assert!(message.contains("Undefined variable"));
+            assert!(variable.is_some());
         } else {
             panic!("Expected Template error");
         }
@@ -1664,8 +1668,9 @@ mod template_tests {
         let vars = HashMap::new();
         let result = template::process(&mut fs, &vars);
         assert!(result.is_err());
-        if let Err(Error::Template { message }) = result {
+        if let Err(Error::Template { message, variable }) = result {
             assert!(message.contains("Invalid UTF-8 in template file"));
+            assert!(variable.is_none());
         } else {
             panic!("Expected Template error");
         }

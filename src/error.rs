@@ -56,15 +56,27 @@ use thiserror::Error;
 #[allow(dead_code)]
 pub enum Error {
     /// An error occurred while parsing the `.common-repo.yaml` configuration file.
-    #[error("Configuration parsing error: {message}")]
-    ConfigParse { message: String },
+    ///
+    /// This error includes the specific parsing issue and optionally a hint
+    /// about how to fix it.
+    #[error("Configuration parsing error: {message}{}", hint.as_ref().map(|h| format!("\n  hint: {}", h)).unwrap_or_default())]
+    ConfigParse {
+        message: String,
+        /// Optional hint for how to fix the configuration issue
+        hint: Option<String>,
+    },
 
     /// An error occurred while cloning a Git repository.
-    #[error("Git clone error for {url}@{r#ref}: {message}")]
+    ///
+    /// Includes the repository URL, ref (branch/tag), error message, and an
+    /// optional hint for resolution.
+    #[error("Git clone error for {url}@{r#ref}: {message}{}", hint.as_ref().map(|h| format!("\n  hint: {}", h)).unwrap_or_default())]
     GitClone {
         url: String,
         r#ref: String,
         message: String,
+        /// Optional hint for how to resolve the clone issue
+        hint: Option<String>,
     },
 
     /// An error occurred while executing a Git command.
@@ -109,8 +121,14 @@ pub enum Error {
     ToolValidation { tool: String, message: String },
 
     /// An error occurred during template processing.
-    #[error("Template processing error: {message}")]
-    Template { message: String },
+    ///
+    /// May include the name of the problematic variable when applicable.
+    #[error("Template processing error: {message}{}", variable.as_ref().map(|v| format!(" (variable: {})", v)).unwrap_or_default())]
+    Template {
+        message: String,
+        /// The template variable that caused the error, if applicable
+        variable: Option<String>,
+    },
 
     /// An error occurred during a merge operation.
     #[error("Merge operation error: {operation} - {message}")]
@@ -169,10 +187,24 @@ mod tests {
     fn test_error_display_config_parse() {
         let error = Error::ConfigParse {
             message: "Invalid YAML".to_string(),
+            hint: None,
         };
         let display = format!("{}", error);
         assert!(display.contains("Configuration parsing error"));
         assert!(display.contains("Invalid YAML"));
+    }
+
+    #[test]
+    fn test_error_display_config_parse_with_hint() {
+        let error = Error::ConfigParse {
+            message: "Missing url field".to_string(),
+            hint: Some("Add 'url:' to the repo block".to_string()),
+        };
+        let display = format!("{}", error);
+        assert!(display.contains("Configuration parsing error"));
+        assert!(display.contains("Missing url field"));
+        assert!(display.contains("hint:"));
+        assert!(display.contains("Add 'url:'"));
     }
 
     #[test]
@@ -181,12 +213,27 @@ mod tests {
             url: "https://github.com/test/repo.git".to_string(),
             r#ref: "main".to_string(),
             message: "Authentication failed".to_string(),
+            hint: None,
         };
         let display = format!("{}", error);
         assert!(display.contains("Git clone error"));
         assert!(display.contains("https://github.com/test/repo.git"));
         assert!(display.contains("main"));
         assert!(display.contains("Authentication failed"));
+    }
+
+    #[test]
+    fn test_error_display_git_clone_with_hint() {
+        let error = Error::GitClone {
+            url: "https://github.com/test/repo.git".to_string(),
+            r#ref: "main".to_string(),
+            message: "Authentication failed".to_string(),
+            hint: Some("Check SSH keys".to_string()),
+        };
+        let display = format!("{}", error);
+        assert!(display.contains("Git clone error"));
+        assert!(display.contains("hint:"));
+        assert!(display.contains("Check SSH keys"));
     }
 
     #[test]
@@ -296,10 +343,23 @@ mod tests {
     fn test_error_template() {
         let error = Error::Template {
             message: "Template processing failed".to_string(),
+            variable: None,
         };
         let display = format!("{}", error);
         assert!(display.contains("Template processing error"));
         assert!(display.contains("Template processing failed"));
+    }
+
+    #[test]
+    fn test_error_template_with_variable() {
+        let error = Error::Template {
+            message: "Undefined variable".to_string(),
+            variable: Some("MY_VAR".to_string()),
+        };
+        let display = format!("{}", error);
+        assert!(display.contains("Template processing error"));
+        assert!(display.contains("Undefined variable"));
+        assert!(display.contains("(variable: MY_VAR)"));
     }
 
     #[test]

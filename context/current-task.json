@@ -1,7 +1,7 @@
 {
-  "task": "add-cargo-xtask",
+  "task": "improve-error-types",
   "plan": "context/architecture-review.json",
-  "last_updated": "2026-01-02T00:00:00Z",
+  "last_updated": "2026-01-01T00:00:00Z",
   "status": "complete",
   "master_plan": "context/plan-of-plans.json",
   "context": {
@@ -18,9 +18,9 @@
       "context/completed/source-declared-merge-impl.json"
     ],
     "recently_completed": {
-      "task": "add-cargo-xtask",
+      "task": "improve-error-types",
       "plan": "architecture-review",
-      "summary": "Added cargo xtask automation with coverage and release-prep commands, workspace configuration, and documentation"
+      "summary": "Enhanced error types with actionable hints for ConfigParse, GitClone, and Template errors"
     }
   }
 }

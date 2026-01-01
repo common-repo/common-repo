@@ -178,12 +178,20 @@ impl YamlMergeOp {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
             return Err(Error::ConfigParse {
                 message: "Cannot use auto-merge with explicit source or dest".to_string(),
+                hint: Some(
+                    "Use either 'auto-merge: file.yaml' OR 'source' and 'dest', not both"
+                        .to_string(),
+                ),
             });
         }
         // If auto_merge is not set, both source and dest are required
         if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
             return Err(Error::ConfigParse {
                 message: "YAML merge requires source and dest (or use auto-merge)".to_string(),
+                hint: Some(
+                    "Add 'source:' and 'dest:' fields, or use 'auto-merge:' for same-name files"
+                        .to_string(),
+                ),
             });
         }
         Ok(())
@@ -326,11 +334,19 @@ impl TomlMergeOp {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
             return Err(Error::ConfigParse {
                 message: "Cannot use auto-merge with explicit source or dest".to_string(),
+                hint: Some(
+                    "Use either 'auto-merge: file.toml' OR 'source' and 'dest', not both"
+                        .to_string(),
+                ),
             });
         }
         if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
             return Err(Error::ConfigParse {
                 message: "TOML merge requires source and dest (or use auto-merge)".to_string(),
+                hint: Some(
+                    "Add 'source:' and 'dest:' fields, or use 'auto-merge:' for same-name files"
+                        .to_string(),
+                ),
             });
         }
         Ok(())
@@ -420,11 +436,19 @@ impl JsonMergeOp {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
             return Err(Error::ConfigParse {
                 message: "Cannot use auto-merge with explicit source or dest".to_string(),
+                hint: Some(
+                    "Use either 'auto-merge: file.json' OR 'source' and 'dest', not both"
+                        .to_string(),
+                ),
             });
         }
         if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
             return Err(Error::ConfigParse {
                 message: "JSON merge requires source and dest (or use auto-merge)".to_string(),
+                hint: Some(
+                    "Add 'source:' and 'dest:' fields, or use 'auto-merge:' for same-name files"
+                        .to_string(),
+                ),
             });
         }
         Ok(())
@@ -539,11 +563,19 @@ impl IniMergeOp {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
             return Err(Error::ConfigParse {
                 message: "Cannot use auto-merge with explicit source or dest".to_string(),
+                hint: Some(
+                    "Use either 'auto-merge: file.ini' OR 'source' and 'dest', not both"
+                        .to_string(),
+                ),
             });
         }
         if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
             return Err(Error::ConfigParse {
                 message: "INI merge requires source and dest (or use auto-merge)".to_string(),
+                hint: Some(
+                    "Add 'source:' and 'dest:' fields, or use 'auto-merge:' for same-name files"
+                        .to_string(),
+                ),
             });
         }
         Ok(())
@@ -676,11 +708,18 @@ impl MarkdownMergeOp {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
             return Err(Error::ConfigParse {
                 message: "Cannot use auto-merge with explicit source or dest".to_string(),
+                hint: Some(
+                    "Use either 'auto-merge: file.md' OR 'source' and 'dest', not both".to_string(),
+                ),
             });
         }
         if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
             return Err(Error::ConfigParse {
                 message: "Markdown merge requires source and dest (or use auto-merge)".to_string(),
+                hint: Some(
+                    "Add 'source:' and 'dest:' fields, or use 'auto-merge:' for same-name files"
+                        .to_string(),
+                ),
             });
         }
         Ok(())
@@ -885,6 +924,7 @@ pub fn parse_original_format(yaml_content: &str) -> Result<Schema> {
         } else {
             return Err(Error::ConfigParse {
                 message: "Expected YAML mapping for operation".to_string(),
+                hint: None,
             });
         }
     }
@@ -897,10 +937,12 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
     let mut iter = map.into_iter();
     let (key, value) = iter.next().ok_or_else(|| Error::ConfigParse {
         message: "Empty operation mapping".to_string(),
+        hint: None,
     })?;
 
     let op_type = key.as_str().ok_or_else(|| Error::ConfigParse {
         message: "Operation key must be string".to_string(),
+        hint: None,
     })?;
 
     match op_type {
@@ -912,6 +954,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                 _ => {
                     return Err(Error::ConfigParse {
                         message: "Repo operation must be a mapping".to_string(),
+                        hint: Some("Use 'repo: {url: ..., ref: ...}' format".to_string()),
                     });
                 }
             };
@@ -921,6 +964,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                 .ok_or_else(|| Error::ConfigParse {
                     message: "Repo operation missing url".to_string(),
+                    hint: Some("Add 'url: https://github.com/...' to the repo block".to_string()),
                 })?;
 
             let r#ref = repo_map
@@ -928,6 +972,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                 .ok_or_else(|| Error::ConfigParse {
                     message: "Repo operation missing ref".to_string(),
+                    hint: Some("Add 'ref: main' or 'ref: v1.0.0' to the repo block".to_string()),
                 })?;
 
             let path = repo_map
@@ -947,6 +992,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                             } else {
                                 return Err(Error::ConfigParse {
                                     message: "With clause items must be mappings".to_string(),
+                                    hint: None,
                                 });
                             }
                         }
@@ -955,6 +1001,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                     _ => {
                         return Err(Error::ConfigParse {
                             message: "With clause must be a sequence".to_string(),
+                            hint: Some("Use 'with: [{ include: [...] }, ...]' format".to_string()),
                         })
                     }
                 }
@@ -1007,6 +1054,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                             let mut iter = map.into_iter();
                             let (from, to) = iter.next().ok_or_else(|| Error::ConfigParse {
                                 message: "Empty rename mapping".to_string(),
+                                hint: Some("Use 'rename: [{ from: \"pattern\", to: \"replacement\" }]' format".to_string()),
                             })?;
                             Ok(RenameMapping { from, to })
                         })
@@ -1037,6 +1085,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
                             let (name, version) =
                                 iter.next().ok_or_else(|| Error::ConfigParse {
                                     message: "Empty tool specification".to_string(),
+                                    hint: Some("Use 'tools: [{ name: \"tool\", version: \">=1.0\" }]' format".to_string()),
                                 })?;
                             Ok(Tool { name, version })
                         })
@@ -1085,6 +1134,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
         }
         _ => Err(Error::ConfigParse {
             message: format!("Unknown operation type: {}", op_type),
+            hint: Some("Valid operations: repo, include, exclude, template, template-vars, rename, tools, yaml, json, toml, ini, markdown".to_string()),
         }),
     }
 }
