@@ -1,7 +1,7 @@
 {
-  "task": "audit-standard-traits",
+  "task": "add-builder-pattern",
   "plan": "context/architecture-review.json",
-  "last_updated": "2026-01-01T11:00:00Z",
+  "last_updated": "2026-01-01T12:00:00Z",
   "status": "complete",
   "master_plan": "context/plan-of-plans.json",
   "context": {
@@ -18,9 +18,9 @@
       "context/completed/source-declared-merge-impl.json"
     ],
     "recently_completed": {
-      "task": "audit-standard-traits",
+      "task": "add-builder-pattern",
       "plan": "architecture-review",
-      "summary": "Added PartialEq+Eq derives to public types across config, commands, version, and phases modules"
+      "summary": "Added fluent builder pattern to merge operation types (YAML, JSON, TOML, INI, Markdown) with new() constructors and chainable setters"
     }
   }
 }
