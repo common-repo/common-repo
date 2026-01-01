@@ -1,0 +1,105 @@
+{
+  "plan_name": "Context Directory Cleanup",
+  "description": "Review markdown files in context/ and archive completed ones",
+  "last_updated": "2026-01-01",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "review-evaluation-checklist",
+      "name": "Review evaluation-checklist.md",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Read context/evaluation-checklist.md",
+        "Check if related plans exist in completed/",
+        "Determine if this is still active reference or completed work",
+        "If complete: git mv to context/completed/",
+        "If active: document why it should stay"
+      ],
+      "acceptance_criteria": [
+        "File reviewed and decision documented",
+        "File moved to completed/ OR noted as active reference"
+      ]
+    },
+    {
+      "id": "review-session-notes",
+      "name": "Review session-notes.md",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Read context/session-notes.md",
+        "Determine if these are historical notes or active guidance",
+        "If historical/stale: git mv to context/completed/",
+        "If active: document why it should stay"
+      ],
+      "acceptance_criteria": [
+        "File reviewed and decision documented",
+        "File moved to completed/ OR noted as active reference"
+      ]
+    },
+    {
+      "id": "review-source-declared-merge-design",
+      "name": "Review source-declared-merge-design.md",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "steps": [
+        "Read context/source-declared-merge-design.md",
+        "Check context/completed/source-declared-merge-impl.json for completion status",
+        "If implementation is complete and design is historical: git mv to context/completed/",
+        "If design is still active reference: document why it should stay"
+      ],
+      "acceptance_criteria": [
+        "File reviewed and decision documented",
+        "File moved to completed/ OR noted as active reference"
+      ]
+    },
+    {
+      "id": "review-traceability-map",
+      "name": "Review traceability-map.md",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": null,
+      "steps": [
+        "Read context/traceability-map.md",
+        "Note: CLAUDE.md lists this as a key context file",
+        "Verify if mappings are still accurate",
+        "If outdated: update mappings",
+        "If accurate: note as active reference, keep in place"
+      ],
+      "acceptance_criteria": [
+        "File reviewed for accuracy",
+        "Mappings updated if needed OR confirmed accurate"
+      ]
+    },
+    {
+      "id": "commit-cleanup",
+      "name": "Commit all cleanup changes",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": ["review-evaluation-checklist", "review-session-notes", "review-source-declared-merge-design", "review-traceability-map"],
+      "steps": [
+        "git status to see all changes",
+        "Stage moved files",
+        "Commit with message: chore(context): archive completed markdown files",
+        "Push to branch"
+      ],
+      "acceptance_criteria": [
+        "All changes committed",
+        "Branch pushed to remote"
+      ]
+    }
+  ],
+  "notes": [
+    "Core files to keep: design.md, purpose.md (per CLAUDE.md reference docs)",
+    "traceability-map.md is a key context file per CLAUDE.md",
+    "Archive files that represent completed work",
+    "Keep files that are active references"
+  ]
+}

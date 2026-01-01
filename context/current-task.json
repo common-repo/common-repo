@@ -1,34 +1,7 @@
 {
-  "task": "documentation-review",
-  "plan": null,
-  "last_updated": "2026-01-01T00:00:00Z",
-  "status": "complete",
-  "master_plan": "context/plan-of-plans.json",
-  "description": "Review and fix documentation gaps related to recent changes",
-  "steps": [
-    "Audit recent commits for documentation gaps",
-    "Add auto-merge workflow documentation to CONTRIBUTING.md",
-    "Add cr alias completions note to CLI docs",
-    "Run CI checks to verify changes"
-  ],
-  "context": {
-    "completed_plans": [
-      "context/completed/project-review-plan.json",
-      "context/completed/documentation-review.json",
-      "context/completed/testing-review.json",
-      "context/completed/cicd-review.json",
-      "context/completed/init-redesign.json",
-      "context/completed/add-command.json",
-      "context/completed/cr-alias.json",
-      "context/completed/configuration-docs.json",
-      "context/completed/source-authoring-docs.json",
-      "context/completed/source-declared-merge-impl.json",
-      "context/completed/architecture-review.json"
-    ],
-    "recently_completed": {
-      "task": "create-auto-merge-workflow",
-      "plan": null,
-      "summary": "Created auto-merge GitHub workflow that merges PRs when 'ready to merge' label is applied"
-    }
-  }
+  "task": "context-cleanup",
+  "plan": "context/context-cleanup.json",
+  "last_updated": "2026-01-01",
+  "status": "in_progress",
+  "description": "Review markdown files in context/ and archive completed ones"
 }
