@@ -205,6 +205,8 @@ common-repo completions powershell >> $PROFILE
 common-repo completions elvish >> ~/.elvish/rc.elv
 ```
 
+**Note on `cr` alias:** If you installed via the shell installer, the `cr` alias is available. Completions generated for `common-repo` will work when you type `common-repo`. For the `cr` alias, you can create a symlink or alias in your shell configuration, or generate completions separately using `cr completions <shell>`.
+
 ### `diff` - Preview Changes
 
 Show differences between current files and what the configuration would produce.
