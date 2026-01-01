@@ -197,9 +197,13 @@ pub fn merge_json_values(
 /// - Path navigation fails
 /// - Result cannot be serialized
 pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result<()> {
-    let source_content = read_file_as_string(fs, &op.source)?;
+    op.validate()?;
+    let source_path = op.get_source().expect("source validated");
+    let dest_path = op.get_dest().expect("dest validated");
+
+    let source_content = read_file_as_string(fs, source_path)?;
     let dest_content =
-        read_file_as_string_optional(fs, &op.dest)?.unwrap_or_else(|| "{}".to_string());
+        read_file_as_string_optional(fs, dest_path)?.unwrap_or_else(|| "{}".to_string());
 
     let mut dest_value: JsonValue =
         serde_json::from_str(&dest_content).unwrap_or(JsonValue::Object(serde_json::Map::new()));
@@ -218,7 +222,7 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
         message: format!("Failed to serialize JSON: {}", err),
     })?;
 
-    write_string_to_file(fs, &op.dest, serialized)
+    write_string_to_file(fs, dest_path, serialized)
 }
 
 // File I/O helpers
@@ -321,11 +325,9 @@ mod tests {
             .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -362,11 +364,10 @@ mod tests {
             .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
                 path: Some("database.connection".to_string()),
-                append: false,
-                position: None,
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -393,11 +394,9 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "new_dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("new_dest.json".to_string()),
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -416,11 +415,10 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
                 append: true,
-                position: None,
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -443,11 +441,9 @@ mod tests {
             .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -473,11 +469,9 @@ mod tests {
             .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -703,11 +697,9 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "nonexistent.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("nonexistent.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             let result = apply_json_merge_operation(&mut fs, &op);
@@ -725,11 +717,9 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             let result = apply_json_merge_operation(&mut fs, &op);
@@ -747,11 +737,9 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             // Invalid dest JSON defaults to empty object (line 205)
@@ -772,11 +760,10 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
                 path: Some("scalar.nested".to_string()),
-                append: false,
-                position: None,
+                ..Default::default()
             };
 
             let result = apply_json_merge_operation(&mut fs, &op);
@@ -797,11 +784,10 @@ mod tests {
             .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
                 path: Some("obj[0]".to_string()),
-                append: false,
-                position: None,
+                ..Default::default()
             };
 
             let result = apply_json_merge_operation(&mut fs, &op);
@@ -820,11 +806,9 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             let result = apply_json_merge_operation(&mut fs, &op);
@@ -843,11 +827,9 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
-                position: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
             };
 
             let result = apply_json_merge_operation(&mut fs, &op);
@@ -869,11 +851,11 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
                 append: true,
                 position: Some("start".to_string()),
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -899,11 +881,11 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
                 append: true,
                 position: Some("end".to_string()),
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();
@@ -956,11 +938,10 @@ mod tests {
                 .unwrap();
 
             let op = JsonMergeOp {
-                source: "source.json".to_string(),
-                dest: "dest.json".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
                 position: Some("start".to_string()), // Should be ignored
+                ..Default::default()
             };
 
             apply_json_merge_operation(&mut fs, &op).unwrap();

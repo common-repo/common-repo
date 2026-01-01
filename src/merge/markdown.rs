@@ -151,8 +151,12 @@ fn normalize_position(position: &str) -> &str {
 /// - Section not found and `create_section` is false
 /// - Result cannot be written
 pub fn apply_markdown_merge_operation(fs: &mut MemoryFS, op: &MarkdownMergeOp) -> Result<()> {
-    let source_content = read_file_as_string(fs, &op.source)?;
-    let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
+    op.validate()?;
+    let source_path = op.get_source().expect("source validated");
+    let dest_path = op.get_dest().expect("dest validated");
+
+    let source_content = read_file_as_string(fs, source_path)?;
+    let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
 
     let mut dest_lines = split_lines_preserve(&dest_content);
     let source_lines = split_lines_preserve(&source_content);
@@ -217,7 +221,7 @@ pub fn apply_markdown_merge_operation(fs: &mut MemoryFS, op: &MarkdownMergeOp) -
         serialized.push('\n');
     }
 
-    write_string_to_file(fs, &op.dest, serialized)
+    write_string_to_file(fs, dest_path, serialized)
 }
 
 // File I/O helpers
@@ -356,13 +360,10 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -386,13 +387,11 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
                 append: true,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -411,13 +410,11 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "New Section".to_string(),
-                append: false,
-                level: 2,
-                position: "end".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -437,13 +434,12 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "First Section".to_string(),
-                append: false,
-                level: 2,
                 position: "start".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -464,13 +460,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Missing".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             let result = apply_markdown_merge_operation(&mut fs, &op);
@@ -486,13 +479,11 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "new_dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("new_dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: "end".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -518,13 +509,11 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Main Title".to_string(),
-                append: false,
                 level: 1,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -548,13 +537,11 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Subsection".to_string(),
-                append: false,
                 level: 3,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -574,13 +561,11 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Deep".to_string(),
-                append: false,
                 level: 6,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -600,13 +585,12 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "New Main".to_string(),
-                append: false,
                 level: 1,
-                position: "end".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -625,13 +609,12 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Details".to_string(),
-                append: false,
                 level: 4,
-                position: "end".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -655,13 +638,10 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "First".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -688,13 +668,11 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Child".to_string(),
-                append: false,
                 level: 3,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -723,13 +701,10 @@ mod tests {
             // Note: replacing parent content will also replace children because
             // section bounds extend until the next same-or-higher level heading
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Parent".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -756,13 +731,11 @@ mod tests {
 
             // Target the h3 Notes, not the h2 Notes
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Notes".to_string(),
-                append: false,
                 level: 3,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -790,13 +763,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Empty".to_string(),
-                append: true,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -816,13 +786,11 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
                 append: true,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -846,13 +814,10 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -873,13 +838,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "MySection".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -902,13 +864,11 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
                 append: true,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -928,13 +888,12 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "New First".to_string(),
-                append: false,
-                level: 2,
                 position: "start".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -952,13 +911,11 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Final".to_string(),
-                append: false,
-                level: 2,
-                position: "end".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -978,13 +935,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1004,13 +958,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1030,13 +981,12 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "New".to_string(),
-                append: false,
-                level: 2,
                 position: "START".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1059,13 +1009,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "missing.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("missing.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: true,
+                ..Default::default()
             };
 
             let result = apply_markdown_merge_operation(&mut fs, &op);
@@ -1084,13 +1031,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: true,
+                ..Default::default()
             };
 
             let result = apply_markdown_merge_operation(&mut fs, &op);
@@ -1109,13 +1053,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             let result = apply_markdown_merge_operation(&mut fs, &op);
@@ -1133,13 +1074,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Missing Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             let result = apply_markdown_merge_operation(&mut fs, &op);
@@ -1159,13 +1097,11 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "MySection".to_string(),
-                append: false,
                 level: 3, // Looking for ### MySection
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             let result = apply_markdown_merge_operation(&mut fs, &op);
@@ -1186,13 +1122,11 @@ mod tests {
             fs.add_file("dest.md", File::from_string("")).unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: "end".to_string(),
                 create_section: true,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1214,13 +1148,10 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "First".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1244,13 +1175,11 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Last".to_string(),
                 append: true,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1270,13 +1199,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Empty Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1297,13 +1223,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Spaced Heading".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1323,13 +1246,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Extra Spaces".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             // Extra whitespace in heading means section won't be found
@@ -1349,13 +1269,10 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "B".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1383,13 +1300,11 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "H4".to_string(),
-                append: false,
                 level: 4,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1413,13 +1328,10 @@ mod tests {
             .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "API: Get /users/{id}".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();
@@ -1438,13 +1350,10 @@ mod tests {
                 .unwrap();
 
             let op = MarkdownMergeOp {
-                source: "source.md".to_string(),
-                dest: "dest.md".to_string(),
+                source: Some("source.md".to_string()),
+                dest: Some("dest.md".to_string()),
                 section: "Section".to_string(),
-                append: false,
-                level: 2,
-                position: String::new(),
-                create_section: false,
+                ..Default::default()
             };
 
             apply_markdown_merge_operation(&mut fs, &op).unwrap();

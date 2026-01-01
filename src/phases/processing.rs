@@ -1221,11 +1221,9 @@ mod tests {
         fn test_collect_merge_operations_yaml() {
             let operations = vec![Operation::Yaml {
                 yaml: YamlMergeOp {
-                    source: "source.yaml".to_string(),
-                    dest: "dest.yaml".to_string(),
-                    path: None,
-                    append: false,
-                    array_mode: None,
+                    source: Some("source.yaml".to_string()),
+                    dest: Some("dest.yaml".to_string()),
+                    ..Default::default()
                 },
             }];
             let result = collect_merge_operations(&operations);
@@ -1237,11 +1235,11 @@ mod tests {
         fn test_collect_merge_operations_json() {
             let operations = vec![Operation::Json {
                 json: JsonMergeOp {
-                    source: "source.json".to_string(),
-                    dest: "dest.json".to_string(),
+                    source: Some("source.json".to_string()),
+                    dest: Some("dest.json".to_string()),
                     path: Some("$.key".to_string()),
                     append: true,
-                    position: None,
+                    ..Default::default()
                 },
             }];
             let result = collect_merge_operations(&operations);
@@ -1253,12 +1251,11 @@ mod tests {
         fn test_collect_merge_operations_toml() {
             let operations = vec![Operation::Toml {
                 toml: TomlMergeOp {
-                    source: "source.toml".to_string(),
-                    dest: "dest.toml".to_string(),
+                    source: Some("source.toml".to_string()),
+                    dest: Some("dest.toml".to_string()),
                     path: "section.key".to_string(),
-                    append: false,
                     preserve_comments: true,
-                    array_mode: None,
+                    ..Default::default()
                 },
             }];
             let result = collect_merge_operations(&operations);
@@ -1270,11 +1267,10 @@ mod tests {
         fn test_collect_merge_operations_ini() {
             let operations = vec![Operation::Ini {
                 ini: IniMergeOp {
-                    source: "source.ini".to_string(),
-                    dest: "dest.ini".to_string(),
+                    source: Some("source.ini".to_string()),
+                    dest: Some("dest.ini".to_string()),
                     section: Some("settings".to_string()),
-                    append: false,
-                    allow_duplicates: false,
+                    ..Default::default()
                 },
             }];
             let result = collect_merge_operations(&operations);
@@ -1286,13 +1282,13 @@ mod tests {
         fn test_collect_merge_operations_markdown() {
             let operations = vec![Operation::Markdown {
                 markdown: MarkdownMergeOp {
-                    source: "source.md".to_string(),
-                    dest: "dest.md".to_string(),
+                    source: Some("source.md".to_string()),
+                    dest: Some("dest.md".to_string()),
                     section: "## Section".to_string(),
                     append: true,
                     level: 2,
                     position: "end".to_string(),
-                    create_section: false,
+                    ..Default::default()
                 },
             }];
             let result = collect_merge_operations(&operations);
@@ -1305,50 +1301,40 @@ mod tests {
             let operations = vec![
                 Operation::Yaml {
                     yaml: YamlMergeOp {
-                        source: "s.yaml".to_string(),
-                        dest: "d.yaml".to_string(),
-                        path: None,
-                        append: false,
-                        array_mode: None,
+                        source: Some("s.yaml".to_string()),
+                        dest: Some("d.yaml".to_string()),
+                        ..Default::default()
                     },
                 },
                 Operation::Json {
                     json: JsonMergeOp {
-                        source: "s.json".to_string(),
-                        dest: "d.json".to_string(),
-                        path: None,
-                        append: false,
-                        position: None,
+                        source: Some("s.json".to_string()),
+                        dest: Some("d.json".to_string()),
+                        ..Default::default()
                     },
                 },
                 Operation::Toml {
                     toml: TomlMergeOp {
-                        source: "s.toml".to_string(),
-                        dest: "d.toml".to_string(),
+                        source: Some("s.toml".to_string()),
+                        dest: Some("d.toml".to_string()),
                         path: "key".to_string(),
-                        append: false,
-                        preserve_comments: false,
-                        array_mode: None,
+                        ..Default::default()
                     },
                 },
                 Operation::Ini {
                     ini: IniMergeOp {
-                        source: "s.ini".to_string(),
-                        dest: "d.ini".to_string(),
-                        section: None,
-                        append: false,
-                        allow_duplicates: false,
+                        source: Some("s.ini".to_string()),
+                        dest: Some("d.ini".to_string()),
+                        ..Default::default()
                     },
                 },
                 Operation::Markdown {
                     markdown: MarkdownMergeOp {
-                        source: "s.md".to_string(),
-                        dest: "d.md".to_string(),
+                        source: Some("s.md".to_string()),
+                        dest: Some("d.md".to_string()),
                         section: "## Section".to_string(),
-                        append: false,
                         level: 2,
-                        position: "".to_string(),
-                        create_section: false,
+                        ..Default::default()
                     },
                 },
             ];
@@ -1366,11 +1352,9 @@ mod tests {
                 },
                 Operation::Yaml {
                     yaml: YamlMergeOp {
-                        source: "s.yaml".to_string(),
-                        dest: "d.yaml".to_string(),
-                        path: None,
-                        append: false,
-                        array_mode: None,
+                        source: Some("s.yaml".to_string()),
+                        dest: Some("d.yaml".to_string()),
+                        ..Default::default()
                     },
                 },
                 Operation::Exclude {
@@ -1500,11 +1484,9 @@ mod tests {
             let original_count = fs.list_files().len();
             let operation = Operation::Yaml {
                 yaml: YamlMergeOp {
-                    source: "source.yaml".to_string(),
-                    dest: "dest.yaml".to_string(),
-                    path: None,
-                    append: false,
-                    array_mode: None,
+                    source: Some("source.yaml".to_string()),
+                    dest: Some("dest.yaml".to_string()),
+                    ..Default::default()
                 },
             };
             apply_operation(&mut fs, &operation).expect("should not error");
@@ -1517,11 +1499,9 @@ mod tests {
             let original_count = fs.list_files().len();
             let operation = Operation::Json {
                 json: JsonMergeOp {
-                    source: "source.json".to_string(),
-                    dest: "dest.json".to_string(),
-                    path: None,
-                    append: false,
-                    position: None,
+                    source: Some("source.json".to_string()),
+                    dest: Some("dest.json".to_string()),
+                    ..Default::default()
                 },
             };
             apply_operation(&mut fs, &operation).expect("should not error");
@@ -1534,12 +1514,10 @@ mod tests {
             let original_count = fs.list_files().len();
             let operation = Operation::Toml {
                 toml: TomlMergeOp {
-                    source: "source.toml".to_string(),
-                    dest: "dest.toml".to_string(),
+                    source: Some("source.toml".to_string()),
+                    dest: Some("dest.toml".to_string()),
                     path: "key".to_string(),
-                    append: false,
-                    preserve_comments: false,
-                    array_mode: None,
+                    ..Default::default()
                 },
             };
             apply_operation(&mut fs, &operation).expect("should not error");
@@ -1552,11 +1530,9 @@ mod tests {
             let original_count = fs.list_files().len();
             let operation = Operation::Ini {
                 ini: IniMergeOp {
-                    source: "source.ini".to_string(),
-                    dest: "dest.ini".to_string(),
-                    section: None,
-                    append: false,
-                    allow_duplicates: false,
+                    source: Some("source.ini".to_string()),
+                    dest: Some("dest.ini".to_string()),
+                    ..Default::default()
                 },
             };
             apply_operation(&mut fs, &operation).expect("should not error");
@@ -1569,13 +1545,12 @@ mod tests {
             let original_count = fs.list_files().len();
             let operation = Operation::Markdown {
                 markdown: MarkdownMergeOp {
-                    source: "source.md".to_string(),
-                    dest: "dest.md".to_string(),
+                    source: Some("source.md".to_string()),
+                    dest: Some("dest.md".to_string()),
                     section: "## Section".to_string(),
-                    append: false,
                     level: 2,
                     position: "end".to_string(),
-                    create_section: false,
+                    ..Default::default()
                 },
             };
             apply_operation(&mut fs, &operation).expect("should not error");
@@ -1707,11 +1682,9 @@ mod tests {
             let operations = vec![
                 Operation::Yaml {
                     yaml: crate::config::YamlMergeOp {
-                        source: "s.yaml".to_string(),
-                        dest: "d.yaml".to_string(),
-                        path: None,
-                        append: false,
-                        array_mode: None,
+                        source: Some("s.yaml".to_string()),
+                        dest: Some("d.yaml".to_string()),
+                        ..Default::default()
                     },
                 },
                 Operation::Exclude {
@@ -1748,11 +1721,9 @@ mod tests {
             // Local repos should not collect merge operations
             let operations = vec![Operation::Yaml {
                 yaml: crate::config::YamlMergeOp {
-                    source: "s.yaml".to_string(),
-                    dest: "d.yaml".to_string(),
-                    path: None,
-                    append: false,
-                    array_mode: None,
+                    source: Some("s.yaml".to_string()),
+                    dest: Some("d.yaml".to_string()),
+                    ..Default::default()
                 },
             }];
             let node = RepoNode::new("local".to_string(), "HEAD".to_string(), operations);

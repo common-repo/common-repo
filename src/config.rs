@@ -141,12 +141,14 @@ impl ArrayMergeMode {
 }
 
 /// YAML merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct YamlMergeOp {
-    /// Source fragment file
-    pub source: String,
-    /// Destination file to merge into
-    pub dest: String,
+    /// Source fragment file (required unless auto_merge is set)
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Destination file to merge into (required unless auto_merge is set)
+    #[serde(default)]
+    pub dest: Option<String>,
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
@@ -155,6 +157,12 @@ pub struct YamlMergeOp {
     pub append: bool,
     #[serde(default, rename = "array_mode")]
     pub array_mode: Option<ArrayMergeMode>,
+    /// Mark this operation as deferred (applies when repo is used as a source)
+    #[serde(default)]
+    pub defer: Option<bool>,
+    /// Shorthand: sets source=dest to this value and implies defer=true
+    #[serde(default, rename = "auto-merge")]
+    pub auto_merge: Option<String>,
 }
 
 impl YamlMergeOp {
@@ -163,15 +171,50 @@ impl YamlMergeOp {
         self.array_mode
             .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
     }
+
+    /// Validate the merge operation configuration
+    pub fn validate(&self) -> Result<()> {
+        // If auto_merge is set, source/dest must not be set
+        if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
+            return Err(Error::ConfigParse {
+                message: "Cannot use auto-merge with explicit source or dest".to_string(),
+            });
+        }
+        // If auto_merge is not set, both source and dest are required
+        if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
+            return Err(Error::ConfigParse {
+                message: "YAML merge requires source and dest (or use auto-merge)".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Get the effective source path (from auto_merge or source field)
+    pub fn get_source(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.source.as_deref())
+    }
+
+    /// Get the effective dest path (from auto_merge or dest field)
+    pub fn get_dest(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.dest.as_deref())
+    }
+
+    /// Check if this operation is deferred
+    pub fn is_deferred(&self) -> bool {
+        // auto_merge implies defer=true
+        self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
 }
 
 /// JSON merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JsonMergeOp {
-    /// Source fragment file
-    pub source: String,
-    /// Destination file to merge into
-    pub dest: String,
+    /// Source fragment file (required unless auto_merge is set)
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Destination file to merge into (required unless auto_merge is set)
+    #[serde(default)]
+    pub dest: Option<String>,
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
@@ -181,15 +224,23 @@ pub struct JsonMergeOp {
     /// Position for appending ("end" or "start")
     #[serde(default)]
     pub position: Option<String>,
+    /// Mark this operation as deferred (applies when repo is used as a source)
+    #[serde(default)]
+    pub defer: Option<bool>,
+    /// Shorthand: sets source=dest to this value and implies defer=true
+    #[serde(default, rename = "auto-merge")]
+    pub auto_merge: Option<String>,
 }
 
 /// TOML merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TomlMergeOp {
-    /// Source fragment file
-    pub source: String,
-    /// Destination file to merge into
-    pub dest: String,
+    /// Source fragment file (required unless auto_merge is set)
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Destination file to merge into (required unless auto_merge is set)
+    #[serde(default)]
+    pub dest: Option<String>,
     /// Path within the destination to merge at
     pub path: String,
     /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
@@ -200,6 +251,12 @@ pub struct TomlMergeOp {
     pub preserve_comments: bool,
     #[serde(default, rename = "array_mode")]
     pub array_mode: Option<ArrayMergeMode>,
+    /// Mark this operation as deferred (applies when repo is used as a source)
+    #[serde(default)]
+    pub defer: Option<bool>,
+    /// Shorthand: sets source=dest to this value and implies defer=true
+    #[serde(default, rename = "auto-merge")]
+    pub auto_merge: Option<String>,
 }
 
 impl TomlMergeOp {
@@ -208,15 +265,79 @@ impl TomlMergeOp {
         self.array_mode
             .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
     }
+
+    /// Validate the merge operation configuration
+    pub fn validate(&self) -> Result<()> {
+        if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
+            return Err(Error::ConfigParse {
+                message: "Cannot use auto-merge with explicit source or dest".to_string(),
+            });
+        }
+        if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
+            return Err(Error::ConfigParse {
+                message: "TOML merge requires source and dest (or use auto-merge)".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Get the effective source path (from auto_merge or source field)
+    pub fn get_source(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.source.as_deref())
+    }
+
+    /// Get the effective dest path (from auto_merge or dest field)
+    pub fn get_dest(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.dest.as_deref())
+    }
+
+    /// Check if this operation is deferred
+    pub fn is_deferred(&self) -> bool {
+        self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
+}
+
+impl JsonMergeOp {
+    /// Validate the merge operation configuration
+    pub fn validate(&self) -> Result<()> {
+        if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
+            return Err(Error::ConfigParse {
+                message: "Cannot use auto-merge with explicit source or dest".to_string(),
+            });
+        }
+        if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
+            return Err(Error::ConfigParse {
+                message: "JSON merge requires source and dest (or use auto-merge)".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Get the effective source path (from auto_merge or source field)
+    pub fn get_source(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.source.as_deref())
+    }
+
+    /// Get the effective dest path (from auto_merge or dest field)
+    pub fn get_dest(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.dest.as_deref())
+    }
+
+    /// Check if this operation is deferred
+    pub fn is_deferred(&self) -> bool {
+        self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
 }
 
 /// INI merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IniMergeOp {
-    /// Source fragment file
-    pub source: String,
-    /// Destination file to merge into
-    pub dest: String,
+    /// Source fragment file (required unless auto_merge is set)
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Destination file to merge into (required unless auto_merge is set)
+    #[serde(default)]
+    pub dest: Option<String>,
     /// Section to merge into (optional - if omitted, merge all sections)
     #[serde(default)]
     pub section: Option<String>,
@@ -226,15 +347,55 @@ pub struct IniMergeOp {
     /// Whether to allow duplicate keys
     #[serde(default, rename = "allow-duplicates")]
     pub allow_duplicates: bool,
+    /// Mark this operation as deferred (applies when repo is used as a source)
+    #[serde(default)]
+    pub defer: Option<bool>,
+    /// Shorthand: sets source=dest to this value and implies defer=true
+    #[serde(default, rename = "auto-merge")]
+    pub auto_merge: Option<String>,
+}
+
+impl IniMergeOp {
+    /// Validate the merge operation configuration
+    pub fn validate(&self) -> Result<()> {
+        if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
+            return Err(Error::ConfigParse {
+                message: "Cannot use auto-merge with explicit source or dest".to_string(),
+            });
+        }
+        if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
+            return Err(Error::ConfigParse {
+                message: "INI merge requires source and dest (or use auto-merge)".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Get the effective source path (from auto_merge or source field)
+    pub fn get_source(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.source.as_deref())
+    }
+
+    /// Get the effective dest path (from auto_merge or dest field)
+    pub fn get_dest(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.dest.as_deref())
+    }
+
+    /// Check if this operation is deferred
+    pub fn is_deferred(&self) -> bool {
+        self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
 }
 
 /// Markdown merge operator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarkdownMergeOp {
-    /// Source fragment file
-    pub source: String,
-    /// Destination file to merge into
-    pub dest: String,
+    /// Source fragment file (required unless auto_merge is set)
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Destination file to merge into (required unless auto_merge is set)
+    #[serde(default)]
+    pub dest: Option<String>,
     /// Section header to merge under
     pub section: String,
     /// Whether to append (true) or replace (false)
@@ -249,6 +410,12 @@ pub struct MarkdownMergeOp {
     /// Whether to create section if it doesn't exist
     #[serde(default, rename = "create-section")]
     pub create_section: bool,
+    /// Mark this operation as deferred (applies when repo is used as a source)
+    #[serde(default)]
+    pub defer: Option<bool>,
+    /// Shorthand: sets source=dest to this value and implies defer=true
+    #[serde(default, rename = "auto-merge")]
+    pub auto_merge: Option<String>,
 }
 
 /// Get the default header level for markdown operations
@@ -262,6 +429,54 @@ pub struct MarkdownMergeOp {
 /// ```
 pub fn default_header_level() -> u8 {
     2
+}
+
+impl MarkdownMergeOp {
+    /// Validate the merge operation configuration
+    pub fn validate(&self) -> Result<()> {
+        if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
+            return Err(Error::ConfigParse {
+                message: "Cannot use auto-merge with explicit source or dest".to_string(),
+            });
+        }
+        if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
+            return Err(Error::ConfigParse {
+                message: "Markdown merge requires source and dest (or use auto-merge)".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Get the effective source path (from auto_merge or source field)
+    pub fn get_source(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.source.as_deref())
+    }
+
+    /// Get the effective dest path (from auto_merge or dest field)
+    pub fn get_dest(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.dest.as_deref())
+    }
+
+    /// Check if this operation is deferred
+    pub fn is_deferred(&self) -> bool {
+        self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
+}
+
+impl Default for MarkdownMergeOp {
+    fn default() -> Self {
+        Self {
+            source: None,
+            dest: None,
+            section: String::new(),
+            append: false,
+            level: default_header_level(),
+            position: String::new(),
+            create_section: false,
+            defer: None,
+            auto_merge: None,
+        }
+    }
 }
 
 /// All possible operation types in the configuration
@@ -938,8 +1153,8 @@ mod tests {
         assert_eq!(schema.len(), 1);
         match &schema[0] {
             Operation::Yaml { yaml } => {
-                assert_eq!(yaml.source, "fragment.yml");
-                assert_eq!(yaml.dest, "config.yml");
+                assert_eq!(yaml.source.as_deref(), Some("fragment.yml"));
+                assert_eq!(yaml.dest.as_deref(), Some("config.yml"));
                 assert_eq!(yaml.path.as_deref(), Some("metadata.labels"));
                 assert!(yaml.append);
             }
@@ -959,8 +1174,8 @@ mod tests {
         assert_eq!(schema.len(), 1);
         match &schema[0] {
             Operation::Json { json } => {
-                assert_eq!(json.source, "fragment.json");
-                assert_eq!(json.dest, "package.json");
+                assert_eq!(json.source.as_deref(), Some("fragment.json"));
+                assert_eq!(json.dest.as_deref(), Some("package.json"));
                 assert_eq!(json.path, Some("dependencies".to_string()));
                 assert!(json.append);
                 assert_eq!(json.position, Some("end".to_string()));
@@ -981,8 +1196,8 @@ mod tests {
         assert_eq!(schema.len(), 1);
         match &schema[0] {
             Operation::Toml { toml } => {
-                assert_eq!(toml.source, "fragment.toml");
-                assert_eq!(toml.dest, "Cargo.toml");
+                assert_eq!(toml.source.as_deref(), Some("fragment.toml"));
+                assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
                 assert_eq!(toml.path, "dependencies");
                 assert!(toml.append);
                 assert!(toml.preserve_comments);
@@ -1003,8 +1218,8 @@ mod tests {
         assert_eq!(schema.len(), 1);
         match &schema[0] {
             Operation::Ini { ini } => {
-                assert_eq!(ini.source, "fragment.ini");
-                assert_eq!(ini.dest, "config.ini");
+                assert_eq!(ini.source.as_deref(), Some("fragment.ini"));
+                assert_eq!(ini.dest.as_deref(), Some("config.ini"));
                 assert_eq!(ini.section, Some("database".to_string()));
                 assert!(ini.append);
                 assert!(!ini.allow_duplicates);
@@ -1028,8 +1243,8 @@ mod tests {
         assert_eq!(schema.len(), 1);
         match &schema[0] {
             Operation::Markdown { markdown } => {
-                assert_eq!(markdown.source, "fragment.md");
-                assert_eq!(markdown.dest, "README.md");
+                assert_eq!(markdown.source.as_deref(), Some("fragment.md"));
+                assert_eq!(markdown.dest.as_deref(), Some("README.md"));
                 assert_eq!(markdown.section, "Installation");
                 assert!(markdown.append);
                 assert_eq!(markdown.level, 2);
@@ -1274,11 +1489,13 @@ mod tests {
         fn test_yaml_merge_op_get_array_mode_default() {
             // When both array_mode and append are default, should return Replace
             let op = YamlMergeOp {
-                source: "s.yaml".to_string(),
-                dest: "d.yaml".to_string(),
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
                 path: None,
                 append: false,
                 array_mode: None,
+                defer: None,
+                auto_merge: None,
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::Replace);
         }
@@ -1287,11 +1504,13 @@ mod tests {
         fn test_yaml_merge_op_get_array_mode_with_append_true() {
             // Legacy append=true should return Append
             let op = YamlMergeOp {
-                source: "s.yaml".to_string(),
-                dest: "d.yaml".to_string(),
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
                 path: None,
                 append: true,
                 array_mode: None,
+                defer: None,
+                auto_merge: None,
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::Append);
         }
@@ -1300,11 +1519,13 @@ mod tests {
         fn test_yaml_merge_op_get_array_mode_explicit() {
             // Explicit array_mode should override append
             let op = YamlMergeOp {
-                source: "s.yaml".to_string(),
-                dest: "d.yaml".to_string(),
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
                 path: None,
                 append: true, // Would normally be Append
                 array_mode: Some(ArrayMergeMode::AppendUnique), // But explicit overrides
+                defer: None,
+                auto_merge: None,
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::AppendUnique);
         }
@@ -1312,12 +1533,14 @@ mod tests {
         #[test]
         fn test_toml_merge_op_get_array_mode_default() {
             let op = TomlMergeOp {
-                source: "s.toml".to_string(),
-                dest: "d.toml".to_string(),
+                source: Some("s.toml".to_string()),
+                dest: Some("d.toml".to_string()),
                 path: "section".to_string(),
                 append: false,
                 preserve_comments: false,
                 array_mode: None,
+                defer: None,
+                auto_merge: None,
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::Replace);
         }
@@ -1325,12 +1548,14 @@ mod tests {
         #[test]
         fn test_toml_merge_op_get_array_mode_with_append() {
             let op = TomlMergeOp {
-                source: "s.toml".to_string(),
-                dest: "d.toml".to_string(),
+                source: Some("s.toml".to_string()),
+                dest: Some("d.toml".to_string()),
                 path: "section".to_string(),
                 append: true,
                 preserve_comments: false,
                 array_mode: None,
+                defer: None,
+                auto_merge: None,
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::Append);
         }
@@ -1338,12 +1563,14 @@ mod tests {
         #[test]
         fn test_toml_merge_op_get_array_mode_explicit() {
             let op = TomlMergeOp {
-                source: "s.toml".to_string(),
-                dest: "d.toml".to_string(),
+                source: Some("s.toml".to_string()),
+                dest: Some("d.toml".to_string()),
                 path: "section".to_string(),
                 append: false,
                 preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                defer: None,
+                auto_merge: None,
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::AppendUnique);
         }
@@ -1369,8 +1596,8 @@ mod tests {
             assert_eq!(schema.len(), 1);
             match &schema[0] {
                 Operation::Yaml { yaml } => {
-                    assert_eq!(yaml.source, "fragment.yaml");
-                    assert_eq!(yaml.dest, "config.yaml");
+                    assert_eq!(yaml.source.as_deref(), Some("fragment.yaml"));
+                    assert_eq!(yaml.dest.as_deref(), Some("config.yaml"));
                     assert_eq!(yaml.path, Some("data.items".to_string()));
                     assert_eq!(yaml.array_mode, Some(ArrayMergeMode::AppendUnique));
                 }
@@ -1422,8 +1649,8 @@ mod tests {
             let schema = parse(yaml).expect("Should parse YAML merge");
             match &schema[0] {
                 Operation::Yaml { yaml } => {
-                    assert_eq!(yaml.source, "fragment.yaml");
-                    assert_eq!(yaml.dest, "config.yaml");
+                    assert_eq!(yaml.source.as_deref(), Some("fragment.yaml"));
+                    assert_eq!(yaml.dest.as_deref(), Some("config.yaml"));
                     assert_eq!(yaml.path, None);
                     assert!(!yaml.append);
                     assert_eq!(yaml.array_mode, None);
@@ -1445,8 +1672,8 @@ mod tests {
             let schema = parse(yaml).expect("Should parse JSON merge");
             match &schema[0] {
                 Operation::Json { json } => {
-                    assert_eq!(json.source, "fragment.json");
-                    assert_eq!(json.dest, "package.json");
+                    assert_eq!(json.source.as_deref(), Some("fragment.json"));
+                    assert_eq!(json.dest.as_deref(), Some("package.json"));
                     assert_eq!(json.path, Some("dependencies".to_string()));
                     assert_eq!(json.position, Some("start".to_string()));
                     assert!(json.append);
@@ -1486,8 +1713,8 @@ mod tests {
             let schema = parse(yaml).expect("Should parse TOML merge");
             match &schema[0] {
                 Operation::Toml { toml } => {
-                    assert_eq!(toml.source, "fragment.toml");
-                    assert_eq!(toml.dest, "Cargo.toml");
+                    assert_eq!(toml.source.as_deref(), Some("fragment.toml"));
+                    assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
                     assert_eq!(toml.path, "dependencies");
                     assert!(toml.preserve_comments);
                     assert_eq!(toml.array_mode, Some(ArrayMergeMode::Append));
@@ -1509,8 +1736,8 @@ mod tests {
             let schema = parse(yaml).expect("Should parse INI merge");
             match &schema[0] {
                 Operation::Ini { ini } => {
-                    assert_eq!(ini.source, "fragment.ini");
-                    assert_eq!(ini.dest, "config.ini");
+                    assert_eq!(ini.source.as_deref(), Some("fragment.ini"));
+                    assert_eq!(ini.dest.as_deref(), Some("config.ini"));
                     assert_eq!(ini.section, Some("database".to_string()));
                     assert!(ini.append);
                     assert!(ini.allow_duplicates);
@@ -1552,8 +1779,8 @@ mod tests {
             let schema = parse(yaml).expect("Should parse Markdown merge");
             match &schema[0] {
                 Operation::Markdown { markdown } => {
-                    assert_eq!(markdown.source, "fragment.md");
-                    assert_eq!(markdown.dest, "README.md");
+                    assert_eq!(markdown.source.as_deref(), Some("fragment.md"));
+                    assert_eq!(markdown.dest.as_deref(), Some("README.md"));
                     assert_eq!(markdown.section, "## Installation");
                     assert!(markdown.append);
                     assert_eq!(markdown.level, 3);
@@ -1662,42 +1889,47 @@ mod tests {
 
         #[test]
         fn test_parse_yaml_merge_missing_source() {
-            let yaml = r#"
-- yaml:
-    dest: config.yaml
-"#;
-            let result = parse(yaml);
+            // source/dest are now Optional, validation happens at validate() time
+            let op = YamlMergeOp {
+                dest: Some("config.yaml".to_string()),
+                ..Default::default()
+            };
+            let result = op.validate();
             assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("source and dest"));
         }
 
         #[test]
         fn test_parse_yaml_merge_missing_dest() {
-            let yaml = r#"
-- yaml:
-    source: fragment.yaml
-"#;
-            let result = parse(yaml);
+            let op = YamlMergeOp {
+                source: Some("fragment.yaml".to_string()),
+                ..Default::default()
+            };
+            let result = op.validate();
             assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("source and dest"));
         }
 
         #[test]
         fn test_parse_json_merge_missing_source() {
-            let yaml = r#"
-- json:
-    dest: package.json
-"#;
-            let result = parse(yaml);
+            let op = JsonMergeOp {
+                dest: Some("package.json".to_string()),
+                ..Default::default()
+            };
+            let result = op.validate();
             assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("source and dest"));
         }
 
         #[test]
         fn test_parse_json_merge_missing_dest() {
-            let yaml = r#"
-- json:
-    source: fragment.json
-"#;
-            let result = parse(yaml);
+            let op = JsonMergeOp {
+                source: Some("fragment.json".to_string()),
+                ..Default::default()
+            };
+            let result = op.validate();
             assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("source and dest"));
         }
 
         #[test]
@@ -1714,12 +1946,13 @@ mod tests {
 
         #[test]
         fn test_parse_ini_merge_missing_source() {
-            let yaml = r#"
-- ini:
-    dest: config.ini
-"#;
-            let result = parse(yaml);
+            let op = IniMergeOp {
+                dest: Some("config.ini".to_string()),
+                ..Default::default()
+            };
+            let result = op.validate();
             assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("source and dest"));
         }
 
         #[test]
@@ -1771,6 +2004,209 @@ mod tests {
 "#;
             let result = parse(yaml);
             assert!(result.is_err());
+        }
+    }
+
+    // ========================================================================
+    // Defer and Auto-Merge Tests
+    // ========================================================================
+
+    mod defer_auto_merge_tests {
+        use super::*;
+
+        #[test]
+        fn test_auto_merge_implies_deferred() {
+            let op = YamlMergeOp {
+                auto_merge: Some("config.yaml".to_string()),
+                ..Default::default()
+            };
+            assert!(op.is_deferred());
+        }
+
+        #[test]
+        fn test_defer_true_is_deferred() {
+            let op = YamlMergeOp {
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
+                defer: Some(true),
+                ..Default::default()
+            };
+            assert!(op.is_deferred());
+        }
+
+        #[test]
+        fn test_defer_false_not_deferred() {
+            let op = YamlMergeOp {
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
+                defer: Some(false),
+                ..Default::default()
+            };
+            assert!(!op.is_deferred());
+        }
+
+        #[test]
+        fn test_no_defer_not_deferred() {
+            let op = YamlMergeOp {
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
+                ..Default::default()
+            };
+            assert!(!op.is_deferred());
+        }
+
+        #[test]
+        fn test_auto_merge_sets_source_and_dest() {
+            let op = YamlMergeOp {
+                auto_merge: Some("config.yaml".to_string()),
+                ..Default::default()
+            };
+            assert_eq!(op.get_source(), Some("config.yaml"));
+            assert_eq!(op.get_dest(), Some("config.yaml"));
+        }
+
+        #[test]
+        fn test_auto_merge_conflicts_with_source() {
+            let op = YamlMergeOp {
+                auto_merge: Some("config.yaml".to_string()),
+                source: Some("other.yaml".to_string()),
+                ..Default::default()
+            };
+            let result = op.validate();
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("auto-merge"));
+        }
+
+        #[test]
+        fn test_auto_merge_conflicts_with_dest() {
+            let op = YamlMergeOp {
+                auto_merge: Some("config.yaml".to_string()),
+                dest: Some("other.yaml".to_string()),
+                ..Default::default()
+            };
+            let result = op.validate();
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("auto-merge"));
+        }
+
+        #[test]
+        fn test_auto_merge_validates_successfully() {
+            let op = YamlMergeOp {
+                auto_merge: Some("config.yaml".to_string()),
+                ..Default::default()
+            };
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_explicit_source_dest_validates_successfully() {
+            let op = YamlMergeOp {
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
+                ..Default::default()
+            };
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_json_auto_merge() {
+            let op = JsonMergeOp {
+                auto_merge: Some("package.json".to_string()),
+                ..Default::default()
+            };
+            assert!(op.is_deferred());
+            assert_eq!(op.get_source(), Some("package.json"));
+            assert_eq!(op.get_dest(), Some("package.json"));
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_toml_auto_merge() {
+            let op = TomlMergeOp {
+                auto_merge: Some("Cargo.toml".to_string()),
+                path: "dependencies".to_string(),
+                ..Default::default()
+            };
+            assert!(op.is_deferred());
+            assert_eq!(op.get_source(), Some("Cargo.toml"));
+            assert_eq!(op.get_dest(), Some("Cargo.toml"));
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_markdown_auto_merge() {
+            let op = MarkdownMergeOp {
+                auto_merge: Some("CLAUDE.md".to_string()),
+                section: "Rules".to_string(),
+                ..Default::default()
+            };
+            assert!(op.is_deferred());
+            assert_eq!(op.get_source(), Some("CLAUDE.md"));
+            assert_eq!(op.get_dest(), Some("CLAUDE.md"));
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_ini_auto_merge() {
+            let op = IniMergeOp {
+                auto_merge: Some("config.ini".to_string()),
+                ..Default::default()
+            };
+            assert!(op.is_deferred());
+            assert_eq!(op.get_source(), Some("config.ini"));
+            assert_eq!(op.get_dest(), Some("config.ini"));
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_parse_yaml_with_auto_merge() {
+            let yaml = r#"
+- yaml:
+    auto-merge: config.yaml
+    path: metadata
+"#;
+            let ops = parse(yaml).unwrap();
+            match &ops[0] {
+                Operation::Yaml { yaml: op } => {
+                    assert!(op.is_deferred());
+                    assert_eq!(op.get_source(), Some("config.yaml"));
+                    assert_eq!(op.get_dest(), Some("config.yaml"));
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_yaml_with_defer() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yaml
+    dest: config.yaml
+    defer: true
+"#;
+            let ops = parse(yaml).unwrap();
+            match &ops[0] {
+                Operation::Yaml { yaml: op } => {
+                    assert!(op.is_deferred());
+                    assert_eq!(op.get_source(), Some("fragment.yaml"));
+                    assert_eq!(op.get_dest(), Some("config.yaml"));
+                }
+                _ => panic!("Expected Yaml operation"),
+            }
+        }
+
+        #[test]
+        fn test_parse_markdown_with_auto_merge() {
+            let yaml =
+                "- markdown:\n    auto-merge: CLAUDE.md\n    section: Rules\n    append: true\n";
+            let ops = parse(yaml).unwrap();
+            match &ops[0] {
+                Operation::Markdown { markdown: op } => {
+                    assert!(op.is_deferred());
+                    assert_eq!(op.get_source(), Some("CLAUDE.md"));
+                }
+                _ => panic!("Expected Markdown operation"),
+            }
         }
     }
 }

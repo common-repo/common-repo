@@ -76,14 +76,14 @@
 # Deterministically merge content fragments into structured files.
 # A "fragment" is a partial file that gets merged into a complete destination file.
 
-# yaml: Merge YAML fragments (source, dest, path, append)
+# yaml: Merge YAML fragments (source, dest, path, append, defer, auto-merge)
 - yaml:
     source: fragment.yml
     dest: config.yml
     path: metadata.labels
     append: true
 
-# json: Merge JSON fragments (source, dest, path, append, position)
+# json: Merge JSON fragments (source, dest, path, append, position, defer, auto-merge)
 - json:
     source: fragment.json
     dest: package.json
@@ -91,7 +91,7 @@
     append: true
     position: end
 
-# toml: Merge TOML fragments (source, dest, path, append, preserve-comments)
+# toml: Merge TOML fragments (source, dest, path, append, preserve-comments, defer, auto-merge)
 - toml:
     source: fragment.toml
     dest: Cargo.toml
@@ -99,7 +99,7 @@
     append: true
     preserve-comments: true
 
-# ini: Merge INI fragments (source, dest, section [optional], append, allow-duplicates)
+# ini: Merge INI fragments (source, dest, section [optional], append, allow-duplicates, defer, auto-merge)
 - ini:
     source: fragment.ini
     dest: config.ini
@@ -107,7 +107,7 @@
     append: true
     allow-duplicates: false
 
-# markdown: Merge markdown fragments (source, dest, section, append, level, position, create-section)
+# markdown: Merge markdown fragments (source, dest, section, append, level, position, create-section, defer, auto-merge)
 - markdown:
     source: fragment.md
     dest: README.md
@@ -116,3 +116,34 @@
     level: 2
     position: end
     create-section: true
+
+#########
+# Source-Declared Merge (defer and auto-merge)
+#
+# Source repos can declare merge operations that automatically apply when they
+# are used as a dependency. Two syntax forms are available:
+#
+# 1. auto-merge: <file> - shorthand when source=dest (most common)
+#    Sets source and dest to the same file and implies defer=true
+#
+# 2. defer: true + explicit source/dest - when paths differ
+#
+# These operations apply when the repo is inherited, before consumer's with: ops.
+
+# Shorthand: auto-merge sets source=dest and implies defer
+- markdown:
+    auto-merge: CLAUDE.md
+    section: "## Inherited Rules"
+    append: true
+
+# Verbose form: when source != dest
+- yaml:
+    source: labels.yaml
+    dest: metadata.yaml
+    path: metadata.labels
+    defer: true
+
+# Auto-merge works for all merge operators
+- toml:
+    auto-merge: Cargo.toml
+    path: dependencies

@@ -98,13 +98,13 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
             }
             common_repo::config::Operation::Yaml { yaml } => {
                 assert!(
-                    !yaml.source.is_empty(),
+                    yaml.get_source().is_some_and(|s| !s.is_empty()),
                     "Yaml operation {} in {} has empty source",
                     idx,
                     path.display()
                 );
                 assert!(
-                    !yaml.dest.is_empty(),
+                    yaml.get_dest().is_some_and(|s| !s.is_empty()),
                     "Yaml operation {} in {} has empty dest",
                     idx,
                     path.display()
@@ -112,13 +112,13 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
             }
             common_repo::config::Operation::Json { json } => {
                 assert!(
-                    !json.source.is_empty(),
+                    json.get_source().is_some_and(|s| !s.is_empty()),
                     "Json operation {} in {} has empty source",
                     idx,
                     path.display()
                 );
                 assert!(
-                    !json.dest.is_empty(),
+                    json.get_dest().is_some_and(|s| !s.is_empty()),
                     "Json operation {} in {} has empty dest",
                     idx,
                     path.display()
@@ -126,13 +126,13 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
             }
             common_repo::config::Operation::Toml { toml } => {
                 assert!(
-                    !toml.source.is_empty(),
+                    toml.get_source().is_some_and(|s| !s.is_empty()),
                     "Toml operation {} in {} has empty source",
                     idx,
                     path.display()
                 );
                 assert!(
-                    !toml.dest.is_empty(),
+                    toml.get_dest().is_some_and(|s| !s.is_empty()),
                     "Toml operation {} in {} has empty dest",
                     idx,
                     path.display()
@@ -140,13 +140,13 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
             }
             common_repo::config::Operation::Ini { ini } => {
                 assert!(
-                    !ini.source.is_empty(),
+                    ini.get_source().is_some_and(|s| !s.is_empty()),
                     "Ini operation {} in {} has empty source",
                     idx,
                     path.display()
                 );
                 assert!(
-                    !ini.dest.is_empty(),
+                    ini.get_dest().is_some_and(|s| !s.is_empty()),
                     "Ini operation {} in {} has empty dest",
                     idx,
                     path.display()
@@ -154,13 +154,13 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
             }
             common_repo::config::Operation::Markdown { markdown } => {
                 assert!(
-                    !markdown.source.is_empty(),
+                    markdown.get_source().is_some_and(|s| !s.is_empty()),
                     "Markdown operation {} in {} has empty source",
                     idx,
                     path.display()
                 );
                 assert!(
-                    !markdown.dest.is_empty(),
+                    markdown.get_dest().is_some_and(|s| !s.is_empty()),
                     "Markdown operation {} in {} has empty dest",
                     idx,
                     path.display()
