@@ -12,7 +12,7 @@
 //! ## Example
 //!
 //! ```ignore
-//! use common_repo::merge::json::apply_json_merge_operation;
+//! use common_repo::merge::apply_json_merge_operation;
 //! use common_repo::config::JsonMergeOp;
 //! use common_repo::filesystem::MemoryFS;
 //!

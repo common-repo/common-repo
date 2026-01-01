@@ -13,7 +13,7 @@
 //! ## Example
 //!
 //! ```ignore
-//! use common_repo::merge::toml::apply_toml_merge_operation;
+//! use common_repo::merge::apply_toml_merge_operation;
 //! use common_repo::config::TomlMergeOp;
 //! use common_repo::filesystem::MemoryFS;
 //!
@@ -43,7 +43,7 @@ use crate::filesystem::{File, MemoryFS};
 /// # Examples
 ///
 /// ```
-/// use common_repo::merge::toml::parse_toml_path;
+/// use common_repo::merge::parse_toml_path;
 /// use common_repo::merge::PathSegment;
 ///
 /// let segments = parse_toml_path("package.dependencies");

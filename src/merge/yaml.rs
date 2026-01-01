@@ -13,7 +13,7 @@
 //! ## Example
 //!
 //! ```ignore
-//! use common_repo::merge::yaml::apply_yaml_merge_operation;
+//! use common_repo::merge::apply_yaml_merge_operation;
 //! use common_repo::config::YamlMergeOp;
 //! use common_repo::filesystem::MemoryFS;
 //!
