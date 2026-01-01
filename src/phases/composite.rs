@@ -421,11 +421,9 @@ mod tests {
 
         // Create a JSON merge operation
         let json_merge_op = JsonMergeOp {
-            source: "fragment.json".to_string(),
-            dest: "package.json".to_string(),
-            path: None,
-            append: false,
-            position: None,
+            source: Some("fragment.json".to_string()),
+            dest: Some("package.json".to_string()),
+            ..Default::default()
         };
 
         let merge_operations = vec![Operation::Json {
@@ -490,11 +488,10 @@ port = 8080
 
         // Create an INI merge operation
         let ini_merge_op = IniMergeOp {
-            source: "fragment.ini".to_string(),
-            dest: "config.ini".to_string(),
+            source: Some("fragment.ini".to_string()),
+            dest: Some("config.ini".to_string()),
             section: Some("database".to_string()),
-            append: false,
-            allow_duplicates: false,
+            ..Default::default()
         };
 
         let merge_operations = vec![Operation::Ini { ini: ini_merge_op }];
@@ -552,11 +549,9 @@ port = 8080
 
             let operation = Operation::Yaml {
                 yaml: YamlMergeOp {
-                    source: "fragment.yaml".to_string(),
-                    dest: "config.yaml".to_string(),
-                    path: None,
-                    append: false,
-                    array_mode: None,
+                    source: Some("fragment.yaml".to_string()),
+                    dest: Some("config.yaml".to_string()),
+                    ..Default::default()
                 },
             };
 
@@ -580,12 +575,10 @@ port = 8080
 
             let operation = Operation::Toml {
                 toml: TomlMergeOp {
-                    source: "fragment.toml".to_string(),
-                    dest: "config.toml".to_string(),
+                    source: Some("fragment.toml".to_string()),
+                    dest: Some("config.toml".to_string()),
                     path: "section".to_string(),
-                    append: false,
-                    preserve_comments: false,
-                    array_mode: None,
+                    ..Default::default()
                 },
             };
 
@@ -613,13 +606,13 @@ port = 8080
 
             let operation = Operation::Markdown {
                 markdown: MarkdownMergeOp {
-                    source: "fragment.md".to_string(),
-                    dest: "README.md".to_string(),
+                    source: Some("fragment.md".to_string()),
+                    dest: Some("README.md".to_string()),
                     section: "Features".to_string(),
                     append: true,
                     level: 2,
                     position: "end".to_string(),
-                    create_section: false,
+                    ..Default::default()
                 },
             };
 
@@ -688,11 +681,9 @@ port = 8080
 
             let operation = Operation::Yaml {
                 yaml: YamlMergeOp {
-                    source: "nonexistent.yaml".to_string(),
-                    dest: "config.yaml".to_string(),
-                    path: None,
-                    append: false,
-                    array_mode: None,
+                    source: Some("nonexistent.yaml".to_string()),
+                    dest: Some("config.yaml".to_string()),
+                    ..Default::default()
                 },
             };
 
@@ -709,11 +700,9 @@ port = 8080
 
             let operation = Operation::Yaml {
                 yaml: YamlMergeOp {
-                    source: "fragment.yaml".to_string(),
-                    dest: "nonexistent.yaml".to_string(),
-                    path: None,
-                    append: false,
-                    array_mode: None,
+                    source: Some("fragment.yaml".to_string()),
+                    dest: Some("nonexistent.yaml".to_string()),
+                    ..Default::default()
                 },
             };
 

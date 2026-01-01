@@ -361,8 +361,12 @@ pub fn get_toml_type_name(value: &TomlValue) -> &'static str {
 /// - Path navigation fails
 /// - Result cannot be serialized
 pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result<()> {
-    let source_content = read_file_as_string(fs, &op.source)?;
-    let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
+    op.validate()?;
+    let source_path = op.get_source().expect("source validated");
+    let dest_path = op.get_dest().expect("dest validated");
+
+    let source_content = read_file_as_string(fs, source_path)?;
+    let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
 
     let mut dest_value: TomlValue =
         toml::from_str(&dest_content).unwrap_or_else(|_| TomlValue::Table(toml::map::Map::new()));
@@ -371,10 +375,18 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
         message: format!("Failed to parse source TOML: {}", err),
     })?;
 
-    let path = parse_toml_path(&op.path);
+    let path_str = &op.path;
+    let path = parse_toml_path(path_str);
     let target = navigate_toml_value(&mut dest_value, &path)?;
     let mode = op.get_array_mode();
-    merge_toml_values(target, &source_value, mode, &op.path, &op.source, &op.dest);
+    merge_toml_values(
+        target,
+        &source_value,
+        mode,
+        path_str,
+        source_path,
+        dest_path,
+    );
 
     let serialized = if op.preserve_comments {
         // Attempt comment preservation using taplo
@@ -393,7 +405,7 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
         })?
     };
 
-    write_string_to_file(fs, &op.dest, serialized)
+    write_string_to_file(fs, dest_path, serialized)
 }
 
 // File I/O helpers
@@ -573,12 +585,10 @@ serde = "1.0"
             fs.add_file_string("Cargo.toml", dest_toml).unwrap();
 
             let toml_op = crate::config::TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "Cargo.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("Cargo.toml".to_string()),
                 path: "".to_string(), // root level
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -615,12 +625,10 @@ name = "mydb"
             fs.add_file_string("merged.toml", dest_toml).unwrap();
 
             let toml_op = crate::config::TomlMergeOp {
-                source: "config.toml".to_string(),
-                dest: "merged.toml".to_string(),
+                source: Some("config.toml".to_string()),
+                dest: Some("merged.toml".to_string()),
                 path: "server".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -654,12 +662,11 @@ items = ["old1", "old2"]
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let toml_op = crate::config::TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(crate::config::ArrayMergeMode::Replace),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -689,12 +696,11 @@ items = ["old1", "old2"]
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let toml_op = crate::config::TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(crate::config::ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -726,12 +732,11 @@ items = ["item1", "item4"]
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let toml_op = crate::config::TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(crate::config::ArrayMergeMode::AppendUnique),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -763,12 +768,11 @@ items = ["old1"]
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let toml_op = crate::config::TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
                 append: true,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &toml_op).unwrap();
@@ -789,12 +793,10 @@ items = ["old1"]
                 .unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "new_dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("new_dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -858,12 +860,10 @@ existing = "kept"
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -901,12 +901,10 @@ name = "myserver"
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -936,12 +934,10 @@ existing = 1
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "a.b.c".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -964,12 +960,10 @@ new_value = 42
             fs.add_file_string("dest.toml", "").unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "deeply.nested.path".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1004,12 +998,10 @@ c = 3
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "section2".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1044,12 +1036,11 @@ items = ["a", "b", "c"]
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1078,12 +1069,11 @@ items = []
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1118,12 +1108,11 @@ version = "4.0"
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1151,12 +1140,11 @@ items = [false, 42]
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1186,12 +1174,11 @@ host = "localhost"
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1218,12 +1205,11 @@ items = [{name = "a"}, {name = "c"}]
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1340,12 +1326,11 @@ items = 42
             fs.add_file_string("dest.toml", dest_toml).unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_toml_merge_operation(&mut fs, &op).unwrap();
@@ -1388,12 +1373,10 @@ items = 42
             fs.add_file_string("dest.toml", "[package]").unwrap();
 
             let op = TomlMergeOp {
-                source: "nonexistent.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("nonexistent.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             let result = apply_toml_merge_operation(&mut fs, &op);
@@ -1413,12 +1396,10 @@ items = 42
             fs.add_file_string("dest.toml", "[package]").unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             let result = apply_toml_merge_operation(&mut fs, &op);
@@ -1465,12 +1446,10 @@ items = 42
             fs.add_file_string("dest.toml", "[package]").unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             let result = apply_toml_merge_operation(&mut fs, &op);
@@ -1488,12 +1467,10 @@ items = 42
             let _ = fs.add_file("dest.toml", File::new(vec![0xFF, 0xFE, 0x00, 0x01]));
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             let result = apply_toml_merge_operation(&mut fs, &op);
@@ -1525,12 +1502,10 @@ items = 42
             fs.add_file_string("dest.toml", "invalid = [").unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             // This should succeed because invalid dest is replaced with empty table
@@ -1873,12 +1848,11 @@ items = 42
             fs.add_file_string("dest.toml", "").unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
                 preserve_comments: true,
-                array_mode: None,
+                ..Default::default()
             };
 
             let result = apply_toml_merge_operation(&mut fs, &op);
@@ -1898,12 +1872,10 @@ items = 42
             fs.add_file_string("dest.toml", "").unwrap();
 
             let op = TomlMergeOp {
-                source: "source.toml".to_string(),
-                dest: "dest.toml".to_string(),
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
                 path: "".to_string(),
-                append: false,
-                preserve_comments: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             let result = apply_toml_merge_operation(&mut fs, &op);

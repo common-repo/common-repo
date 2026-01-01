@@ -785,11 +785,10 @@ mod tests {
 
             let operations = vec![Operation::Yaml {
                 yaml: crate::config::YamlMergeOp {
-                    source: "config.yml".to_string(),
-                    dest: "merged.yml".to_string(),
+                    source: Some("config.yml".to_string()),
+                    dest: Some("merged.yml".to_string()),
                     path: Some("/".to_string()),
-                    append: false,
-                    array_mode: None,
+                    ..Default::default()
                 },
             }];
 
@@ -964,50 +963,44 @@ mod tests {
                 },
                 Operation::Yaml {
                     yaml: crate::config::YamlMergeOp {
-                        source: "s.yaml".to_string(),
-                        dest: "d.yaml".to_string(),
+                        source: Some("s.yaml".to_string()),
+                        dest: Some("d.yaml".to_string()),
                         path: Some("/".to_string()),
-                        append: false,
-                        array_mode: None,
+                        ..Default::default()
                     },
                 },
                 Operation::Json {
                     json: crate::config::JsonMergeOp {
-                        source: "s.json".to_string(),
-                        dest: "d.json".to_string(),
+                        source: Some("s.json".to_string()),
+                        dest: Some("d.json".to_string()),
                         path: Some("/".to_string()),
-                        append: false,
-                        position: None,
+                        ..Default::default()
                     },
                 },
                 Operation::Toml {
                     toml: crate::config::TomlMergeOp {
-                        source: "s.toml".to_string(),
-                        dest: "d.toml".to_string(),
+                        source: Some("s.toml".to_string()),
+                        dest: Some("d.toml".to_string()),
                         path: "/".to_string(),
-                        append: false,
-                        preserve_comments: false,
-                        array_mode: None,
+                        ..Default::default()
                     },
                 },
                 Operation::Ini {
                     ini: crate::config::IniMergeOp {
-                        source: "s.ini".to_string(),
-                        dest: "d.ini".to_string(),
+                        source: Some("s.ini".to_string()),
+                        dest: Some("d.ini".to_string()),
                         section: Some("main".to_string()),
-                        append: false,
-                        allow_duplicates: false,
+                        ..Default::default()
                     },
                 },
                 Operation::Markdown {
                     markdown: crate::config::MarkdownMergeOp {
-                        source: "s.md".to_string(),
-                        dest: "d.md".to_string(),
+                        source: Some("s.md".to_string()),
+                        dest: Some("d.md".to_string()),
                         section: "Section".to_string(),
-                        append: false,
                         level: 2,
                         position: "end".to_string(),
-                        create_section: false,
+                        ..Default::default()
                     },
                 },
             ];

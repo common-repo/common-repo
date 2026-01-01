@@ -192,8 +192,12 @@ fn serialize_ini(sections: &[IniSection]) -> String {
 /// - The file content is not valid UTF-8
 /// - The result cannot be written to the destination
 pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<()> {
-    let source_content = read_file_as_string(fs, &op.source)?;
-    let dest_content = read_file_as_string_optional(fs, &op.dest)?.unwrap_or_default();
+    op.validate()?;
+    let source_path = op.get_source().expect("source validated");
+    let dest_path = op.get_dest().expect("dest validated");
+
+    let source_content = read_file_as_string(fs, source_path)?;
+    let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
 
     let source_sections = parse_ini(&source_content);
     let mut dest_sections = parse_ini(&dest_content);
@@ -262,7 +266,7 @@ pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<(
     }
 
     let serialized = serialize_ini(&dest_sections);
-    write_string_to_file(fs, &op.dest, serialized)
+    write_string_to_file(fs, dest_path, serialized)
 }
 
 // File I/O helpers
@@ -451,11 +455,10 @@ port = 8080
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "db.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("db.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("database".to_string()),
-                append: false,
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -493,11 +496,11 @@ host = localhost
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "new.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("new.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("settings".to_string()),
                 append: true, // append mode
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -538,11 +541,10 @@ port = 8080
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "multi.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("multi.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: None, // No specific section
-                append: false,
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -585,11 +587,10 @@ driver = postgresql
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "db.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("db.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("database".to_string()), // Merge into database section
-                append: false,
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -622,11 +623,9 @@ port = 8080
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "empty.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
+                source: Some("empty.ini".to_string()),
+                dest: Some("config.ini".to_string()),
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -650,11 +649,9 @@ key = value
             fs.add_file_string("source.ini", source_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "new_dest.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
+                source: Some("source.ini".to_string()),
+                dest: Some("new_dest.ini".to_string()),
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -685,11 +682,12 @@ host = localhost
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "new.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("new.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("settings".to_string()),
                 append: false, // replace mode
                 allow_duplicates: true,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -725,11 +723,12 @@ host = localhost
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "new.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("new.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("settings".to_string()),
                 append: true,
                 allow_duplicates: true,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -764,11 +763,10 @@ driver = mysql
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("source.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("database".to_string()),
-                append: false, // replace mode
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -801,11 +799,10 @@ host = localhost
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("source.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("settings".to_string()),
-                append: false,
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -829,11 +826,9 @@ host = localhost
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "nonexistent.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
+                source: Some("nonexistent.ini".to_string()),
+                dest: Some("config.ini".to_string()),
+                ..Default::default()
             };
 
             let result = apply_ini_merge_operation(&mut fs, &ini_op);
@@ -854,11 +849,9 @@ host = localhost
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "invalid.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
+                source: Some("invalid.ini".to_string()),
+                dest: Some("config.ini".to_string()),
+                ..Default::default()
             };
 
             let result = apply_ini_merge_operation(&mut fs, &ini_op);
@@ -879,11 +872,9 @@ host = localhost
             let _ = fs.add_file("config.ini", File::new(vec![0xFF, 0xFE, 0x00, 0x01]));
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
+                source: Some("source.ini".to_string()),
+                dest: Some("config.ini".to_string()),
+                ..Default::default()
             };
 
             let result = apply_ini_merge_operation(&mut fs, &ini_op);
@@ -1162,11 +1153,11 @@ timeout = 30
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("source.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("settings".to_string()),
                 append: true, // append mode
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -1221,11 +1212,9 @@ key_c = value_c
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
+                source: Some("source.ini".to_string()),
+                dest: Some("config.ini".to_string()),
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -1252,11 +1241,9 @@ host = localhost
             fs.add_file_string("config.ini", "").unwrap();
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "config.ini".to_string(),
-                section: None,
-                append: false,
-                allow_duplicates: false,
+                source: Some("source.ini".to_string()),
+                dest: Some("config.ini".to_string()),
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
@@ -1286,11 +1273,10 @@ existing = entry
             fs.add_file_string("config.ini", dest_ini).unwrap();
 
             let ini_op = IniMergeOp {
-                source: "source.ini".to_string(),
-                dest: "config.ini".to_string(),
+                source: Some("source.ini".to_string()),
+                dest: Some("config.ini".to_string()),
                 section: Some("settings".to_string()),
-                append: false,
-                allow_duplicates: false,
+                ..Default::default()
             };
 
             apply_ini_merge_operation(&mut fs, &ini_op).unwrap();

@@ -280,9 +280,13 @@ pub fn get_yaml_type_name(value: &YamlValue) -> &'static str {
 /// - Path navigation fails
 /// - Result cannot be serialized
 pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result<()> {
-    let source_content = read_file_as_string(fs, &op.source)?;
+    op.validate()?;
+    let source_path = op.get_source().expect("source validated");
+    let dest_path = op.get_dest().expect("dest validated");
+
+    let source_content = read_file_as_string(fs, source_path)?;
     let dest_content =
-        read_file_as_string_optional(fs, &op.dest)?.unwrap_or_else(|| "---\n".to_string());
+        read_file_as_string_optional(fs, dest_path)?.unwrap_or_else(|| "---\n".to_string());
 
     let mut dest_value: YamlValue =
         serde_yaml::from_str(&dest_content).unwrap_or(YamlValue::Mapping(Default::default()));
@@ -296,14 +300,21 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
     let path = super::parse_path(path_str);
     let target = navigate_yaml_value(&mut dest_value, &path)?;
     let mode = op.get_array_mode();
-    merge_yaml_values(target, &source_value, mode, path_str, &op.source, &op.dest);
+    merge_yaml_values(
+        target,
+        &source_value,
+        mode,
+        path_str,
+        source_path,
+        dest_path,
+    );
 
     let serialized = serde_yaml::to_string(&dest_value).map_err(|err| Error::Merge {
         operation: "yaml merge".to_string(),
         message: format!("Failed to serialize YAML: {}", err),
     })?;
 
-    write_string_to_file(fs, &op.dest, serialized)
+    write_string_to_file(fs, dest_path, serialized)
 }
 
 // File I/O helpers
@@ -439,11 +450,9 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -477,11 +486,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 path: Some("database.connection".to_string()),
-                append: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -513,11 +521,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 path: Some(r"special\.key".to_string()),
-                append: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -537,11 +544,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "new_dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("new_dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -563,11 +568,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Replace),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -587,11 +591,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -611,11 +614,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -637,11 +639,10 @@ mod tests {
 
             // Using old append: true style
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 append: true,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -664,11 +665,11 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 path: Some("config.list".to_string()),
                 append: true,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -688,11 +689,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             // Should succeed with a warning (type mismatch replaces value)
@@ -708,11 +708,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -734,11 +733,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -758,11 +756,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Replace),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -782,11 +779,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -804,11 +800,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "nonexistent.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("nonexistent.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             let result = apply_yaml_merge_operation(&mut fs, &op);
@@ -826,11 +820,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             let result = apply_yaml_merge_operation(&mut fs, &op);
@@ -908,11 +900,9 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -952,11 +942,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -982,11 +971,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 path: Some("app.config.database.connection".to_string()),
-                append: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1018,11 +1006,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 path: Some("servers[1].config".to_string()),
-                append: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1075,11 +1062,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1100,11 +1086,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1130,11 +1115,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1161,11 +1145,10 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1189,11 +1172,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1216,11 +1198,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 array_mode: Some(ArrayMergeMode::Append),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1248,11 +1229,9 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             // Should succeed with warning logged
@@ -1277,11 +1256,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1305,11 +1282,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1329,11 +1304,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1354,11 +1327,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1383,11 +1354,9 @@ mod tests {
             .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1413,11 +1382,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             let result = apply_yaml_merge_operation(&mut fs, &op);
@@ -1436,11 +1403,9 @@ mod tests {
             fs.add_file("dest.yaml", File::new(invalid_bytes)).unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             let result = apply_yaml_merge_operation(&mut fs, &op);
@@ -1457,11 +1422,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             // Empty YAML parses as null, which should merge fine
@@ -1478,11 +1441,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             let result = apply_yaml_merge_operation(&mut fs, &op);
@@ -1498,11 +1459,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 path: Some("config.nested".to_string()),
-                append: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             // Trying to navigate through a scalar should fail
@@ -1521,11 +1481,10 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
                 path: Some("config.key".to_string()),
-                append: false,
-                array_mode: None,
+                ..Default::default()
             };
 
             // Trying to access a key on an array should fail
@@ -1543,11 +1502,9 @@ mod tests {
             fs.add_file("dest.yaml", File::from_string("")).unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             let result = apply_yaml_merge_operation(&mut fs, &op);
@@ -1567,11 +1524,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             let result = apply_yaml_merge_operation(&mut fs, &op);
@@ -1594,11 +1549,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -1621,11 +1574,9 @@ mod tests {
                 .unwrap();
 
             let op = YamlMergeOp {
-                source: "source.yaml".to_string(),
-                dest: "dest.yaml".to_string(),
-                path: None,
-                append: false,
-                array_mode: None,
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
             };
 
             apply_yaml_merge_operation(&mut fs, &op).unwrap();

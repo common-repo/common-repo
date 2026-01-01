@@ -21,11 +21,13 @@ fn test_ini_merge_basic_root_level() {
         .unwrap();
 
     let op = IniMergeOp {
-        source: "fragment-basic.ini".to_string(),
-        dest: "destination-basic.ini".to_string(),
+        source: Some("fragment-basic.ini".to_string()),
+        dest: Some("destination-basic.ini".to_string()),
         section: None, // No specific section
         append: false,
         allow_duplicates: false,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_ini_merge_operation(&mut fs, &op).unwrap();
@@ -61,11 +63,13 @@ fn test_ini_merge_specific_section() {
     fs.add_file_string("config.ini", config_content).unwrap();
 
     let op = IniMergeOp {
-        source: "fragment-database.ini".to_string(),
-        dest: "config.ini".to_string(),
+        source: Some("fragment-database.ini".to_string()),
+        dest: Some("config.ini".to_string()),
         section: Some("database".to_string()),
         append: false,
         allow_duplicates: false,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_ini_merge_operation(&mut fs, &op).unwrap();
@@ -103,11 +107,13 @@ fn test_ini_merge_append_with_duplicates() {
     fs.add_file_string("app.ini", app_content).unwrap();
 
     let op = IniMergeOp {
-        source: "fragment-logging.ini".to_string(),
-        dest: "app.ini".to_string(),
+        source: Some("fragment-logging.ini".to_string()),
+        dest: Some("app.ini".to_string()),
         section: Some("logging".to_string()),
         append: true,
         allow_duplicates: true,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_ini_merge_operation(&mut fs, &op).unwrap();
@@ -143,11 +149,13 @@ fn test_ini_merge_append_without_duplicates() {
     fs.add_file_string("server.ini", server_content).unwrap();
 
     let op = IniMergeOp {
-        source: "fragment-server.ini".to_string(),
-        dest: "server.ini".to_string(),
+        source: Some("fragment-server.ini".to_string()),
+        dest: Some("server.ini".to_string()),
         section: Some("server".to_string()),
         append: true,
         allow_duplicates: false,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_ini_merge_operation(&mut fs, &op).unwrap();

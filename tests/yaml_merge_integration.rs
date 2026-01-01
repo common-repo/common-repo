@@ -15,11 +15,13 @@ fn test_yaml_merge_simple_keys() {
         .unwrap();
 
     let op = YamlMergeOp {
-        source: "source.yaml".to_string(),
-        dest: "dest.yaml".to_string(),
+        source: Some("source.yaml".to_string()),
+        dest: Some("dest.yaml".to_string()),
         path: None,
         append: false,
         array_mode: None,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -46,11 +48,13 @@ fn test_yaml_merge_nested_path() {
     .unwrap();
 
     let op = YamlMergeOp {
-        source: "source.yaml".to_string(),
-        dest: "dest.yaml".to_string(),
+        source: Some("source.yaml".to_string()),
+        dest: Some("dest.yaml".to_string()),
         path: Some("root.nested.array".to_string()),
         append: true,
         array_mode: None,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -74,11 +78,13 @@ fn test_yaml_merge_array_append() {
         .unwrap();
 
     let op = YamlMergeOp {
-        source: "source.yaml".to_string(),
-        dest: "dest.yaml".to_string(),
+        source: Some("source.yaml".to_string()),
+        dest: Some("dest.yaml".to_string()),
         path: None,
         append: true,
         array_mode: None,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -103,11 +109,13 @@ fn test_yaml_merge_array_replace() {
         .unwrap();
 
     let op = YamlMergeOp {
-        source: "source.yaml".to_string(),
-        dest: "dest.yaml".to_string(),
+        source: Some("source.yaml".to_string()),
+        dest: Some("dest.yaml".to_string()),
         path: None,
         append: false,
         array_mode: None,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -132,11 +140,13 @@ fn test_yaml_merge_no_duplicates() {
         .unwrap();
 
     let op = YamlMergeOp {
-        source: "source.yaml".to_string(),
-        dest: "dest.yaml".to_string(),
+        source: Some("source.yaml".to_string()),
+        dest: Some("dest.yaml".to_string()),
         path: None,
         append: true,
         array_mode: Some(ArrayMergeMode::AppendUnique),
+        defer: None,
+        auto_merge: None,
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -163,11 +173,13 @@ fn test_yaml_merge_allow_duplicates() {
         .unwrap();
 
     let op = YamlMergeOp {
-        source: "source.yaml".to_string(),
-        dest: "dest.yaml".to_string(),
+        source: Some("source.yaml".to_string()),
+        dest: Some("dest.yaml".to_string()),
         path: None,
         append: true,
         array_mode: Some(ArrayMergeMode::Append),
+        defer: None,
+        auto_merge: None,
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -193,11 +205,13 @@ fn test_yaml_merge_create_dest() {
         .unwrap();
 
     let op = YamlMergeOp {
-        source: "source.yaml".to_string(),
-        dest: "new_dest.yaml".to_string(),
+        source: Some("source.yaml".to_string()),
+        dest: Some("new_dest.yaml".to_string()),
         path: None,
         append: false,
         array_mode: None,
+        defer: None,
+        auto_merge: None,
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
