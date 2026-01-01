@@ -17,7 +17,7 @@ use ptree::{print_tree, TreeItem};
 use std::path::PathBuf;
 
 use common_repo::config;
-use common_repo::phases::{phase1, RepoNode};
+use common_repo::phases::{discover_repos, RepoNode};
 use common_repo::repository::RepositoryManager;
 
 /// Display the repository inheritance tree
@@ -74,7 +74,7 @@ pub fn execute(args: TreeArgs) -> Result<()> {
     let repo_manager = RepositoryManager::new(cache_root);
 
     // Discover repository tree
-    let repo_tree = phase1::discover_repos(&schema, &repo_manager)
+    let repo_tree = discover_repos(&schema, &repo_manager)
         .map_err(|e| anyhow::anyhow!("Failed to discover repository tree: {}", e))?;
 
     // Build and display tree

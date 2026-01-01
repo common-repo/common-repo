@@ -17,12 +17,20 @@
 //! The `PathSegment` enum and path parsing functions are shared across formats
 //! to navigate nested data structures during merge operations.
 
-// Merge format modules (extracted from phase5)
-pub mod ini;
-pub mod json;
-pub mod markdown;
-pub mod toml;
-pub mod yaml;
+// Merge format modules - internal implementations
+// These are called by the phases module during merge operations
+pub(crate) mod ini;
+pub(crate) mod json;
+pub(crate) mod markdown;
+pub(crate) mod toml;
+pub(crate) mod yaml;
+
+// Public re-exports of merge functions for integration testing and external use
+pub use ini::apply_ini_merge_operation;
+pub use json::apply_json_merge_operation;
+pub use markdown::apply_markdown_merge_operation;
+pub use toml::apply_toml_merge_operation;
+pub use yaml::apply_yaml_merge_operation;
 
 /// Represents a segment in a path expression for navigating nested structures
 ///
