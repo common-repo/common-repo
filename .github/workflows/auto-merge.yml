@@ -27,5 +27,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           echo "Merging PR #${PR_NUMBER}..."
-          gh pr merge "${PR_NUMBER}" --squash --delete-branch
+          gh pr merge "${PR_NUMBER}" --rebase --delete-branch
           echo "PR #${PR_NUMBER} merged successfully"
