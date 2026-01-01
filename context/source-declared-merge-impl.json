@@ -5,7 +5,7 @@
   "last_updated": "2026-01-01",
   "parent_plan": "context/source-declared-merge.json",
   "design_document": "context/source-declared-merge-design.md",
-  "approach": "Option 6: Add defer flag to existing operators, parse top-level operators in .common-repo.yaml",
+  "approach": "Option 6: Add defer flag to existing operators, use existing list format for source configs",
   "phases": [
     {
       "id": "phase-1",
@@ -14,11 +14,6 @@
     },
     {
       "id": "phase-2",
-      "name": "Parse top-level operators",
-      "description": "Parse operators at config root, not just under with:"
-    },
-    {
-      "id": "phase-3",
       "name": "Apply deferred ops",
       "description": "Collect and apply deferred operations from source repos"
     }
@@ -56,36 +51,26 @@
     {
       "id": "parse-top-level-ops",
       "name": "Parse top-level operators in config",
-      "status": "pending",
+      "status": "skipped",
       "priority": 2,
-      "phase": "phase-2",
+      "phase": "phase-1",
       "blocked_by": "add-defer-field",
-      "steps": [
-        "Modify config parser to check for top-level operator keys",
-        "Parse markdown:, yaml:, json:, toml:, ini:, copy:, etc. at root",
-        "Collect these as deferred operations",
-        "Ensure backward compatibility with existing configs"
-      ],
-      "acceptance_criteria": [
-        "Top-level operators parse correctly",
-        "Existing consumer configs still work",
-        "Deferred ops collected separately from with: ops"
-      ],
-      "files_to_modify": [
-        "src/config.rs"
-      ],
-      "complexity": "medium"
+      "skip_reason": "Not needed - existing list format (- markdown: {...}) already parses operators at root level with proper ordering. Root-level mapping format would lose operator ordering since YAML doesn't guarantee key order.",
+      "steps": [],
+      "acceptance_criteria": [],
+      "files_to_modify": [],
+      "complexity": "n/a"
     },
     {
       "id": "apply-deferred-ops",
       "name": "Apply deferred operations from source repos",
       "status": "pending",
       "priority": 3,
-      "phase": "phase-3",
-      "blocked_by": "parse-top-level-ops",
+      "phase": "phase-2",
+      "blocked_by": null,
       "steps": [
         "When loading source repo, parse its .common-repo.yaml",
-        "Extract operations where defer: true",
+        "Extract operations where defer: true or auto-merge is set",
         "Apply deferred ops before consumer with: operations",
         "Ensure consumer ops override deferred ops for same dest"
       ],
@@ -105,7 +90,7 @@
       "name": "Add end-to-end tests",
       "status": "pending",
       "priority": 4,
-      "phase": "phase-3",
+      "phase": "phase-2",
       "blocked_by": "apply-deferred-ops",
       "steps": [
         "Test: source repo with deferred markdown merge",
@@ -127,7 +112,7 @@
       "name": "Update documentation",
       "status": "pending",
       "priority": 5,
-      "phase": "phase-3",
+      "phase": "phase-2",
       "blocked_by": "add-e2e-tests",
       "steps": [
         "Add defer flag to docs/src/authoring-source-repos.md",
@@ -146,12 +131,11 @@
     }
   ],
   "complexity_estimate": {
-    "total_tasks": 5,
-    "estimated_loc": "150-250",
+    "total_tasks": 4,
+    "estimated_loc": "100-200",
     "key_changes": [
       "Add defer and auto-merge fields to merge operator structs",
       "Validation: auto-merge implies defer, conflicts with source/dest",
-      "Parse top-level operators in config",
       "Thread deferred ops through apply workflow"
     ]
   },
@@ -160,6 +144,6 @@
     "Two forms: defer: true (verbose) or auto-merge: file (shorthand)",
     "auto-merge: CLAUDE.md sets source=dest=CLAUDE.md and implies defer",
     "Consumer with: implicitly overrides deferred ops",
-    "Top-level operators are new but follow existing syntax"
+    "Source configs use standard list format (- markdown: {...}) to preserve operator ordering"
   ]
 }

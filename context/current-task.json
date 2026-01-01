@@ -1,5 +1,5 @@
 {
-  "task": "parse-top-level-ops",
+  "task": "apply-deferred-ops",
   "plan": "context/source-declared-merge-impl.json",
   "last_updated": "2026-01-01",
   "status": "pending",
@@ -18,11 +18,15 @@
     ],
     "current_subplan": "context/source-declared-merge-impl.json",
     "design_complete": "context/source-declared-merge.json",
-    "notes": "Corrected approach: defer flag on operators, top-level ops in .common-repo.yaml",
+    "notes": "Skipped parse-top-level-ops - existing list format already parses operators at root level",
     "recently_completed": {
-      "task": "design-revision",
-      "plan": "source-declared-merge",
-      "summary": "Corrected to defer flag approach - no new file, just defer: true on operators"
+      "task": "add-defer-field",
+      "plan": "source-declared-merge-impl",
+      "summary": "Added defer and auto-merge fields to all merge operator structs"
+    },
+    "skipped_task": {
+      "task": "parse-top-level-ops",
+      "reason": "Not needed - existing list format already handles root-level operators with proper ordering"
     }
   }
 }
