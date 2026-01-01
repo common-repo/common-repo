@@ -11,7 +11,8 @@
     {
       "id": "review-evaluation-checklist",
       "name": "Review evaluation-checklist.md",
-      "status": "pending",
+      "status": "complete",
+      "decision": "KEEP - reusable reference checklist for project evaluations",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -29,7 +30,8 @@
     {
       "id": "review-session-notes",
       "name": "Review session-notes.md",
-      "status": "pending",
+      "status": "complete",
+      "decision": "ARCHIVED - all items converted to plan JSONs now in completed/",
       "priority": 2,
       "blocked_by": null,
       "steps": [
@@ -46,7 +48,8 @@
     {
       "id": "review-source-declared-merge-design",
       "name": "Review source-declared-merge-design.md",
-      "status": "pending",
+      "status": "complete",
+      "decision": "ARCHIVED - implementation complete per source-declared-merge-impl.json",
       "priority": 3,
       "blocked_by": null,
       "steps": [
@@ -63,7 +66,8 @@
     {
       "id": "review-traceability-map",
       "name": "Review traceability-map.md",
-      "status": "pending",
+      "status": "complete",
+      "decision": "KEEP - listed as key context file in CLAUDE.md, mappings verified valid",
       "priority": 4,
       "blocked_by": null,
       "steps": [
@@ -81,7 +85,7 @@
     {
       "id": "commit-cleanup",
       "name": "Commit all cleanup changes",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 5,
       "blocked_by": ["review-evaluation-checklist", "review-session-notes", "review-source-declared-merge-design", "review-traceability-map"],
       "steps": [
