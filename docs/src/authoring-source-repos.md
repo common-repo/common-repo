@@ -57,6 +57,108 @@ org-base/          # Base standards
       └── my-app/  # Consumer (inherits rust-base)
 ```
 
+## Source-Declared Merge Behavior
+
+By default, files from source repositories overwrite files in consumer repositories. However, source authors often know best how their files should integrate. The **defer** mechanism allows source repos to declare merge behavior that automatically applies when consumers inherit from them.
+
+### When to Use Source-Declared Merges
+
+Use source-declared merges when:
+
+- Your source provides partial content meant to augment consumer files (e.g., additional CLAUDE.md rules)
+- Files need intelligent merging rather than overwriting (e.g., shared dependencies in Cargo.toml)
+- You want to reduce boilerplate in consumer configurations
+
+### Two Syntax Forms
+
+**1. `auto-merge` - When source and destination have the same filename (most common):**
+
+```yaml
+# Source repo: .common-repo.yaml
+- markdown:
+    auto-merge: CLAUDE.md
+    section: "## Inherited Rules"
+    append: true
+```
+
+This is shorthand for: source=CLAUDE.md, dest=CLAUDE.md, defer=true.
+
+**2. `defer: true` - When source and destination paths differ:**
+
+```yaml
+# Source repo: .common-repo.yaml
+- yaml:
+    source: config/labels.yaml
+    dest: kubernetes.yaml
+    path: metadata.labels
+    defer: true
+```
+
+### Example: Sharing CLAUDE.md Rules
+
+An organization wants all repos to inherit coding guidelines:
+
+```yaml
+# Source repo: org-standards/.common-repo.yaml
+- markdown:
+    auto-merge: CLAUDE.md
+    section: "## Organization Standards"
+    append: true
+    create-section: true
+```
+
+Consumer repos automatically get merged CLAUDE.md content:
+
+```yaml
+# Consumer repo: .common-repo.yaml
+- repo:
+    url: https://github.com/org/org-standards
+    ref: v1.0.0
+# No 'with:' clause needed - CLAUDE.md merges automatically
+```
+
+### Example: Sharing Dependencies
+
+A base Rust configuration shares common dependencies:
+
+```yaml
+# Source repo: rust-base/.common-repo.yaml
+- toml:
+    auto-merge: Cargo.toml
+    path: dependencies
+```
+
+Consumers inherit the base dependencies merged into their Cargo.toml.
+
+### Consumer Override
+
+Consumers can always override source-declared behavior using the `with:` clause:
+
+```yaml
+# Consumer .common-repo.yaml
+- repo:
+    url: https://github.com/org/org-standards
+    ref: v1.0.0
+    with:
+      # Override: copy instead of merge
+      - include: ["CLAUDE.md"]
+      # This replaces the source-declared merge with a simple copy
+```
+
+When a consumer specifies operations for the same destination file, the consumer's operations take precedence.
+
+### Supported Merge Operators
+
+All merge operators support `defer` and `auto-merge`:
+
+| Operator | Example Use Case |
+|----------|------------------|
+| `markdown` | Shared CLAUDE.md rules, README sections |
+| `yaml` | Kubernetes labels, GitHub Actions workflow steps |
+| `json` | package.json dependencies, tsconfig settings |
+| `toml` | Cargo.toml dependencies, pyproject.toml settings |
+| `ini` | Git config defaults, editor settings |
+
 ### Publishing Your First Version
 
 1. **Commit your configuration files** to the repository

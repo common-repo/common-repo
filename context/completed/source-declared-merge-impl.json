@@ -2,7 +2,7 @@
   "plan_name": "Source-Declared Merge Implementation",
   "description": "Add defer flag to operators for source-declared merge behavior",
   "created": "2025-12-31",
-  "last_updated": "2026-01-01T10:15:00Z",
+  "last_updated": "2026-01-01T10:25:00Z",
   "parent_plan": "context/source-declared-merge.json",
   "design_document": "context/source-declared-merge-design.md",
   "approach": "Option 6: Add defer flag to existing operators, use existing list format for source configs",
@@ -140,7 +140,7 @@
     {
       "id": "update-docs",
       "name": "Update documentation",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "phase": "phase-2",
       "blocked_by": "add-e2e-tests",
@@ -153,7 +153,7 @@
         "Authoring guide documents defer flag",
         "Examples are clear"
       ],
-      "files_to_modify": [
+      "files_modified": [
         "docs/src/authoring-source-repos.md",
         "docs/src/configuration.md"
       ],
