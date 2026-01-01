@@ -222,9 +222,10 @@ Command::cargo_bin("common-repo").unwrap()  // Don't use
 ### Test Coverage
 
 ```bash
-cargo install cargo-tarpaulin
-cargo tarpaulin --out Html              # HTML report in target/tarpaulin/
-cargo tarpaulin --fail-under 80         # Enforce minimum coverage
+cargo xtask coverage                 # HTML report (default)
+cargo xtask coverage --format json   # JSON report
+cargo xtask coverage --fail-under 80 # Fail if coverage < 80%
+cargo xtask coverage --open          # Open report in browser
 ```
 
 ## Code Quality & Pre-commit
