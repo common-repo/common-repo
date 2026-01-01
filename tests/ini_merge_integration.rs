@@ -2,7 +2,7 @@
 
 use common_repo::config::IniMergeOp;
 use common_repo::filesystem::MemoryFS;
-use common_repo::merge::ini::apply_ini_merge_operation;
+use common_repo::merge::apply_ini_merge_operation;
 
 #[test]
 fn test_ini_merge_basic_root_level() {

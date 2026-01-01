@@ -35,7 +35,7 @@ use crate::repository::RepositoryManager;
 use std::path::Path;
 
 /// Include operator - adds files matching glob patterns to the filesystem
-pub mod include {
+pub(crate) mod include {
     use super::*;
 
     /// Applies the `include` operation to a filesystem.
@@ -52,7 +52,7 @@ pub mod include {
     ///
     /// # Returns
     /// Result indicating success or failure
-    pub fn apply(op: &IncludeOp, source: &MemoryFS, target: &mut MemoryFS) -> Result<()> {
+    pub(crate) fn apply(op: &IncludeOp, source: &MemoryFS, target: &mut MemoryFS) -> Result<()> {
         for pattern in &op.patterns {
             let matching_files = source.list_files_glob(pattern)?;
 
@@ -69,7 +69,7 @@ pub mod include {
 }
 
 /// Exclude operator - removes files matching glob patterns from the filesystem
-pub mod exclude {
+pub(crate) mod exclude {
     use super::*;
 
     /// Applies the `exclude` operation to a filesystem.
@@ -84,7 +84,7 @@ pub mod exclude {
     ///
     /// # Returns
     /// Result indicating success or failure
-    pub fn apply(op: &ExcludeOp, target: &mut MemoryFS) -> Result<()> {
+    pub(crate) fn apply(op: &ExcludeOp, target: &mut MemoryFS) -> Result<()> {
         for pattern in &op.patterns {
             let matching_files = target.list_files_glob(pattern)?;
 
@@ -98,7 +98,7 @@ pub mod exclude {
 }
 
 /// Rename operator - renames files using regex patterns
-pub mod rename {
+pub(crate) mod rename {
     use super::*;
 
     /// Applies the `rename` operation to a filesystem.
@@ -114,7 +114,7 @@ pub mod rename {
     ///
     /// # Returns
     /// Result indicating success or failure
-    pub fn apply(op: &RenameOp, target: &mut MemoryFS) -> Result<()> {
+    pub(crate) fn apply(op: &RenameOp, target: &mut MemoryFS) -> Result<()> {
         // Collect all current file paths
         let current_files: Vec<_> = target.list_files();
 
@@ -149,7 +149,7 @@ pub mod rename {
 }
 
 /// Repo operator - pulls files from inherited repositories
-pub mod repo {
+pub(crate) mod repo {
     use super::*;
 
     /// Applies the `repo` operation to fetch and process an inherited repository.
@@ -166,7 +166,8 @@ pub mod repo {
     ///
     /// # Returns
     /// Result containing the processed MemoryFS with repository contents
-    pub fn apply(op: &RepoOp, repo_manager: &RepositoryManager) -> Result<MemoryFS> {
+    #[allow(dead_code)] // Part of operator API, may be used in future
+    pub(crate) fn apply(op: &RepoOp, repo_manager: &RepositoryManager) -> Result<MemoryFS> {
         // Fetch the repository with optional path filtering
         let mut fs =
             repo_manager.fetch_repository_with_path(&op.url, &op.r#ref, op.path.as_deref())?;
@@ -190,7 +191,8 @@ pub mod repo {
     ///
     /// # Returns
     /// Result indicating success or failure
-    pub fn apply_with_clause(operations: &[Operation], fs: &mut MemoryFS) -> Result<()> {
+    #[allow(dead_code)] // Part of operator API, may be used in future
+    pub(crate) fn apply_with_clause(operations: &[Operation], fs: &mut MemoryFS) -> Result<()> {
         for operation in operations {
             match operation {
                 Operation::Include { include } => {
@@ -1329,7 +1331,7 @@ mod tests {
 }
 
 /// Template operators - mark files as templates and process variable substitution
-pub mod template {
+pub(crate) mod template {
     use super::*;
     use crate::error::Error;
     use std::collections::HashMap;
@@ -1348,7 +1350,7 @@ pub mod template {
     ///
     /// # Returns
     /// Result indicating success or failure
-    pub fn mark(op: &crate::config::TemplateOp, fs: &mut MemoryFS) -> Result<()> {
+    pub(crate) fn mark(op: &crate::config::TemplateOp, fs: &mut MemoryFS) -> Result<()> {
         for pattern in &op.patterns {
             let matching_files = fs.list_files_glob(pattern)?;
 
@@ -1382,7 +1384,7 @@ pub mod template {
     ///
     /// # Returns
     /// Result indicating success or failure
-    pub fn process(fs: &mut MemoryFS, vars: &HashMap<String, String>) -> Result<()> {
+    pub(crate) fn process(fs: &mut MemoryFS, vars: &HashMap<String, String>) -> Result<()> {
         // Find all template files
         let template_files: Vec<PathBuf> = fs
             .list_files()
@@ -1466,7 +1468,7 @@ pub mod template {
 }
 
 /// Template variables operator - collect unified variable context
-pub mod template_vars {
+pub(crate) mod template_vars {
     use super::*;
     use std::collections::HashMap;
 
@@ -1483,7 +1485,7 @@ pub mod template_vars {
     ///
     /// # Returns
     /// Result indicating success or failure
-    pub fn collect(
+    pub(crate) fn collect(
         op: &crate::config::TemplateVars,
         context: &mut HashMap<String, String>,
     ) -> Result<()> {
@@ -1697,14 +1699,14 @@ mod template_tests {
 }
 
 /// Tool validation operators
-pub mod tools {
+pub(crate) mod tools {
     use crate::config::{Tool, ToolsOp};
     use crate::error::{Error, Result};
     use semver::{Version, VersionReq};
     use std::process::Command;
 
     /// Applies the `tools` operation to validate required tools.
-    pub fn apply(op: &ToolsOp) -> Result<()> {
+    pub(crate) fn apply(op: &ToolsOp) -> Result<()> {
         for tool in &op.tools {
             check_tool(tool)?;
         }

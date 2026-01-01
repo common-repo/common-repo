@@ -92,7 +92,7 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
 
     // Cycle detection
     println!("\n🔄 Checking for circular dependencies...");
-    match phases::phase1::discover_repos(&schema, &RepositoryManager::new(cache_root.clone())) {
+    match phases::discover_repos(&schema, &RepositoryManager::new(cache_root.clone())) {
         Ok(repo_tree) => {
             println!("✅ No circular dependencies detected");
             println!(

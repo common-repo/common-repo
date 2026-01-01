@@ -2,7 +2,7 @@
 
 use common_repo::config::{ArrayMergeMode, YamlMergeOp};
 use common_repo::filesystem::MemoryFS;
-use common_repo::merge::yaml::apply_yaml_merge_operation;
+use common_repo::merge::apply_yaml_merge_operation;
 
 #[test]
 fn test_yaml_merge_simple_keys() {

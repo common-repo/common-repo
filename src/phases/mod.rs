@@ -20,22 +20,30 @@ use std::collections::{HashMap, HashSet};
 use crate::config::Operation;
 use crate::filesystem::MemoryFS;
 
-// Phase modules
-pub mod composite;
-pub mod discovery;
-pub mod local_merge;
-pub mod orchestrator;
-pub mod ordering;
-pub mod processing;
-pub mod write;
+// Phase modules - internal implementations
+pub(crate) mod composite;
+pub(crate) mod discovery;
+pub(crate) mod local_merge;
+pub(crate) mod ordering;
+pub(crate) mod processing;
+pub(crate) mod write;
 
-// Re-export phase modules to preserve public API
-pub use composite as phase4;
-pub use discovery as phase1;
-pub use local_merge as phase5;
-pub use ordering as phase3;
-pub use processing as phase2;
-pub use write as phase6;
+// Public orchestrator for coordinating all phases
+pub mod orchestrator;
+
+// Re-export phase modules for internal use (crate-only aliases)
+pub(crate) use composite as phase4;
+pub(crate) use discovery as phase1;
+pub(crate) use local_merge as phase5;
+pub(crate) use ordering as phase3;
+pub(crate) use processing as phase2;
+pub(crate) use write as phase6;
+
+// Public re-exports for CLI commands
+/// Discover all repositories in the inheritance tree.
+///
+/// This is re-exported for CLI command use (tree, validate).
+pub use discovery::discover_repos;
 
 /// Repository tree node representing inheritance hierarchy
 #[derive(Debug, Clone)]
