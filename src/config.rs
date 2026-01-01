@@ -204,6 +204,60 @@ impl YamlMergeOp {
         // auto_merge implies defer=true
         self.auto_merge.is_some() || self.defer.unwrap_or(false)
     }
+
+    // Builder methods for fluent construction
+
+    /// Create a new YAML merge operation with default values
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::config::YamlMergeOp;
+    ///
+    /// let op = YamlMergeOp::new()
+    ///     .source("fragment.yaml")
+    ///     .dest("config.yaml")
+    ///     .path("metadata.labels");
+    /// ```
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the source file path
+    pub fn source(mut self, source: impl Into<String>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Set the destination file path
+    pub fn dest(mut self, dest: impl Into<String>) -> Self {
+        self.dest = Some(dest.into());
+        self
+    }
+
+    /// Set the path within the destination to merge at
+    pub fn path(mut self, path: impl Into<String>) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    /// Set the array merge mode
+    pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
+        self.array_mode = Some(mode);
+        self
+    }
+
+    /// Set whether this operation is deferred
+    pub fn defer(mut self, defer: bool) -> Self {
+        self.defer = Some(defer);
+        self
+    }
+
+    /// Set auto-merge mode (source=dest, implies defer)
+    pub fn auto_merge(mut self, path: impl Into<String>) -> Self {
+        self.auto_merge = Some(path.into());
+        self
+    }
 }
 
 /// JSON merge operator configuration
@@ -296,6 +350,68 @@ impl TomlMergeOp {
     pub fn is_deferred(&self) -> bool {
         self.auto_merge.is_some() || self.defer.unwrap_or(false)
     }
+
+    // Builder methods for fluent construction
+
+    /// Create a new TOML merge operation with default values
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::config::{TomlMergeOp, ArrayMergeMode};
+    ///
+    /// let op = TomlMergeOp::new()
+    ///     .source("fragment.toml")
+    ///     .dest("Cargo.toml")
+    ///     .path("dependencies")
+    ///     .preserve_comments(true)
+    ///     .array_mode(ArrayMergeMode::Append);
+    /// ```
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the source file path
+    pub fn source(mut self, source: impl Into<String>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Set the destination file path
+    pub fn dest(mut self, dest: impl Into<String>) -> Self {
+        self.dest = Some(dest.into());
+        self
+    }
+
+    /// Set the path within the destination to merge at
+    pub fn path(mut self, path: impl Into<String>) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    /// Set the array merge mode
+    pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
+        self.array_mode = Some(mode);
+        self
+    }
+
+    /// Set whether to preserve comments in the output
+    pub fn preserve_comments(mut self, preserve: bool) -> Self {
+        self.preserve_comments = preserve;
+        self
+    }
+
+    /// Set whether this operation is deferred
+    pub fn defer(mut self, defer: bool) -> Self {
+        self.defer = Some(defer);
+        self
+    }
+
+    /// Set auto-merge mode (source=dest, implies defer)
+    pub fn auto_merge(mut self, path: impl Into<String>) -> Self {
+        self.auto_merge = Some(path.into());
+        self
+    }
 }
 
 impl JsonMergeOp {
@@ -327,6 +443,67 @@ impl JsonMergeOp {
     /// Check if this operation is deferred
     pub fn is_deferred(&self) -> bool {
         self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
+
+    // Builder methods for fluent construction
+
+    /// Create a new JSON merge operation with default values
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::config::JsonMergeOp;
+    ///
+    /// let op = JsonMergeOp::new()
+    ///     .source("fragment.json")
+    ///     .dest("package.json")
+    ///     .path("dependencies")
+    ///     .position("end");
+    /// ```
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the source file path
+    pub fn source(mut self, source: impl Into<String>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Set the destination file path
+    pub fn dest(mut self, dest: impl Into<String>) -> Self {
+        self.dest = Some(dest.into());
+        self
+    }
+
+    /// Set the path within the destination to merge at
+    pub fn path(mut self, path: impl Into<String>) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    /// Set the position for appending ("end" or "start")
+    pub fn position(mut self, position: impl Into<String>) -> Self {
+        self.position = Some(position.into());
+        self
+    }
+
+    /// Set whether to append (true) or replace (false)
+    pub fn append(mut self, append: bool) -> Self {
+        self.append = append;
+        self
+    }
+
+    /// Set whether this operation is deferred
+    pub fn defer(mut self, defer: bool) -> Self {
+        self.defer = Some(defer);
+        self
+    }
+
+    /// Set auto-merge mode (source=dest, implies defer)
+    pub fn auto_merge(mut self, path: impl Into<String>) -> Self {
+        self.auto_merge = Some(path.into());
+        self
     }
 }
 
@@ -385,6 +562,67 @@ impl IniMergeOp {
     /// Check if this operation is deferred
     pub fn is_deferred(&self) -> bool {
         self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
+
+    // Builder methods for fluent construction
+
+    /// Create a new INI merge operation with default values
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::config::IniMergeOp;
+    ///
+    /// let op = IniMergeOp::new()
+    ///     .source("fragment.ini")
+    ///     .dest("config.ini")
+    ///     .section("database")
+    ///     .allow_duplicates(true);
+    /// ```
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the source file path
+    pub fn source(mut self, source: impl Into<String>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Set the destination file path
+    pub fn dest(mut self, dest: impl Into<String>) -> Self {
+        self.dest = Some(dest.into());
+        self
+    }
+
+    /// Set the section to merge into
+    pub fn section(mut self, section: impl Into<String>) -> Self {
+        self.section = Some(section.into());
+        self
+    }
+
+    /// Set whether to append (true) or replace (false)
+    pub fn append(mut self, append: bool) -> Self {
+        self.append = append;
+        self
+    }
+
+    /// Set whether to allow duplicate keys
+    pub fn allow_duplicates(mut self, allow: bool) -> Self {
+        self.allow_duplicates = allow;
+        self
+    }
+
+    /// Set whether this operation is deferred
+    pub fn defer(mut self, defer: bool) -> Self {
+        self.defer = Some(defer);
+        self
+    }
+
+    /// Set auto-merge mode (source=dest, implies defer)
+    pub fn auto_merge(mut self, path: impl Into<String>) -> Self {
+        self.auto_merge = Some(path.into());
+        self
     }
 }
 
@@ -461,6 +699,81 @@ impl MarkdownMergeOp {
     /// Check if this operation is deferred
     pub fn is_deferred(&self) -> bool {
         self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
+
+    // Builder methods for fluent construction
+
+    /// Create a new Markdown merge operation with default values
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use common_repo::config::MarkdownMergeOp;
+    ///
+    /// let op = MarkdownMergeOp::new()
+    ///     .source("fragment.md")
+    ///     .dest("README.md")
+    ///     .section("Installation")
+    ///     .level(2)
+    ///     .position("end")
+    ///     .create_section(true);
+    /// ```
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the source file path
+    pub fn source(mut self, source: impl Into<String>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Set the destination file path
+    pub fn dest(mut self, dest: impl Into<String>) -> Self {
+        self.dest = Some(dest.into());
+        self
+    }
+
+    /// Set the section header to merge under (required)
+    pub fn section(mut self, section: impl Into<String>) -> Self {
+        self.section = section.into();
+        self
+    }
+
+    /// Set whether to append (true) or replace (false)
+    pub fn append(mut self, append: bool) -> Self {
+        self.append = append;
+        self
+    }
+
+    /// Set the header level (1-6)
+    pub fn level(mut self, level: u8) -> Self {
+        self.level = level;
+        self
+    }
+
+    /// Set the position to insert ("end" or "start")
+    pub fn position(mut self, position: impl Into<String>) -> Self {
+        self.position = position.into();
+        self
+    }
+
+    /// Set whether to create section if it doesn't exist
+    pub fn create_section(mut self, create: bool) -> Self {
+        self.create_section = create;
+        self
+    }
+
+    /// Set whether this operation is deferred
+    pub fn defer(mut self, defer: bool) -> Self {
+        self.defer = Some(defer);
+        self
+    }
+
+    /// Set auto-merge mode (source=dest, implies defer)
+    pub fn auto_merge(mut self, path: impl Into<String>) -> Self {
+        self.auto_merge = Some(path.into());
+        self
     }
 }
 
@@ -2309,6 +2622,161 @@ mod tests {
                 },
             };
             assert!(!op.is_deferred());
+        }
+    }
+
+    // ========================================================================
+    // Builder Pattern Tests
+    // ========================================================================
+
+    mod builder_tests {
+        use super::*;
+
+        #[test]
+        fn test_yaml_merge_op_builder() {
+            let op = YamlMergeOp::new()
+                .source("fragment.yaml")
+                .dest("config.yaml")
+                .path("metadata.labels")
+                .array_mode(ArrayMergeMode::AppendUnique)
+                .defer(true);
+
+            assert_eq!(op.source.as_deref(), Some("fragment.yaml"));
+            assert_eq!(op.dest.as_deref(), Some("config.yaml"));
+            assert_eq!(op.path.as_deref(), Some("metadata.labels"));
+            assert_eq!(op.array_mode, Some(ArrayMergeMode::AppendUnique));
+            assert_eq!(op.defer, Some(true));
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_yaml_merge_op_builder_auto_merge() {
+            let op = YamlMergeOp::new()
+                .auto_merge("config.yaml")
+                .path("metadata");
+
+            assert!(op.is_deferred());
+            assert_eq!(op.get_source(), Some("config.yaml"));
+            assert_eq!(op.get_dest(), Some("config.yaml"));
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_json_merge_op_builder() {
+            let op = JsonMergeOp::new()
+                .source("fragment.json")
+                .dest("package.json")
+                .path("dependencies")
+                .position("end")
+                .append(true);
+
+            assert_eq!(op.source.as_deref(), Some("fragment.json"));
+            assert_eq!(op.dest.as_deref(), Some("package.json"));
+            assert_eq!(op.path.as_deref(), Some("dependencies"));
+            assert_eq!(op.position.as_deref(), Some("end"));
+            assert!(op.append);
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_toml_merge_op_builder() {
+            let op = TomlMergeOp::new()
+                .source("fragment.toml")
+                .dest("Cargo.toml")
+                .path("dependencies")
+                .array_mode(ArrayMergeMode::Append)
+                .preserve_comments(true);
+
+            assert_eq!(op.source.as_deref(), Some("fragment.toml"));
+            assert_eq!(op.dest.as_deref(), Some("Cargo.toml"));
+            assert_eq!(op.path.as_deref(), Some("dependencies"));
+            assert_eq!(op.array_mode, Some(ArrayMergeMode::Append));
+            assert!(op.preserve_comments);
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_ini_merge_op_builder() {
+            let op = IniMergeOp::new()
+                .source("fragment.ini")
+                .dest("config.ini")
+                .section("database")
+                .append(true)
+                .allow_duplicates(true);
+
+            assert_eq!(op.source.as_deref(), Some("fragment.ini"));
+            assert_eq!(op.dest.as_deref(), Some("config.ini"));
+            assert_eq!(op.section.as_deref(), Some("database"));
+            assert!(op.append);
+            assert!(op.allow_duplicates);
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_markdown_merge_op_builder() {
+            let op = MarkdownMergeOp::new()
+                .source("fragment.md")
+                .dest("README.md")
+                .section("Installation")
+                .level(3)
+                .position("end")
+                .append(true)
+                .create_section(true);
+
+            assert_eq!(op.source.as_deref(), Some("fragment.md"));
+            assert_eq!(op.dest.as_deref(), Some("README.md"));
+            assert_eq!(op.section, "Installation");
+            assert_eq!(op.level, 3);
+            assert_eq!(op.position, "end");
+            assert!(op.append);
+            assert!(op.create_section);
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
+        fn test_builder_chain_validates() {
+            // Ensure builders create valid configurations
+            let yaml = YamlMergeOp::new().source("s.yaml").dest("d.yaml");
+            assert!(yaml.validate().is_ok());
+
+            let json = JsonMergeOp::new().source("s.json").dest("d.json");
+            assert!(json.validate().is_ok());
+
+            let toml = TomlMergeOp::new().source("s.toml").dest("d.toml");
+            assert!(toml.validate().is_ok());
+
+            let ini = IniMergeOp::new().source("s.ini").dest("d.ini");
+            assert!(ini.validate().is_ok());
+
+            let md = MarkdownMergeOp::new()
+                .source("s.md")
+                .dest("d.md")
+                .section("Test");
+            assert!(md.validate().is_ok());
+        }
+
+        #[test]
+        fn test_builder_new_returns_default() {
+            // Ensure new() returns the same as Default::default()
+            let yaml_new = YamlMergeOp::new();
+            let yaml_default = YamlMergeOp::default();
+            assert_eq!(yaml_new, yaml_default);
+
+            let json_new = JsonMergeOp::new();
+            let json_default = JsonMergeOp::default();
+            assert_eq!(json_new, json_default);
+
+            let toml_new = TomlMergeOp::new();
+            let toml_default = TomlMergeOp::default();
+            assert_eq!(toml_new, toml_default);
+
+            let ini_new = IniMergeOp::new();
+            let ini_default = IniMergeOp::default();
+            assert_eq!(ini_new, ini_default);
+
+            let md_new = MarkdownMergeOp::new();
+            let md_default = MarkdownMergeOp::default();
+            assert_eq!(md_new, md_default);
         }
     }
 }
