@@ -205,27 +205,28 @@ Source repos use the same `.common-repo.yaml` file with top-level operators mark
 **Example:**
 ```yaml
 # Source repo: .common-repo.yaml
-include:
-  - "**/*"  # files to export (optional, defaults to all)
+# Uses list format to preserve operator ordering
+- include:
+    - "**/*"  # files to export (optional, defaults to all)
 
 # Shorthand: auto-merge sets source=dest and implies defer
-markdown:
-  auto-merge: CLAUDE.md
-  section: "## Inherited Rules"
-  append: true
+- markdown:
+    auto-merge: CLAUDE.md
+    section: "## Inherited Rules"
+    append: true
 
 # Verbose form: when source != dest
-yaml:
-  source: config/labels.yaml
-  dest: config.yaml
-  path: metadata.labels
-  array_mode: append
-  defer: true
+- yaml:
+    source: config/labels.yaml
+    dest: config.yaml
+    path: metadata.labels
+    array_mode: append
+    defer: true
 
 # Shorthand works for all merge operators
-toml:
-  auto-merge: Cargo.toml
-  path: dependencies
+- toml:
+    auto-merge: Cargo.toml
+    path: dependencies
 ```
 
 When a consumer references this repo, the deferred operations auto-apply.
@@ -239,7 +240,6 @@ When a consumer references this repo, the deferred operations auto-apply.
 - **Reuses parsing**: Existing operator parsing, just add two fields
 
 **Cons:**
-- Top-level operators are a new pattern (currently only `with:` uses operators)
 - Need to add `defer` and `auto-merge` fields to operator structs
 
 ## Consumer Override Mechanism
@@ -305,22 +305,23 @@ When multiple source repos declare merge for the same destination:
 
 ```yaml
 # Source repo: .common-repo.yaml
-include:
-  - "**/*"  # optional, defaults to all files
+# Uses list format to preserve operator ordering
+- include:
+    - "**/*"  # optional, defaults to all files
 
 # Shorthand: auto-merge (source=dest, implies defer)
-markdown:
-  auto-merge: CLAUDE.md
-  section: "## Inherited Rules"
-  append: true
+- markdown:
+    auto-merge: CLAUDE.md
+    section: "## Inherited Rules"
+    append: true
 
 # Verbose: when source != dest, use defer: true
-yaml:
-  source: labels.yaml
-  dest: config.yaml
-  path: metadata.labels
-  array_mode: append
-  defer: true
+- yaml:
+    source: labels.yaml
+    dest: config.yaml
+    path: metadata.labels
+    array_mode: append
+    defer: true
 
 # Files not listed here: normal copy behavior
 ```
@@ -339,9 +340,8 @@ Consumer operations always take precedence over source declarations.
 
 1. **Add `defer` and `auto-merge` fields** to merge operator structs
 2. **Validation**: `auto-merge` implies defer; error if both `auto-merge` and `source`/`dest` set
-3. **Parse top-level operators** in `.common-repo.yaml` (currently only parses `with:`)
-4. **Collect deferred ops** when loading source repo
-5. **Apply deferred ops** before consumer `with:` operations
+3. **Collect deferred ops** when loading source repo (parser already handles list format)
+4. **Apply deferred ops** before consumer `with:` operations
 
 ### Open Questions
 
@@ -361,6 +361,5 @@ Consumer operations always take precedence over source declarations.
 
 1. Update implementation plan for `defer` flag approach
 2. Add `defer` field to operator structs in `src/config.rs`
-3. Parse top-level operators in config
-4. Integrate deferred ops into apply workflow
-5. Update documentation and schema.yaml
+3. Integrate deferred ops into apply workflow (parser already handles list format)
+4. Update documentation and schema.yaml
