@@ -20,6 +20,7 @@ pub mod add;
 pub mod apply;
 pub mod cache;
 pub mod check;
+pub mod completions;
 pub mod diff;
 pub mod info;
 pub mod init;

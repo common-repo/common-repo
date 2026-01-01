@@ -35,6 +35,7 @@ pub mod prelude {
     pub use super::configs;
     #[allow(unused_imports)]
     pub use super::should_skip_network_tests;
+    #[allow(unused_imports)]
     pub use super::TestFixture;
 }
 

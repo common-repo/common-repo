@@ -1,8 +1,8 @@
 {
-  "task": null,
-  "plan": null,
+  "task": "add-shell-completions",
+  "plan": "context/cli-ux-review.json",
   "last_updated": "2026-01-01T00:00:00Z",
-  "status": null,
+  "status": "in_progress",
   "master_plan": "context/plan-of-plans.json",
   "context": {
     "completed_plans": [

@@ -52,6 +52,9 @@ enum Commands {
     /// Check configuration validity and check for repository updates
     Check(commands::check::CheckArgs),
 
+    /// Generate shell completion scripts
+    Completions(commands::completions::CompletionsArgs),
+
     /// Show differences between current files and configuration result
     Diff(commands::diff::DiffArgs),
 
@@ -87,6 +90,7 @@ impl Cli {
             Commands::Add(args) => commands::add::execute(args),
             Commands::Apply(args) => commands::apply::execute(args),
             Commands::Check(args) => commands::check::execute(args),
+            Commands::Completions(args) => commands::completions::execute(args),
             Commands::Diff(args) => {
                 // Diff command uses exit code 1 to indicate changes exist
                 match commands::diff::execute(args) {
