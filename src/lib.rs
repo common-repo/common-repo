@@ -5,6 +5,33 @@
 //! command-line tool but can also be integrated into other applications that
 //! require multi-repository configuration management.
 //!
+//! ## Quick Example
+//!
+//! ```
+//! use common_repo::filesystem::{File, MemoryFS};
+//! use common_repo::config;
+//!
+//! // Create an in-memory filesystem
+//! let mut fs = MemoryFS::new();
+//!
+//! // Add files to the filesystem
+//! fs.add_file_string("README.md", "# My Project").unwrap();
+//! fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
+//!
+//! // Work with the filesystem
+//! assert!(fs.exists("README.md"));
+//! assert_eq!(fs.len(), 2);
+//!
+//! // Parse a configuration
+//! let config_yaml = r#"
+//! - include:
+//!     patterns:
+//!       - "*.rs"
+//! "#;
+//! let schema = config::parse(config_yaml).unwrap();
+//! assert_eq!(schema.len(), 1);
+//! ```
+//!
 //! ## Core Concepts
 //!
 //! The library is built around a few key concepts:

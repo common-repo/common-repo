@@ -109,8 +109,9 @@
     },
     {
       "id": "architecture-review",
-      "file": "context/architecture-review.json",
-      "category": "review"
+      "file": "context/completed/architecture-review.json",
+      "category": "review",
+      "status": "complete"
     },
     {
       "id": "cli-ux-review",
