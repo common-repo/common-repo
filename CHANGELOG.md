@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.22.0](https://github.com/common-repo/common-repo/compare/v0.21.1...v0.22.0) (2026-01-01)
+
+
+### Features
+
+* **add:** implement add command for quick repo addition ([08a6724](https://github.com/common-repo/common-repo/commit/08a6724d6045a9938ae47f3d4fad5170f680be41))
+* **config:** add defer and auto-merge fields to merge operators ([9e9a3b5](https://github.com/common-repo/common-repo/commit/9e9a3b507f71443c2e26451e14315ac9dfb10870))
+* **context:** add source-declared merge implementation plan ([dc6b87c](https://github.com/common-repo/common-repo/commit/dc6b87cf5c58b00e0b7ff92598572e060745e0c9))
+* **deps:** add dialoguer for interactive CLI prompts ([c07787f](https://github.com/common-repo/common-repo/commit/c07787f3c1781f791191bea8c8d650fba53eece1))
+* **design:** add auto-merge shorthand for source-declared merge ([ff05d23](https://github.com/common-repo/common-repo/commit/ff05d23e4a00ee8d1f0903f1272855b1802c1b9f))
+* **init:** add pre-commit hook setup to interactive wizard ([15866d7](https://github.com/common-repo/common-repo/commit/15866d7aff5588201cf09301d2712e2ba71d57f4))
+* **init:** add URI positional argument for quick initialization ([d18c37c](https://github.com/common-repo/common-repo/commit/d18c37c7e469024b9ad04f2c5d5c361b72d65854))
+* **init:** implement interactive wizard with dialoguer ([77604ff](https://github.com/common-repo/common-repo/commit/77604ffb6b766551f1397279b4cc56a9082e8c46))
+* **install:** add cr short alias for common-repo ([4e0bbe3](https://github.com/common-repo/common-repo/commit/4e0bbe33f8d97e2ebe3095b62fed4a24f4cd3211))
+* **install:** add optional prek installation to install script ([40b6251](https://github.com/common-repo/common-repo/commit/40b62510057cf4dda455d467d91897920ee41a39))
+* **phases:** apply deferred operations from source repos ([f397dd5](https://github.com/common-repo/common-repo/commit/f397dd5151bb861a2417efb9d4c29a14a6f1f44d))
+* **scripts:** add script/ci for local CI checks ([5930b98](https://github.com/common-repo/common-repo/commit/5930b981346fb9035abac16602c03f9b860e3137))
+
+
+### Bug Fixes
+
+* **ci:** ignore unmaintained transitive dependencies in security audits ([f4248b4](https://github.com/common-repo/common-repo/commit/f4248b458fcc406823f0ebd5a9602bffc6c4f5dd))
+* **ci:** simplify deny.toml and remove unused ring clarification ([0bc069e](https://github.com/common-repo/common-repo/commit/0bc069e62818390f113cfb64d81142805f001954))
+* **ci:** update MSRV to 1.85.0 for edition2024 support ([2d8b886](https://github.com/common-repo/common-repo/commit/2d8b8862c0104742717baed3a1ad17446e9c971a))
+* **ci:** use version tags instead of SHA hashes for actions ([f24559f](https://github.com/common-repo/common-repo/commit/f24559f9ec1e0b31579742816b72d219832c9e23))
+* **docs:** update merge module doc examples for private modules ([b9cabd0](https://github.com/common-repo/common-repo/commit/b9cabd0abac1f3fb10393cc589008144fb5ea176))
+* **merge:** add auto-merge validation and make TOML path optional ([488610d](https://github.com/common-repo/common-repo/commit/488610d44d69e3d5fe5cdc616fa798e83bec7fa9))
+* **test:** skip interactive mode E2E test that requires TTY ([f0cbefe](https://github.com/common-repo/common-repo/commit/f0cbefeaaba2c1b15d01ba9ecb3e8e8110b636ef))
+* **test:** update interactive E2E tests for pre-commit prompt ([9afaf1a](https://github.com/common-repo/common-repo/commit/9afaf1a849ff7f2ec961928cc1a6e70d0456032c))
+
 ## [0.21.1](https://github.com/common-repo/common-repo/compare/v0.21.0...v0.21.1) (2025-12-08)
 
 
