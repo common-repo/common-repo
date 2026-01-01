@@ -1,5 +1,5 @@
 {
-  "task": "apply-deferred-ops",
+  "task": "add-e2e-tests",
   "plan": "context/source-declared-merge-impl.json",
   "last_updated": "2026-01-01",
   "status": "pending",
@@ -18,11 +18,11 @@
     ],
     "current_subplan": "context/source-declared-merge-impl.json",
     "design_complete": "context/source-declared-merge.json",
-    "notes": "Skipped parse-top-level-ops - existing list format already parses operators at root level",
+    "notes": "Next: add E2E tests for deferred operations workflow",
     "recently_completed": {
-      "task": "add-defer-field",
+      "task": "apply-deferred-ops",
       "plan": "source-declared-merge-impl",
-      "summary": "Added defer and auto-merge fields to all merge operator structs"
+      "summary": "Added Operation::is_deferred() method and extract_deferred_operations() in discovery phase to prepend deferred ops before consumer with: operations"
     },
     "skipped_task": {
       "task": "parse-top-level-ops",

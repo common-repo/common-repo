@@ -511,6 +511,24 @@ pub enum Operation {
     Markdown { markdown: MarkdownMergeOp },
 }
 
+impl Operation {
+    /// Check if this operation is deferred (applies when repo is used as a source)
+    ///
+    /// Deferred operations have `defer: true` or `auto-merge` set.
+    /// Only merge operators (yaml, json, toml, ini, markdown) can be deferred.
+    pub fn is_deferred(&self) -> bool {
+        match self {
+            Operation::Yaml { yaml } => yaml.is_deferred(),
+            Operation::Json { json } => json.is_deferred(),
+            Operation::Toml { toml } => toml.is_deferred(),
+            Operation::Ini { ini } => ini.is_deferred(),
+            Operation::Markdown { markdown } => markdown.is_deferred(),
+            // Non-merge operators cannot be deferred
+            _ => false,
+        }
+    }
+}
+
 /// The complete configuration schema, represented as a list of operations.
 ///
 /// The operations are executed in the order they are defined in the file.
@@ -2207,6 +2225,80 @@ mod tests {
                 }
                 _ => panic!("Expected Markdown operation"),
             }
+        }
+
+        // Tests for Operation::is_deferred() method
+        #[test]
+        fn test_operation_is_deferred_yaml() {
+            let op = Operation::Yaml {
+                yaml: YamlMergeOp {
+                    auto_merge: Some("config.yaml".to_string()),
+                    ..Default::default()
+                },
+            };
+            assert!(op.is_deferred());
+        }
+
+        #[test]
+        fn test_operation_is_deferred_json() {
+            let op = Operation::Json {
+                json: JsonMergeOp {
+                    defer: Some(true),
+                    source: Some("s.json".to_string()),
+                    dest: Some("d.json".to_string()),
+                    ..Default::default()
+                },
+            };
+            assert!(op.is_deferred());
+        }
+
+        #[test]
+        fn test_operation_is_deferred_non_merge_op() {
+            // Include operations cannot be deferred
+            let op = Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["*.rs".to_string()],
+                },
+            };
+            assert!(!op.is_deferred());
+        }
+
+        #[test]
+        fn test_operation_is_deferred_exclude_op() {
+            // Exclude operations cannot be deferred
+            let op = Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            };
+            assert!(!op.is_deferred());
+        }
+
+        #[test]
+        fn test_operation_is_deferred_repo_op() {
+            // Repo operations cannot be deferred
+            let op = Operation::Repo {
+                repo: RepoOp {
+                    url: "https://example.com/repo".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            };
+            assert!(!op.is_deferred());
+        }
+
+        #[test]
+        fn test_operation_is_deferred_merge_without_defer() {
+            // Merge op without defer flag should not be deferred
+            let op = Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: Some("s.yaml".to_string()),
+                    dest: Some("d.yaml".to_string()),
+                    ..Default::default()
+                },
+            };
+            assert!(!op.is_deferred());
         }
     }
 }
