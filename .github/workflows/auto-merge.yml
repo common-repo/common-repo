@@ -20,12 +20,12 @@ jobs:
           app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
           private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
 
-      - name: Merge PR
+      - name: Enable Auto-Merge
         env:
           GH_TOKEN: ${{ steps.authenticate.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_REPO: ${{ github.repository }}
         run: |
-          echo "Merging PR #${PR_NUMBER}..."
-          gh pr merge "${PR_NUMBER}" --rebase --delete-branch
-          echo "PR #${PR_NUMBER} merged successfully"
+          echo "Enabling auto-merge for PR #${PR_NUMBER}..."
+          gh pr merge "${PR_NUMBER}" --auto --rebase --delete-branch
+          echo "Auto-merge enabled for PR #${PR_NUMBER}"
