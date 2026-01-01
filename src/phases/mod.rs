@@ -46,7 +46,7 @@ pub(crate) use write as phase6;
 pub use discovery::discover_repos;
 
 /// Repository tree node representing inheritance hierarchy
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoNode {
     /// Repository URL
     pub url: String,

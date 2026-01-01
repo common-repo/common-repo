@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Represents a tool requirement with version constraint
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tool {
     /// Tool name (e.g., "pre-commit", "rustc")
     pub name: String,
@@ -46,14 +46,14 @@ pub struct Tool {
 }
 
 /// Template variables context
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TemplateVars {
     /// Variable name to value mapping
     pub vars: HashMap<String, String>,
 }
 
 /// Repo operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepoOp {
     /// The URL of the Git repository to inherit from.
     pub url: String,
@@ -73,28 +73,28 @@ pub struct RepoOp {
 }
 
 /// Include operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IncludeOp {
     /// A list of glob patterns specifying the files to include.
     pub patterns: Vec<String>,
 }
 
 /// Exclude operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExcludeOp {
     /// A list of glob patterns specifying the files to exclude.
     pub patterns: Vec<String>,
 }
 
 /// Template operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TemplateOp {
     /// A list of glob patterns specifying the files to mark as templates.
     pub patterns: Vec<String>,
 }
 
 /// Rename operation mapping
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RenameMapping {
     /// A regular expression used to match file paths.
     pub from: String,
@@ -104,14 +104,14 @@ pub struct RenameMapping {
 }
 
 /// Rename operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RenameOp {
     /// List of rename mappings
     pub mappings: Vec<RenameMapping>,
 }
 
 /// Tools operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolsOp {
     /// A list of required tools and their version constraints.
     pub tools: Vec<Tool>,
@@ -141,7 +141,7 @@ impl ArrayMergeMode {
 }
 
 /// YAML merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct YamlMergeOp {
     /// Source fragment file (required unless auto_merge is set)
     #[serde(default)]
@@ -207,7 +207,7 @@ impl YamlMergeOp {
 }
 
 /// JSON merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct JsonMergeOp {
     /// Source fragment file (required unless auto_merge is set)
     #[serde(default)]
@@ -233,7 +233,7 @@ pub struct JsonMergeOp {
 }
 
 /// TOML merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TomlMergeOp {
     /// Source fragment file (required unless auto_merge is set)
     #[serde(default)]
@@ -331,7 +331,7 @@ impl JsonMergeOp {
 }
 
 /// INI merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct IniMergeOp {
     /// Source fragment file (required unless auto_merge is set)
     #[serde(default)]
@@ -389,7 +389,7 @@ impl IniMergeOp {
 }
 
 /// Markdown merge operator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MarkdownMergeOp {
     /// Source fragment file (required unless auto_merge is set)
     #[serde(default)]
@@ -481,7 +481,7 @@ impl Default for MarkdownMergeOp {
 }
 
 /// All possible operation types in the configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Operation {
     /// Inherit from another repository. This is the core operation for sharing

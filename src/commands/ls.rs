@@ -65,7 +65,7 @@ pub struct LsArgs {
 }
 
 /// Sort order options for file listing
-#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum SortOrder {
     /// Sort alphabetically by file name
     #[default]

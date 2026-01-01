@@ -63,7 +63,7 @@ pub enum ChangeType {
 }
 
 /// A single change entry
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Change {
     pub path: PathBuf,
     pub change_type: ChangeType,
