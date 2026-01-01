@@ -8,6 +8,7 @@ This guide covers common issues and their solutions when using common-repo.
 
 ```
 Git clone error for https://github.com/org/private-repo@main: Authentication failed
+  hint: Check SSH keys, git credentials, or personal access token
 ```
 
 or
@@ -64,7 +65,8 @@ Git command failed for https://github.com/org/repo: ls-remote - Permission denie
 ### Problem
 
 ```
-Configuration parsing error: Invalid YAML at line X
+Configuration parsing error: Missing url field
+  hint: Add 'url: https://github.com/...' to the repo block
 ```
 
 or
@@ -296,6 +298,7 @@ Malformed glob pattern in `include`, `exclude`, or other operators.
 
 ```
 Git clone error for https://github.com/org/repo@v2.0.0: reference not found
+  hint: Verify the repository URL and ref (branch/tag) are correct
 ```
 
 ### Cause
