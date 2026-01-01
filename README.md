@@ -114,17 +114,18 @@ common-repo update            # Update refs
 ## Commands
 
 ```
-init       Create a new .common-repo.yaml
-add        Add a repository to existing config
-apply      Apply configuration (runs 6-phase pipeline)
-diff       Preview changes
-ls         List files that would be created
-tree       Show inheritance tree
-check      Validate configuration, check for updates
-update     Update refs to newer versions
-validate   Validate configuration syntax
-info       Show configuration overview
-cache      Manage repository cache
+init         Create a new .common-repo.yaml
+add          Add a repository to existing config
+apply        Apply configuration (runs 6-phase pipeline)
+diff         Preview changes
+ls           List files that would be created
+tree         Show inheritance tree
+check        Validate configuration, check for updates
+update       Update refs to newer versions
+validate     Validate configuration syntax
+info         Show configuration overview
+cache        Manage repository cache
+completions  Generate shell completion scripts
 ```
 
 ## Documentation
