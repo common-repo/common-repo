@@ -14,7 +14,7 @@
 //! ## Example
 //!
 //! ```ignore
-//! use common_repo::merge::ini::apply_ini_merge_operation;
+//! use common_repo::merge::apply_ini_merge_operation;
 //! use common_repo::config::IniMergeOp;
 //! use common_repo::filesystem::MemoryFS;
 //!

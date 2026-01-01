@@ -14,7 +14,7 @@
 //! ## Example
 //!
 //! ```ignore
-//! use common_repo::merge::markdown::apply_markdown_merge_operation;
+//! use common_repo::merge::apply_markdown_merge_operation;
 //! use common_repo::config::MarkdownMergeOp;
 //! use common_repo::filesystem::MemoryFS;
 //!
