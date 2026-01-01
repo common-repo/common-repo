@@ -52,6 +52,8 @@ When interrupted by higher-priority work:
 **Push** (preserve current, start new):
 1. Rename `current-task.json` → `current-task-stash{N}.json` (skip if current task is null/empty)
 2. Create new `current-task.json` with new task
+3. Commit and push the change
+4. **Do not start the new task** without confirmation - user typically wants fresh sessions
 
 **Pop** (resume after completing current):
 1. Delete/clear `current-task.json`
