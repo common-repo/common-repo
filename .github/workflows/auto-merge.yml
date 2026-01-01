@@ -1,0 +1,31 @@
+name: Auto Merge
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  auto-merge:
+    # Only run when the "ready to merge" label is applied
+    if: github.event.label.name == 'ready to merge'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Generate App Token
+        id: authenticate
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
+
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ steps.authenticate.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "Merging PR #${PR_NUMBER}..."
+          gh pr merge "${PR_NUMBER}" --squash --delete-branch
+          echo "PR #${PR_NUMBER} merged successfully"
