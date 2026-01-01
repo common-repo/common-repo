@@ -131,6 +131,80 @@ When checking for updates, you'll see:
 - Available newer versions (if any)
 - Whether updates are compatible (minor/patch) or breaking (major)
 
+### `completions` - Generate Shell Completions
+
+Generate shell completion scripts for tab-completion support.
+
+```bash
+common-repo completions <SHELL>
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `<SHELL>` | Shell to generate completions for: `bash`, `zsh`, `fish`, `powershell`, `elvish` |
+
+#### Examples
+
+```bash
+# Generate bash completions
+common-repo completions bash > ~/.local/share/bash-completion/completions/common-repo
+
+# Generate zsh completions
+common-repo completions zsh > ~/.zfunc/_common-repo
+
+# Generate fish completions
+common-repo completions fish > ~/.config/fish/completions/common-repo.fish
+
+# Generate PowerShell completions
+common-repo completions powershell >> $PROFILE
+```
+
+#### Installation
+
+**Bash**
+
+```bash
+# Option 1: User-level installation
+mkdir -p ~/.local/share/bash-completion/completions
+common-repo completions bash > ~/.local/share/bash-completion/completions/common-repo
+
+# Option 2: Source directly in .bashrc
+echo 'eval "$(common-repo completions bash)"' >> ~/.bashrc
+```
+
+**Zsh**
+
+```bash
+# Add to fpath (recommended)
+mkdir -p ~/.zfunc
+common-repo completions zsh > ~/.zfunc/_common-repo
+
+# Add to .zshrc (before compinit)
+echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+```
+
+**Fish**
+
+```bash
+common-repo completions fish > ~/.config/fish/completions/common-repo.fish
+```
+
+**PowerShell**
+
+```powershell
+# Add to your PowerShell profile
+common-repo completions powershell >> $PROFILE
+```
+
+**Elvish**
+
+```bash
+common-repo completions elvish >> ~/.elvish/rc.elv
+```
+
 ### `diff` - Preview Changes
 
 Show differences between current files and what the configuration would produce.
@@ -464,6 +538,23 @@ common-repo check --updates
 common-repo update --dry-run
 common-repo update
 ```
+
+### Shell Completions
+
+Enable tab-completion for faster command entry:
+
+```bash
+# Bash
+common-repo completions bash > ~/.local/share/bash-completion/completions/common-repo
+
+# Zsh
+common-repo completions zsh > ~/.zfunc/_common-repo
+
+# Fish
+common-repo completions fish > ~/.config/fish/completions/common-repo.fish
+```
+
+See [`completions`](#completions---generate-shell-completions) for detailed installation instructions.
 
 ### Debugging
 
