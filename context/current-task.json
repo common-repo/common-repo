@@ -1,7 +1,7 @@
 {
-  "task": "add-e2e-tests",
+  "task": "fix-auto-merge-support",
   "plan": "context/source-declared-merge-impl.json",
-  "last_updated": "2026-01-01",
+  "last_updated": "2026-01-01T09:55:00Z",
   "status": "pending",
   "master_plan": "context/plan-of-plans.json",
   "context": {
@@ -18,12 +18,23 @@
     ],
     "current_subplan": "context/source-declared-merge-impl.json",
     "design_complete": "context/source-declared-merge.json",
-    "notes": "Next: add E2E tests for deferred operations workflow",
+    "notes": "E2E tests created but 5/20 failing. Need to fix auto-merge support before tests pass.",
     "recently_completed": {
       "task": "apply-deferred-ops",
       "plan": "source-declared-merge-impl",
       "summary": "Added Operation::is_deferred() method and extract_deferred_operations() in discovery phase to prepend deferred ops before consumer with: operations"
     },
+    "in_progress": {
+      "task": "add-e2e-tests",
+      "files_created": ["tests/cli_e2e_defer.rs"],
+      "test_results": "15 passing, 5 failing",
+      "blocked_by": "fix-auto-merge-support"
+    },
+    "blocking_issues": [
+      "TOML auto-merge not implemented in src/merge/toml.rs",
+      "validate command doesn't call operation.validate() methods",
+      "All supported merge types (yaml, json, toml, ini, markdown) must support auto-merge"
+    ],
     "skipped_task": {
       "task": "parse-top-level-ops",
       "reason": "Not needed - existing list format already handles root-level operators with proper ordering"
