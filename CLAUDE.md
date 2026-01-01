@@ -73,6 +73,7 @@ Based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www
 - **Follow recommendations precisely** - Read entire sources before proposing solutions; don't paraphrase without justification
 - **If corrected, acknowledge and fix** - Don't defend substitutions that contradict the source
 - **Work on one task at a time** - Avoid scope creep and doing too much at once
+- **Documentation is part of implementation** - When adding functionality, update all related docs (module docs, function docs, user-facing docs) in the same change. Don't defer documentation to later.
 
 ### Use JSON for Structured Tracking
 
