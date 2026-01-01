@@ -38,7 +38,7 @@ use crate::repository::RepositoryManager;
 use semver::Version;
 
 /// Information about available updates for a repository
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateInfo {
     /// The URL of the repository that was checked.
     pub url: String,
