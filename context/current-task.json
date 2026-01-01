@@ -1,8 +1,8 @@
 {
-  "task": "update-docs",
-  "plan": "context/source-declared-merge-impl.json",
-  "last_updated": "2026-01-01T10:15:00Z",
-  "status": "pending",
+  "task": null,
+  "plan": null,
+  "last_updated": "2026-01-01T10:25:00Z",
+  "status": "completed",
   "master_plan": "context/plan-of-plans.json",
   "context": {
     "completed_plans": [
@@ -14,18 +14,13 @@
       "context/completed/add-command.json",
       "context/completed/cr-alias.json",
       "context/completed/configuration-docs.json",
-      "context/completed/source-authoring-docs.json"
+      "context/completed/source-authoring-docs.json",
+      "context/completed/source-declared-merge-impl.json"
     ],
-    "current_subplan": "context/source-declared-merge-impl.json",
-    "design_complete": "context/source-declared-merge.json",
     "recently_completed": {
-      "task": "fix-auto-merge-support",
+      "task": "update-docs",
       "plan": "source-declared-merge-impl",
-      "summary": "Fixed auto-merge support: added validation calls in validate command for all merge types, changed TomlMergeOp.path to Option<String>, fixed E2E tests to check stdout. All 20 defer tests now pass."
-    },
-    "skipped_task": {
-      "task": "parse-top-level-ops",
-      "reason": "Not needed - existing list format already handles root-level operators with proper ordering"
+      "summary": "Added defer/auto-merge documentation to authoring-source-repos.md and configuration.md"
     }
   }
 }

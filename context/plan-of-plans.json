@@ -1,8 +1,8 @@
 {
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
-  "last_updated": "2025-12-31",
-  "active_plan": "context/source-declared-merge-impl.json",
+  "last_updated": "2026-01-01",
+  "active_plan": null,
   "next_plan": null,
   "plans": [
     {
@@ -85,13 +85,13 @@
     {
       "id": "source-declared-merge-impl",
       "name": "Source-Declared Merge Implementation",
-      "file": "context/source-declared-merge-impl.json",
-      "status": "in_progress",
+      "file": "context/completed/source-declared-merge-impl.json",
+      "status": "complete",
       "priority": 8,
       "category": "feature",
       "tasks_total": 5,
-      "tasks_complete": 0,
-      "notes": "defer flag approach - add defer: true to operators"
+      "tasks_complete": 5,
+      "notes": "defer flag approach - COMPLETED, ARCHIVED"
     }
   ],
   "deferred_reviews": [
@@ -140,9 +140,9 @@
   ],
   "summary": {
     "total_plans": 8,
-    "in_progress": 2,
+    "in_progress": 1,
     "pending": 0,
-    "complete": 6,
+    "complete": 7,
     "deferred_reviews": 8
   },
   "notes": [

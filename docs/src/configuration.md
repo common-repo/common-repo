@@ -265,6 +265,37 @@ This operator validates but does not install tools. Warnings are issued for miss
 
 Merge operators intelligently combine configuration fragments into destination files.
 
+### Source-Declared Merge (defer/auto-merge)
+
+All merge operators support two additional options for source-declared merge behavior:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `auto-merge` | string | Shorthand: sets source=dest to this value and implies defer=true |
+| `defer` | bool | When true, this operation only runs when repo is used as a source |
+
+**`auto-merge`** is the preferred syntax when the source and destination filenames are the same:
+
+```yaml
+# In source repo's .common-repo.yaml
+- markdown:
+    auto-merge: CLAUDE.md     # source=dest=CLAUDE.md, defer=true
+    section: "## Rules"
+    append: true
+```
+
+**`defer: true`** is used when source and destination paths differ:
+
+```yaml
+- yaml:
+    source: config/base.yaml
+    dest: config.yaml
+    path: settings
+    defer: true               # Only applies when repo is inherited
+```
+
+See [Source-Declared Merge Behavior](authoring-source-repos.md#source-declared-merge-behavior) for detailed usage.
+
 ### `yaml` - Merge YAML Files
 
 ```yaml
@@ -277,10 +308,14 @@ Merge operators intelligently combine configuration fragments into destination f
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `source` | Yes | - | Source fragment file |
-| `dest` | Yes | - | Destination file |
+| `source` | Yes* | - | Source fragment file |
+| `dest` | Yes* | - | Destination file |
+| `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
+| `defer` | No | false | Only apply when repo is used as a source |
 | `path` | No | root | Dot-notation path to merge at |
 | `append` | No | false | Append to lists instead of replace |
+
+*Either `source`+`dest` or `auto-merge` is required
 
 #### Examples
 
@@ -323,11 +358,15 @@ Merge operators intelligently combine configuration fragments into destination f
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `source` | Yes | - | Source fragment file |
-| `dest` | Yes | - | Destination file |
+| `source` | Yes* | - | Source fragment file |
+| `dest` | Yes* | - | Destination file |
+| `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
+| `defer` | No | false | Only apply when repo is used as a source |
 | `path` | No | root | Dot-notation path to merge at |
 | `append` | No | false | Append to arrays instead of replace |
 | `position` | No | end | Where to append: `start` or `end` |
+
+*Either `source`+`dest` or `auto-merge` is required
 
 #### Examples
 
@@ -362,11 +401,15 @@ Merge operators intelligently combine configuration fragments into destination f
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `source` | Yes | - | Source fragment file |
-| `dest` | Yes | - | Destination file |
+| `source` | Yes* | - | Source fragment file |
+| `dest` | Yes* | - | Destination file |
+| `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
+| `defer` | No | false | Only apply when repo is used as a source |
 | `path` | No | root | Dot-notation path to merge at |
 | `append` | No | false | Append to arrays instead of replace |
 | `preserve-comments` | No | true | Keep comments in output |
+
+*Either `source`+`dest` or `auto-merge` is required
 
 #### Examples
 
@@ -391,11 +434,15 @@ Merge operators intelligently combine configuration fragments into destination f
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `source` | Yes | - | Source fragment file |
-| `dest` | Yes | - | Destination file |
+| `source` | Yes* | - | Source fragment file |
+| `dest` | Yes* | - | Destination file |
+| `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
+| `defer` | No | false | Only apply when repo is used as a source |
 | `section` | No | - | INI section to merge into |
 | `append` | No | false | Append values instead of replace |
 | `allow-duplicates` | No | false | Allow duplicate keys |
+
+*Either `source`+`dest` or `auto-merge` is required
 
 #### Examples
 
@@ -420,13 +467,17 @@ Merge operators intelligently combine configuration fragments into destination f
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `source` | Yes | - | Source fragment file |
-| `dest` | Yes | - | Destination file |
+| `source` | Yes* | - | Source fragment file |
+| `dest` | Yes* | - | Destination file |
+| `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
+| `defer` | No | false | Only apply when repo is used as a source |
 | `section` | No | - | Heading to merge under |
 | `level` | No | 2 | Heading level (1-6) |
 | `append` | No | false | Append to section |
 | `position` | No | end | Where to insert: `start` or `end` |
 | `create-section` | No | false | Create section if missing |
+
+*Either `source`+`dest` or `auto-merge` is required
 
 #### Examples
 
