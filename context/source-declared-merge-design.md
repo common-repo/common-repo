@@ -197,20 +197,24 @@ append: true
 
 Source repos use the same `.common-repo.yaml` file with top-level operators marked as deferred. No new file needed - just a flag that says "apply this when I'm used as a source."
 
+**Two syntax forms:**
+
+1. **`auto-merge: <file>`** - shorthand when source=dest (most common case)
+2. **`defer: true`** + explicit `source:`/`dest:` - when paths differ
+
 **Example:**
 ```yaml
 # Source repo: .common-repo.yaml
 include:
   - "**/*"  # files to export (optional, defaults to all)
 
-# Top-level operators with defer flag
+# Shorthand: auto-merge sets source=dest and implies defer
 markdown:
-  source: CLAUDE.md
-  dest: CLAUDE.md
+  auto-merge: CLAUDE.md
   section: "## Inherited Rules"
   append: true
-  defer: true  # Apply when used as a source
 
+# Verbose form: when source != dest
 yaml:
   source: config/labels.yaml
   dest: config.yaml
@@ -218,31 +222,25 @@ yaml:
   array_mode: append
   defer: true
 
+# Shorthand works for all merge operators
 toml:
-  source: deps.toml
-  dest: Cargo.toml
+  auto-merge: Cargo.toml
   path: dependencies
-  defer: true
 ```
 
 When a consumer references this repo, the deferred operations auto-apply.
 
 **Pros:**
 - **Same file name**: No new `.common-repo-source.yaml` - just `.common-repo.yaml`
-- **Minimal new syntax**: Just add `defer: true` to existing operators
+- **Concise syntax**: `auto-merge: CLAUDE.md` vs 3 separate fields
+- **Type safe**: `auto-merge` is string, `defer` is bool - no overloading
 - **Full operator power**: All existing options available
-- **Clear intent**: `defer: true` explicitly marks source-side behavior
-- **Reuses parsing**: Existing operator parsing, just check for defer flag
+- **Clear intent**: Both forms explicitly mark source-side behavior
+- **Reuses parsing**: Existing operator parsing, just add two fields
 
 **Cons:**
 - Top-level operators are a new pattern (currently only `with:` uses operators)
-- Need to add `defer` field to all operator structs
-
-**Alternative flag names:**
-- `defer: true`
-- `deferred: true`
-- `apply-as-source: true`
-- `auto-apply: true`
+- Need to add `defer` and `auto-merge` fields to operator structs
 
 ## Consumer Override Mechanism
 
@@ -310,14 +308,13 @@ When multiple source repos declare merge for the same destination:
 include:
   - "**/*"  # optional, defaults to all files
 
-# Deferred operators - apply when used as a source
+# Shorthand: auto-merge (source=dest, implies defer)
 markdown:
-  source: CLAUDE.md
-  dest: CLAUDE.md
+  auto-merge: CLAUDE.md
   section: "## Inherited Rules"
   append: true
-  defer: true
 
+# Verbose: when source != dest, use defer: true
 yaml:
   source: labels.yaml
   dest: config.yaml
@@ -340,10 +337,11 @@ Consumer operations always take precedence over source declarations.
 
 ### Implementation Tasks
 
-1. **Add `defer` field** to merge operator structs (MarkdownMergeOp, YamlMergeOp, etc.)
-2. **Parse top-level operators** in `.common-repo.yaml` (currently only parses `with:`)
-3. **Collect deferred ops** when loading source repo
-4. **Apply deferred ops** before consumer `with:` operations
+1. **Add `defer` and `auto-merge` fields** to merge operator structs
+2. **Validation**: `auto-merge` implies defer; error if both `auto-merge` and `source`/`dest` set
+3. **Parse top-level operators** in `.common-repo.yaml` (currently only parses `with:`)
+4. **Collect deferred ops** when loading source repo
+5. **Apply deferred ops** before consumer `with:` operations
 
 ### Open Questions
 

@@ -26,25 +26,25 @@
   "tasks": [
     {
       "id": "add-defer-field",
-      "name": "Add defer field to operator structs",
+      "name": "Add defer and auto-merge fields to operator structs",
       "status": "pending",
       "priority": 1,
       "phase": "phase-1",
       "blocked_by": null,
       "steps": [
-        "Add defer: Option<bool> to MarkdownMergeOp",
-        "Add defer: Option<bool> to YamlMergeOp",
-        "Add defer: Option<bool> to JsonMergeOp",
-        "Add defer: Option<bool> to TomlMergeOp",
-        "Add defer: Option<bool> to IniMergeOp",
-        "Add defer field to other operators (copy, rename, delete, tool)",
-        "Update schema.yaml with defer field documentation",
-        "Add unit tests for defer field parsing"
+        "Add defer: Option<bool> to all merge operator structs",
+        "Add auto_merge: Option<String> to all merge operator structs",
+        "Add validation: auto-merge implies defer=true",
+        "Add validation: error if auto-merge used with source/dest",
+        "When auto-merge set, populate source=dest from its value",
+        "Update schema.yaml with defer and auto-merge documentation",
+        "Add unit tests for both fields"
       ],
       "acceptance_criteria": [
-        "All operator structs have defer field",
+        "All merge operator structs have defer and auto-merge fields",
         "defer: true parses correctly",
-        "Missing defer defaults to false",
+        "auto-merge: CLAUDE.md sets source=dest=CLAUDE.md and defer=true",
+        "Error if auto-merge used with explicit source/dest",
         "cargo test passes"
       ],
       "files_to_modify": [
@@ -149,14 +149,16 @@
     "total_tasks": 5,
     "estimated_loc": "150-250",
     "key_changes": [
-      "Add defer field to ~6 operator structs",
+      "Add defer and auto-merge fields to merge operator structs",
+      "Validation: auto-merge implies defer, conflicts with source/dest",
       "Parse top-level operators in config",
       "Thread deferred ops through apply workflow"
     ]
   },
   "notes": [
     "No new file name - uses existing .common-repo.yaml",
-    "defer: true marks an operation as source-side",
+    "Two forms: defer: true (verbose) or auto-merge: file (shorthand)",
+    "auto-merge: CLAUDE.md sets source=dest=CLAUDE.md and implies defer",
     "Consumer with: implicitly overrides deferred ops",
     "Top-level operators are new but follow existing syntax"
   ]
