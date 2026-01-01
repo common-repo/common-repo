@@ -302,6 +302,7 @@ mod tests {
                     url: url.to_string(),
                     r#ref: ref_name.to_string(),
                     message: self.error_message.clone(),
+                    hint: None,
                 })
             } else {
                 Ok(())

@@ -1,7 +1,7 @@
 {
   "plan_name": "Architecture Review",
   "description": "Improve code architecture to meet OSS best practices",
-  "last_updated": "2026-01-02",
+  "last_updated": "2026-01-01",
   "audit_summary": {
     "current_score": "9/10",
     "pass": ["4.4 Clear separation lib/binary", "4.5 Error handling (thiserror+anyhow)", "4.6 Rust API Guidelines naming", "4.7 Standard traits", "4.8 Builder pattern", "4.9 pub(crate) usage", "4.10 cargo xtask"],
@@ -89,7 +89,7 @@
     {
       "id": "improve-error-types",
       "name": "Review and improve error types",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
@@ -102,7 +102,8 @@
         "All error types documented",
         "Error messages are user-friendly",
         "Errors include context/suggestions"
-      ]
+      ],
+      "completion_notes": "Enhanced ConfigParse, GitClone, and Template error variants with optional hint/variable fields for actionable user guidance. Added context-specific hints to 20+ error sites including config validation, repo operations, and template processing. Created new tests for hint and variable display. All tests pass."
     },
     {
       "id": "add-module-documentation",

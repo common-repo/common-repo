@@ -67,33 +67,35 @@ pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(),
             url: url.to_string(),
             r#ref: ref_name.to_string(),
             message: e.to_string(),
+            hint: Some("Ensure git is installed and accessible".to_string()),
         })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         // Provide helpful error message for common auth failures
-        let message = if stderr.contains("Authentication failed")
+        let (message, hint) = if stderr.contains("Authentication failed")
             || stderr.contains("Permission denied")
             || stderr.contains("Could not read from remote repository")
         {
-            format!(
-                "Authentication failed. Make sure you have access to the repository.\n\
-                For private repos, ensure you have:\n\
-                - SSH key added to ssh-agent\n\
-                - Git credentials configured\n\
-                - Personal access token set up\n\
-                Error: {}",
-                stderr
+            (
+                format!("Authentication failed: {}", stderr),
+                Some("Check SSH keys, git credentials, or personal access token".to_string()),
+            )
+        } else if stderr.contains("not found") || stderr.contains("does not exist") {
+            (
+                stderr.to_string(),
+                Some("Verify the repository URL and ref (branch/tag) are correct".to_string()),
             )
         } else {
-            stderr.to_string()
+            (stderr.to_string(), None)
         };
 
         return Err(Error::GitClone {
             url: url.to_string(),
             r#ref: ref_name.to_string(),
             message,
+            hint,
         });
     }
 

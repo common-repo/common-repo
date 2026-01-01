@@ -171,6 +171,9 @@ fn fetch_and_parse_config(
                     return Err(Error::ConfigParse {
                         message: "No .common-repo.yaml or .commonrepo.yaml found in repository"
                             .to_string(),
+                        hint: Some(
+                            "Create a .common-repo.yaml file in the repository root".to_string(),
+                        ),
                     });
                 }
             }
@@ -180,6 +183,7 @@ fn fetch_and_parse_config(
     // Parse the YAML content
     let yaml_str = String::from_utf8(config_content).map_err(|_| Error::ConfigParse {
         message: "Invalid UTF-8 in .common-repo.yaml".to_string(),
+        hint: Some("Ensure the file is saved with UTF-8 encoding".to_string()),
     })?;
 
     crate::config::parse(&yaml_str)
@@ -426,10 +430,12 @@ mod tests {
                         url: url.to_string(),
                         r#ref: ref_name.to_string(),
                         message: self.error_message.clone(),
+                        hint: None,
                     })
                 } else {
                     Err(Error::ConfigParse {
                         message: self.error_message.clone(),
+                        hint: None,
                     })
                 }
             } else {
@@ -1014,6 +1020,7 @@ mod tests {
                     url: url.to_string(),
                     r#ref: ref_name.to_string(),
                     message: "Clone failed".to_string(),
+                    hint: None,
                 })
             } else {
                 Ok(())
