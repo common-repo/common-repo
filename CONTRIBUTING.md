@@ -169,8 +169,8 @@ Breaking changes should be indicated with either:
 
 5. **Merging**
    - Maintainers will add the `ready to merge` label when approved
-   - This triggers automatic rebase merge and branch deletion
-   - You'll be notified when your PR is merged
+   - This enables auto-merge: the PR will automatically rebase and merge once all required checks pass
+   - Branch is deleted after merge, and you'll be notified
 
 ## Coding Standards
 
