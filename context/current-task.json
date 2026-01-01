@@ -1,7 +1,7 @@
 {
-  "task": "add-defer-field",
+  "task": "parse-top-level-ops",
   "plan": "context/source-declared-merge-impl.json",
-  "last_updated": "2025-12-31",
+  "last_updated": "2026-01-01",
   "status": "pending",
   "master_plan": "context/plan-of-plans.json",
   "context": {
