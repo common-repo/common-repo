@@ -20,6 +20,31 @@ jobs:
           app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
           private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
 
+      - name: Check PR Status
+        env:
+          GH_TOKEN: ${{ steps.authenticate.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "Checking status of PR #${PR_NUMBER}..."
+          echo ""
+
+          # Show current check status
+          gh pr checks "${PR_NUMBER}" || true
+
+          # Count failed checks
+          FAILED=$(gh pr checks "${PR_NUMBER}" --json name,state \
+            --jq '[.[] | select(.state == "FAILURE" or .state == "ERROR")] | length')
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo ""
+            echo "::error::PR has $FAILED failed check(s). Fix failures before enabling auto-merge."
+            exit 1
+          fi
+
+          echo ""
+          echo "No failed checks. Proceeding with auto-merge."
+
       - name: Enable Auto-Merge
         env:
           GH_TOKEN: ${{ steps.authenticate.outputs.token }}
