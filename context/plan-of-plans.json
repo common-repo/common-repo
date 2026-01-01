@@ -8,13 +8,13 @@
     {
       "id": "documentation-review",
       "name": "Documentation Review",
-      "file": "context/documentation-review.json",
-      "status": "in_progress",
+      "file": "context/completed/documentation-review.json",
+      "status": "complete",
       "priority": 1,
       "category": "review",
       "tasks_total": 7,
-      "tasks_complete": 6,
-      "notes": "Last task: setup-docs-site"
+      "tasks_complete": 7,
+      "notes": "All tasks complete, mdBook docs site deployed"
     },
     {
       "id": "init-redesign",
@@ -140,9 +140,9 @@
   ],
   "summary": {
     "total_plans": 8,
-    "in_progress": 1,
+    "in_progress": 0,
     "pending": 0,
-    "complete": 7,
+    "complete": 8,
     "deferred_reviews": 8
   },
   "notes": [
