@@ -33,6 +33,30 @@ cd common-repo
 - `./script/test` — Run tests (uses cargo-nextest)
 - `./script/cibuild` — Run full CI checks locally
 
+### cargo xtask
+
+This project uses [cargo xtask](https://github.com/matklad/cargo-xtask) for complex development automation tasks. Available commands:
+
+```bash
+cargo xtask coverage       # Run test coverage with cargo-tarpaulin
+cargo xtask release-prep   # Prepare a new release
+```
+
+**Coverage options:**
+```bash
+cargo xtask coverage                     # HTML report (default)
+cargo xtask coverage --format json       # JSON report
+cargo xtask coverage --fail-under 80     # Fail if coverage < 80%
+cargo xtask coverage --open              # Open report in browser
+```
+
+**Release preparation:**
+```bash
+cargo xtask release-prep --dry-run       # Preview changes without applying
+cargo xtask release-prep                 # Bump patch version (0.22.0 -> 0.22.1)
+cargo xtask release-prep --version 1.0.0 # Set specific version
+```
+
 ## Development Workflow
 
 ### Making Changes
@@ -244,6 +268,7 @@ common-repo/
 │   ├── repository.rs       # Repository management
 │   ├── version.rs          # Version detection
 │   └── commands/           # CLI commands
+├── xtask/                  # Development automation (cargo xtask)
 ├── tests/                  # Integration tests
 ├── docs/                   # Documentation
 ├── examples/               # Example configurations
