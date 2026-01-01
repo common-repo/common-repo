@@ -1,7 +1,7 @@
 {
-  "task": "context-cleanup",
-  "plan": "context/context-cleanup.json",
+  "task": null,
+  "plan": null,
   "last_updated": "2026-01-01",
-  "status": "in_progress",
-  "description": "Review markdown files in context/ and archive completed ones"
+  "status": "idle",
+  "description": "No active task - context cleanup complete"
 }
