@@ -11,6 +11,7 @@
 //! - **Zsh**: Add to `fpath` or source directly
 //! - **Fish**: Save to `~/.config/fish/completions/`
 //! - **PowerShell**: Add to PowerShell profile
+//! - **Elvish**: Add to `~/.elvish/rc.elv`
 //!
 //! ## Example
 //!
@@ -21,6 +22,10 @@
 //! # Generate zsh completions
 //! common-repo completions zsh > ~/.zfunc/_common-repo
 //! ```
+//!
+//! Note: Completions are generated for the `common-repo` command name. If you
+//! use the `cr` alias, you may need to create a separate completion file or
+//! symlink.
 
 use anyhow::Result;
 use clap::{Args, CommandFactory, ValueEnum};
