@@ -13,11 +13,16 @@
 //!     repositories at a given depth are discovered before moving to the next
 //!     level.
 //!
-//! 2.  **Cycle Detection**: During discovery, the process keeps track of the
+//! 2.  **Deferred Operations**: When fetching a source repository's config,
+//!     deferred operations (marked with `defer: true` or `auto-merge`) are
+//!     extracted and prepended to the consumer's `with:` operations. This allows
+//!     source repos to declare how their files should be merged rather than copied.
+//!
+//! 3.  **Cycle Detection**: During discovery, the process keeps track of the
 //!     inheritance path and will abort if a circular dependency is detected
 //!     (e.g., repository A inherits from B, which in turn inherits from A).
 //!
-//! 3.  **Parallel Cloning (`clone_parallel`)**: Once the complete dependency
+//! 4.  **Parallel Cloning (`clone_parallel`)**: Once the complete dependency
 //!     tree is built, all the repositories are cloned in parallel to maximize
 //!     performance. The `RepositoryManager` is used for this, which automatically
 //!     handles on-disk caching to avoid re-downloading repositories that are
