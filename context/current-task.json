@@ -1,17 +1,15 @@
 {
-  "task": "create-auto-merge-workflow",
+  "task": "documentation-review",
   "plan": null,
   "last_updated": "2026-01-01T00:00:00Z",
   "status": "complete",
   "master_plan": "context/plan-of-plans.json",
-  "description": "Create GitHub Actions workflow that automatically merges PRs when 'ready to merge' label is applied",
+  "description": "Review and fix documentation gaps related to recent changes",
   "steps": [
-    "Create .github/workflows/auto-merge.yml",
-    "Trigger on label events (labeled action)",
-    "Check if label is 'ready to merge'",
-    "Use claude-code-bot App credentials (COMMON_REPO_BOT_CLIENT_ID, COMMON_REPO_BOT_PRIVATE_KEY)",
-    "Use gh CLI to merge the PR",
-    "Test the workflow"
+    "Audit recent commits for documentation gaps",
+    "Add auto-merge workflow documentation to CONTRIBUTING.md",
+    "Add cr alias completions note to CLI docs",
+    "Run CI checks to verify changes"
   ],
   "context": {
     "completed_plans": [
@@ -28,9 +26,9 @@
       "context/completed/architecture-review.json"
     ],
     "recently_completed": {
-      "task": "add-shell-completions",
-      "plan": "cli-ux-review",
-      "summary": "Added shell completions command supporting bash, zsh, fish, powershell, and elvish. Includes E2E tests and documentation."
+      "task": "create-auto-merge-workflow",
+      "plan": null,
+      "summary": "Created auto-merge GitHub workflow that merges PRs when 'ready to merge' label is applied"
     }
   }
 }

@@ -167,6 +167,11 @@ Breaking changes should be indicated with either:
    - Clippy must report no warnings
    - Commit messages must follow conventional commits
 
+5. **Merging**
+   - Maintainers will add the `ready to merge` label when approved
+   - This triggers automatic rebase merge and branch deletion
+   - You'll be notified when your PR is merged
+
 ## Coding Standards
 
 ### Rust Style
