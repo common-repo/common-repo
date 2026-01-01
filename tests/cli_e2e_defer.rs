@@ -91,7 +91,7 @@ fn test_validate_auto_merge_conflicts_with_source() {
         .arg(config_file.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("auto-merge").or(predicate::str::contains("source")));
+        .stdout(predicate::str::contains("auto-merge").or(predicate::str::contains("source")));
 }
 
 /// Test that auto-merge conflicts with explicit dest
@@ -119,7 +119,7 @@ fn test_validate_auto_merge_conflicts_with_dest() {
         .arg(config_file.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("auto-merge").or(predicate::str::contains("dest")));
+        .stdout(predicate::str::contains("auto-merge").or(predicate::str::contains("dest")));
 }
 
 /// Test that validate accepts config with defer on json merge
@@ -658,7 +658,9 @@ fn test_check_with_deferred_operations() {
         .arg(config_file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("Configuration loaded successfully"));
+        .stdout(predicate::str::contains(
+            "Configuration loaded successfully",
+        ));
 }
 
 // =============================================================================

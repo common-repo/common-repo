@@ -375,7 +375,7 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
         message: format!("Failed to parse source TOML: {}", err),
     })?;
 
-    let path_str = &op.path;
+    let path_str = op.path.as_deref().unwrap_or("");
     let path = parse_toml_path(path_str);
     let target = navigate_toml_value(&mut dest_value, &path)?;
     let mode = op.get_array_mode();
@@ -587,7 +587,7 @@ serde = "1.0"
             let toml_op = crate::config::TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("Cargo.toml".to_string()),
-                path: "".to_string(), // root level
+                path: None, // root level
                 ..Default::default()
             };
 
@@ -627,7 +627,7 @@ name = "mydb"
             let toml_op = crate::config::TomlMergeOp {
                 source: Some("config.toml".to_string()),
                 dest: Some("merged.toml".to_string()),
-                path: "server".to_string(),
+                path: Some("server".to_string()),
                 ..Default::default()
             };
 
@@ -664,7 +664,7 @@ items = ["old1", "old2"]
             let toml_op = crate::config::TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(crate::config::ArrayMergeMode::Replace),
                 ..Default::default()
             };
@@ -698,7 +698,7 @@ items = ["old1", "old2"]
             let toml_op = crate::config::TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(crate::config::ArrayMergeMode::Append),
                 ..Default::default()
             };
@@ -734,7 +734,7 @@ items = ["item1", "item4"]
             let toml_op = crate::config::TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(crate::config::ArrayMergeMode::AppendUnique),
                 ..Default::default()
             };
@@ -770,7 +770,7 @@ items = ["old1"]
             let toml_op = crate::config::TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 append: true,
                 ..Default::default()
             };
@@ -795,7 +795,7 @@ items = ["old1"]
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("new_dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -862,7 +862,7 @@ existing = "kept"
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -903,7 +903,7 @@ name = "myserver"
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -936,7 +936,7 @@ existing = 1
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "a.b.c".to_string(),
+                path: Some("a.b.c".to_string()),
                 ..Default::default()
             };
 
@@ -962,7 +962,7 @@ new_value = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "deeply.nested.path".to_string(),
+                path: Some("deeply.nested.path".to_string()),
                 ..Default::default()
             };
 
@@ -1000,7 +1000,7 @@ c = 3
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "section2".to_string(),
+                path: Some("section2".to_string()),
                 ..Default::default()
             };
 
@@ -1038,7 +1038,7 @@ items = ["a", "b", "c"]
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(ArrayMergeMode::Append),
                 ..Default::default()
             };
@@ -1071,7 +1071,7 @@ items = []
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(ArrayMergeMode::Append),
                 ..Default::default()
             };
@@ -1110,7 +1110,7 @@ version = "4.0"
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(ArrayMergeMode::Append),
                 ..Default::default()
             };
@@ -1142,7 +1142,7 @@ items = [false, 42]
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(ArrayMergeMode::Append),
                 ..Default::default()
             };
@@ -1176,7 +1176,7 @@ host = "localhost"
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(ArrayMergeMode::Append),
                 ..Default::default()
             };
@@ -1207,7 +1207,7 @@ items = [{name = "a"}, {name = "c"}]
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(ArrayMergeMode::AppendUnique),
                 ..Default::default()
             };
@@ -1328,7 +1328,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 array_mode: Some(ArrayMergeMode::Append),
                 ..Default::default()
             };
@@ -1375,7 +1375,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("nonexistent.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -1398,7 +1398,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -1448,7 +1448,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -1469,7 +1469,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -1504,7 +1504,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 
@@ -1850,7 +1850,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 preserve_comments: true,
                 ..Default::default()
             };
@@ -1874,7 +1874,7 @@ items = 42
             let op = TomlMergeOp {
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
-                path: "".to_string(),
+                path: None,
                 ..Default::default()
             };
 

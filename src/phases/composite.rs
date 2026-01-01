@@ -577,7 +577,7 @@ port = 8080
                 toml: TomlMergeOp {
                     source: Some("fragment.toml".to_string()),
                     dest: Some("config.toml".to_string()),
-                    path: "section".to_string(),
+                    path: Some("section".to_string()),
                     ..Default::default()
                 },
             };
