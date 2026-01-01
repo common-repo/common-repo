@@ -241,8 +241,9 @@ pub struct TomlMergeOp {
     /// Destination file to merge into (required unless auto_merge is set)
     #[serde(default)]
     pub dest: Option<String>,
-    /// Path within the destination to merge at
-    pub path: String,
+    /// Path within the destination to merge at (optional - merges at root if omitted)
+    #[serde(default)]
+    pub path: Option<String>,
     /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
     #[serde(default)]
     pub append: bool,
@@ -1216,7 +1217,7 @@ mod tests {
             Operation::Toml { toml } => {
                 assert_eq!(toml.source.as_deref(), Some("fragment.toml"));
                 assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
-                assert_eq!(toml.path, "dependencies");
+                assert_eq!(toml.path.as_deref(), Some("dependencies"));
                 assert!(toml.append);
                 assert!(toml.preserve_comments);
             }
@@ -1553,7 +1554,7 @@ mod tests {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
                 dest: Some("d.toml".to_string()),
-                path: "section".to_string(),
+                path: Some("section".to_string()),
                 append: false,
                 preserve_comments: false,
                 array_mode: None,
@@ -1568,7 +1569,7 @@ mod tests {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
                 dest: Some("d.toml".to_string()),
-                path: "section".to_string(),
+                path: Some("section".to_string()),
                 append: true,
                 preserve_comments: false,
                 array_mode: None,
@@ -1583,7 +1584,7 @@ mod tests {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
                 dest: Some("d.toml".to_string()),
-                path: "section".to_string(),
+                path: Some("section".to_string()),
                 append: false,
                 preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::AppendUnique),
@@ -1733,7 +1734,7 @@ mod tests {
                 Operation::Toml { toml } => {
                     assert_eq!(toml.source.as_deref(), Some("fragment.toml"));
                     assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
-                    assert_eq!(toml.path, "dependencies");
+                    assert_eq!(toml.path.as_deref(), Some("dependencies"));
                     assert!(toml.preserve_comments);
                     assert_eq!(toml.array_mode, Some(ArrayMergeMode::Append));
                 }
@@ -1951,15 +1952,24 @@ mod tests {
         }
 
         #[test]
-        fn test_parse_toml_merge_missing_path() {
-            // TOML merge requires a path (not optional)
+        fn test_parse_toml_merge_without_path() {
+            // TOML merge path is optional - merges at root if omitted
             let yaml = r#"
 - toml:
     source: fragment.toml
     dest: Cargo.toml
 "#;
             let result = parse(yaml);
-            assert!(result.is_err());
+            assert!(result.is_ok());
+            let schema = result.unwrap();
+            match &schema[0] {
+                Operation::Toml { toml } => {
+                    assert_eq!(toml.source.as_deref(), Some("fragment.toml"));
+                    assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
+                    assert_eq!(toml.path, None); // path is optional, defaults to None
+                }
+                _ => panic!("Expected Toml operation"),
+            }
         }
 
         #[test]
@@ -2142,7 +2152,7 @@ mod tests {
         fn test_toml_auto_merge() {
             let op = TomlMergeOp {
                 auto_merge: Some("Cargo.toml".to_string()),
-                path: "dependencies".to_string(),
+                path: Some("dependencies".to_string()),
                 ..Default::default()
             };
             assert!(op.is_deferred());

@@ -159,8 +159,39 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
                     has_warnings = true;
                 }
             }
+            // Validate merge operations (source/dest requirements, auto-merge conflicts)
+            config::Operation::Yaml { yaml } => {
+                if let Err(e) = yaml.validate() {
+                    println!("❌ Invalid yaml merge operation {}: {}", idx, e);
+                    has_errors = true;
+                }
+            }
+            config::Operation::Json { json } => {
+                if let Err(e) = json.validate() {
+                    println!("❌ Invalid json merge operation {}: {}", idx, e);
+                    has_errors = true;
+                }
+            }
+            config::Operation::Toml { toml } => {
+                if let Err(e) = toml.validate() {
+                    println!("❌ Invalid toml merge operation {}: {}", idx, e);
+                    has_errors = true;
+                }
+            }
+            config::Operation::Ini { ini } => {
+                if let Err(e) = ini.validate() {
+                    println!("❌ Invalid ini merge operation {}: {}", idx, e);
+                    has_errors = true;
+                }
+            }
+            config::Operation::Markdown { markdown } => {
+                if let Err(e) = markdown.validate() {
+                    println!("❌ Invalid markdown merge operation {}: {}", idx, e);
+                    has_errors = true;
+                }
+            }
             _ => {
-                // Other operations don't have patterns to validate
+                // Other operations don't have additional validation
             }
         }
     }

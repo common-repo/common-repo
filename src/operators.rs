@@ -981,7 +981,7 @@ mod tests {
                     toml: crate::config::TomlMergeOp {
                         source: Some("s.toml".to_string()),
                         dest: Some("d.toml".to_string()),
-                        path: "/".to_string(),
+                        path: Some("/".to_string()),
                         ..Default::default()
                     },
                 },

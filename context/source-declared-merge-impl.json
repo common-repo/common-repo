@@ -2,7 +2,7 @@
   "plan_name": "Source-Declared Merge Implementation",
   "description": "Add defer flag to operators for source-declared merge behavior",
   "created": "2025-12-31",
-  "last_updated": "2026-01-01T09:55:00Z",
+  "last_updated": "2026-01-01T10:15:00Z",
   "parent_plan": "context/source-declared-merge.json",
   "design_document": "context/source-declared-merge-design.md",
   "approach": "Option 6: Add defer flag to existing operators, use existing list format for source configs",
@@ -88,10 +88,10 @@
     {
       "id": "add-e2e-tests",
       "name": "Add end-to-end tests",
-      "status": "in_progress",
+      "status": "complete",
       "priority": 4,
       "phase": "phase-2",
-      "blocked_by": "fix-auto-merge-support",
+      "blocked_by": null,
       "steps": [
         "Test: source repo with deferred markdown merge",
         "Test: consumer with: overrides deferred op",
@@ -106,26 +106,15 @@
         "tests/cli_e2e_defer.rs"
       ],
       "test_results": {
-        "passing": 15,
-        "failing": 5,
-        "failing_tests": [
-          "test_validate_auto_merge_conflicts_with_dest",
-          "test_validate_auto_merge_conflicts_with_source",
-          "test_validate_toml_merge_with_defer",
-          "test_validate_toml_merge_with_auto_merge",
-          "test_validate_multiple_deferred_operations"
-        ]
+        "passing": 20,
+        "failing": 0
       },
-      "blocking_issues": [
-        "TOML auto-merge not fully implemented in merge module",
-        "validate command doesn't call operation.validate() methods"
-      ],
       "complexity": "medium"
     },
     {
       "id": "fix-auto-merge-support",
       "name": "Fix auto-merge support for all merge types",
-      "status": "pending",
+      "status": "complete",
       "priority": 3.5,
       "phase": "phase-2",
       "blocked_by": null,
@@ -140,10 +129,11 @@
         "validate command catches auto-merge + source/dest conflicts",
         "All E2E defer tests pass"
       ],
-      "files_to_modify": [
-        "src/merge/toml.rs",
-        "src/merge/ini.rs (if needed)",
-        "src/commands/validate.rs"
+      "files_modified": [
+        "src/config.rs (changed TomlMergeOp.path from String to Option<String>)",
+        "src/merge/toml.rs (updated path handling for Option<String>)",
+        "src/commands/validate.rs (added validation calls for all merge operation types)",
+        "tests/cli_e2e_defer.rs (fixed tests to check stdout instead of stderr)"
       ],
       "complexity": "medium"
     },

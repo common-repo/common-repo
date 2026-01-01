@@ -1253,7 +1253,7 @@ mod tests {
                 toml: TomlMergeOp {
                     source: Some("source.toml".to_string()),
                     dest: Some("dest.toml".to_string()),
-                    path: "section.key".to_string(),
+                    path: Some("section.key".to_string()),
                     preserve_comments: true,
                     ..Default::default()
                 },
@@ -1317,7 +1317,7 @@ mod tests {
                     toml: TomlMergeOp {
                         source: Some("s.toml".to_string()),
                         dest: Some("d.toml".to_string()),
-                        path: "key".to_string(),
+                        path: Some("key".to_string()),
                         ..Default::default()
                     },
                 },
@@ -1516,7 +1516,7 @@ mod tests {
                 toml: TomlMergeOp {
                     source: Some("source.toml".to_string()),
                     dest: Some("dest.toml".to_string()),
-                    path: "key".to_string(),
+                    path: Some("key".to_string()),
                     ..Default::default()
                 },
             };
