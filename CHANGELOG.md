@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.23.0](https://github.com/common-repo/common-repo/compare/v0.22.0...v0.23.0) (2026-01-01)
+
+
+### Features
+
+* **cli:** add shell completions command ([8d58636](https://github.com/common-repo/common-repo/commit/8d58636d8f2c3d116521df06e0003490464b03a7))
+* **error:** add actionable hints to error messages ([dad6c06](https://github.com/common-repo/common-repo/commit/dad6c06c2fb74da61cb902a74726d765ecc5e551))
+* **workflow:** add check status verification before enabling auto-merge ([c0fa040](https://github.com/common-repo/common-repo/commit/c0fa040cc1bca2d24268b28e0ed7ce6124a16ec1))
+* **xtask:** add cargo xtask automation with coverage and release-prep ([30e8b5e](https://github.com/common-repo/common-repo/commit/30e8b5eb06b71a0623bee334ad6b69cdb95cff2f))
+
+
+### Bug Fixes
+
+* **workflow:** use --auto flag for auto-merge to respect branch protection ([ce4501a](https://github.com/common-repo/common-repo/commit/ce4501ab97db3acbd4fd0e08eb88dc49b7ad4492))
+* **workflow:** use rebase instead of squash for auto-merge ([c02c1ec](https://github.com/common-repo/common-repo/commit/c02c1ec6e72291d11e2b8ed74a80444f49048407))
+
 ## [0.22.0](https://github.com/common-repo/common-repo/compare/v0.21.1...v0.22.0) (2026-01-01)
 
 
