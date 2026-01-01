@@ -1,12 +1,12 @@
 {
   "plan_name": "Architecture Review",
   "description": "Improve code architecture to meet OSS best practices",
-  "last_updated": "2026-01-01",
+  "last_updated": "2026-01-02",
   "audit_summary": {
-    "current_score": "8/10",
-    "pass": ["4.4 Clear separation lib/binary", "4.5 Error handling (thiserror+anyhow)", "4.6 Rust API Guidelines naming", "4.7 Standard traits", "4.8 Builder pattern", "4.9 pub(crate) usage"],
+    "current_score": "9/10",
+    "pass": ["4.4 Clear separation lib/binary", "4.5 Error handling (thiserror+anyhow)", "4.6 Rust API Guidelines naming", "4.7 Standard traits", "4.8 Builder pattern", "4.9 pub(crate) usage", "4.10 cargo xtask"],
     "partial": ["4.1 Workspace layout (single crate, no workspace needed yet)", "4.3 Folder names match crate names"],
-    "fail": ["4.2 Workspace dependencies centralized", "4.10 cargo xtask"]
+    "fail": ["4.2 Workspace dependencies centralized"]
   },
   "tasks": [
     {
@@ -69,7 +69,7 @@
     {
       "id": "add-cargo-xtask",
       "name": "Add cargo xtask for automation",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "steps": [
@@ -83,7 +83,8 @@
         "xtask crate exists in workspace",
         "At least 2 xtask commands implemented",
         "Scripts simplified using xtask"
-      ]
+      ],
+      "completion_notes": "Created xtask crate with workspace configuration. Added .cargo/config.toml for 'cargo xtask' alias. Implemented two commands: coverage (cargo-tarpaulin integration with format/threshold options) and release-prep (version bumping with dry-run support). Updated CONTRIBUTING.md with xtask documentation."
     },
     {
       "id": "improve-error-types",
