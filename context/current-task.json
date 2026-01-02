@@ -1,23 +1,19 @@
 {
-  "task": "add-error-suggestions",
-  "plan": "context/cli-ux-review.json",
+  "task": "fix-automerge-workflow",
+  "plan": null,
   "last_updated": "2026-01-02",
   "status": "pending",
-  "description": "Add suggestions to error messages",
+  "description": "Fix auto-merge CI workflow that doesn't exclude itself when counting pending workflows",
   "context": {
-    "goal": "Improve error messages with actionable suggestions",
-    "previous_task": "verify-tty-behavior - completed TTY detection and NO_COLOR support",
-    "key_actions": [
-      "Review common error scenarios",
-      "Add 'Did you mean?' suggestions for typos",
-      "Add 'Try running...' suggestions for fixable errors",
-      "Include documentation links in errors"
-    ]
+    "bug": "Auto-merge workflow counts itself in pending workflows, causing infinite wait",
+    "fix_needed": "Exclude the auto-merge workflow from the count of pending workflows",
+    "file": ".github/workflows/auto-merge.yml"
   },
-  "stashed_plans": [
-    {
-      "plan": "context/master-plan.json",
-      "description": "Session plan for README/docs cleanup, bug fixes, tech debt, and feature research"
-    }
+  "steps": [
+    "Read .github/workflows/auto-merge.yml to understand current logic",
+    "Identify where pending workflows are counted",
+    "Add exclusion for the auto-merge workflow itself",
+    "Test the fix if possible",
+    "Commit and push"
   ]
 }
