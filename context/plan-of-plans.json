@@ -1,8 +1,8 @@
 {
   "plan_name": "Master Plan Tracker",
   "description": "High-level tracking of all active and pending plans",
-  "last_updated": "2026-01-01",
-  "active_plan": null,
+  "last_updated": "2026-01-02",
+  "active_plan": "cli-ux-review",
   "next_plan": null,
   "plans": [
     {
@@ -116,7 +116,9 @@
     {
       "id": "cli-ux-review",
       "file": "context/cli-ux-review.json",
-      "category": "review"
+      "category": "review",
+      "status": "in_progress",
+      "current_task": "verify-tty-behavior"
     },
     {
       "id": "security-review",
@@ -141,7 +143,7 @@
   ],
   "summary": {
     "total_plans": 8,
-    "in_progress": 0,
+    "in_progress": 1,
     "pending": 0,
     "complete": 8,
     "deferred_reviews": 8
