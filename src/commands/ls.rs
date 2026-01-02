@@ -86,7 +86,7 @@ pub fn execute(args: LsArgs) -> Result<()> {
 
     // Validate config file exists
     if !config_path.exists() {
-        anyhow::bail!("Configuration file not found: {}", config_path.display());
+        return Err(common_repo::suggestions::config_not_found(config_path));
     }
 
     // Load configuration

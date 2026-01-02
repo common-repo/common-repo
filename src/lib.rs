@@ -77,6 +77,7 @@ pub mod output;
 pub mod path;
 pub mod phases;
 pub mod repository;
+pub mod suggestions;
 pub mod version;
 
 #[cfg(test)]
