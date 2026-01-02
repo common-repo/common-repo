@@ -13,7 +13,14 @@ Clean up README to remove invalid crate.io references
 **Q2:** Also remove "From crates.io" installation section (`cargo install common-repo`)?
 **A2:** Yes - not valid for this project
 
+**Q3:** Add GitHub Pages documentation link? Where?
+**A3:** Yes - both as a badge and a dedicated section near top
+**URL:** `https://common-repo.github.io/common-repo/`
+
 ## Tasks
 
 1. Remove crates.io and docs.rs badges from README (lines 5-6)
 2. Remove "From crates.io" installation section from README (lines 26-30)
+3. Add GitHub Pages documentation link:
+   - Badge in badge row (replacing removed badges)
+   - Dedicated "Documentation" section near top
