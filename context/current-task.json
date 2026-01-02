@@ -1,17 +1,17 @@
 {
-  "task": "audit-exit-codes",
+  "task": "add-verbose-quiet-flags",
   "plan": "context/cli-ux-review.json",
   "last_updated": "2026-01-02",
   "status": "pending",
-  "description": "Audit and standardize exit codes",
+  "description": "Add --verbose and --quiet global flags",
   "context": {
-    "goal": "Ensure exit codes follow standard conventions (0=success, 1=error, 2=usage)",
-    "previous_task": "add-error-suggestions - completed with suggestions module",
+    "goal": "Add -v/--verbose and -q/--quiet flags for controlling output verbosity",
+    "previous_task": "audit-exit-codes - completed with exit_codes module and E2E tests",
     "key_actions": [
-      "Document expected exit codes",
-      "Review main.rs for exit code handling",
-      "Add tests for exit codes",
-      "Document exit codes in CLI reference"
+      "Add -v/--verbose flag (can be repeated for more verbosity)",
+      "Add -q/--quiet flag for minimal output",
+      "Integrate with logging/output levels",
+      "Document flag behavior"
     ]
   },
   "stashed_plans": [
