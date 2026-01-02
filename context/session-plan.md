@@ -50,6 +50,16 @@ Known AI-ism patterns to scan for:
 - **Metaphors**: "Navigate" (non-literal), "Journey", "Embrace", "Harness", "Delve/Dive into"
 - **Openers**: "Whether you're...", "Imagine...", "Think of it as..."
 
+**Q10:** Research similar projects for feature ideas?
+**A10:** Yes - investigate competitors to find:
+- Features they have that common-repo doesn't
+- Most requested features from their Issues/Discussions
+- Which features would fit common-repo's design
+Projects to research:
+- copier-org/copier (template-based project generator)
+- Others TBD (search for similar tools)
+This is an interactive research task - find info, review together, prioritize.
+
 ## Tasks
 
 1. Remove crates.io and docs.rs badges from README (lines 5-6)
@@ -87,3 +97,13 @@ Known AI-ism patterns to scan for:
    - Rewrite affected sections in natural, direct language
    - Replace marketing-speak headers with descriptive ones
    - Goal: docs should read like they were written by a developer, not a chatbot
+10. **RESEARCH**: Competitive analysis for feature prioritization (interactive)
+    - Research similar projects:
+      - copier-org/copier
+      - cookiecutter
+      - Other config/template management tools
+    - For each project:
+      - Document key features common-repo lacks
+      - Review Issues/Discussions for most-requested features
+      - Note community pain points
+    - Review findings together to prioritize what fits common-repo
