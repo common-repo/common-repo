@@ -30,8 +30,8 @@ pub struct TreeArgs {
 
     /// The root directory for the repository cache.
     ///
-    /// If not provided, it defaults to the system's cache directory
-    /// (e.g., `~/.cache/common-repo` on Linux).
+    /// Defaults to the system cache directory (`~/.cache/common-repo` on Linux,
+    /// `~/Library/Caches/common-repo` on macOS).
     /// Can also be set with the `COMMON_REPO_CACHE` environment variable.
     #[arg(long, value_name = "DIR", env = "COMMON_REPO_CACHE")]
     pub cache_root: Option<PathBuf>,
@@ -72,11 +72,9 @@ pub fn execute(args: TreeArgs, color_flag: &str) -> Result<()> {
     })?;
 
     // Initialize repository manager
-    let cache_root = args.cache_root.unwrap_or_else(|| {
-        dirs::cache_dir()
-            .unwrap_or_else(|| PathBuf::from(".common-repo-cache"))
-            .join("common-repo")
-    });
+    let cache_root = args
+        .cache_root
+        .unwrap_or_else(common_repo::defaults::default_cache_root);
 
     let repo_manager = RepositoryManager::new(cache_root);
 
