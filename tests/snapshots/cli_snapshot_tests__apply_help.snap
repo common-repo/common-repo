@@ -1,6 +1,5 @@
 ---
 source: tests/cli_snapshot_tests.rs
-assertion_line: 42
 expression: normalized
 ---
 Apply the .common-repo.yaml configuration to the current repository
@@ -33,14 +32,8 @@ Options:
   -f, --force
           If set, the command will overwrite existing files without prompting. (Currently, there is no prompting, so this is reserved for future use)
 
-  -v, --verbose
-          If set, the command will show detailed progress information during execution
-
       --no-cache
           If set, the command will bypass the repository cache and fetch fresh clones of all repositories
-
-  -q, --quiet
-          If set, the command will suppress all output except for errors
 
       --color <WHEN>
           Colorize output (always, never, auto)
@@ -51,6 +44,16 @@ Options:
           Set log level (error, warn, info, debug, trace)
 
           [default: info]
+
+      --verbose...
+          Increase output verbosity (can be repeated: --verbose --verbose)
+
+          Overrides --log-level when specified: --verbose       = debug level --verbose -v    = trace level (combines with command -v flags)
+
+      --quiet
+          Suppress output except errors
+
+          Overrides --log-level to show only error messages. Use for scripting or quiet operation.
 
   -h, --help
           Print help (see a summary with '-h')
