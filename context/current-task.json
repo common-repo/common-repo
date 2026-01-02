@@ -3,9 +3,9 @@
   "plan": "context/master-plan.json",
   "last_updated": "2026-01-02",
   "status": "complete",
-  "description": "README and CLAUDE.md cleanup plan completed",
+  "description": "Cache bug fix plan completed",
   "context": {
-    "completed_plan": "context/plan-readme-cleanup.json",
-    "next_plans": ["cache-bug-fix", "competitive-research"]
+    "completed_plans": ["context/plan-readme-cleanup.json", "context/plan-cache-bug-fix.json"],
+    "next_plans": ["defaults-audit", "user-docs-fixes", "competitive-research"]
   }
 }

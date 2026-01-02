@@ -15,7 +15,7 @@ Options:
       --cache-root <DIR>
           The root directory for the repository cache.
 
-          If not provided, it defaults to the system's cache directory (e.g., `~/.cache/common-repo` on Linux). Can also be set with the `COMMON_REPO_CACHE` environment variable.
+          Defaults to the system cache directory (`~/.cache/common-repo` on Linux, `~/Library/Caches/common-repo` on macOS). Can also be set with the `COMMON_REPO_CACHE` environment variable.
 
           [env: COMMON_REPO_CACHE=]
 

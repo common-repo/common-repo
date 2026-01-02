@@ -68,6 +68,7 @@
 
 pub mod cache;
 pub mod config;
+pub mod defaults;
 pub mod error;
 pub mod filesystem;
 pub mod git;

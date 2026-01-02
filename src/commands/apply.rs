@@ -47,9 +47,10 @@ pub struct ApplyArgs {
 
     /// The root directory for the repository cache.
     ///
-    /// If not provided, it defaults to `~/.common-repo/cache`.
+    /// Defaults to the system cache directory (`~/.cache/common-repo` on Linux,
+    /// `~/Library/Caches/common-repo` on macOS).
     /// Can also be set with the `COMMON_REPO_CACHE` environment variable.
-    #[arg(long, value_name = "PATH", env = "COMMON_REPO_CACHE")]
+    #[arg(long, value_name = "DIR", env = "COMMON_REPO_CACHE")]
     pub cache_root: Option<PathBuf>,
 
     /// If set, the command will show what would be done without making any
@@ -98,10 +99,9 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
         .unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
 
     // Determine cache root
-    let cache_root = args.cache_root.unwrap_or_else(|| {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        PathBuf::from(home).join(".common-repo").join("cache")
-    });
+    let cache_root = args
+        .cache_root
+        .unwrap_or_else(common_repo::defaults::default_cache_root);
 
     // Print header
     log::info!("🔍 Common Repository Apply");

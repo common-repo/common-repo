@@ -11,7 +11,7 @@
     {
       "id": "create-defaults-module",
       "name": "Create shared defaults module",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_file": "src/defaults.rs",
@@ -34,7 +34,7 @@
     {
       "id": "fix-apply-command",
       "name": "Fix apply.rs to use shared default",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "create-defaults-module",
       "output_file": "src/commands/apply.rs",
@@ -54,7 +54,7 @@
     {
       "id": "update-check-command",
       "name": "Update check.rs to use shared default",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "create-defaults-module",
       "output_file": "src/commands/check.rs",
@@ -71,7 +71,7 @@
     {
       "id": "update-remaining-commands",
       "name": "Update all remaining command files to use shared default",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "create-defaults-module",
       "output_file": null,
@@ -94,7 +94,7 @@
     {
       "id": "update-doc-comments",
       "name": "Standardize doc comments for cache_root in all commands",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "update-remaining-commands",
       "output_file": null,
@@ -112,7 +112,7 @@
     {
       "id": "run-tests",
       "name": "Run full test suite to verify changes",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "update-doc-comments",
       "output_file": null,

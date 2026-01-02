@@ -21,7 +21,7 @@
     {
       "id": "cache-bug-fix",
       "name": "Cache Directory Bug Fix",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "plan_file": "context/plan-cache-bug-fix.json",
