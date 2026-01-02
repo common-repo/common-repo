@@ -1,6 +1,5 @@
 ---
 source: tests/cli_snapshot_tests.rs
-assertion_line: 56
 expression: normalized
 ---
 Check configuration validity and check for repository updates
@@ -32,6 +31,16 @@ Options:
           Set log level (error, warn, info, debug, trace)
 
           [default: info]
+
+      --verbose...
+          Increase output verbosity (can be repeated: --verbose --verbose)
+
+          Overrides --log-level when specified: --verbose       = debug level --verbose -v    = trace level (combines with command -v flags)
+
+      --quiet
+          Suppress output except errors
+
+          Overrides --log-level to show only error messages. Use for scripting or quiet operation.
 
   -h, --help
           Print help (see a summary with '-h')

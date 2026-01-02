@@ -177,3 +177,94 @@ fn test_exit_code_subcommand_help() {
 
     cmd.arg("apply").arg("--help").assert().code(0);
 }
+
+/// Exit code 2 is returned when --verbose and --quiet are used together.
+#[test]
+fn test_exit_code_usage_verbose_quiet_conflict() {
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("--verbose")
+        .arg("--quiet")
+        .arg("validate")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+/// --verbose flag appears in help output.
+#[test]
+fn test_verbose_flag_in_help() {
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("--help")
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("--verbose"));
+}
+
+/// --quiet flag appears in help output.
+#[test]
+fn test_quiet_flag_in_help() {
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("--help")
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("--quiet"));
+}
+
+/// Global --verbose flag works with subcommands.
+#[test]
+fn test_verbose_flag_works_with_subcommand() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- include:
+    patterns:
+      - "*.txt"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    // --verbose should work with validate
+    cmd.current_dir(temp.path())
+        .arg("--verbose")
+        .arg("validate")
+        .arg("--config")
+        .arg(config_file.path())
+        .assert()
+        .code(0);
+}
+
+/// Global --quiet flag works with subcommands.
+#[test]
+fn test_quiet_flag_works_with_subcommand() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- include:
+    patterns:
+      - "*.txt"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    // --quiet should work with validate
+    cmd.current_dir(temp.path())
+        .arg("--quiet")
+        .arg("validate")
+        .arg("--config")
+        .arg(config_file.path())
+        .assert()
+        .code(0);
+}

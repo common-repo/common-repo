@@ -10,8 +10,33 @@ These options are available for all commands:
 |--------|-------------|
 | `--color <WHEN>` | Colorize output: `always`, `never`, `auto` (default: auto) |
 | `--log-level <LEVEL>` | Set log level: `error`, `warn`, `info`, `debug`, `trace`, `off` (default: info) |
+| `--verbose` | Increase output verbosity (can be repeated for more detail) |
+| `--quiet` | Suppress output except errors |
 | `-h, --help` | Print help information |
 | `-V, --version` | Print version |
+
+### Verbosity Control
+
+The `--verbose` and `--quiet` flags provide convenient shortcuts for controlling output verbosity:
+
+- **`--quiet`**: Shows only error messages. Useful for scripting.
+- **`--verbose`**: Shows debug-level messages. Can be repeated for more detail.
+- **`--verbose --verbose`**: Shows trace-level messages (maximum verbosity).
+
+These flags override `--log-level` when specified. Note that `--verbose` and `--quiet` cannot be used together.
+
+**Examples:**
+
+```bash
+# Minimal output for scripts
+common-repo apply --quiet
+
+# Debug output to troubleshoot issues
+common-repo apply --verbose
+
+# Maximum verbosity for detailed debugging
+common-repo check --verbose --verbose
+```
 
 ## Commands
 
@@ -636,8 +661,11 @@ See [`completions`](#completions---generate-shell-completions) for detailed inst
 ### Debugging
 
 ```bash
-# Verbose output
-common-repo apply --verbose --log-level debug
+# Debug output
+common-repo apply --verbose
+
+# Maximum verbosity (trace level)
+common-repo apply --verbose --verbose
 
 # Validate configuration
 common-repo validate --check-repos --strict

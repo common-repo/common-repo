@@ -1,6 +1,5 @@
 ---
 source: tests/cli_snapshot_tests.rs
-assertion_line: 93
 expression: normalized
 ---
 Initialize a new .common-repo.yaml configuration file
@@ -8,11 +7,35 @@ Initialize a new .common-repo.yaml configuration file
 Usage: common-repo init [OPTIONS] [URI]
 
 Arguments:
-  [URI]  Repository URL to initialize from (e.g., https://github.com/org/repo or org/repo)
+  [URI]
+          Repository URL to initialize from (e.g., https://github.com/org/repo or org/repo)
 
 Options:
-  -i, --interactive        Interactive setup wizard for configuration creation (default when no URI provided)
-  -f, --force              Overwrite existing configuration file
-      --color <WHEN>       Colorize output (always, never, auto) [default: auto]
-      --log-level <LEVEL>  Set log level (error, warn, info, debug, trace) [default: info]
-  -h, --help               Print help
+  -i, --interactive
+          Interactive setup wizard for configuration creation (default when no URI provided)
+
+  -f, --force
+          Overwrite existing configuration file
+
+      --color <WHEN>
+          Colorize output (always, never, auto)
+
+          [default: auto]
+
+      --log-level <LEVEL>
+          Set log level (error, warn, info, debug, trace)
+
+          [default: info]
+
+      --verbose...
+          Increase output verbosity (can be repeated: --verbose --verbose)
+
+          Overrides --log-level when specified: --verbose       = debug level --verbose -v    = trace level (combines with command -v flags)
+
+      --quiet
+          Suppress output except errors
+
+          Overrides --log-level to show only error messages. Use for scripting or quiet operation.
+
+  -h, --help
+          Print help (see a summary with '-h')
