@@ -3,7 +3,7 @@
 ## Status: Planning
 
 ## Goal
-Clean up README to remove invalid crate.io references
+README/docs cleanup, bug fixes, tech debt, and feature research
 
 ## Questions & Answers
 
@@ -14,11 +14,11 @@ Clean up README to remove invalid crate.io references
 **A2:** Yes - not valid for this project
 
 **Q3:** Add GitHub Pages documentation link? Where?
-**A3:** Yes - both as a badge and a dedicated section near top
+**A3:** Yes - both as a badge (shields.io style like others) and a dedicated section near top
 **URL:** `https://common-repo.github.io/common-repo/`
 
 **Q4:** README merges section only shows YAML example - add examples for other file types?
-**A4:** Yes - realistic examples for each (YAML, JSON, TOML, INI, Markdown)
+**A4:** Yes - show all examples in README (demonstrates power of utility), each linking to full user docs for that operator. Also flesh out examples in user docs themselves.
 
 **Q5:** Compare CLI help output to user docs - any discrepancies?
 **A5:** Yes - found 2 issues:
@@ -51,14 +51,17 @@ Known AI-ism patterns to scan for:
 - **Openers**: "Whether you're...", "Imagine...", "Think of it as..."
 
 **Q10:** Research similar projects for feature ideas?
-**A10:** Yes - investigate competitors to find:
-- Features they have that common-repo doesn't
-- Most requested features from their Issues/Discussions
-- Which features would fit common-repo's design
-Projects to research:
-- copier-org/copier (template-based project generator)
-- Others TBD (search for similar tools)
-This is an interactive research task - find info, review together, prioritize.
+**A10:** Yes - go broad, explore what's out there. Investigate:
+- copier-org/copier
+- cookiecutter
+- yeoman
+- Other template/config management tools discovered during research
+For each: find features people love, features people wish existed.
+Goal: discover features we weren't aware of to expand common-repo's capabilities.
+Interactive research task - find info, review together, prioritize.
+
+**Q11:** Which cache path should be canonical default?
+**A11:** Use `~/.cache/common-repo` (XDG-compliant via `dirs::cache_dir()`). This is the standard location for cache files on Linux. macOS uses `~/Library/Caches/` via the same `dirs` crate. Windows not a priority.
 
 ## Tasks
 
@@ -67,22 +70,26 @@ This is an interactive research task - find info, review together, prioritize.
 3. Add GitHub Pages documentation link:
    - Badge in badge row (replacing removed badges)
    - Dedicated "Documentation" section near top
-4. Expand "Merging files" section with realistic examples for each file type:
+4. Expand "Merging files" section in README with examples for each file type:
    - YAML (existing: CI workflows)
    - JSON (e.g., package.json)
    - TOML (e.g., Cargo.toml)
    - INI (e.g., .editorconfig)
    - Markdown (e.g., README sections)
-5. Fix CLI docs discrepancies in `docs/src/cli.md`:
+   - Each example links to full operator docs in user documentation
+5. Flesh out operator examples in user docs (`docs/src/`):
+   - Ensure each operator has comprehensive examples
+   - Match the realistic examples added to README
+6. Fix CLI docs discrepancies in `docs/src/cli.md`:
    - Remove `off` from `--log-level` options (line 12)
    - Standardize cache directory default across docs
-6. Add user docs location to CLAUDE.md (`docs/src/` - mdBook format)
-7. **BUG FIX**: Centralize cache directory default logic
+7. Add user docs location to CLAUDE.md (`docs/src/` - mdBook format)
+8. **BUG FIX**: Centralize cache directory default logic
    - Create `default_cache_root()` in shared module (e.g., `src/config.rs` or `src/lib.rs`)
    - Fix `apply.rs` to use `dirs::cache_dir()` like other commands
    - Replace duplicated logic in all 10 command files with shared function
    - Update doc comments to reflect correct default (`~/.cache/common-repo` on Linux)
-8. **TECH DEBT**: Comprehensive defaults audit
+9. **TECH DEBT**: Comprehensive defaults audit
    - Scan entire `src/` directory for duplicated default values
    - Known duplications found so far:
      - Cache dir fallback (`.common-repo-cache`) - 10 places
@@ -91,16 +98,17 @@ This is an interactive research task - find info, review together, prioritize.
    - Create constants or functions for each default
    - Replace all duplications with shared references
    - This prevents future bugs from inconsistent defaults
-9. **DOCS**: Remove AI-isms from user documentation
-   - Scan all files in `docs/src/` for AI-ism patterns (see Q9 list)
-   - Known issues: `introduction.md` has "The Problem" / "The Solution" headers
-   - Rewrite affected sections in natural, direct language
-   - Replace marketing-speak headers with descriptive ones
-   - Goal: docs should read like they were written by a developer, not a chatbot
-10. **RESEARCH**: Competitive analysis for feature prioritization (interactive)
+10. **DOCS**: Remove AI-isms from user documentation
+    - Scan all files in `docs/src/` for AI-ism patterns (see Q9 list)
+    - Known issues: `introduction.md` has "The Problem" / "The Solution" headers
+    - Rewrite affected sections in natural, direct language
+    - Replace marketing-speak headers with descriptive ones
+    - Goal: docs should read like they were written by a developer, not a chatbot
+11. **RESEARCH**: Competitive analysis for feature prioritization (interactive)
     - Research similar projects:
       - copier-org/copier
       - cookiecutter
+      - yeoman
       - Other config/template management tools
     - For each project:
       - Document key features common-repo lacks
