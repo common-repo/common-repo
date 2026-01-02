@@ -17,6 +17,7 @@ use ptree::{print_tree, TreeItem};
 use std::path::PathBuf;
 
 use common_repo::config;
+use common_repo::output::{emoji, OutputConfig};
 use common_repo::phases::{discover_repos, RepoNode};
 use common_repo::repository::RepositoryManager;
 
@@ -48,10 +49,16 @@ pub struct TreeArgs {
 /// This function handles the logic for the `tree` subcommand. It loads the
 /// configuration file, discovers the repository inheritance tree, and displays
 /// it in a hierarchical format.
-pub fn execute(args: TreeArgs) -> Result<()> {
+///
+/// # Arguments
+/// * `args` - The command arguments
+/// * `color_flag` - The value of the global --color flag ("always", "never", or "auto")
+pub fn execute(args: TreeArgs, color_flag: &str) -> Result<()> {
+    let out = OutputConfig::from_env_and_flag(color_flag);
     let config_path = &args.config;
     println!(
-        "🌳 Repository inheritance tree for: {}",
+        "{} Repository inheritance tree for: {}",
+        emoji(&out, "🌳", "[TREE]"),
         config_path.display()
     );
 
@@ -140,7 +147,7 @@ mod tests {
             depth: None,
         };
 
-        let result = execute(args);
+        let result = execute(args, "auto");
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -178,7 +185,7 @@ mod tests {
         };
 
         // This should succeed (though it will print output)
-        let result = execute(args);
+        let result = execute(args, "auto");
         assert!(result.is_ok());
     }
 }

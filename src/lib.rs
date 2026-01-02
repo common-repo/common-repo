@@ -73,6 +73,7 @@ pub mod filesystem;
 pub mod git;
 pub mod merge;
 pub mod operators;
+pub mod output;
 pub mod path;
 pub mod phases;
 pub mod repository;

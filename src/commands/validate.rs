@@ -20,6 +20,7 @@ use clap::Args;
 use std::path::PathBuf;
 
 use common_repo::config;
+use common_repo::output::{emoji, OutputConfig};
 use common_repo::phases;
 use common_repo::repository::RepositoryManager;
 
@@ -51,18 +52,34 @@ pub struct ValidateArgs {
 ///
 /// This function handles the logic for the `validate` subcommand. It performs
 /// comprehensive validation of the configuration file and reports any issues.
-pub fn execute(args: ValidateArgs) -> Result<()> {
+///
+/// # Arguments
+/// * `args` - The command arguments
+/// * `color_flag` - The value of the global --color flag ("always", "never", or "auto")
+pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
+    let out = OutputConfig::from_env_and_flag(color_flag);
     let config_path = &args.config;
-    println!("🔍 Validating configuration: {}", config_path.display());
+    println!(
+        "{} Validating configuration: {}",
+        emoji(&out, "🔍", "[SCAN]"),
+        config_path.display()
+    );
 
     // Load and parse configuration
     let schema = match config::from_file(config_path) {
         Ok(schema) => {
-            println!("✅ Configuration file parsed successfully");
+            println!(
+                "{} Configuration file parsed successfully",
+                emoji(&out, "✅", "[OK]")
+            );
             schema
         }
         Err(e) => {
-            println!("❌ Configuration parsing failed: {}", e);
+            println!(
+                "{} Configuration parsing failed: {}",
+                emoji(&out, "❌", "[ERR]"),
+                e
+            );
             return Err(anyhow::anyhow!("Configuration parsing failed: {}", e));
         }
     };
@@ -78,7 +95,7 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
     });
 
     // Basic configuration statistics
-    println!("\n📊 Configuration Summary:");
+    println!("\n{} Configuration Summary:", emoji(&out, "📊", "[INFO]"));
     println!("   Total operations: {}", schema.len());
 
     let repo_count = schema
@@ -91,10 +108,16 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
     println!("   Other operations: {}", other_ops);
 
     // Cycle detection
-    println!("\n🔄 Checking for circular dependencies...");
+    println!(
+        "\n{} Checking for circular dependencies...",
+        emoji(&out, "🔄", "[CHECK]")
+    );
     match phases::discover_repos(&schema, &RepositoryManager::new(cache_root.clone())) {
         Ok(repo_tree) => {
-            println!("✅ No circular dependencies detected");
+            println!(
+                "{} No circular dependencies detected",
+                emoji(&out, "✅", "[OK]")
+            );
             println!(
                 "   Discovered {} repositories in dependency tree",
                 repo_tree.all_repos.len()
@@ -102,17 +125,28 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
         }
         Err(e) => {
             if e.to_string().contains("cycle detected") {
-                println!("❌ Circular dependency detected: {}", e);
+                println!(
+                    "{} Circular dependency detected: {}",
+                    emoji(&out, "❌", "[ERR]"),
+                    e
+                );
                 has_errors = true;
             } else {
-                println!("⚠️  Warning during dependency discovery: {}", e);
+                println!(
+                    "{} Warning during dependency discovery: {}",
+                    emoji(&out, "⚠️", "[WARN]"),
+                    e
+                );
                 has_warnings = true;
             }
         }
     }
 
     // Validate operation-specific patterns
-    println!("\n🔍 Validating operation patterns...");
+    println!(
+        "\n{} Validating operation patterns...",
+        emoji(&out, "🔍", "[SCAN]")
+    );
 
     for (idx, operation) in schema.iter().enumerate() {
         match operation {
@@ -121,8 +155,10 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
                 for mapping in &rename.mappings {
                     if let Err(e) = regex::Regex::new(&mapping.from) {
                         println!(
-                            "❌ Invalid regex pattern in rename operation {}: {}",
-                            idx, e
+                            "{} Invalid regex pattern in rename operation {}: {}",
+                            emoji(&out, "❌", "[ERR]"),
+                            idx,
+                            e
                         );
                         has_errors = true;
                     }
@@ -133,8 +169,10 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
                 for pattern in &include.patterns {
                     if let Err(e) = glob::Pattern::new(pattern) {
                         println!(
-                            "❌ Invalid glob pattern in include operation {}: {}",
-                            idx, e
+                            "{} Invalid glob pattern in include operation {}: {}",
+                            emoji(&out, "❌", "[ERR]"),
+                            idx,
+                            e
                         );
                         has_errors = true;
                     }
@@ -145,8 +183,10 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
                 for pattern in &exclude.patterns {
                     if let Err(e) = glob::Pattern::new(pattern) {
                         println!(
-                            "❌ Invalid glob pattern in exclude operation {}: {}",
-                            idx, e
+                            "{} Invalid glob pattern in exclude operation {}: {}",
+                            emoji(&out, "❌", "[ERR]"),
+                            idx,
+                            e
                         );
                         has_errors = true;
                     }
@@ -155,38 +195,67 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
             config::Operation::Tools { tools } => {
                 // Basic validation - tools array should not be empty
                 if tools.tools.is_empty() {
-                    println!("⚠️  Tools operation {} has no tools defined", idx);
+                    println!(
+                        "{} Tools operation {} has no tools defined",
+                        emoji(&out, "⚠️", "[WARN]"),
+                        idx
+                    );
                     has_warnings = true;
                 }
             }
             // Validate merge operations (source/dest requirements, auto-merge conflicts)
             config::Operation::Yaml { yaml } => {
                 if let Err(e) = yaml.validate() {
-                    println!("❌ Invalid yaml merge operation {}: {}", idx, e);
+                    println!(
+                        "{} Invalid yaml merge operation {}: {}",
+                        emoji(&out, "❌", "[ERR]"),
+                        idx,
+                        e
+                    );
                     has_errors = true;
                 }
             }
             config::Operation::Json { json } => {
                 if let Err(e) = json.validate() {
-                    println!("❌ Invalid json merge operation {}: {}", idx, e);
+                    println!(
+                        "{} Invalid json merge operation {}: {}",
+                        emoji(&out, "❌", "[ERR]"),
+                        idx,
+                        e
+                    );
                     has_errors = true;
                 }
             }
             config::Operation::Toml { toml } => {
                 if let Err(e) = toml.validate() {
-                    println!("❌ Invalid toml merge operation {}: {}", idx, e);
+                    println!(
+                        "{} Invalid toml merge operation {}: {}",
+                        emoji(&out, "❌", "[ERR]"),
+                        idx,
+                        e
+                    );
                     has_errors = true;
                 }
             }
             config::Operation::Ini { ini } => {
                 if let Err(e) = ini.validate() {
-                    println!("❌ Invalid ini merge operation {}: {}", idx, e);
+                    println!(
+                        "{} Invalid ini merge operation {}: {}",
+                        emoji(&out, "❌", "[ERR]"),
+                        idx,
+                        e
+                    );
                     has_errors = true;
                 }
             }
             config::Operation::Markdown { markdown } => {
                 if let Err(e) = markdown.validate() {
-                    println!("❌ Invalid markdown merge operation {}: {}", idx, e);
+                    println!(
+                        "{} Invalid markdown merge operation {}: {}",
+                        emoji(&out, "❌", "[ERR]"),
+                        idx,
+                        e
+                    );
                     has_errors = true;
                 }
             }
@@ -197,12 +266,18 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
     }
 
     if !has_errors {
-        println!("✅ All operation patterns are valid");
+        println!(
+            "{} All operation patterns are valid",
+            emoji(&out, "✅", "[OK]")
+        );
     }
 
     // Optional repository accessibility check
     if args.check_repos {
-        println!("\n🌐 Checking repository accessibility...");
+        println!(
+            "\n{} Checking repository accessibility...",
+            emoji(&out, "🌐", "[NET]")
+        );
 
         let repo_manager = RepositoryManager::new(cache_root);
 
@@ -214,14 +289,21 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
                 match repo_manager.list_repository_tags(&repo.url) {
                     Ok(tags) => {
                         if tags.is_empty() {
-                            println!("⚠️  accessible but no tags found");
+                            println!(
+                                "{} accessible but no tags found",
+                                emoji(&out, "⚠️", "[WARN]")
+                            );
                             has_warnings = true;
                         } else {
-                            println!("✅ accessible ({} tags)", tags.len());
+                            println!(
+                                "{} accessible ({} tags)",
+                                emoji(&out, "✅", "[OK]"),
+                                tags.len()
+                            );
                         }
                     }
                     Err(e) => {
-                        println!("❌ not accessible: {}", e);
+                        println!("{} not accessible: {}", emoji(&out, "❌", "[ERR]"), e);
                         has_errors = true;
                     }
                 }
@@ -230,28 +312,40 @@ pub fn execute(args: ValidateArgs) -> Result<()> {
     }
 
     // Final result
-    println!("\n🎯 Validation Result:");
+    println!("\n{} Validation Result:", emoji(&out, "🎯", "[RESULT]"));
 
     if has_errors {
-        println!("❌ Configuration has errors that must be fixed");
+        println!(
+            "{} Configuration has errors that must be fixed",
+            emoji(&out, "❌", "[ERR]")
+        );
         return Err(anyhow::anyhow!("Configuration validation failed"));
     }
 
     if has_warnings && args.strict {
-        println!("❌ Configuration has warnings (strict mode enabled)");
+        println!(
+            "{} Configuration has warnings (strict mode enabled)",
+            emoji(&out, "❌", "[ERR]")
+        );
         return Err(anyhow::anyhow!(
             "Configuration validation failed in strict mode"
         ));
     }
 
     if has_warnings {
-        println!("⚠️  Configuration is valid but has warnings");
+        println!(
+            "{} Configuration is valid but has warnings",
+            emoji(&out, "⚠️", "[WARN]")
+        );
     } else {
-        println!("✅ Configuration is valid");
+        println!("{} Configuration is valid", emoji(&out, "✅", "[OK]"));
     }
 
     if !args.check_repos {
-        println!("\n💡 Tip: Use --check-repos to also validate repository accessibility");
+        println!(
+            "\n{} Tip: Use --check-repos to also validate repository accessibility",
+            emoji(&out, "💡", "[TIP]")
+        );
     }
 
     Ok(())
