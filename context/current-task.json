@@ -1,17 +1,17 @@
 {
-  "task": "add-error-suggestions",
+  "task": "audit-exit-codes",
   "plan": "context/cli-ux-review.json",
   "last_updated": "2026-01-02",
   "status": "pending",
-  "description": "Add suggestions to error messages",
+  "description": "Audit and standardize exit codes",
   "context": {
-    "goal": "Improve error messages with actionable suggestions",
-    "previous_task": "verify-tty-behavior - completed TTY detection and NO_COLOR support",
+    "goal": "Ensure exit codes follow standard conventions (0=success, 1=error, 2=usage)",
+    "previous_task": "add-error-suggestions - completed with suggestions module",
     "key_actions": [
-      "Review common error scenarios",
-      "Add 'Did you mean?' suggestions for typos",
-      "Add 'Try running...' suggestions for fixable errors",
-      "Include documentation links in errors"
+      "Document expected exit codes",
+      "Review main.rs for exit code handling",
+      "Add tests for exit codes",
+      "Document exit codes in CLI reference"
     ]
   },
   "stashed_plans": [

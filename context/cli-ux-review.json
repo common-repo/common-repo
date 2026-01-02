@@ -50,7 +50,7 @@
     {
       "id": "add-error-suggestions",
       "name": "Add suggestions to error messages",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
