@@ -37,9 +37,9 @@ jobs:
             # Show current check status
             gh pr checks "${PR_NUMBER}" || true
 
-            # Count in-progress checks
+            # Count in-progress checks (excluding this workflow to avoid counting ourselves)
             IN_PROGRESS=$(gh pr checks "${PR_NUMBER}" --json name,state \
-              --jq '[.[] | select(.state == "PENDING" or .state == "IN_PROGRESS" or .state == "QUEUED")] | length')
+              --jq '[.[] | select(.name | startswith("Auto Merge") | not) | select(.state == "PENDING" or .state == "IN_PROGRESS" or .state == "QUEUED")] | length')
 
             if [ "$IN_PROGRESS" -eq 0 ]; then
               echo ""
