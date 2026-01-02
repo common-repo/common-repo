@@ -58,9 +58,9 @@ jobs:
             echo "::warning::Timed out waiting for checks after ${MAX_WAIT}s. Proceeding with current status."
           fi
 
-          # Count failed checks
+          # Count failed checks (excluding this workflow for consistency)
           FAILED=$(gh pr checks "${PR_NUMBER}" --json name,state \
-            --jq '[.[] | select(.state == "FAILURE" or .state == "ERROR")] | length')
+            --jq '[.[] | select(.name | startswith("Auto Merge") | not) | select(.state == "FAILURE" or .state == "ERROR")] | length')
 
           if [ "$FAILED" -gt 0 ]; then
             echo ""
