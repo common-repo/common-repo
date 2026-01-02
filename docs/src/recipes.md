@@ -491,8 +491,11 @@ templates/
 ### Verbose Output
 
 ```bash
-# See detailed processing
-common-repo apply --verbose --log-level debug
+# See detailed processing (debug level)
+common-repo apply --verbose
+
+# Maximum verbosity (trace level)
+common-repo apply --verbose --verbose
 ```
 
 ### Inspect Before Applying
