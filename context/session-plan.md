@@ -41,6 +41,15 @@ Clean up README to remove invalid crate.io references
 - Hardcoded config paths in add.rs, init.rs
 Need comprehensive audit and centralization.
 
+**Q9:** User docs contain AI-isms ("The Problem" / "The Solution" headers, etc.)?
+**A9:** Yes, confirmed in `introduction.md`. Need to audit all docs and rewrite in natural human language.
+Known AI-ism patterns to scan for:
+- **Headers**: "The Problem/Solution", "Why This Matters", "Here's the Thing", "Key Takeaways"
+- **Filler**: "It's worth noting", "At its core", "Simply put", "In today's world"
+- **Buzzwords**: "Seamlessly", "Leverage", "Unlock", "Empower", "Streamline", "Robust", "Game-changer"
+- **Metaphors**: "Navigate" (non-literal), "Journey", "Embrace", "Harness", "Delve/Dive into"
+- **Openers**: "Whether you're...", "Imagine...", "Think of it as..."
+
 ## Tasks
 
 1. Remove crates.io and docs.rs badges from README (lines 5-6)
@@ -72,3 +81,9 @@ Need comprehensive audit and centralization.
    - Create constants or functions for each default
    - Replace all duplications with shared references
    - This prevents future bugs from inconsistent defaults
+9. **DOCS**: Remove AI-isms from user documentation
+   - Scan all files in `docs/src/` for AI-ism patterns (see Q9 list)
+   - Known issues: `introduction.md` has "The Problem" / "The Solution" headers
+   - Rewrite affected sections in natural, direct language
+   - Replace marketing-speak headers with descriptive ones
+   - Goal: docs should read like they were written by a developer, not a chatbot
