@@ -1,0 +1,161 @@
+{
+  "plan_name": "User Documentation Fixes",
+  "last_updated": "2026-01-02",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "fix-log-level-docs",
+      "name": "Remove 'off' from --log-level options in CLI docs",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "docs/src/cli.md",
+      "steps": [
+        "Read docs/src/cli.md",
+        "Find Global Options table (around line 12)",
+        "Remove 'off' from --log-level description",
+        "Verify options match CLI: error, warn, info, debug, trace"
+      ],
+      "acceptance_criteria": [
+        "--log-level options in docs match actual CLI",
+        "No 'off' option listed"
+      ]
+    },
+    {
+      "id": "fix-cache-path-docs",
+      "name": "Standardize cache directory default in CLI docs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "fix-log-level-docs",
+      "output_file": "docs/src/cli.md",
+      "steps": [
+        "Search docs/src/cli.md for all cache directory references",
+        "Update all to use consistent path: ~/.cache/common-repo (Linux)",
+        "Note that macOS uses ~/Library/Caches/ via dirs crate",
+        "Check apply, check, cache, and other command sections"
+      ],
+      "acceptance_criteria": [
+        "All cache directory references are consistent",
+        "Default is documented as ~/.cache/common-repo on Linux",
+        "macOS path mentioned where appropriate"
+      ]
+    },
+    {
+      "id": "audit-operator-docs",
+      "name": "Audit existing operator documentation coverage",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "output_file": null,
+      "steps": [
+        "Read docs/src/configuration.md or equivalent",
+        "List all operators documented",
+        "Note which operators lack examples",
+        "Identify gaps between README examples and docs"
+      ],
+      "acceptance_criteria": [
+        "Complete list of operators and their doc status",
+        "Gaps identified for next task"
+      ]
+    },
+    {
+      "id": "add-yaml-operator-examples",
+      "name": "Add/improve YAML operator examples in user docs",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "audit-operator-docs",
+      "output_file": "docs/src/configuration.md",
+      "steps": [
+        "Find YAML operator section in docs",
+        "Add realistic CI workflow example",
+        "Show merge strategies (append, replace, deep merge)",
+        "Include path-based targeting example"
+      ],
+      "acceptance_criteria": [
+        "YAML operator has comprehensive examples",
+        "Examples match or expand on README examples"
+      ]
+    },
+    {
+      "id": "add-json-operator-examples",
+      "name": "Add/improve JSON operator examples in user docs",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "audit-operator-docs",
+      "output_file": "docs/src/configuration.md",
+      "steps": [
+        "Find JSON operator section in docs",
+        "Add package.json scripts example",
+        "Show tsconfig.json or similar config merging",
+        "Include path-based targeting"
+      ],
+      "acceptance_criteria": [
+        "JSON operator has comprehensive examples",
+        "Examples are realistic and useful"
+      ]
+    },
+    {
+      "id": "add-toml-operator-examples",
+      "name": "Add/improve TOML operator examples in user docs",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "audit-operator-docs",
+      "output_file": "docs/src/configuration.md",
+      "steps": [
+        "Find TOML operator section in docs",
+        "Add Cargo.toml dependencies example",
+        "Show pyproject.toml example",
+        "Include section-based merging"
+      ],
+      "acceptance_criteria": [
+        "TOML operator has comprehensive examples",
+        "Examples are realistic and useful"
+      ]
+    },
+    {
+      "id": "add-ini-operator-examples",
+      "name": "Add/improve INI operator examples in user docs",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "audit-operator-docs",
+      "output_file": "docs/src/configuration.md",
+      "steps": [
+        "Find INI operator section in docs",
+        "Add .editorconfig example",
+        "Show .gitconfig or similar example",
+        "Include section-based merging"
+      ],
+      "acceptance_criteria": [
+        "INI operator has comprehensive examples",
+        "Examples are realistic and useful"
+      ]
+    },
+    {
+      "id": "add-markdown-operator-examples",
+      "name": "Add/improve Markdown operator examples in user docs",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": "audit-operator-docs",
+      "output_file": "docs/src/configuration.md",
+      "steps": [
+        "Find Markdown operator section in docs",
+        "Add README section injection example",
+        "Show CONTRIBUTING.md example",
+        "Demonstrate heading-based targeting"
+      ],
+      "acceptance_criteria": [
+        "Markdown operator has comprehensive examples",
+        "Examples are realistic and useful"
+      ]
+    }
+  ],
+  "notes": [
+    "Tasks 1-2 are quick fixes (can be done together)",
+    "Tasks 3-8 are operator documentation (task 3 informs 4-8)",
+    "Tasks 4-8 can be done in parallel after task 3"
+  ]
+}

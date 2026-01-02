@@ -1,0 +1,110 @@
+{
+  "plan_name": "Master Plan - Session Plan Execution",
+  "last_updated": "2026-01-02",
+  "description": "Plan of plans for README/docs cleanup, bug fixes, tech debt, and feature research",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read context/current-task.json to find active sub-plan",
+    "If no active sub-plan, find first plan where status=pending"
+  ],
+  "plans": [
+    {
+      "id": "readme-cleanup",
+      "name": "README and CLAUDE.md Cleanup",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "plan_file": "context/plan-readme-cleanup.json",
+      "estimated_sessions": 1,
+      "description": "Remove invalid crates.io references, add docs badge/section, expand merge examples, update CLAUDE.md"
+    },
+    {
+      "id": "cache-bug-fix",
+      "name": "Cache Directory Bug Fix",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "plan_file": "context/plan-cache-bug-fix.json",
+      "estimated_sessions": 1,
+      "description": "Create shared defaults module, fix apply.rs, centralize cache_root logic across all commands"
+    },
+    {
+      "id": "defaults-audit",
+      "name": "Comprehensive Defaults Audit",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "cache-bug-fix",
+      "plan_file": "context/plan-defaults-audit.json",
+      "estimated_sessions": 1,
+      "description": "Extend defaults module with config filename, update all hardcoded strings to use constants"
+    },
+    {
+      "id": "user-docs-fixes",
+      "name": "User Documentation Fixes",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "readme-cleanup",
+      "plan_file": "context/plan-user-docs-fixes.json",
+      "estimated_sessions": 1,
+      "description": "Fix CLI docs discrepancies, flesh out operator examples to match README"
+    },
+    {
+      "id": "ai-isms-removal",
+      "name": "Remove AI-isms from Documentation",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "user-docs-fixes",
+      "plan_file": "context/plan-ai-isms-removal.json",
+      "estimated_sessions": 1,
+      "description": "Scan and rewrite docs to remove AI-generated patterns, make them read like developer-written docs"
+    },
+    {
+      "id": "competitive-research",
+      "name": "Competitive Analysis for Feature Prioritization",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": null,
+      "plan_file": "context/plan-competitive-research.json",
+      "estimated_sessions": 2,
+      "description": "Research copier, cookiecutter, yeoman, and other tools for feature ideas. Interactive with user."
+    }
+  ],
+  "execution_order": [
+    {
+      "phase": 1,
+      "name": "Parallel Track A: Docs + Bug Fix",
+      "plans": ["readme-cleanup", "cache-bug-fix"],
+      "notes": "These can run in parallel - no dependencies between them"
+    },
+    {
+      "phase": 2,
+      "name": "Sequential: Defaults Audit",
+      "plans": ["defaults-audit"],
+      "notes": "Depends on cache-bug-fix creating src/defaults.rs"
+    },
+    {
+      "phase": 3,
+      "name": "Sequential: User Docs",
+      "plans": ["user-docs-fixes"],
+      "notes": "Depends on README examples from readme-cleanup"
+    },
+    {
+      "phase": 4,
+      "name": "Sequential: AI-isms",
+      "plans": ["ai-isms-removal"],
+      "notes": "Do after user-docs-fixes to avoid double-editing"
+    },
+    {
+      "phase": 5,
+      "name": "Parallel Track B: Research",
+      "plans": ["competitive-research"],
+      "notes": "Can run anytime - independent of other work"
+    }
+  ],
+  "notes": [
+    "Update current-task.json to point to active sub-plan",
+    "Mark sub-plan complete in this file when all its tasks are done",
+    "Archive completed sub-plans to context/completed/",
+    "Competitive research can interleave with other work"
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "plan_name": "Comprehensive Defaults Audit",
+  "last_updated": "2026-01-02",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test with run_in_background: true",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "scan-for-duplicates",
+      "name": "Scan codebase for all duplicated default values",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": null,
+      "steps": [
+        "Search for '.common-repo.yaml' string literals",
+        "Search for '.common-repo-cache' string literals",
+        "Search for 'default_value =' in clap attributes",
+        "Search for 'PathBuf::from' with hardcoded paths",
+        "Search for 'env = \"COMMON_REPO' patterns",
+        "Document all findings with file:line references"
+      ],
+      "acceptance_criteria": [
+        "Complete list of duplicated defaults",
+        "Each duplicate documented with location"
+      ]
+    },
+    {
+      "id": "add-config-filename-constant",
+      "name": "Add DEFAULT_CONFIG_FILENAME constant",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "scan-for-duplicates",
+      "output_file": "src/defaults.rs",
+      "steps": [
+        "Add pub const DEFAULT_CONFIG_FILENAME: &str = \".common-repo.yaml\";",
+        "Add pub const ALT_CONFIG_FILENAME: &str = \".commonrepo.yaml\"; if used",
+        "Export from module"
+      ],
+      "acceptance_criteria": [
+        "Constant defined in src/defaults.rs",
+        "Constant is public and documented"
+      ]
+    },
+    {
+      "id": "update-command-args",
+      "name": "Update command arg definitions to use constants",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "add-config-filename-constant",
+      "output_file": null,
+      "steps": [
+        "Update check.rs #[arg] default_value to use constant",
+        "Update info.rs #[arg] default_value",
+        "Update update.rs #[arg] default_value",
+        "Update ls.rs #[arg] default_value",
+        "Update validate.rs #[arg] default_value",
+        "Update diff.rs #[arg] default_value",
+        "Update tree.rs #[arg] default_value",
+        "Note: clap requires string literal for default_value, may need default_value_t or function"
+      ],
+      "acceptance_criteria": [
+        "All command files reference shared constant",
+        "No hardcoded .common-repo.yaml strings in arg definitions"
+      ]
+    },
+    {
+      "id": "update-hardcoded-paths",
+      "name": "Update hardcoded config paths in add.rs and init.rs",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "add-config-filename-constant",
+      "output_file": null,
+      "steps": [
+        "Update src/commands/add.rs Path::new() call",
+        "Update src/commands/init.rs Path::new() call",
+        "Update any other hardcoded references found in scan"
+      ],
+      "acceptance_criteria": [
+        "add.rs uses DEFAULT_CONFIG_FILENAME constant",
+        "init.rs uses DEFAULT_CONFIG_FILENAME constant"
+      ]
+    },
+    {
+      "id": "update-discovery-phase",
+      "name": "Update discovery phase to use constants",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "add-config-filename-constant",
+      "output_file": "src/phases/discovery.rs",
+      "steps": [
+        "Find .common-repo.yaml references in discovery.rs",
+        "Replace with DEFAULT_CONFIG_FILENAME constant",
+        "Handle .commonrepo.yaml alternate name"
+      ],
+      "acceptance_criteria": [
+        "discovery.rs uses constants",
+        "Alternate filename still supported"
+      ]
+    },
+    {
+      "id": "update-local-merge-phase",
+      "name": "Update local merge phase to use constants",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "add-config-filename-constant",
+      "output_file": "src/phases/local_merge.rs",
+      "steps": [
+        "Find .common-repo.yaml references in local_merge.rs",
+        "Replace with DEFAULT_CONFIG_FILENAME constant"
+      ],
+      "acceptance_criteria": [
+        "local_merge.rs uses constants"
+      ]
+    },
+    {
+      "id": "verify-no-duplicates",
+      "name": "Verify no hardcoded defaults remain",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": ["update-command-args", "update-hardcoded-paths", "update-discovery-phase", "update-local-merge-phase"],
+      "output_file": null,
+      "steps": [
+        "Re-run searches from task 1",
+        "Verify only constants and their definitions appear",
+        "Run ./script/test to verify functionality"
+      ],
+      "acceptance_criteria": [
+        "No duplicate hardcoded defaults in src/",
+        "All tests pass",
+        "Grep shows only constant definitions"
+      ]
+    }
+  ],
+  "notes": [
+    "This depends on plan-cache-bug-fix.json completing first (creates src/defaults.rs)",
+    "clap's default_value requires string literals - may need workaround",
+    "Consider using default_value_os_t or similar for PathBuf defaults"
+  ]
+}

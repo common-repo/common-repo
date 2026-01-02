@@ -1,0 +1,136 @@
+{
+  "plan_name": "Cache Directory Bug Fix",
+  "last_updated": "2026-01-02",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test with run_in_background: true",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "create-defaults-module",
+      "name": "Create shared defaults module",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "src/defaults.rs",
+      "steps": [
+        "Create src/defaults.rs file",
+        "Add module doc comment explaining purpose",
+        "Create default_cache_root() function using dirs::cache_dir()",
+        "Include fallback to .common-repo-cache if dirs fails",
+        "Add #[cfg(test)] tests for the function",
+        "Add mod defaults; to src/lib.rs"
+      ],
+      "acceptance_criteria": [
+        "src/defaults.rs exists",
+        "default_cache_root() returns PathBuf",
+        "Uses dirs::cache_dir().join(\"common-repo\")",
+        "Has fallback for when dirs::cache_dir() returns None",
+        "Module is exported from lib.rs"
+      ]
+    },
+    {
+      "id": "fix-apply-command",
+      "name": "Fix apply.rs to use shared default",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-defaults-module",
+      "output_file": "src/commands/apply.rs",
+      "steps": [
+        "Read src/commands/apply.rs",
+        "Find cache_root default logic (lines 110-112)",
+        "Replace hardcoded HOME logic with crate::defaults::default_cache_root()",
+        "Update doc comment to match other commands",
+        "Run cargo check to verify"
+      ],
+      "acceptance_criteria": [
+        "apply.rs uses crate::defaults::default_cache_root()",
+        "No more hardcoded HOME environment variable",
+        "Doc comment matches other commands"
+      ]
+    },
+    {
+      "id": "update-check-command",
+      "name": "Update check.rs to use shared default",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "create-defaults-module",
+      "output_file": "src/commands/check.rs",
+      "steps": [
+        "Read src/commands/check.rs",
+        "Find cache_root default logic",
+        "Replace inline logic with crate::defaults::default_cache_root()",
+        "Run cargo check to verify"
+      ],
+      "acceptance_criteria": [
+        "check.rs uses crate::defaults::default_cache_root()"
+      ]
+    },
+    {
+      "id": "update-remaining-commands",
+      "name": "Update all remaining command files to use shared default",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "create-defaults-module",
+      "output_file": null,
+      "steps": [
+        "Update src/commands/tree.rs",
+        "Update src/commands/ls.rs",
+        "Update src/commands/info.rs",
+        "Update src/commands/validate.rs",
+        "Update src/commands/update.rs",
+        "Update src/commands/diff.rs",
+        "Update src/commands/cache.rs (both list and clean functions)",
+        "Run cargo check after each file"
+      ],
+      "acceptance_criteria": [
+        "All command files use crate::defaults::default_cache_root()",
+        "No duplicated cache default logic remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "update-doc-comments",
+      "name": "Standardize doc comments for cache_root in all commands",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "update-remaining-commands",
+      "output_file": null,
+      "steps": [
+        "Review all command files for cache_root doc comments",
+        "Standardize to: 'defaults to ~/.cache/common-repo on Linux, ~/Library/Caches/common-repo on macOS'",
+        "Ensure COMMON_REPO_CACHE env var is mentioned",
+        "Run cargo doc to verify docs build"
+      ],
+      "acceptance_criteria": [
+        "All cache_root doc comments are consistent",
+        "Correct paths documented for Linux and macOS"
+      ]
+    },
+    {
+      "id": "run-tests",
+      "name": "Run full test suite to verify changes",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "update-doc-comments",
+      "output_file": null,
+      "steps": [
+        "Run ./script/test",
+        "Fix any failing tests",
+        "Run ./script/ci to verify formatting and linting"
+      ],
+      "acceptance_criteria": [
+        "All tests pass",
+        "No clippy warnings",
+        "Code is formatted"
+      ]
+    }
+  ],
+  "notes": [
+    "This is a bug fix - apply.rs uses different logic than other commands",
+    "Tasks 2-4 can run in parallel after task 1",
+    "Run tests frequently to catch regressions"
+  ]
+}

@@ -13,5 +13,11 @@
       "Add 'Try running...' suggestions for fixable errors",
       "Include documentation links in errors"
     ]
-  }
+  },
+  "stashed_plans": [
+    {
+      "plan": "context/master-plan.json",
+      "description": "Session plan for README/docs cleanup, bug fixes, tech debt, and feature research"
+    }
+  ]
 }

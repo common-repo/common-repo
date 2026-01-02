@@ -1,0 +1,144 @@
+{
+  "plan_name": "Competitive Analysis for Feature Prioritization",
+  "last_updated": "2026-01-02",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null",
+    "This is an interactive research task - present findings to user for discussion"
+  ],
+  "tasks": [
+    {
+      "id": "research-copier",
+      "name": "Research copier-org/copier",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "context/research/copier-analysis.md",
+      "steps": [
+        "Fetch copier README and docs",
+        "Document key features and capabilities",
+        "Review GitHub Issues for most-requested features (sort by reactions)",
+        "Review GitHub Discussions for pain points",
+        "Note features common-repo lacks",
+        "Note features that would fit common-repo's design"
+      ],
+      "acceptance_criteria": [
+        "Analysis document created",
+        "Key features listed",
+        "Top requested features from community documented",
+        "Relevance to common-repo assessed"
+      ]
+    },
+    {
+      "id": "research-cookiecutter",
+      "name": "Research cookiecutter/cookiecutter",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "context/research/cookiecutter-analysis.md",
+      "steps": [
+        "Fetch cookiecutter README and docs",
+        "Document key features and capabilities",
+        "Review GitHub Issues for most-requested features",
+        "Review GitHub Discussions for pain points",
+        "Note features common-repo lacks",
+        "Note long-standing issues that common-repo could solve"
+      ],
+      "acceptance_criteria": [
+        "Analysis document created",
+        "Key features listed",
+        "Top requested features documented",
+        "Relevance to common-repo assessed"
+      ]
+    },
+    {
+      "id": "research-yeoman",
+      "name": "Research yeoman/yo",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "output_file": "context/research/yeoman-analysis.md",
+      "steps": [
+        "Fetch yeoman README and docs",
+        "Document key features and capabilities",
+        "Review GitHub Issues for most-requested features",
+        "Note the generator ecosystem approach",
+        "Identify concepts that could apply to common-repo"
+      ],
+      "acceptance_criteria": [
+        "Analysis document created",
+        "Key features listed",
+        "Generator ecosystem documented",
+        "Relevance to common-repo assessed"
+      ]
+    },
+    {
+      "id": "discover-other-tools",
+      "name": "Discover and research other similar tools",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": null,
+      "output_file": "context/research/other-tools-analysis.md",
+      "steps": [
+        "Search for 'project template' tools",
+        "Search for 'config file management' tools",
+        "Search for 'dotfile management' tools",
+        "Look for alternatives mentioned in copier/cookiecutter discussions",
+        "Document any interesting tools found",
+        "Note unique features from each"
+      ],
+      "acceptance_criteria": [
+        "Additional tools discovered and documented",
+        "Unique features from each noted"
+      ]
+    },
+    {
+      "id": "synthesize-findings",
+      "name": "Synthesize findings into feature recommendations",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": ["research-copier", "research-cookiecutter", "research-yeoman", "discover-other-tools"],
+      "output_file": "context/research/feature-recommendations.md",
+      "steps": [
+        "Compile all features found across tools",
+        "Identify common pain points across communities",
+        "Identify features people love (mentioned repeatedly)",
+        "Categorize features by fit with common-repo",
+        "Create prioritized recommendation list"
+      ],
+      "acceptance_criteria": [
+        "Comprehensive feature list compiled",
+        "Features categorized by priority and fit",
+        "Ready for user review and discussion"
+      ]
+    },
+    {
+      "id": "user-review",
+      "name": "Review findings with user and prioritize",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "synthesize-findings",
+      "output_file": "context/research/prioritized-features.md",
+      "steps": [
+        "Present synthesized findings to user",
+        "Discuss each feature category",
+        "Get user input on priorities",
+        "Document decisions and rationale",
+        "Create final prioritized feature list"
+      ],
+      "acceptance_criteria": [
+        "User has reviewed all findings",
+        "Features prioritized with user input",
+        "Next steps for implementation identified"
+      ]
+    }
+  ],
+  "notes": [
+    "This is an interactive research task",
+    "Tasks 1-4 can run in parallel",
+    "Present findings incrementally - don't wait for all research",
+    "Focus on features that fit common-repo's philosophy",
+    "Create context/research/ directory if it doesn't exist"
+  ]
+}
