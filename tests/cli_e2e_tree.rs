@@ -43,6 +43,7 @@ fn test_tree_minimal_config() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
     cmd.current_dir(temp.path())
+        .arg("--color=always")
         .arg("tree")
         .arg("--config")
         .arg(config_file.path())
@@ -77,6 +78,7 @@ fn test_tree_config_with_repositories() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
     cmd.current_dir(temp.path())
+        .arg("--color=always")
         .arg("tree")
         .arg("--config")
         .arg(config_file.path())
@@ -117,6 +119,7 @@ fn test_tree_config_with_path_filtered_repos() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
     cmd.current_dir(temp.path())
+        .arg("--color=always")
         .arg("tree")
         .arg("--config")
         .arg(config_file.path())
@@ -155,6 +158,7 @@ fn test_tree_depth_zero() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
     cmd.current_dir(temp.path())
+        .arg("--color=always")
         .arg("tree")
         .arg("--config")
         .arg(config_file.path())
@@ -193,6 +197,7 @@ fn test_tree_depth_one() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
     cmd.current_dir(temp.path())
+        .arg("--color=always")
         .arg("tree")
         .arg("--config")
         .arg(config_file.path())
@@ -287,6 +292,7 @@ fn test_tree_config_with_with_clauses() {
     let mut cmd = cargo_bin_cmd!("common-repo");
 
     cmd.current_dir(temp.path())
+        .arg("--color=always")
         .arg("tree")
         .arg("--config")
         .arg(config_file.path())
