@@ -15,6 +15,7 @@ This document covers all operators and options available in `.common-repo.yaml`.
   - [`template-vars` - Define Variables](#template-vars---define-variables)
   - [`tools` - Validate Required Tools](#tools---validate-required-tools)
 - [Merge Operators](#merge-operators)
+  - [Path Syntax](#path-syntax)
   - [`yaml` - Merge YAML Files](#yaml---merge-yaml-files)
   - [`json` - Merge JSON Files](#json---merge-json-files)
   - [`toml` - Merge TOML Files](#toml---merge-toml-files)
@@ -296,6 +297,46 @@ All merge operators support two additional options for source-declared merge beh
 
 See [Source-Declared Merge Behavior](authoring-source-repos.md#source-declared-merge-behavior) for detailed usage.
 
+### Path Syntax
+
+The `path` option in merge operators supports multiple notations for navigating nested structures:
+
+| Syntax | Example | Description |
+|--------|---------|-------------|
+| Dot notation | `foo.bar.baz` | Access nested keys |
+| Bracket notation | `foo["bar"]` or `foo['bar']` | Access keys with special characters |
+| Array indices | `items[0]` or `items[1].name` | Access array elements by index |
+| Escaped dots | `foo\.bar` | Literal dot in key name |
+| Mixed | `servers[0].config["special.key"]` | Combine notations |
+
+**Examples:**
+
+```yaml
+# Navigate to nested object
+- yaml:
+    source: labels.yml
+    dest: config.yml
+    path: metadata.labels
+
+# Access array element
+- json:
+    source: script.json
+    dest: package.json
+    path: scripts[0]
+
+# Key with special characters
+- toml:
+    source: deps.toml
+    dest: Cargo.toml
+    path: dependencies["my-crate"]
+
+# Escaped dot in key name
+- yaml:
+    source: fragment.yml
+    dest: config.yml
+    path: config\.v2.settings
+```
+
 ### `yaml` - Merge YAML Files
 
 ```yaml
@@ -312,10 +353,19 @@ See [Source-Declared Merge Behavior](authoring-source-repos.md#source-declared-m
 | `dest` | Yes* | - | Destination file |
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
 | `defer` | No | false | Only apply when repo is used as a source |
-| `path` | No | root | Dot-notation path to merge at |
-| `append` | No | false | Append to lists instead of replace |
+| `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
+| `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
+| `append` | No | false | Deprecated: use `array_mode: append` instead |
 
 *Either `source`+`dest` or `auto-merge` is required
+
+#### Array Merge Modes
+
+| Mode | Description |
+|------|-------------|
+| `replace` | Replace destination array with source array (default) |
+| `append` | Append source items to the end of destination array |
+| `append_unique` | Append only items not already in destination array |
 
 #### Examples
 
@@ -364,7 +414,7 @@ See [Source-Declared Merge Behavior](authoring-source-repos.md#source-declared-m
 | `defer` | No | false | Only apply when repo is used as a source |
 | `path` | No | root | Dot-notation path to merge at |
 | `append` | No | false | Append to arrays instead of replace |
-| `position` | No | end | Where to append: `start` or `end` |
+| `position` | No | - | Where to append: `start` or `end` (only used when `append: true`) |
 
 *Either `source`+`dest` or `auto-merge` is required
 
@@ -405,11 +455,14 @@ See [Source-Declared Merge Behavior](authoring-source-repos.md#source-declared-m
 | `dest` | Yes* | - | Destination file |
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
 | `defer` | No | false | Only apply when repo is used as a source |
-| `path` | No | root | Dot-notation path to merge at |
-| `append` | No | false | Append to arrays instead of replace |
-| `preserve-comments` | No | true | Keep comments in output |
+| `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
+| `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
+| `append` | No | false | Deprecated: use `array_mode: append` instead |
+| `preserve-comments` | No | false | Keep comments in output |
 
 *Either `source`+`dest` or `auto-merge` is required
+
+See [Array Merge Modes](#array-merge-modes) for details on array handling options.
 
 #### Examples
 
@@ -474,7 +527,7 @@ See [Source-Declared Merge Behavior](authoring-source-repos.md#source-declared-m
 | `section` | No | - | Heading to merge under |
 | `level` | No | 2 | Heading level (1-6) |
 | `append` | No | false | Append to section |
-| `position` | No | end | Where to insert: `start` or `end` |
+| `position` | No | - | Where to insert: `start` or `end` (only used when `append: true`) |
 | `create-section` | No | false | Create section if missing |
 
 *Either `source`+`dest` or `auto-merge` is required
