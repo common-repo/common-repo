@@ -93,11 +93,12 @@ impl Cli {
             Commands::Completions(args) => commands::completions::execute(args),
             Commands::Diff(args) => {
                 // Diff command uses exit code 1 to indicate changes exist
+                // (following the convention of diff(1) and git diff)
                 match commands::diff::execute(args) {
                     Ok(()) => Ok(()),
                     Err(e) if e.to_string() == "CHANGES_DETECTED" => {
                         // Exit with code 1 for changes detected
-                        std::process::exit(1);
+                        std::process::exit(common_repo::exit_codes::ERROR);
                     }
                     Err(e) => Err(e),
                 }
