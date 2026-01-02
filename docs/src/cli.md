@@ -558,13 +558,32 @@ my-project
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Error (any failure) |
+| 1 | General error (configuration errors, network failures, I/O errors) |
+| 2 | Invalid command-line usage (unknown flags, missing required arguments) |
 
 **Special case for `diff` command:**
 - Exit code 0: No changes detected (files match configuration)
 - Exit code 1: Changes detected (files differ from configuration)
 
-This allows using `diff` in scripts: `common-repo diff && echo "Up to date" || echo "Changes needed"`
+This follows the convention established by `diff(1)` and `git diff`.
+
+**Scripting examples:**
+
+```bash
+# Check if config is valid
+common-repo validate && echo "Config is valid"
+
+# Check if changes are needed
+common-repo diff && echo "Up to date" || echo "Changes detected"
+
+# Handle usage errors separately from runtime errors
+common-repo apply
+case $? in
+  0) echo "Success" ;;
+  1) echo "Error during execution" ;;
+  2) echo "Invalid arguments" ;;
+esac
+```
 
 ## Common Workflows
 

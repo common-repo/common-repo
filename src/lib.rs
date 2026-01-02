@@ -80,5 +80,56 @@ pub mod repository;
 pub mod suggestions;
 pub mod version;
 
+/// Standard exit codes for the CLI.
+///
+/// These constants define the exit codes returned by the `common-repo` binary:
+///
+/// - [`SUCCESS`]: Normal successful execution (exit code 0)
+/// - [`ERROR`]: General errors, including configuration errors, network failures,
+///   and processing errors (exit code 1)
+/// - [`USAGE`]: Invalid command-line usage, such as unknown flags or missing
+///   required arguments (exit code 2, handled by clap)
+///
+/// ## Special Cases
+///
+/// The `diff` command uses exit code 1 to indicate that changes were detected
+/// (files differ from the configuration result). This follows the convention
+/// established by `diff(1)` and `git diff`, where a non-zero exit indicates
+/// differences exist.
+///
+/// ## Examples
+///
+/// ```bash
+/// # Success (exit code 0)
+/// common-repo validate && echo "Config is valid"
+///
+/// # Error (exit code 1)
+/// common-repo apply --config nonexistent.yaml || echo "Failed"
+///
+/// # Usage error (exit code 2)
+/// common-repo --unknown-flag  # Prints help and exits with 2
+///
+/// # Diff with changes (exit code 1)
+/// common-repo diff && echo "No changes" || echo "Changes detected"
+/// ```
+pub mod exit_codes {
+    /// Successful execution (exit code 0).
+    pub const SUCCESS: i32 = 0;
+
+    /// General error (exit code 1).
+    ///
+    /// This includes configuration errors, network failures, file I/O errors,
+    /// and any other runtime errors. For the `diff` command, this exit code
+    /// also indicates that changes were detected.
+    pub const ERROR: i32 = 1;
+
+    /// Invalid command-line usage (exit code 2).
+    ///
+    /// Returned by clap when the user provides invalid arguments, unknown flags,
+    /// or fails to provide required arguments. The CLI will print a help message
+    /// along with this exit code.
+    pub const USAGE: i32 = 2;
+}
+
 #[cfg(test)]
 mod path_proptest;
