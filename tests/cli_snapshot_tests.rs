@@ -105,13 +105,15 @@ fn test_missing_config_error_snapshot() {
         .expect("Failed to execute command");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    // Extract just the error message line, ignoring stack backtrace which varies by environment
-    let error_line = stderr
+    // Extract error message and hints, ignoring stack backtrace which varies by environment
+    let error_lines: Vec<&str> = stderr
         .lines()
-        .find(|line| line.starts_with("Error:"))
-        .unwrap_or("No error message found");
+        .take_while(|line| !line.contains("Stack backtrace"))
+        .filter(|line| !line.is_empty())
+        .collect();
+    let error_message = error_lines.join("\n");
 
-    insta::assert_snapshot!("missing_config_error", error_line);
+    insta::assert_snapshot!("missing_config_error", error_message);
 }
 
 #[test]

@@ -1,6 +1,9 @@
 ---
 source: tests/cli_snapshot_tests.rs
-assertion_line: 114
-expression: error_line
+assertion_line: 116
+expression: error_message
 ---
 Error: Configuration file not found: .common-repo.yaml
+hint: Create a .common-repo.yaml file in your project root
+hint: Use -c/--config to specify a different path
+hint: Set COMMON_REPO_CONFIG environment variable

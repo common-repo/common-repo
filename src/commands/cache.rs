@@ -154,7 +154,7 @@ fn execute_clean(cache_root: Option<PathBuf>, args: CleanArgs) -> Result<()> {
 
     // Validate that at least one filter is specified first
     if !args.all && !args.unused && args.older_than.is_none() {
-        anyhow::bail!("At least one filter must be specified: --all, --unused, or --older-than");
+        return Err(common_repo::suggestions::cache_clean_no_filter());
     }
 
     // Parse and validate older_than duration if provided
