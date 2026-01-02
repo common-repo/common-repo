@@ -34,6 +34,13 @@ Clean up README to remove invalid crate.io references
 - Fix `apply.rs` to use same logic as others
 - Update all 10 command files to use shared function
 
+**Q8:** Are there other duplicated defaults in the codebase?
+**A8:** Yes, several patterns found:
+- Cache dir fallback (`.common-repo-cache`) - 10 places
+- Config file default (`".common-repo.yaml"`) - 7+ command arg definitions
+- Hardcoded config paths in add.rs, init.rs
+Need comprehensive audit and centralization.
+
 ## Tasks
 
 1. Remove crates.io and docs.rs badges from README (lines 5-6)
@@ -56,3 +63,12 @@ Clean up README to remove invalid crate.io references
    - Fix `apply.rs` to use `dirs::cache_dir()` like other commands
    - Replace duplicated logic in all 10 command files with shared function
    - Update doc comments to reflect correct default (`~/.cache/common-repo` on Linux)
+8. **TECH DEBT**: Comprehensive defaults audit
+   - Scan entire `src/` directory for duplicated default values
+   - Known duplications found so far:
+     - Cache dir fallback (`.common-repo-cache`) - 10 places
+     - Config file default (`".common-repo.yaml"`) - 7+ command arg definitions
+     - Hardcoded config paths (`Path::new(".common-repo.yaml")`) - add.rs, init.rs
+   - Create constants or functions for each default
+   - Replace all duplications with shared references
+   - This prevents future bugs from inconsistent defaults
