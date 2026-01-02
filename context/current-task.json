@@ -1,23 +1,11 @@
 {
-  "task": "add-verbose-quiet-flags",
-  "plan": "context/cli-ux-review.json",
+  "task": null,
+  "plan": "context/master-plan.json",
   "last_updated": "2026-01-02",
   "status": "pending",
-  "description": "Add --verbose and --quiet global flags",
+  "description": "Pop stashed master plan - session plan for README/docs cleanup, bug fixes, tech debt, and feature research",
   "context": {
-    "goal": "Add -v/--verbose and -q/--quiet flags for controlling output verbosity",
-    "previous_task": "audit-exit-codes - completed with exit_codes module and E2E tests",
-    "key_actions": [
-      "Add -v/--verbose flag (can be repeated for more verbosity)",
-      "Add -q/--quiet flag for minimal output",
-      "Integrate with logging/output levels",
-      "Document flag behavior"
-    ]
-  },
-  "stashed_plans": [
-    {
-      "plan": "context/master-plan.json",
-      "description": "Session plan for README/docs cleanup, bug fixes, tech debt, and feature research"
-    }
-  ]
+    "previous_task": "add-verbose-quiet-flags - completed with global --verbose and --quiet flags",
+    "completed_plan": "context/cli-ux-review.json - archived, all tasks complete (one deferred)"
+  }
 }
