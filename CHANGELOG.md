@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.24.0](https://github.com/common-repo/common-repo/compare/v0.23.0...v0.24.0) (2026-01-02)
+
+
+### Features
+
+* **output:** add TTY-aware output with NO_COLOR support ([1b4a5a8](https://github.com/common-repo/common-repo/commit/1b4a5a885a98ff63d05b88e517eb247ea048f77c))
+* **workflow:** wait for in-progress checks before auto-merge ([84a3d0b](https://github.com/common-repo/common-repo/commit/84a3d0b36c2a92ebd74da7d8e841ba1e6fa5acc8))
+
+
+### Bug Fixes
+
+* **test:** add --color=always to tree E2E tests for CI compatibility ([ec9f80b](https://github.com/common-repo/common-repo/commit/ec9f80b0a9bfdb421c73bc0939979087fe279fde))
+
 ## [0.23.0](https://github.com/common-repo/common-repo/compare/v0.22.0...v0.23.0) (2026-01-01)
 
 
