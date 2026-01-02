@@ -103,7 +103,7 @@ fn test_apply_dry_run() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("DRY RUN MODE"));
+        .stderr(predicate::str::contains("DRY RUN MODE"));
 }
 
 /// Test that --verbose flag shows parsing information
@@ -131,7 +131,7 @@ fn test_apply_verbose() {
         .arg("--verbose")
         .assert()
         .success()
-        .stdout(predicate::str::contains("📋 Parsing configuration"));
+        .stderr(predicate::str::contains("📋 Parsing configuration"));
 }
 
 /// Test that --force flag is accepted
@@ -159,7 +159,7 @@ fn test_apply_force() {
         .arg("--force")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Applied successfully"));
+        .stderr(predicate::str::contains("Applied successfully"));
 }
 
 /// Test that --no-cache flag is accepted
@@ -187,7 +187,7 @@ fn test_apply_no_cache() {
         .arg("--no-cache")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Applied successfully"));
+        .stderr(predicate::str::contains("Applied successfully"));
 }
 
 /// Test that --quiet flag suppresses output
@@ -245,7 +245,7 @@ fn test_apply_custom_output() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Applied successfully"));
+        .stderr(predicate::str::contains("Applied successfully"));
 }
 
 /// Test that custom cache root is accepted
@@ -275,7 +275,7 @@ fn test_apply_custom_cache_root() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Applied successfully"));
+        .stderr(predicate::str::contains("Applied successfully"));
 }
 
 /// Test that invalid YAML config produces an error
@@ -376,7 +376,7 @@ fn test_apply_env_cache() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Applied successfully"));
+        .stderr(predicate::str::contains("Applied successfully"));
 }
 
 /// Test that apply with multiple repo operations shows appropriate error for invalid URLs
