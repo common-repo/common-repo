@@ -62,19 +62,10 @@ pub struct ApplyArgs {
     #[arg(short, long)]
     pub force: bool,
 
-    /// If set, the command will show detailed progress information during
-    /// execution.
-    #[arg(short, long)]
-    pub verbose: bool,
-
     /// If set, the command will bypass the repository cache and fetch fresh
     /// clones of all repositories.
     #[arg(long)]
     pub no_cache: bool,
-
-    /// If set, the command will suppress all output except for errors.
-    #[arg(short, long)]
-    pub quiet: bool,
 }
 
 /// Execute the `apply` command.
@@ -113,20 +104,14 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
     });
 
     // Print header
-    if !args.quiet {
-        println!("🔍 Common Repository Apply");
-        println!();
+    log::info!("🔍 Common Repository Apply");
 
-        if args.dry_run {
-            println!("🔎 DRY RUN MODE - No changes will be made");
-            println!();
-        }
+    if args.dry_run {
+        log::info!("🔎 DRY RUN MODE - No changes will be made");
     }
 
     // Parse configuration
-    if !args.quiet && args.verbose {
-        println!("📋 Parsing configuration: {}", config_path.display());
-    }
+    log::debug!("📋 Parsing configuration: {}", config_path.display());
     let config = from_file(&config_path)?;
 
     // Setup repository manager and cache
@@ -150,27 +135,22 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
         Ok(final_fs) => {
             let duration = start_time.elapsed();
 
-            if !args.quiet {
-                println!("✅ Applied successfully in {:.2}s", duration.as_secs_f64());
+            log::info!("✅ Applied successfully in {:.2}s", duration.as_secs_f64());
 
-                // Report statistics
-                let file_count = final_fs.len();
-                if file_count > 0 {
-                    println!("   {} files processed", file_count);
+            // Report statistics
+            let file_count = final_fs.len();
+            if file_count > 0 {
+                log::info!("   {} files processed", file_count);
 
-                    if !args.dry_run {
-                        println!("   Files written to: {}", output_dir.display());
-                    }
+                if !args.dry_run {
+                    log::info!("   Files written to: {}", output_dir.display());
                 }
             }
 
             Ok(())
         }
         Err(e) => {
-            if !args.quiet {
-                println!("❌ Apply failed");
-                println!();
-            }
+            log::error!("❌ Apply failed");
             Err(e.into())
         }
     }
@@ -190,9 +170,7 @@ mod tests {
             cache_root: None,
             dry_run: false,
             force: false,
-            verbose: false,
             no_cache: false,
-            quiet: true,
         };
 
         let result = execute(args);
@@ -217,9 +195,7 @@ mod tests {
             cache_root: Some(temp_dir.path().join("cache")),
             dry_run: true,
             force: false,
-            verbose: false,
             no_cache: false,
-            quiet: true,
         };
 
         let result = execute(args);
@@ -235,9 +211,7 @@ mod tests {
             cache_root: None,
             dry_run: true,
             force: false,
-            verbose: false,
             no_cache: false,
-            quiet: true,
         };
 
         // This will fail because .common-repo.yaml doesn't exist in test directory
@@ -261,9 +235,7 @@ mod tests {
             cache_root: Some(temp_dir.path().join("cache")),
             dry_run: true,
             force: false,
-            verbose: false,
             no_cache: false,
-            quiet: true,
         };
 
         // Dry run should succeed without making changes
@@ -287,9 +259,7 @@ mod tests {
             cache_root: Some(temp_dir.path().join("cache")),
             dry_run: false, // Not dry run, so should print output directory
             force: false,
-            verbose: false,
-            no_cache: false,
-            quiet: true, // Quiet to avoid console output in tests
+            no_cache: false, // Quiet to avoid console output in tests
         };
 
         let result = execute(args);
@@ -318,9 +288,7 @@ mod tests {
             cache_root: Some(temp_dir.path().join("cache")),
             dry_run: false,
             force: false,
-            verbose: false,
             no_cache: false,
-            quiet: true,
         };
 
         let result = execute(args);

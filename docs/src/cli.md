@@ -58,7 +58,7 @@ common-repo add [OPTIONS] <URI>
 
 | Option | Description |
 |--------|-------------|
-| `-q, --quiet` | Non-interactive mode: create minimal config without prompting if none exists |
+| `-y, --yes` | Non-interactive mode: create minimal config without prompting if none exists |
 
 #### Examples
 
@@ -69,14 +69,14 @@ common-repo add your-org/shared-configs
 # Add using full URL
 common-repo add https://github.com/your-org/shared-configs
 
-# Create new config with --quiet (non-interactive)
-common-repo add --quiet your-org/shared-configs
+# Create new config with --yes (non-interactive)
+common-repo add --yes your-org/shared-configs
 ```
 
 #### Behavior
 
 - If `.common-repo.yaml` exists: appends the new repository before the `include` section
-- If no config exists: prompts for confirmation to create a minimal config (use `--quiet` to skip prompt)
+- If no config exists: prompts for confirmation to create a minimal config (use `--yes` to skip prompt)
 - Automatically fetches and uses the latest semver tag, or falls back to `main` if no tags found
 - Warns when adding repositories with only 0.x.x versions (unstable API)
 
@@ -97,9 +97,9 @@ common-repo apply [OPTIONS]
 | `--cache-root <PATH>` | Cache directory (default: `~/.common-repo/cache`) |
 | `-n, --dry-run` | Show what would be done without making changes |
 | `-f, --force` | Overwrite existing files without prompting |
-| `-v, --verbose` | Show detailed progress information |
 | `--no-cache` | Bypass cache and fetch fresh clones |
-| `-q, --quiet` | Suppress output except errors |
+
+Use global `--verbose` or `--quiet` flags for verbosity control.
 
 #### Examples
 
@@ -472,7 +472,7 @@ common-repo cache list [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `--verbose` | Show detailed info (last modified time, file count) |
+| `--detailed` | Show detailed info (last modified time, file count) |
 | `--json` | Output in JSON format for scripting |
 
 **`clean`** - Clean cached repositories
@@ -501,7 +501,7 @@ Examples: `30d`, `7d`, `1h`, `2w`, `30days`, `1week`
 common-repo cache list
 
 # List with detailed info
-common-repo cache list --verbose
+common-repo cache list --detailed
 
 # Output as JSON for scripting
 common-repo cache list --json

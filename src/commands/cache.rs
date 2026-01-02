@@ -45,7 +45,7 @@ pub enum CacheSubcommand {
 pub struct ListArgs {
     /// Show detailed information including last modified time and file count
     #[arg(long)]
-    pub verbose: bool,
+    pub detailed: bool,
 
     /// Output in JSON format
     #[arg(long)]
@@ -134,8 +134,8 @@ fn execute_list(cache_root: Option<PathBuf>, args: ListArgs) -> Result<()> {
     // Display entries
     if args.json {
         display_json(&entries)?;
-    } else if args.verbose {
-        display_verbose(&entries);
+    } else if args.detailed {
+        display_detailed(&entries);
     } else {
         display_table(&entries);
     }
@@ -507,8 +507,8 @@ fn display_table(entries: &[CacheEntry]) {
     println!("\nTotal: {} cached repositories", entries.len());
 }
 
-/// Display cache entries in verbose format
-fn display_verbose(entries: &[CacheEntry]) {
+/// Display cache entries in detailed format
+fn display_detailed(entries: &[CacheEntry]) {
     println!("Cached repositories:\n");
 
     for (i, entry) in entries.iter().enumerate() {

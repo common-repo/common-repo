@@ -7,8 +7,8 @@
 //!
 //! - **URI Argument**: Add a repository by URL (supports GitHub shorthand like `org/repo`)
 //! - **Semver Detection**: Automatically detects and uses the latest semver tag
-//! - **Config Detection**: Creates config if missing (or invokes init wizard unless --quiet)
-//! - **Quiet Mode**: Non-interactive mode for automation
+//! - **Config Detection**: Creates config if missing (or invokes init wizard unless --yes)
+//! - **Non-interactive Mode**: Skip prompts with --yes for automation
 
 use anyhow::Result;
 use clap::Args;
@@ -28,14 +28,14 @@ pub struct AddArgs {
 
     /// Non-interactive mode: create minimal config without prompting if none exists
     #[arg(short, long)]
-    pub quiet: bool,
+    pub yes: bool,
 }
 
 /// Execute the `add` command.
 ///
 /// This function handles the logic for the `add` subcommand, adding a repository
 /// to the `.common-repo.yaml` configuration file. If no configuration exists,
-/// it either invokes the init wizard (default) or creates a minimal config (--quiet).
+/// it either invokes the init wizard (default) or creates a minimal config (--yes).
 pub fn execute(args: AddArgs) -> Result<()> {
     let config_path = Path::new(".common-repo.yaml");
 
@@ -55,7 +55,7 @@ pub fn execute(args: AddArgs) -> Result<()> {
         // Append to existing config
         append_repo_to_config(config_path, &url, &version)?;
         println!("✅ Added {} @ {} to .common-repo.yaml", url, version);
-    } else if args.quiet {
+    } else if args.yes {
         // Create minimal config with just this repo
         create_minimal_config(config_path, &url, &version)?;
         println!("✅ Created .common-repo.yaml with {} @ {}", url, version);
