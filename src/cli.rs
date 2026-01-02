@@ -106,9 +106,9 @@ impl Cli {
             Commands::Init(args) => commands::init::execute(args),
             Commands::Ls(args) => commands::ls::execute(args),
             Commands::Update(args) => commands::update::execute(args),
-            Commands::Validate(args) => commands::validate::execute(args),
+            Commands::Validate(args) => commands::validate::execute(args, &self.color),
             Commands::Cache(args) => commands::cache::execute(args),
-            Commands::Tree(args) => commands::tree::execute(args),
+            Commands::Tree(args) => commands::tree::execute(args, &self.color),
         }
     }
 
