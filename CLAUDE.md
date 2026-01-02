@@ -45,6 +45,8 @@ Each session starts with no memory of previous work. Follow this protocol:
 
 **Reference docs:** `context/cli-design.md`, `context/purpose.md`, `context/design.md`, `README.md`
 
+**User documentation:** `docs/src/` contains mdBook-formatted user guides, served at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/)
+
 ### Task Stash Stack
 
 When interrupted by higher-priority work:
