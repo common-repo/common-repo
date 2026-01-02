@@ -1,7 +1,7 @@
 {
   "plan_name": "CLI/UX Review",
   "description": "Improve CLI user experience to meet OSS best practices",
-  "last_updated": "2026-01-01",
+  "last_updated": "2026-01-02",
   "audit_summary": {
     "current_score": "5/10",
     "pass": ["5.1 Help via -h/--help (clap)", "5.5 Progress indicators (indicatif)", "5.7 Colors (console crate)"],
@@ -31,7 +31,7 @@
     {
       "id": "improve-help-examples",
       "name": "Add examples to help text",
-      "status": "pending",
+      "status": "deferred",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -44,7 +44,8 @@
         "Each command shows usage examples",
         "Examples cover common use cases",
         "Examples are accurate and work"
-      ]
+      ],
+      "deferred_reason": "Too prone to drift early in project lifecycle"
     },
     {
       "id": "add-error-suggestions",
@@ -66,23 +67,36 @@
       ]
     },
     {
-      "id": "verify-no-color-support",
-      "name": "Verify NO_COLOR and TTY detection",
+      "id": "verify-tty-behavior",
+      "name": "Verify TTY detection for colors and progress",
       "status": "pending",
       "priority": 2,
       "blocked_by": null,
       "steps": [
-        "Test with NO_COLOR=1 environment variable",
-        "Test with TERM=dumb",
-        "Test piping output (non-TTY)",
-        "Ensure colors are disabled appropriately",
-        "Add tests for color detection"
+        "Audit current color/progress implementation (console crate, indicatif)",
+        "Test NO_COLOR=1 environment variable disables colors",
+        "Test TERM=dumb disables colors",
+        "Test piping output (non-TTY) disables colors",
+        "Test progress bars hidden when piping output (non-TTY)",
+        "Verify indicatif ProgressBar respects TTY detection",
+        "Add E2E tests for TTY behavior",
+        "Consider --no-progress flag if needed",
+        "Document TTY behavior in CLI reference"
       ],
       "acceptance_criteria": [
-        "NO_COLOR=1 disables colors",
-        "Non-TTY output has no colors",
-        "TERM=dumb disables colors"
-      ]
+        "NO_COLOR=1 disables all color output",
+        "TERM=dumb disables colors",
+        "Non-TTY output has no ANSI escape codes",
+        "Progress bars hidden when stdout is not a TTY",
+        "Output is clean when piped (e.g., common-repo ls | cat)",
+        "E2E tests verify TTY behavior"
+      ],
+      "context": {
+        "color_crate": "console - provides style(), colors(), is_term() detection",
+        "progress_crate": "indicatif - ProgressBar with draw_target",
+        "no_color_spec": "https://no-color.org/ - NO_COLOR env var standard",
+        "related_files": ["src/main.rs", "src/commands/*.rs"]
+      }
     },
     {
       "id": "audit-exit-codes",
@@ -103,24 +117,7 @@
         "Tests verify exit codes"
       ]
     },
-    {
-      "id": "verify-progress-tty-detection",
-      "name": "Verify progress bar TTY detection",
-      "status": "pending",
-      "priority": 3,
-      "blocked_by": null,
-      "steps": [
-        "Test progress bars when piping output",
-        "Ensure progress is hidden in non-TTY",
-        "Verify indicatif is configured correctly",
-        "Add --no-progress flag if needed"
-      ],
-      "acceptance_criteria": [
-        "Progress bars hidden when not TTY",
-        "Output clean when piped"
-      ]
-    },
-    {
+        {
       "id": "add-verbose-quiet-flags",
       "name": "Add --verbose and --quiet global flags",
       "status": "pending",
