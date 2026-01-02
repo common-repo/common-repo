@@ -31,6 +31,9 @@ curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/instal
 
 # Skip creating the 'cr' alias
 SKIP_ALIAS=1 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+
+# Use GitHub token to avoid API rate limits (useful in CI)
+GITHUB_TOKEN=ghp_xxx curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
 ```
 
 ### From Pre-built Binaries

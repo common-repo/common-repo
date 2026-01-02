@@ -9,7 +9,7 @@ These options are available for all commands:
 | Option | Description |
 |--------|-------------|
 | `--color <WHEN>` | Colorize output: `always`, `never`, `auto` (default: auto) |
-| `--log-level <LEVEL>` | Set log level: `error`, `warn`, `info`, `debug`, `trace` (default: info) |
+| `--log-level <LEVEL>` | Set log level: `error`, `warn`, `info`, `debug`, `trace`, `off` (default: info) |
 | `-h, --help` | Print help information |
 | `-V, --version` | Print version |
 
@@ -431,23 +431,43 @@ Manage the repository cache.
 common-repo cache <SUBCOMMAND> [OPTIONS]
 ```
 
-#### Subcommands
-
-**`list`** - List cached repositories
-```bash
-common-repo cache list
-```
-
-**`clean`** - Clean cached repositories
-```bash
-common-repo cache clean
-```
-
-#### Options
+#### Global Cache Options
 
 | Option | Description |
 |--------|-------------|
-| `--cache-root <DIR>` | Cache directory |
+| `--cache-root <DIR>` | Cache directory (default: `~/.cache/common-repo`) |
+
+#### Subcommands
+
+**`list`** - List cached repositories
+
+```bash
+common-repo cache list [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--verbose` | Show detailed info (last modified time, file count) |
+| `--json` | Output in JSON format for scripting |
+
+**`clean`** - Clean cached repositories
+
+```bash
+common-repo cache clean [OPTIONS]
+```
+
+At least one filter must be specified:
+
+| Option | Description |
+|--------|-------------|
+| `--all` | Delete all cached repositories |
+| `--unused` | Delete entries older than 30 days |
+| `--older-than <DURATION>` | Delete entries older than specified duration |
+| `--dry-run` | Show what would be deleted without deleting |
+| `--yes` | Skip confirmation prompt |
+
+**Duration format:** Number followed by unit: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks).
+Examples: `30d`, `7d`, `1h`, `2w`, `30days`, `1week`
 
 #### Examples
 
@@ -455,8 +475,40 @@ common-repo cache clean
 # List all cached repos
 common-repo cache list
 
-# Clean the cache
-common-repo cache clean
+# List with detailed info
+common-repo cache list --verbose
+
+# Output as JSON for scripting
+common-repo cache list --json
+
+# Preview what would be cleaned (dry run)
+common-repo cache clean --unused --dry-run
+
+# Delete entries older than 30 days
+common-repo cache clean --unused
+
+# Delete entries older than 7 days
+common-repo cache clean --older-than 7d
+
+# Delete all cached repos without prompting
+common-repo cache clean --all --yes
+```
+
+#### JSON Output Schema
+
+When using `cache list --json`, the output format is:
+
+```json
+[
+  {
+    "hash": "a1b2c3d4",
+    "ref": "v1.0.0",
+    "path": "subdir or null",
+    "size": 12345,
+    "file_count": 42,
+    "last_modified": 1704067200
+  }
+]
 ```
 
 ### `tree` - Show Inheritance Tree
@@ -506,9 +558,13 @@ my-project
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | General error |
-| 2 | Configuration error |
-| 3 | Network error |
+| 1 | Error (any failure) |
+
+**Special case for `diff` command:**
+- Exit code 0: No changes detected (files match configuration)
+- Exit code 1: Changes detected (files differ from configuration)
+
+This allows using `diff` in scripts: `common-repo diff && echo "Up to date" || echo "Changes needed"`
 
 ## Common Workflows
 
