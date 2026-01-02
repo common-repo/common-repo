@@ -1,24 +1,17 @@
 {
-  "task": "verify-tty-behavior",
+  "task": "add-error-suggestions",
   "plan": "context/cli-ux-review.json",
   "last_updated": "2026-01-02",
   "status": "pending",
-  "description": "Verify TTY detection for colors and progress bars",
+  "description": "Add suggestions to error messages",
   "context": {
-    "goal": "Ensure CLI respects NO_COLOR, TERM=dumb, and non-TTY environments",
-    "color_crate": "console - provides style(), colors(), is_term() detection",
-    "progress_crate": "indicatif - ProgressBar with draw_target",
-    "no_color_spec": "https://no-color.org/ - NO_COLOR env var standard",
-    "key_behaviors": [
-      "NO_COLOR=1 should disable all color output",
-      "TERM=dumb should disable colors",
-      "Piped output (non-TTY) should have no ANSI escape codes",
-      "Progress bars should be hidden when stdout is not a TTY"
-    ],
-    "files_to_audit": [
-      "src/main.rs",
-      "src/commands/*.rs",
-      "Cargo.toml (for console/indicatif deps)"
+    "goal": "Improve error messages with actionable suggestions",
+    "previous_task": "verify-tty-behavior - completed TTY detection and NO_COLOR support",
+    "key_actions": [
+      "Review common error scenarios",
+      "Add 'Did you mean?' suggestions for typos",
+      "Add 'Try running...' suggestions for fixable errors",
+      "Include documentation links in errors"
     ]
   }
 }

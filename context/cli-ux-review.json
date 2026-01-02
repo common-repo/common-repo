@@ -69,7 +69,7 @@
     {
       "id": "verify-tty-behavior",
       "name": "Verify TTY detection for colors and progress",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "steps": [
