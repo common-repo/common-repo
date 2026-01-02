@@ -14,7 +14,7 @@
 //! keep the code organized and maintainable.
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 use log::LevelFilter;
 
 use crate::commands;
@@ -39,6 +39,21 @@ pub struct Cli {
     /// Set log level (error, warn, info, debug, trace)
     #[arg(long, global = true, value_name = "LEVEL", default_value = "info")]
     log_level: String,
+
+    /// Increase output verbosity (can be repeated: --verbose --verbose)
+    ///
+    /// Overrides --log-level when specified:
+    ///   --verbose       = debug level
+    ///   --verbose -v    = trace level (combines with command -v flags)
+    #[arg(long, global = true, action = ArgAction::Count, conflicts_with = "quiet")]
+    verbose: u8,
+
+    /// Suppress output except errors
+    ///
+    /// Overrides --log-level to show only error messages.
+    /// Use for scripting or quiet operation.
+    #[arg(long, global = true, conflicts_with = "verbose")]
+    quiet: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -134,8 +149,27 @@ impl Cli {
         Ok(())
     }
 
-    /// Parse the log level string into a LevelFilter
+    /// Parse the log level, considering --verbose and --quiet flags
+    ///
+    /// Priority order:
+    /// 1. --quiet (always sets to Error level)
+    /// 2. --verbose (sets Debug for 1, Trace for 2+)
+    /// 3. --log-level (explicit level)
     fn parse_log_level(&self) -> Result<LevelFilter> {
+        // --quiet takes precedence: minimal output
+        if self.quiet {
+            return Ok(LevelFilter::Error);
+        }
+
+        // --verbose overrides --log-level
+        if self.verbose > 0 {
+            return Ok(match self.verbose {
+                1 => LevelFilter::Debug,
+                _ => LevelFilter::Trace, // 2+ means trace
+            });
+        }
+
+        // Fall back to explicit --log-level
         match self.log_level.to_lowercase().as_str() {
             "error" => Ok(LevelFilter::Error),
             "warn" => Ok(LevelFilter::Warn),
@@ -184,6 +218,8 @@ mod tests {
             }),
             color: "auto".to_string(),
             log_level: "info".to_string(),
+            verbose: 0,
+            quiet: false,
         };
 
         // This should fail because the config file doesn't exist, but it covers the match arm
@@ -205,10 +241,84 @@ mod tests {
             }),
             color: "auto".to_string(),
             log_level: "info".to_string(),
+            verbose: 0,
+            quiet: false,
         };
 
         // This should fail because the config file doesn't exist, but it covers the match arm
         let result = cli.execute();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_log_level_with_verbose() {
+        let cli = Cli {
+            command: Commands::Check(commands::check::CheckArgs {
+                config: PathBuf::from("test.yaml"),
+                cache_root: None,
+                updates: false,
+            }),
+            color: "auto".to_string(),
+            log_level: "info".to_string(),
+            verbose: 1,
+            quiet: false,
+        };
+
+        // --verbose should override --log-level to debug
+        assert_eq!(cli.parse_log_level().unwrap(), LevelFilter::Debug);
+    }
+
+    #[test]
+    fn test_parse_log_level_with_verbose_twice() {
+        let cli = Cli {
+            command: Commands::Check(commands::check::CheckArgs {
+                config: PathBuf::from("test.yaml"),
+                cache_root: None,
+                updates: false,
+            }),
+            color: "auto".to_string(),
+            log_level: "info".to_string(),
+            verbose: 2,
+            quiet: false,
+        };
+
+        // --verbose --verbose should set trace level
+        assert_eq!(cli.parse_log_level().unwrap(), LevelFilter::Trace);
+    }
+
+    #[test]
+    fn test_parse_log_level_with_quiet() {
+        let cli = Cli {
+            command: Commands::Check(commands::check::CheckArgs {
+                config: PathBuf::from("test.yaml"),
+                cache_root: None,
+                updates: false,
+            }),
+            color: "auto".to_string(),
+            log_level: "debug".to_string(), // Would be debug without --quiet
+            verbose: 0,
+            quiet: true,
+        };
+
+        // --quiet should override to error level
+        assert_eq!(cli.parse_log_level().unwrap(), LevelFilter::Error);
+    }
+
+    #[test]
+    fn test_parse_log_level_default() {
+        let cli = Cli {
+            command: Commands::Check(commands::check::CheckArgs {
+                config: PathBuf::from("test.yaml"),
+                cache_root: None,
+                updates: false,
+            }),
+            color: "auto".to_string(),
+            log_level: "warn".to_string(),
+            verbose: 0,
+            quiet: false,
+        };
+
+        // Without --verbose or --quiet, should use --log-level
+        assert_eq!(cli.parse_log_level().unwrap(), LevelFilter::Warn);
     }
 }
