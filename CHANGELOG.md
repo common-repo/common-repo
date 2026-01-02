@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/common-repo/common-repo/compare/v0.23.0...v0.24.0) (2026-01-02)
+
+
+### Features
+
+* **workflow:** wait for in-progress checks before auto-merge ([84a3d0b](https://github.com/common-repo/common-repo/commit/84a3d0b36c2a92ebd74da7d8e841ba1e6fa5acc8))
+
 ## [0.23.0](https://github.com/common-repo/common-repo/compare/v0.22.0...v0.23.0) (2026-01-01)
 
 
