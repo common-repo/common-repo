@@ -110,10 +110,10 @@ fn test_cache_list_populated() {
         .stdout(predicate::str::contains("Total: 2 cached repositories"));
 }
 
-/// Test that cache list --verbose shows detailed information
+/// Test that cache list --detailed shows detailed information
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_cache_list_verbose() {
+fn test_cache_list_detailed() {
     let temp = assert_fs::TempDir::new().unwrap();
     let cache_dir = temp.child("cache");
     cache_dir.create_dir_all().unwrap();
@@ -130,7 +130,7 @@ fn test_cache_list_verbose() {
         .arg("--cache-root")
         .arg(cache_dir.path())
         .arg("list")
-        .arg("--verbose")
+        .arg("--detailed")
         .assert()
         .success()
         .stdout(predicate::str::contains("Hash:"))

@@ -4,7 +4,7 @@
 //! `add` subcommand from a user's perspective.
 //!
 //! Note: The default `add` behavior prompts for confirmation when no config exists.
-//! Most tests use --quiet to skip the interactive prompt.
+//! Most tests use --yes to skip the interactive prompt.
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
@@ -15,12 +15,12 @@ use predicates::prelude::*;
 fn test_add_quiet_creates_config() {
     let temp = assert_fs::TempDir::new().unwrap();
 
-    // Add with --quiet to a directory without config
+    // Add with --yes to a directory without config
     let mut cmd = cargo_bin_cmd!("common-repo");
 
     cmd.current_dir(temp.path())
         .arg("add")
-        .arg("--quiet")
+        .arg("--yes")
         .arg("rust-lang/rust-clippy")
         .assert()
         .success()
@@ -88,7 +88,7 @@ fn test_add_github_shorthand_expansion() {
 
     cmd.current_dir(temp.path())
         .arg("add")
-        .arg("--quiet")
+        .arg("--yes")
         .arg("rust-lang/rust-clippy")
         .assert()
         .success()
@@ -125,5 +125,5 @@ fn test_add_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Add a repository"))
-        .stdout(predicate::str::contains("--quiet"));
+        .stdout(predicate::str::contains("--yes"));
 }
