@@ -368,7 +368,9 @@ If your issue isn't covered here:
 
 1. **Run with verbose output** for more details:
    ```bash
-   RUST_LOG=debug common-repo apply
+   common-repo apply --verbose
+   # Or for maximum verbosity (trace level)
+   common-repo apply --verbose --verbose
    ```
 
 2. **Check existing issues**: https://github.com/common-repo/common-repo/issues
