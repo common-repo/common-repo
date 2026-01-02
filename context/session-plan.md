@@ -28,6 +28,12 @@ Clean up README to remove invalid crate.io references
 **Q6:** Add user docs location to CLAUDE.md?
 **A6:** Yes - docs are in `docs/src/` (mdBook format), not referenced in CLAUDE.md
 
+**Q7:** Is cache directory inconsistency a code bug or just docs?
+**A7:** **BUG IN CODE** - `apply.rs` uses `~/.common-repo/cache` (hardcoded HOME), all other commands use `dirs::cache_dir()` → `~/.cache/common-repo`. Logic duplicated in 10 places. Need to:
+- Create single `default_cache_root()` function
+- Fix `apply.rs` to use same logic as others
+- Update all 10 command files to use shared function
+
 ## Tasks
 
 1. Remove crates.io and docs.rs badges from README (lines 5-6)
@@ -45,3 +51,8 @@ Clean up README to remove invalid crate.io references
    - Remove `off` from `--log-level` options (line 12)
    - Standardize cache directory default across docs
 6. Add user docs location to CLAUDE.md (`docs/src/` - mdBook format)
+7. **BUG FIX**: Centralize cache directory default logic
+   - Create `default_cache_root()` in shared module (e.g., `src/config.rs` or `src/lib.rs`)
+   - Fix `apply.rs` to use `dirs::cache_dir()` like other commands
+   - Replace duplicated logic in all 10 command files with shared function
+   - Update doc comments to reflect correct default (`~/.cache/common-repo` on Linux)
