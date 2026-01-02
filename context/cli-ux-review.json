@@ -3,8 +3,8 @@
   "description": "Improve CLI user experience to meet OSS best practices",
   "last_updated": "2026-01-02",
   "audit_summary": {
-    "current_score": "8/10",
-    "pass": ["5.1 Help via -h/--help (clap)", "5.5 Progress indicators (indicatif)", "5.7 Colors (console crate)", "5.4 Error suggestions", "5.9 Shell completions", "5.6 Progress auto-hidden", "5.8 NO_COLOR support", "5.10 Exit codes"],
+    "current_score": "9/10",
+    "pass": ["5.1 Help via -h/--help (clap)", "5.5 Progress indicators (indicatif)", "5.7 Colors (console crate)", "5.4 Error suggestions", "5.9 Shell completions", "5.6 Progress auto-hidden", "5.8 NO_COLOR support", "5.10 Exit codes", "5.11 Verbose/quiet flags"],
     "partial": ["5.2 Help text examples (deferred)"],
     "fail": []
   },
@@ -120,14 +120,15 @@
         {
       "id": "add-verbose-quiet-flags",
       "name": "Add --verbose and --quiet global flags",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": null,
       "steps": [
-        "Add -v/--verbose flag (can be repeated for more verbosity)",
-        "Add -q/--quiet flag for minimal output",
+        "Add --verbose global flag (count-based for increased verbosity)",
+        "Add --quiet global flag for minimal output",
         "Integrate with logging/output levels",
-        "Document flag behavior"
+        "Add E2E tests for verbose/quiet flags",
+        "Document flag behavior in CLI reference"
       ],
       "acceptance_criteria": [
         "--verbose increases output detail",
