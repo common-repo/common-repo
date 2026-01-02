@@ -1,0 +1,132 @@
+{
+  "plan_name": "Remove AI-isms from User Documentation",
+  "last_updated": "2026-01-02",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "scan-for-ai-isms",
+      "name": "Scan all docs for AI-ism patterns",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": null,
+      "steps": [
+        "Read all files in docs/src/",
+        "Search for header patterns: 'The Problem', 'The Solution', 'Why This Matters', 'Key Takeaways'",
+        "Search for filler: 'worth noting', 'at its core', 'simply put', 'in today's world'",
+        "Search for buzzwords: 'seamlessly', 'leverage', 'unlock', 'empower', 'streamline', 'robust'",
+        "Search for metaphors: 'navigate', 'journey', 'embrace', 'harness', 'delve', 'dive into'",
+        "Search for openers: 'Whether you're', 'Imagine', 'Think of it as'",
+        "Document all findings with file:line references"
+      ],
+      "acceptance_criteria": [
+        "Complete inventory of AI-isms in docs",
+        "Each instance documented with location and suggested fix"
+      ]
+    },
+    {
+      "id": "fix-introduction",
+      "name": "Rewrite introduction.md",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "scan-for-ai-isms",
+      "output_file": "docs/src/introduction.md",
+      "steps": [
+        "Read current introduction.md",
+        "Replace 'The Problem' header with descriptive alternative (e.g., 'Without common-repo' or just remove header)",
+        "Replace 'The Solution' header with descriptive alternative (e.g., 'How it works' or remove)",
+        "Rewrite bullet points in direct, technical language",
+        "Remove any marketing-speak or hype",
+        "Keep content factual and developer-focused"
+      ],
+      "acceptance_criteria": [
+        "No 'The Problem' / 'The Solution' headers",
+        "Content reads like developer documentation",
+        "Information is accurate and useful"
+      ]
+    },
+    {
+      "id": "fix-getting-started",
+      "name": "Review and fix getting-started.md",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "scan-for-ai-isms",
+      "output_file": "docs/src/getting-started.md",
+      "steps": [
+        "Read getting-started.md",
+        "Fix any AI-isms identified in scan",
+        "Ensure instructions are direct and clear",
+        "Remove unnecessary filler phrases"
+      ],
+      "acceptance_criteria": [
+        "No AI-isms remain",
+        "Content is direct and actionable"
+      ]
+    },
+    {
+      "id": "fix-configuration",
+      "name": "Review and fix configuration.md",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "scan-for-ai-isms",
+      "output_file": "docs/src/configuration.md",
+      "steps": [
+        "Read configuration.md",
+        "Fix any AI-isms identified in scan",
+        "Ensure technical accuracy",
+        "Remove marketing language"
+      ],
+      "acceptance_criteria": [
+        "No AI-isms remain",
+        "Content is technical and precise"
+      ]
+    },
+    {
+      "id": "fix-remaining-docs",
+      "name": "Review and fix remaining doc files",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "scan-for-ai-isms",
+      "output_file": null,
+      "steps": [
+        "Review docs/src/recipes.md",
+        "Review docs/src/troubleshooting.md",
+        "Review docs/src/authoring-source-repos.md",
+        "Review docs/src/schema.md",
+        "Fix any AI-isms in each file"
+      ],
+      "acceptance_criteria": [
+        "All doc files reviewed",
+        "No AI-isms remain in any file"
+      ]
+    },
+    {
+      "id": "final-review",
+      "name": "Final consistency review",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": ["fix-introduction", "fix-getting-started", "fix-configuration", "fix-remaining-docs"],
+      "output_file": null,
+      "steps": [
+        "Read through all docs in order",
+        "Check for consistent tone and style",
+        "Verify no AI-isms slipped through",
+        "Build docs with mdbook build docs/ to verify"
+      ],
+      "acceptance_criteria": [
+        "Docs have consistent developer-focused tone",
+        "No AI-isms anywhere",
+        "Docs build successfully"
+      ]
+    }
+  ],
+  "notes": [
+    "Goal: docs should read like a developer wrote them, not a chatbot",
+    "Avoid over-correction - some phrases are fine in moderation",
+    "Focus on clarity and usefulness over stylistic perfection"
+  ]
+}

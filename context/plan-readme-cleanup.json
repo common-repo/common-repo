@@ -1,0 +1,130 @@
+{
+  "plan_name": "README and CLAUDE.md Cleanup",
+  "last_updated": "2026-01-02",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "remove-crates-badges",
+      "name": "Remove crates.io and docs.rs badges from README",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "README.md",
+      "steps": [
+        "Read README.md to locate badge lines",
+        "Remove the crates.io badge line",
+        "Remove the docs.rs badge line",
+        "Verify badge row still looks correct"
+      ],
+      "acceptance_criteria": [
+        "No crates.io badge in README",
+        "No docs.rs badge in README",
+        "Remaining badges (CI, License) still present"
+      ]
+    },
+    {
+      "id": "add-docs-badge",
+      "name": "Add GitHub Pages documentation badge",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "remove-crates-badges",
+      "output_file": "README.md",
+      "steps": [
+        "Create shields.io badge for docs: ![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://common-repo.github.io/common-repo/)",
+        "Add badge to badge row after License badge",
+        "Verify badge renders correctly"
+      ],
+      "acceptance_criteria": [
+        "Docs badge present in README badge row",
+        "Badge links to https://common-repo.github.io/common-repo/"
+      ]
+    },
+    {
+      "id": "remove-crates-install",
+      "name": "Remove 'From crates.io' installation section",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "add-docs-badge",
+      "output_file": "README.md",
+      "steps": [
+        "Locate 'From crates.io' section in README",
+        "Remove the section header and cargo install command",
+        "Ensure surrounding sections flow correctly"
+      ],
+      "acceptance_criteria": [
+        "No 'From crates.io' section in README",
+        "No 'cargo install common-repo' command in README",
+        "Other installation methods still present"
+      ]
+    },
+    {
+      "id": "add-docs-section",
+      "name": "Add dedicated Documentation section near top",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "remove-crates-install",
+      "output_file": "README.md",
+      "steps": [
+        "Identify appropriate location (after Install, before Usage)",
+        "Add ## Documentation section",
+        "Include link to GitHub Pages docs",
+        "Briefly mention what docs cover"
+      ],
+      "acceptance_criteria": [
+        "Documentation section exists in README",
+        "Links to https://common-repo.github.io/common-repo/",
+        "Section is positioned logically in document flow"
+      ]
+    },
+    {
+      "id": "expand-merge-examples",
+      "name": "Expand 'Merging files' section with all file type examples",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "add-docs-section",
+      "output_file": "README.md",
+      "steps": [
+        "Read current 'Merging files' section",
+        "Keep existing YAML example (CI workflows)",
+        "Add JSON example (e.g., package.json scripts)",
+        "Add TOML example (e.g., Cargo.toml dependencies)",
+        "Add INI example (e.g., .editorconfig)",
+        "Add Markdown example (e.g., README sections)",
+        "Add links to full operator docs for each file type"
+      ],
+      "acceptance_criteria": [
+        "YAML, JSON, TOML, INI, Markdown examples present",
+        "Each example is realistic and useful",
+        "Each example links to user docs for that operator"
+      ]
+    },
+    {
+      "id": "update-claude-md",
+      "name": "Add user docs location to CLAUDE.md",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": null,
+      "output_file": "CLAUDE.md",
+      "steps": [
+        "Read CLAUDE.md to find appropriate location",
+        "Add entry to 'Key context files' or create 'User Documentation' section",
+        "Document that user docs are in docs/src/ (mdBook format)",
+        "Mention docs are served via GitHub Pages"
+      ],
+      "acceptance_criteria": [
+        "CLAUDE.md references docs/src/ as user docs location",
+        "mdBook format is mentioned",
+        "GitHub Pages URL included"
+      ]
+    }
+  ],
+  "notes": [
+    "Tasks 1-5 are sequential (README changes)",
+    "Task 6 (CLAUDE.md) can run in parallel with README tasks",
+    "Run ./script/ci before committing to verify no formatting issues"
+  ]
+}
