@@ -2,8 +2,7 @@
 
 [![CI](https://github.com/common-repo/common-repo/actions/workflows/ci.yml/badge.svg)](https://github.com/common-repo/common-repo/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE.md)
-[![crates.io](https://img.shields.io/crates/v/common-repo.svg)](https://crates.io/crates/common-repo)
-[![docs.rs](https://docs.rs/common-repo/badge.svg)](https://docs.rs/common-repo)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://common-repo.github.io/common-repo/)
 
 Manage repository configuration files as dependencies. Define inheritance in `.common-repo.yaml`, pull files from multiple Git repositories, and merge them with version pinning.
 
@@ -21,12 +20,6 @@ The installer creates both `common-repo` and a short alias `cr`. To skip the ali
 
 ```bash
 cargo binstall common-repo
-```
-
-### From crates.io
-
-```bash
-cargo install common-repo
 ```
 
 ### From source (latest development)
@@ -48,6 +41,19 @@ Download the latest release for your platform from [GitHub Releases](https://git
 ### Minimum Supported Rust Version (MSRV)
 
 This project supports Rust 1.85.0 and later. MSRV updates are considered non-breaking changes.
+
+## Documentation
+
+Full documentation is available at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/).
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](docs/src/getting-started.md) | Installation and first steps |
+| [Configuration](docs/src/configuration.md) | All operators and options |
+| [CLI Reference](docs/src/cli.md) | Command documentation |
+| [Recipes](docs/src/recipes.md) | Common patterns |
+| [Troubleshooting](docs/src/troubleshooting.md) | Common issues and solutions |
+| [Authoring Source Repos](docs/src/authoring-source-repos.md) | Create your own source repos |
 
 ## Quick Start
 
@@ -96,12 +102,46 @@ common-repo apply   # Apply configuration
 
 Merge fragments into existing files (YAML, JSON, TOML, INI, Markdown):
 
+**YAML** - Add jobs to CI workflows ([docs](docs/src/configuration.md#yaml---merge-yaml-files)):
 ```yaml
 - yaml:
     source: ci-jobs.yml
     dest: .github/workflows/ci.yml
-    path: jobs.test
+    path: jobs
     append: true
+```
+
+**JSON** - Add scripts to package.json ([docs](docs/src/configuration.md#json---merge-json-files)):
+```yaml
+- json:
+    source: scripts.json
+    dest: package.json
+    path: scripts
+```
+
+**TOML** - Add dependencies to Cargo.toml ([docs](docs/src/configuration.md#toml---merge-toml-files)):
+```yaml
+- toml:
+    source: common-deps.toml
+    dest: Cargo.toml
+    path: dependencies
+```
+
+**INI** - Add editor settings ([docs](docs/src/configuration.md#ini---merge-ini-files)):
+```yaml
+- ini:
+    source: editor-rules.ini
+    dest: .editorconfig
+    section: "*"
+```
+
+**Markdown** - Add sections to README ([docs](docs/src/configuration.md#markdown---merge-markdown-files)):
+```yaml
+- markdown:
+    source: contributing-section.md
+    dest: README.md
+    section: "## Contributing"
+    create-section: true
 ```
 
 ### Checking for updates
@@ -127,17 +167,6 @@ info         Show configuration overview
 cache        Manage repository cache
 completions  Generate shell completion scripts
 ```
-
-## Documentation
-
-| Guide | Description |
-|-------|-------------|
-| [Getting Started](docs/src/getting-started.md) | Installation and first steps |
-| [Configuration](docs/src/configuration.md) | All operators and options |
-| [CLI Reference](docs/src/cli.md) | Command documentation |
-| [Recipes](docs/src/recipes.md) | Common patterns |
-| [Troubleshooting](docs/src/troubleshooting.md) | Common issues and solutions |
-| [Authoring Source Repos](docs/src/authoring-source-repos.md) | Create your own source repos |
 
 ## Contributing
 

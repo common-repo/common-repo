@@ -11,7 +11,7 @@
     {
       "id": "readme-cleanup",
       "name": "README and CLAUDE.md Cleanup",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "plan_file": "context/plan-readme-cleanup.json",
