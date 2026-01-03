@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::config::{Operation, Schema};
+use crate::defaults::{ALT_CONFIG_FILENAME, DEFAULT_CONFIG_FILENAME};
 use crate::error::{Error, Result};
 use crate::filesystem::{File, MemoryFS};
 
@@ -130,7 +131,7 @@ fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
         // Skip .common-repo.yaml config file
         if relative_path
             .to_str()
-            .map(|s| s == ".common-repo.yaml" || s == ".commonrepo.yaml")
+            .map(|s| s == DEFAULT_CONFIG_FILENAME || s == ALT_CONFIG_FILENAME)
             .unwrap_or(false)
         {
             continue;

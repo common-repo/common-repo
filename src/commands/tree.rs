@@ -17,6 +17,7 @@ use ptree::{print_tree, TreeItem};
 use std::path::PathBuf;
 
 use common_repo::config;
+use common_repo::defaults::DEFAULT_CONFIG_FILENAME;
 use common_repo::output::{emoji, OutputConfig};
 use common_repo::phases::{discover_repos, RepoNode};
 use common_repo::repository::RepositoryManager;
@@ -25,7 +26,7 @@ use common_repo::repository::RepositoryManager;
 #[derive(Args, Debug)]
 pub struct TreeArgs {
     /// Path to the .common-repo.yaml configuration file.
-    #[arg(short, long, value_name = "FILE", default_value = ".common-repo.yaml")]
+    #[arg(short, long, value_name = "FILE", default_value = DEFAULT_CONFIG_FILENAME)]
     pub config: PathBuf,
 
     /// The root directory for the repository cache.

@@ -29,6 +29,8 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 
+use common_repo::defaults::DEFAULT_CONFIG_FILENAME;
+
 /// Arguments for the apply command
 #[derive(Args, Debug)]
 pub struct ApplyArgs {
@@ -86,7 +88,7 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
     // Determine config file path
     let config_path = args
         .config
-        .unwrap_or_else(|| PathBuf::from(".common-repo.yaml"));
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_CONFIG_FILENAME));
 
     // Validate config file exists
     if !config_path.exists() {

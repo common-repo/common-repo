@@ -17,6 +17,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use common_repo::defaults::DEFAULT_CONFIG_FILENAME;
 use common_repo::git;
 use common_repo::version;
 
@@ -42,12 +43,13 @@ pub struct InitArgs {
 /// `.common-repo.yaml` files. The default behavior is to run the interactive
 /// wizard, unless a URI argument is provided.
 pub fn execute(args: InitArgs) -> Result<()> {
-    let config_path = Path::new(".common-repo.yaml");
+    let config_path = Path::new(DEFAULT_CONFIG_FILENAME);
 
     // Check if config file already exists
     if config_path.exists() && !args.force {
         return Err(anyhow::anyhow!(
-            "Configuration file '.common-repo.yaml' already exists. Use --force to overwrite."
+            "Configuration file '{}' already exists. Use --force to overwrite.",
+            DEFAULT_CONFIG_FILENAME
         ));
     }
 

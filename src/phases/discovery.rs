@@ -40,6 +40,7 @@ use rayon::prelude::*;
 use super::{RepoNode, RepoTree};
 use crate::cache::RepoCache;
 use crate::config::{Operation, Schema};
+use crate::defaults::{ALT_CONFIG_FILENAME, DEFAULT_CONFIG_FILENAME};
 use crate::error::{Error, Result};
 use crate::repository::RepositoryManager;
 
@@ -161,19 +162,22 @@ fn fetch_and_parse_config(
     let fs = repo_manager.fetch_repository(url, ref_)?;
 
     // Try to read .common-repo.yaml
-    let config_content = match fs.get_file(".common-repo.yaml") {
+    let config_content = match fs.get_file(DEFAULT_CONFIG_FILENAME) {
         Some(file) => file.content.clone(),
         None => {
             // Try .commonrepo.yaml as fallback
-            match fs.get_file(".commonrepo.yaml") {
+            match fs.get_file(ALT_CONFIG_FILENAME) {
                 Some(file) => file.content.clone(),
                 None => {
                     return Err(Error::ConfigParse {
-                        message: "No .common-repo.yaml or .commonrepo.yaml found in repository"
-                            .to_string(),
-                        hint: Some(
-                            "Create a .common-repo.yaml file in the repository root".to_string(),
+                        message: format!(
+                            "No {} or {} found in repository",
+                            DEFAULT_CONFIG_FILENAME, ALT_CONFIG_FILENAME
                         ),
+                        hint: Some(format!(
+                            "Create a {} file in the repository root",
+                            DEFAULT_CONFIG_FILENAME
+                        )),
                     });
                 }
             }
@@ -182,7 +186,7 @@ fn fetch_and_parse_config(
 
     // Parse the YAML content
     let yaml_str = String::from_utf8(config_content).map_err(|_| Error::ConfigParse {
-        message: "Invalid UTF-8 in .common-repo.yaml".to_string(),
+        message: format!("Invalid UTF-8 in {}", DEFAULT_CONFIG_FILENAME),
         hint: Some("Ensure the file is saved with UTF-8 encoding".to_string()),
     })?;
 
