@@ -421,6 +421,158 @@ Avoid these AI writing habits:
 17. **"The following" references** - "The following steps", "The following example"
 18. **"Above/below" references** - "As shown above", "See below"
 
+## Permission/Invitation Patterns
+
+- "Feel free to..."
+- "Don't hesitate to..."
+- "Go ahead and..."
+- "You're welcome to..."
+- "Please don't hesitate to reach out"
+
+## Reassurance Patterns
+
+- "Don't worry"
+- "Rest assured"
+- "No need to panic"
+- "It's okay if..."
+- "There's no wrong way to..."
+- "You've got this!"
+
+## Promise Patterns
+
+- "By the end of this guide, you'll..."
+- "After reading this, you'll be able to..."
+- "Once you understand X, you'll never..."
+- "This will help you..."
+- "You'll learn how to..."
+
+## Inclusivity Hedging
+
+- "Whether you're a beginner or an expert..."
+- "No matter your skill level..."
+- "Regardless of your experience..."
+- "For developers of all levels..."
+- "Even if you've never..."
+
+## Wordy Phrases
+
+| Avoid | Use Instead |
+|-------|-------------|
+| in order to | to |
+| due to the fact that | because |
+| prior to | before |
+| subsequent to | after |
+| in the event that | if |
+| with regard to | about |
+| with respect to | about |
+| in terms of | (omit or rephrase) |
+| on a daily basis | daily |
+| at this point in time | now |
+| at the present moment | now |
+| for the purpose of | to, for |
+| in the process of | (omit) |
+| it is important to note that | (just state it) |
+| the fact that | that, (omit) |
+| in light of the fact that | because, since |
+| despite the fact that | although |
+| owing to the fact that | because |
+
+## Weak Sentence Starters
+
+- "There is/are..." → restructure to lead with subject
+- "It is X that..." → simplify
+- "It should be noted that..." → just state it
+- "It can be seen that..." → (omit)
+- "It goes without saying..." → (then don't say it)
+- "It is worth mentioning..." → just mention it
+- "It is interesting to note..." → (omit)
+
+## Weasel Words
+
+Vague attributions that sound authoritative but say nothing:
+
+- "Some people say..."
+- "It is believed that..."
+- "Many experts think..."
+- "Studies show..." (without citation)
+- "Research suggests..." (without citation)
+- "It is widely accepted..."
+- "It is generally known..."
+- "Conventional wisdom holds..."
+
+## Meta-Commentary
+
+Commenting on the writing itself:
+
+- "As mentioned earlier..."
+- "As we discussed..."
+- "As we'll see later..."
+- "As I said before..."
+- "Let me explain..."
+- "Allow me to elaborate..."
+- "I should mention..."
+- "I want to point out..."
+- "It bears repeating..."
+
+## Certainty Markers
+
+Often false confidence:
+
+- "Clearly,..."
+- "Obviously,..."
+- "It's clear that..."
+- "It's obvious that..."
+- "Undoubtedly,..."
+- "Without a doubt,..."
+- "Of course,..."
+- "Naturally,..."
+- "Needless to say,..."
+
+## Not Only/But Also
+
+Overused parallel structure. Often one clause suffices.
+
+## Emoji and Exclamation Overuse
+
+In professional/technical docs, avoid:
+
+- 🎉 🚀 ✨ 💡 🔥 👍 etc.
+- Multiple exclamation marks!!!
+- Exclamation marks for routine statements!
+
+## Passive Voice Overuse
+
+| Passive | Active |
+|---------|--------|
+| "The file is created by the function" | "The function creates the file" |
+| "Errors are handled by the system" | "The system handles errors" |
+| "The configuration is loaded at startup" | "The app loads configuration at startup" |
+| "It was decided that..." | "We decided..." / "The team decided..." |
+
+## Nominalization
+
+Using noun forms instead of verbs:
+
+| Nominalized | Direct |
+|-------------|--------|
+| "make a decision" | "decide" |
+| "perform an analysis" | "analyze" |
+| "conduct an investigation" | "investigate" |
+| "give consideration to" | "consider" |
+| "make an improvement" | "improve" |
+| "provide assistance" | "help" |
+| "reach a conclusion" | "conclude" |
+
+## Example Introductions
+
+Often unnecessary:
+
+- "For example,..." → (just give the example)
+- "For instance,..." → (just give the example)
+- "Consider the following example:..." → (just show it)
+- "To illustrate,..." → (just illustrate)
+- "As an example,..." → (just give it)
+
 ## What Good Technical Writing Looks Like
 
 - **Direct** - Says what it means without preamble
