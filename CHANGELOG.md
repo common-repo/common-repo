@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.24.0](https://github.com/common-repo/common-repo/compare/v0.23.0...v0.24.0) (2026-01-03)
+
+
+### Features
+
+* add --verbose and --quiet global flags ([b569cf9](https://github.com/common-repo/common-repo/commit/b569cf918685a30d51eaa9acb591b0a6e9b1d4b1))
+* add actionable suggestions to error messages ([1bde6a6](https://github.com/common-repo/common-repo/commit/1bde6a63e3fac1811eced3f74e838e10b5468058))
+* audit and standardize CLI exit codes ([d5121ad](https://github.com/common-repo/common-repo/commit/d5121ad7598449a8f692c0defaa1aabd0638826d))
+* **output:** add TTY-aware output with NO_COLOR support ([1b4a5a8](https://github.com/common-repo/common-repo/commit/1b4a5a885a98ff63d05b88e517eb247ea048f77c))
+* **workflow:** wait for in-progress checks before auto-merge ([84a3d0b](https://github.com/common-repo/common-repo/commit/84a3d0b36c2a92ebd74da7d8e841ba1e6fa5acc8))
+
+
+### Bug Fixes
+
+* centralize cache_root default logic using shared defaults module ([d40e5d7](https://github.com/common-repo/common-repo/commit/d40e5d770ad22adfe9d1e2b10c41929a88dfd32a))
+* **ci:** also exclude self from failed checks count in auto-merge ([c5dd0a7](https://github.com/common-repo/common-repo/commit/c5dd0a7b631faf887f61c0ac7c395bcc3d0318c3))
+* **ci:** exclude self from pending checks in auto-merge workflow ([4144d7f](https://github.com/common-repo/common-repo/commit/4144d7f8914d2436a410ae64665a9d879623729f))
+* resolve verbose/quiet flag conflicts between global and local ([20b32bb](https://github.com/common-repo/common-repo/commit/20b32bb38fac090c32ee9f9ca13d174bdb7824e5))
+* **test:** add --color=always to tree E2E tests for CI compatibility ([ec9f80b](https://github.com/common-repo/common-repo/commit/ec9f80b0a9bfdb421c73bc0939979087fe279fde))
+
 ## [0.23.0](https://github.com/common-repo/common-repo/compare/v0.22.0...v0.23.0) (2026-01-01)
 
 
