@@ -41,7 +41,7 @@
     {
       "id": "user-docs-fixes",
       "name": "User Documentation Fixes",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "readme-cleanup",
       "plan_file": "context/plan-user-docs-fixes.json",
