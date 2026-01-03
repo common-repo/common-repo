@@ -3,9 +3,9 @@
   "plan": "context/master-plan.json",
   "last_updated": "2026-01-03",
   "status": "complete",
-  "description": "Defaults audit plan completed",
+  "description": "User docs fixes plan completed",
   "context": {
-    "completed_plans": ["context/plan-readme-cleanup.json", "context/plan-cache-bug-fix.json", "context/plan-defaults-audit.json"],
-    "next_plans": ["user-docs-fixes", "ai-isms-removal", "competitive-research"]
+    "completed_plans": ["context/plan-readme-cleanup.json", "context/plan-cache-bug-fix.json", "context/plan-defaults-audit.json", "context/plan-user-docs-fixes.json"],
+    "next_plans": ["ai-isms-removal", "competitive-research"]
   }
 }
