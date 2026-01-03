@@ -573,6 +573,88 @@ Often unnecessary:
 - "To illustrate,..." → (just illustrate)
 - "As an example,..." → (just give it)
 
+## Acknowledgment/Validation (Conversational)
+
+When responding to users, AI over-validates:
+
+- "That's a great question!"
+- "Great point!"
+- "You raise an interesting question."
+- "That's an excellent observation."
+- "You're absolutely right."
+- "Good thinking!"
+- "Smart question!"
+- "I'm glad you asked."
+- "Thanks for bringing that up."
+
+## Apology Patterns
+
+- "I apologize for any confusion."
+- "Sorry for the inconvenience."
+- "I apologize if that wasn't clear."
+- "My apologies for the oversight."
+- "Sorry, I should have mentioned..."
+
+## Temporal Markers
+
+Vague time references:
+
+- "In recent years..."
+- "Nowadays..."
+- "In today's world..."
+- "In the modern era..."
+- "As of late..."
+- "Moving forward..." (when not actually about future)
+- "Going forward..."
+- "Historically speaking..."
+
+## The Triple Pattern
+
+AI loves groups of three:
+
+- "X, Y, and Z"
+- "First... Second... Third..."
+- "Simple, fast, and reliable"
+- Three bullet points when two or four would be natural
+
+Not always wrong, but suspiciously consistent.
+
+## Comparative Structures
+
+Overused comparison openers:
+
+- "Unlike X, Y..."
+- "Compared to X, Y..."
+- "In contrast to X..."
+- "While X does A, Y does B..."
+- "Whereas X..."
+- "As opposed to X..."
+
+## Code Documentation Patterns
+
+In comments and docstrings:
+
+- "This function does X" (obvious from name)
+- "Returns: the result" (uninformative)
+- "Parameters: see above" (lazy)
+- "TODO: implement" (left behind)
+- "Self-explanatory" (it's not)
+- "// Initialize variables" (obvious)
+- "// Loop through array" (obvious)
+- "// Return result" (obvious)
+
+## Changelog/Release Note Patterns
+
+- "Various bug fixes and improvements"
+- "Performance improvements"
+- "Minor fixes"
+- "Stability improvements"
+- "General improvements"
+- "Updated dependencies"
+- "Code cleanup"
+
+These say nothing. Be specific about what changed.
+
 ## What Good Technical Writing Looks Like
 
 - **Direct** - Says what it means without preamble
