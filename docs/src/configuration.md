@@ -395,6 +395,16 @@ The `path` option in merge operators supports multiple notations for navigating 
     append: true
 ```
 
+**Add jobs to CI workflow:**
+```yaml
+# Merge shared CI jobs into existing workflow
+- yaml:
+    source: ci-jobs.yml
+    dest: .github/workflows/ci.yml
+    path: jobs
+    append: true
+```
+
 ### `json` - Merge JSON Files
 
 ```yaml
@@ -438,6 +448,14 @@ The `path` option in merge operators supports multiple notations for navigating 
     position: start
 ```
 
+**Merge TypeScript compiler options:**
+```yaml
+- json:
+    source: strict-options.json
+    dest: tsconfig.json
+    path: compilerOptions
+```
+
 ### `toml` - Merge TOML Files
 
 ```yaml
@@ -474,6 +492,23 @@ See [Array Merge Modes](#array-merge-modes) for details on array handling option
     path: dependencies
 ```
 
+**Add dev-dependencies with comments preserved:**
+```yaml
+- toml:
+    source: test-deps.toml
+    dest: Cargo.toml
+    path: dev-dependencies
+    preserve-comments: true
+```
+
+**Merge pyproject.toml settings:**
+```yaml
+- toml:
+    source: lint-settings.toml
+    dest: pyproject.toml
+    path: tool.ruff
+```
+
 ### `ini` - Merge INI Files
 
 ```yaml
@@ -505,6 +540,23 @@ See [Array Merge Modes](#array-merge-modes) for details on array handling option
     source: db-settings.ini
     dest: config.ini
     section: database
+```
+
+**Add editor configuration rules:**
+```yaml
+# Merge settings into the [*] section for all files
+- ini:
+    source: editor-rules.ini
+    dest: .editorconfig
+    section: "*"
+```
+
+**Configure git settings:**
+```yaml
+- ini:
+    source: git-aliases.ini
+    dest: .gitconfig
+    section: alias
 ```
 
 ### `markdown` - Merge Markdown Files
@@ -543,6 +595,25 @@ See [Array Merge Modes](#array-merge-modes) for details on array handling option
     append: true
     position: end
     create-section: true
+```
+
+**Add contributing section:**
+```yaml
+# Insert a standard Contributing section in the README
+- markdown:
+    source: contributing-section.md
+    dest: README.md
+    section: "## Contributing"
+    create-section: true
+```
+
+**Merge CLAUDE.md rules (source-declared):**
+```yaml
+# In source repo - will only apply when inherited
+- markdown:
+    auto-merge: CLAUDE.md
+    section: "## Rules"
+    append: true
 ```
 
 ## Operation Order
