@@ -1,0 +1,194 @@
+{
+  "plan_name": "Build Prose Linter Tool",
+  "last_updated": "2026-01-03",
+  "description": "Custom Rust tool to detect AI writing patterns in docs, code comments, and all text content",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test in background",
+    "Read this file to find current task"
+  ],
+  "tasks": [
+    {
+      "id": "create-xtask-command",
+      "name": "Create cargo xtask check-prose command structure",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "xtask/src/check_prose.rs",
+      "steps": [
+        "Add check-prose subcommand to xtask/src/main.rs",
+        "Create xtask/src/check_prose.rs module",
+        "Define CLI args: paths to check, output format (json/text), verbosity"
+      ],
+      "acceptance_criteria": [
+        "cargo xtask check-prose --help works",
+        "Basic command structure compiles"
+      ]
+    },
+    {
+      "id": "define-pattern-data",
+      "name": "Define pattern data structure and load patterns",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "create-xtask-command",
+      "output_file": "xtask/src/check_prose.rs",
+      "steps": [
+        "Define Pattern struct: pattern (regex or literal), category, severity, suggestion",
+        "Define Match struct: file, line, column, matched_text, pattern_info",
+        "Create patterns module with all patterns from context/ai-writing-patterns.md",
+        "Group patterns by category for organized reporting"
+      ],
+      "acceptance_criteria": [
+        "All patterns from ai-writing-patterns.md encoded",
+        "Patterns grouped: verbs, adjectives, nouns, phrases, headers, openers, etc."
+      ]
+    },
+    {
+      "id": "implement-file-scanning",
+      "name": "Implement file discovery and scanning",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "define-pattern-data",
+      "output_file": "xtask/src/check_prose.rs",
+      "steps": [
+        "Use walkdir or ignore crate to find files",
+        "Filter for: *.md, *.rs (doc comments), README*, CHANGELOG*",
+        "For .rs files: extract doc comments (///, //!, #[doc]) and string literals",
+        "For .md files: scan full content, skip code blocks",
+        "Track file:line:column for each match"
+      ],
+      "acceptance_criteria": [
+        "Finds all markdown files in docs/, README.md, CHANGELOG.md",
+        "Extracts doc comments from .rs files",
+        "Skips binary files and .git directory"
+      ]
+    },
+    {
+      "id": "implement-pattern-matching",
+      "name": "Implement pattern matching engine",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "implement-file-scanning",
+      "output_file": "xtask/src/check_prose.rs",
+      "steps": [
+        "Use regex crate for pattern matching",
+        "Compile patterns once, reuse for all files",
+        "Case-insensitive matching for most patterns",
+        "Word-boundary matching to avoid false positives (e.g., 'delve' not 'delved')",
+        "Collect all matches per file"
+      ],
+      "acceptance_criteria": [
+        "Matches 'delve into' but not 'delved'",
+        "Case insensitive: matches 'Delve' and 'delve'",
+        "Reports correct line numbers"
+      ]
+    },
+    {
+      "id": "implement-output-formats",
+      "name": "Implement JSON and text output formats",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "implement-pattern-matching",
+      "output_file": "xtask/src/check_prose.rs",
+      "steps": [
+        "JSON output: array of {file, line, column, pattern, category, suggestion}",
+        "Text output: file:line:column: [category] pattern (suggestion: X)",
+        "Summary at end: X issues found in Y files",
+        "Exit code 1 if any matches, 0 if clean"
+      ],
+      "acceptance_criteria": [
+        "JSON output is valid JSON, parseable by agents",
+        "Text output is human-readable",
+        "Exit codes correct for CI integration"
+      ]
+    },
+    {
+      "id": "integrate-with-ci-script",
+      "name": "Integrate with script/ci",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "implement-output-formats",
+      "output_file": "script/ci",
+      "steps": [
+        "Add prose check step to script/ci",
+        "Run after fmt/clippy checks",
+        "Use text output for human readability in CI logs"
+      ],
+      "acceptance_criteria": [
+        "./script/ci runs prose check",
+        "Fails CI if AI patterns detected"
+      ]
+    },
+    {
+      "id": "add-tests",
+      "name": "Add tests for the prose linter",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "implement-output-formats",
+      "output_file": "xtask/src/check_prose.rs",
+      "steps": [
+        "Unit tests for pattern matching",
+        "Test doc comment extraction",
+        "Test markdown code block skipping",
+        "Integration test with sample files"
+      ],
+      "acceptance_criteria": [
+        "Tests pass",
+        "Coverage for main functionality"
+      ]
+    },
+    {
+      "id": "document-tool",
+      "name": "Document the tool in CLAUDE.md",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": "integrate-with-ci-script",
+      "output_file": "CLAUDE.md",
+      "steps": [
+        "Add section about prose linter to CLAUDE.md",
+        "Document cargo xtask check-prose usage",
+        "Reference context/ai-writing-patterns.md"
+      ],
+      "acceptance_criteria": [
+        "CLAUDE.md documents the tool",
+        "AI agents know to run it before committing docs"
+      ]
+    }
+  ],
+  "technical_notes": [
+    "Use regex crate for pattern matching",
+    "Use ignore or walkdir crate for file discovery",
+    "Use serde_json for JSON output",
+    "Patterns should be compiled once and reused",
+    "Doc comment extraction: look for /// and //! prefixes, #[doc = \"...\"] attributes",
+    "Skip markdown code blocks (``` ... ```) to avoid false positives in examples",
+    "Word boundaries: use \\b to avoid matching substrings"
+  ],
+  "output_format": {
+    "json_example": {
+      "matches": [
+        {
+          "file": "docs/src/intro.md",
+          "line": 5,
+          "column": 10,
+          "matched_text": "delve into",
+          "pattern": "delve",
+          "category": "telltale_verbs",
+          "severity": "error",
+          "suggestion": "Use 'explore', 'examine', or 'look at' instead"
+        }
+      ],
+      "summary": {
+        "total_matches": 1,
+        "files_checked": 25,
+        "files_with_matches": 1
+      }
+    }
+  },
+  "notes": [
+    "Start with all patterns as errors",
+    "Can demote specific patterns to warnings later based on false positive rate",
+    "JSON output enables agents to auto-fix issues",
+    "Fast Rust implementation means we can check everything on every commit"
+  ]
+}
