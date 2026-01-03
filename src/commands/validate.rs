@@ -20,6 +20,7 @@ use clap::Args;
 use std::path::PathBuf;
 
 use common_repo::config;
+use common_repo::defaults::DEFAULT_CONFIG_FILENAME;
 use common_repo::output::{emoji, OutputConfig};
 use common_repo::phases;
 use common_repo::repository::RepositoryManager;
@@ -28,7 +29,7 @@ use common_repo::repository::RepositoryManager;
 #[derive(Args, Debug)]
 pub struct ValidateArgs {
     /// Path to the .common-repo.yaml configuration file to validate.
-    #[arg(short, long, value_name = "FILE", default_value = ".common-repo.yaml")]
+    #[arg(short, long, value_name = "FILE", default_value = DEFAULT_CONFIG_FILENAME)]
     pub config: PathBuf,
 
     /// The root directory for the repository cache.

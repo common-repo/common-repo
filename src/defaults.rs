@@ -5,6 +5,12 @@
 
 use std::path::PathBuf;
 
+/// The default configuration filename.
+pub const DEFAULT_CONFIG_FILENAME: &str = ".common-repo.yaml";
+
+/// Alternate configuration filename (without hyphen).
+pub const ALT_CONFIG_FILENAME: &str = ".commonrepo.yaml";
+
 /// Returns the default cache root directory.
 ///
 /// Uses the platform-appropriate cache directory:

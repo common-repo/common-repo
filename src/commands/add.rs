@@ -16,6 +16,7 @@ use dialoguer::{theme::ColorfulTheme, Confirm};
 use std::fs;
 use std::path::Path;
 
+use common_repo::defaults::DEFAULT_CONFIG_FILENAME;
 use common_repo::git;
 use common_repo::version;
 
@@ -37,7 +38,7 @@ pub struct AddArgs {
 /// to the `.common-repo.yaml` configuration file. If no configuration exists,
 /// it either invokes the init wizard (default) or creates a minimal config (--yes).
 pub fn execute(args: AddArgs) -> Result<()> {
-    let config_path = Path::new(".common-repo.yaml");
+    let config_path = Path::new(DEFAULT_CONFIG_FILENAME);
 
     // Normalize URL (expand GitHub shorthand)
     let url = normalize_repo_url(&args.uri);
