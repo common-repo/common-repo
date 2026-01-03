@@ -217,6 +217,187 @@ Remove entirely:
 | "end-to-end" | complete |
 | "out of the box" | built-in, default |
 
+## Enthusiasm Patterns
+
+AI tends toward false cheerfulness:
+
+- "Let's dive in!"
+- "Let's get started!"
+- "Let's explore..."
+- "Let's take a look..."
+- "Happy coding!"
+- "Happy building!"
+- "Enjoy!"
+- "Have fun!"
+- "Exciting!" / "This is exciting"
+- "Great question!"
+- "Excellent choice!"
+- "Perfect!"
+- "Absolutely!"
+- "Certainly!"
+- "Of course!"
+- "I'd be happy to..."
+- "I hope this helps!"
+
+## Rhetorical Patterns
+
+AI loves rhetorical questions and setups:
+
+- "But what does this mean for you?"
+- "So what's the catch?"
+- "Sound familiar?"
+- "You might be wondering..."
+- "But wait, there's more!"
+- "Here's the kicker..."
+- "Here's the deal..."
+- "Here's the thing..."
+- "The good news is..."
+- "The bad news is..."
+- "Spoiler alert:"
+- "Plot twist:"
+- "Fun fact:"
+- "Pro tip:" (overused)
+- "Bonus:"
+- "TL;DR" (in formal docs)
+
+## Filler Starters
+
+AI starts sentences with unnecessary words:
+
+- "So," (at paragraph start)
+- "Now," (at paragraph start)
+- "Well," (at paragraph start)
+- "Basically,"
+- "Essentially," (overused)
+- "Actually,"
+- "Honestly," / "To be honest,"
+- "Interestingly,"
+- "Surprisingly,"
+- "Importantly,"
+- "Ultimately," (overused)
+- "Specifically," (as filler)
+- "Okay, so"
+- "Alright, so"
+
+## Seeking Validation
+
+AI often seeks agreement or validation:
+
+- "Right?"
+- "Make sense?"
+- "Got it?"
+- "See?"
+- "You know?"
+- "Agreed?"
+
+## Closers and Sign-offs
+
+- "And there you have it!"
+- "And that's it!"
+- "And that's a wrap!"
+- "Voilà!"
+- "Easy peasy!"
+- "Piece of cake!"
+- "Bob's your uncle"
+- "Without further ado"
+
+## Anthropomorphization
+
+AI anthropomorphizes code and tools:
+
+- "The function wants..."
+- "The compiler is happy when..."
+- "The server doesn't like..."
+- "Git wants you to..."
+- "The code is trying to..."
+- "X is your friend" (e.g., "Git is your friend")
+
+## Tech Clichés
+
+| Avoid | Use Instead |
+|-------|-------------|
+| under the hood | internally, implementation |
+| behind the scenes | internally |
+| magic / magical | automatic, built-in |
+| automagically | automatically |
+| heavy lifting | work, processing |
+| nitty-gritty | details |
+| bells and whistles | features |
+| gotcha / gotchas | caveat, issue, trap |
+| edge case | (use only when actually edge cases) |
+| real-world | production, actual |
+| battle-tested | proven, reliable |
+| silver bullet | solution |
+| Swiss army knife | versatile tool |
+| one-size-fits-all | universal |
+| out of the box | default, built-in |
+| plug and play | ready to use |
+| set it and forget it | automatic |
+| batteries included | complete, full-featured |
+
+## Vague Intensifiers
+
+Remove or replace:
+
+- "very" + adjective → use stronger adjective
+- "really" as intensifier
+- "super" ("super easy", "super helpful")
+- "pretty" as hedge ("pretty straightforward")
+- "quite" as filler
+- "just" as minimizer ("just add", "just run")
+- "simply" as minimizer
+
+## Superlatives Without Evidence
+
+- "the best"
+- "the fastest"
+- "the most powerful"
+- "world-class"
+- "top-notch"
+- "first-class"
+- "best-in-class"
+- "industry-leading"
+- "unparalleled"
+- "unmatched"
+- "second to none"
+
+## Paired/Redundant Adjectives
+
+AI loves doubling up:
+
+- "quick and easy"
+- "simple and straightforward"
+- "fast and efficient"
+- "powerful and flexible"
+- "clean and elegant"
+- "safe and secure"
+- "complete and comprehensive"
+
+Pick one.
+
+## Trailing Off
+
+- "and more"
+- "and so on"
+- "and much more"
+- "etc." (overused)
+- "among others"
+- "to name a few"
+- "the list goes on"
+
+## Vague Personalization
+
+- "your use case"
+- "your needs"
+- "your workflow"
+- "your situation"
+- "depending on your requirements"
+- "as needed"
+- "as appropriate"
+- "when necessary"
+
+Be specific or omit.
+
 ## Structural Patterns
 
 Avoid these AI writing habits:
@@ -228,6 +409,17 @@ Avoid these AI writing habits:
 5. **Lack of specifics** - AI uses abstract language; humans give concrete examples
 6. **Excessive polish** - Real writing has casual phrasing and minor imperfections
 7. **Missing personality** - No opinions, preferences, or personal voice
+8. **Everything is a list** - Prose would often be clearer
+9. **Numbered steps for trivial tasks** - "Step 1: Open the file. Step 2: Read it."
+10. **Repeating the question** - Restating what was asked before answering
+11. **Summary that repeats** - Ending with summary that just echoes the content
+12. **Parallel structure obsession** - Every bullet formatted identically
+13. **Excessive formatting** - Bold, italic, code spans on everything
+14. **Generic examples** - "foo", "bar", "example.com", "user123"
+15. **Over-explaining simple things** - Treating readers as beginners
+16. **Under-explaining complex things** - Superficial coverage of hard topics
+17. **"The following" references** - "The following steps", "The following example"
+18. **"Above/below" references** - "As shown above", "See below"
 
 ## What Good Technical Writing Looks Like
 
