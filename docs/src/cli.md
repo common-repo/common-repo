@@ -9,7 +9,7 @@ These options are available for all commands:
 | Option | Description |
 |--------|-------------|
 | `--color <WHEN>` | Colorize output: `always`, `never`, `auto` (default: auto) |
-| `--log-level <LEVEL>` | Set log level: `error`, `warn`, `info`, `debug`, `trace`, `off` (default: info) |
+| `--log-level <LEVEL>` | Set log level: `error`, `warn`, `info`, `debug`, `trace` (default: info) |
 | `--verbose` | Increase output verbosity (can be repeated for more detail) |
 | `--quiet` | Suppress output except errors |
 | `-h, --help` | Print help information |
@@ -94,7 +94,7 @@ common-repo apply [OPTIONS]
 |--------|-------------|
 | `-c, --config <PATH>` | Path to config file (default: `.common-repo.yaml`) |
 | `-o, --output <PATH>` | Output directory (default: current directory) |
-| `--cache-root <PATH>` | Cache directory (default: `~/.common-repo/cache`) |
+| `--cache-root <PATH>` | Cache directory (default: `~/.cache/common-repo` on Linux, `~/Library/Caches/common-repo` on macOS) |
 | `-n, --dry-run` | Show what would be done without making changes |
 | `-f, --force` | Overwrite existing files without prompting |
 | `--no-cache` | Bypass cache and fetch fresh clones |
