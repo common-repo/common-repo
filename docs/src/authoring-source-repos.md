@@ -4,7 +4,7 @@ This guide explains how to create and maintain source repositories that other pr
 
 ## What is a Source Repository?
 
-A **source repository** contains configuration files, templates, and standards that other repositories (consumers) can inherit. Think of it as a library of reusable project configurations.
+A **source repository** contains configuration files, templates, and standards that other repositories (consumers) can inherit—essentially a library of reusable project configurations.
 
 **Source repository** vs **consumer repository**:
 

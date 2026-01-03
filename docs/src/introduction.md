@@ -2,18 +2,16 @@
 
 Manage repository configuration files as dependencies. Define inheritance in `.common-repo.yaml`, pull files from multiple Git repositories, and merge them with version pinning.
 
-## The Problem
+## Why common-repo?
 
-Modern software repositories require extensive configuration infrastructure: CI/CD pipelines, pre-commit hooks, linters, formatters, and countless dotfiles. Currently, developers face:
+Modern software repositories require extensive configuration infrastructure: CI/CD pipelines, pre-commit hooks, linters, formatters, and countless dotfiles. Managing these across multiple projects typically means:
 
-- **Manual copy-paste**: Configuration files copied between projects lead to inconsistency and drift
-- **Lack of versioning**: Unlike source dependencies, configs aren't semantically versioned or tracked
-- **Difficult updates**: No automated way to propagate best practices across repositories
-- **No inheritance**: Can't easily extend standard configurations
+- **Manual copy-paste** - Configuration files copied between projects lead to inconsistency and drift
+- **No versioning** - Unlike source dependencies, configs aren't semantically versioned or tracked
+- **Difficult updates** - No automated way to propagate best practices across repositories
+- **No inheritance** - Can't easily extend standard configurations
 
-## The Solution
-
-**common-repo treats repository configuration as software dependencies.**
+common-repo treats repository configuration as software dependencies.
 
 Configuration files become:
 - **Semantically versioned** - Track exactly which version you're using

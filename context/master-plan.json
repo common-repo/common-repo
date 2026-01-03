@@ -51,7 +51,7 @@
     {
       "id": "ai-isms-removal",
       "name": "Remove AI-isms from Documentation",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "user-docs-fixes",
       "plan_file": "context/plan-ai-isms-removal.json",

@@ -1,11 +1,12 @@
 {
-  "task": null,
-  "plan": "context/master-plan.json",
+  "task": "create-xtask-command",
+  "plan": "context/plan-prose-linter.json",
   "last_updated": "2026-01-03",
-  "status": "complete",
-  "description": "User docs fixes plan completed",
+  "status": "pending",
+  "description": "Build Rust tool to detect AI writing patterns in all text content",
   "context": {
-    "completed_plans": ["context/plan-readme-cleanup.json", "context/plan-cache-bug-fix.json", "context/plan-defaults-audit.json", "context/plan-user-docs-fixes.json"],
-    "next_plans": ["ai-isms-removal", "competitive-research"]
+    "parent_plan": "context/master-plan.json",
+    "completed_plans": ["context/plan-readme-cleanup.json", "context/plan-cache-bug-fix.json", "context/plan-defaults-audit.json", "context/plan-user-docs-fixes.json", "context/plan-ai-isms-removal.json"],
+    "patterns_reference": "context/ai-writing-patterns.md"
   }
 }
