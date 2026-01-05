@@ -28,7 +28,7 @@
     {
       "id": "define-pattern-data",
       "name": "Define pattern data structure and load patterns",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "create-xtask-command",
       "output_file": "xtask/src/check_prose.rs",
