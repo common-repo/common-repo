@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.25.0](https://github.com/common-repo/common-repo/compare/v0.24.0...v0.25.0) (2026-01-05)
+
+
+### Features
+
+* **xtask:** add check-prose command structure ([d85bf5b](https://github.com/common-repo/common-repo/commit/d85bf5baa867a0b8d10c64b9d96693722e0a3e1b))
+
+
+### Bug Fixes
+
+* **ci:** auto-merge workflow was waiting for itself to complete ([e8b2833](https://github.com/common-repo/common-repo/commit/e8b2833ef00eeb7988db76b21e25b5428ebb2ff5))
+
 ## [0.24.0](https://github.com/common-repo/common-repo/compare/v0.23.0...v0.24.0) (2026-01-03)
 
 

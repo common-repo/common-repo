@@ -3,7 +3,7 @@ members = [".", "xtask"]
 
 [package]
 name = "common-repo"
-version = "0.24.0"
+version = "0.25.0"
 edition = "2021"
 rust-version = "1.85.0"
 license = "AGPL-3.0-or-later"
