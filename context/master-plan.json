@@ -59,10 +59,20 @@
       "description": "Scan and rewrite docs to remove AI-generated patterns, make them read like developer-written docs"
     },
     {
+      "id": "prose-linter",
+      "name": "Build Prose Linter Tool",
+      "status": "in_progress",
+      "priority": 6,
+      "blocked_by": "ai-isms-removal",
+      "plan_file": "context/plan-prose-linter.json",
+      "estimated_sessions": 1,
+      "description": "Custom Rust tool (cargo xtask check-prose) to detect AI writing patterns in docs, code comments, and all text content"
+    },
+    {
       "id": "competitive-research",
       "name": "Competitive Analysis for Feature Prioritization",
       "status": "pending",
-      "priority": 6,
+      "priority": 7,
       "blocked_by": null,
       "plan_file": "context/plan-competitive-research.json",
       "estimated_sessions": 2,
@@ -96,6 +106,12 @@
     },
     {
       "phase": 5,
+      "name": "Sequential: Prose Linter Tool",
+      "plans": ["prose-linter"],
+      "notes": "Build tool to enforce ai-writing-patterns.md automatically"
+    },
+    {
+      "phase": 6,
       "name": "Parallel Track B: Research",
       "plans": ["competitive-research"],
       "notes": "Can run anytime - independent of other work"
