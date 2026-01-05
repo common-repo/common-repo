@@ -1611,10 +1611,22 @@ fn third_func() {}
 
     #[test]
     fn test_output_format_parsing() {
-        assert!(matches!("text".parse::<OutputFormat>(), Ok(OutputFormat::Text)));
-        assert!(matches!("TEXT".parse::<OutputFormat>(), Ok(OutputFormat::Text)));
-        assert!(matches!("json".parse::<OutputFormat>(), Ok(OutputFormat::Json)));
-        assert!(matches!("JSON".parse::<OutputFormat>(), Ok(OutputFormat::Json)));
+        assert!(matches!(
+            "text".parse::<OutputFormat>(),
+            Ok(OutputFormat::Text)
+        ));
+        assert!(matches!(
+            "TEXT".parse::<OutputFormat>(),
+            Ok(OutputFormat::Text)
+        ));
+        assert!(matches!(
+            "json".parse::<OutputFormat>(),
+            Ok(OutputFormat::Json)
+        ));
+        assert!(matches!(
+            "JSON".parse::<OutputFormat>(),
+            Ok(OutputFormat::Json)
+        ));
         assert!("invalid".parse::<OutputFormat>().is_err());
     }
 
@@ -1633,9 +1645,10 @@ fn third_func() {}
         let files = discover_files(&[PathBuf::from("src")]);
 
         // Should find some Rust files in src/
-        let rs_count = files.iter().filter(|f| {
-            f.extension().and_then(|e| e.to_str()) == Some("rs")
-        }).count();
+        let rs_count = files
+            .iter()
+            .filter(|f| f.extension().and_then(|e| e.to_str()) == Some("rs"))
+            .count();
         assert!(rs_count > 0, "Should find some Rust files in xtask/src");
 
         // Verify we found this file specifically
@@ -1659,7 +1672,9 @@ fn third_func() {}
         assert!(pattern.regex.is_match("Basically, this is the point"));
 
         // Should match after sentence ending
-        assert!(pattern.regex.is_match("End of sentence. Basically, new point"));
+        assert!(pattern
+            .regex
+            .is_match("End of sentence. Basically, new point"));
     }
 
     #[test]
@@ -1678,8 +1693,12 @@ fn third_func() {}
         };
 
         let matches = find_matches_in_span(&span, &patterns);
-        assert!(matches.iter().any(|m| m.matched_text.to_uppercase() == "LEVERAGE"));
-        assert!(matches.iter().any(|m| m.matched_text.to_uppercase() == "ROBUST"));
+        assert!(matches
+            .iter()
+            .any(|m| m.matched_text.to_uppercase() == "LEVERAGE"));
+        assert!(matches
+            .iter()
+            .any(|m| m.matched_text.to_uppercase() == "ROBUST"));
     }
 
     #[test]
