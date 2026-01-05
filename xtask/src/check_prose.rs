@@ -288,7 +288,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("revolutioniz(?:e|es|ed|ing)", "change, transform"),
     ];
     for (pattern, suggestion) in verbs {
-        if let Ok(p) = Pattern::new(pattern, Category::TelltaleVerbs, Severity::Error, suggestion) {
+        if let Ok(p) = Pattern::new(
+            pattern,
+            Category::TelltaleVerbs,
+            Severity::Error,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -326,9 +331,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("battle-tested", "proven"),
     ];
     for (pattern, suggestion) in adjectives {
-        if let Ok(p) =
-            Pattern::new(pattern, Category::TelltaleAdjectives, Severity::Error, suggestion)
-        {
+        if let Ok(p) = Pattern::new(
+            pattern,
+            Category::TelltaleAdjectives,
+            Severity::Error,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -361,7 +369,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("north star", "goal, vision"),
     ];
     for (pattern, suggestion) in nouns {
-        if let Ok(p) = Pattern::new(pattern, Category::TelltaleNouns, Severity::Error, suggestion) {
+        if let Ok(p) = Pattern::new(
+            pattern,
+            Category::TelltaleNouns,
+            Severity::Error,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -377,8 +390,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("In This Guide", "use descriptive header"),
     ];
     for (phrase, suggestion) in headers {
-        if let Ok(p) = Pattern::phrase(phrase, Category::HeaderPatterns, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::HeaderPatterns,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -403,9 +420,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("It goes without saying", "omit"),
     ];
     for (phrase, suggestion) in openers {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::OpeningPatterns, Severity::Error, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::OpeningPatterns,
+            Severity::Error,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -461,9 +481,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("as a general rule", "use sparingly"),
     ];
     for (phrase, suggestion) in hedging {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::HedgingLanguage, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::HedgingLanguage,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -513,9 +536,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("out of the box", "built-in, default"),
     ];
     for (phrase, suggestion) in buzzwords {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::BuzzwordPhrases, Severity::Error, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::BuzzwordPhrases,
+            Severity::Error,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -590,9 +616,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("Alright, so", "omit"),
     ];
     for (phrase, suggestion) in starters {
-        if let Ok(p) =
-            Pattern::starter(phrase, Category::FillerStarters, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::starter(
+            phrase,
+            Category::FillerStarters,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -607,9 +636,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("Agreed\\?", "omit"),
     ];
     for (pattern, suggestion) in validation {
-        if let Ok(p) =
-            Pattern::new(pattern, Category::SeekingValidation, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::new(
+            pattern,
+            Category::SeekingValidation,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -626,9 +658,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("Without further ado", "omit"),
     ];
     for (phrase, suggestion) in closers {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::ClosersSignoffs, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::ClosersSignoffs,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -669,8 +704,7 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("batteries included", "complete, full-featured"),
     ];
     for (phrase, suggestion) in tech_cliches {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::TechCliches, Severity::Warning, suggestion)
+        if let Ok(p) = Pattern::phrase(phrase, Category::TechCliches, Severity::Warning, suggestion)
         {
             patterns.push(p);
         }
@@ -708,9 +742,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("second to none", "be specific"),
     ];
     for (phrase, suggestion) in superlatives {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::Superlatives, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::Superlatives,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -726,9 +763,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("complete and comprehensive", "pick one"),
     ];
     for (phrase, suggestion) in paired {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::PairedAdjectives, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::PairedAdjectives,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -743,8 +783,7 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("the list goes on", "be specific"),
     ];
     for (phrase, suggestion) in trailing {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::TrailingOff, Severity::Warning, suggestion)
+        if let Ok(p) = Pattern::phrase(phrase, Category::TrailingOff, Severity::Warning, suggestion)
         {
             patterns.push(p);
         }
@@ -820,9 +859,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("You'll learn how to", "omit"),
     ];
     for (phrase, suggestion) in promises {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::PromisePatterns, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::PromisePatterns,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -883,8 +925,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("It is interesting to note", "omit"),
     ];
     for (phrase, suggestion) in weak {
-        if let Ok(p) = Pattern::phrase(phrase, Category::WeakStarters, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::WeakStarters,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -920,9 +966,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("It bears repeating", "just repeat it"),
     ];
     for (phrase, suggestion) in meta {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::MetaCommentary, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::MetaCommentary,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -959,9 +1008,12 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("Sorry, I should have mentioned", "omit"),
     ];
     for (phrase, suggestion) in apology {
-        if let Ok(p) =
-            Pattern::phrase(phrase, Category::ApologyPatterns, Severity::Warning, suggestion)
-        {
+        if let Ok(p) = Pattern::phrase(
+            phrase,
+            Category::ApologyPatterns,
+            Severity::Warning,
+            suggestion,
+        ) {
             patterns.push(p);
         }
     }
@@ -1018,12 +1070,19 @@ pub fn run(config: CheckProseConfig) -> Result<()> {
 
     let patterns = build_patterns();
     if config.verbose {
-        println!("Loaded {} patterns across {} categories", patterns.len(), 33);
+        println!(
+            "Loaded {} patterns across {} categories",
+            patterns.len(),
+            33
+        );
     }
 
     // TODO: Implement file scanning in subsequent task
     // TODO: Implement pattern matching in subsequent task
-    println!("Pattern data structure ready with {} patterns.", patterns.len());
+    println!(
+        "Pattern data structure ready with {} patterns.",
+        patterns.len()
+    );
     println!("File scanning will be implemented in the next task.");
 
     Ok(())
@@ -1035,13 +1094,8 @@ mod tests {
 
     #[test]
     fn test_pattern_new() {
-        let pattern = Pattern::new(
-            "delve",
-            Category::TelltaleVerbs,
-            Severity::Error,
-            "explore",
-        )
-        .unwrap();
+        let pattern =
+            Pattern::new("delve", Category::TelltaleVerbs, Severity::Error, "explore").unwrap();
         assert!(pattern.regex.is_match("delve into"));
         assert!(pattern.regex.is_match("Delve into"));
         assert!(pattern.regex.is_match("DELVE"));
@@ -1064,7 +1118,11 @@ mod tests {
     #[test]
     fn test_build_patterns_loads_all() {
         let patterns = build_patterns();
-        assert!(patterns.len() > 200, "Expected at least 200 patterns, got {}", patterns.len());
+        assert!(
+            patterns.len() > 200,
+            "Expected at least 200 patterns, got {}",
+            patterns.len()
+        );
     }
 
     #[test]
