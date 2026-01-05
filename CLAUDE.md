@@ -288,6 +288,7 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 ## Documentation Style Guide
 
 - Follow [Rustdoc guide](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html), [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/), and [std-dev style guide](https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html)
+- **Avoid AI writing patterns** - See `context/ai-writing-patterns.md` for comprehensive list of phrases, words, and structures to avoid
 - Link to files/documentation appropriately
 - No emojis or hype language
 - No specific numbers that will change (versions, coverage percentages)
