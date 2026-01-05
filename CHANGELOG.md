@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/common-repo/common-repo/compare/v0.24.0...v0.25.0) (2026-01-05)
+
+
+### Features
+
+* **xtask:** add check-prose command structure ([d85bf5b](https://github.com/common-repo/common-repo/commit/d85bf5baa867a0b8d10c64b9d96693722e0a3e1b))
+
 ## [0.24.0](https://github.com/common-repo/common-repo/compare/v0.23.0...v0.24.0) (2026-01-03)
 
 
