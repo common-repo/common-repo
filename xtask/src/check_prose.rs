@@ -4,9 +4,11 @@
 //! writing patterns and reports them with suggestions for improvement.
 
 use anyhow::Result;
+use ignore::WalkBuilder;
 use regex::Regex;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Output format for the prose check results.
 #[derive(Debug, Clone, Copy, Default)]
@@ -1059,6 +1061,222 @@ pub fn build_patterns() -> Vec<Pattern> {
     patterns
 }
 
+/// A span of text to check, with its source location.
+#[derive(Debug)]
+pub struct TextSpan {
+    /// The text content to check
+    pub text: String,
+    /// Starting line number (1-indexed)
+    pub start_line: usize,
+    /// Source file path
+    pub file: PathBuf,
+}
+
+/// Represents a file and the text spans to check within it.
+#[derive(Debug)]
+pub struct FileContent {
+    /// Path to the file
+    #[allow(dead_code)] // Used for debugging/tracing
+    pub path: PathBuf,
+    /// Text spans to check (may be full file or extracted doc comments)
+    pub spans: Vec<TextSpan>,
+}
+
+/// Discover files to check in the given paths.
+///
+/// Finds markdown files and Rust source files, respecting .gitignore.
+pub fn discover_files(paths: &[PathBuf]) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+
+    for path in paths {
+        if path.is_file() {
+            if should_check_file(path) {
+                files.push(path.clone());
+            }
+            continue;
+        }
+
+        // Walk directory using ignore crate (respects .gitignore)
+        let walker = WalkBuilder::new(path)
+            .standard_filters(true) // Respects .gitignore, hidden files, etc.
+            .build();
+
+        for entry in walker.flatten() {
+            let entry_path = entry.path();
+            if entry_path.is_file() && should_check_file(entry_path) {
+                files.push(entry_path.to_path_buf());
+            }
+        }
+    }
+
+    files.sort();
+    files.dedup();
+    files
+}
+
+/// Check if a file should be scanned for prose patterns.
+fn should_check_file(path: &Path) -> bool {
+    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+        // Check for README, CHANGELOG without extension
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        return file_name.starts_with("README") || file_name.starts_with("CHANGELOG");
+    };
+
+    matches!(ext.to_lowercase().as_str(), "md" | "rs")
+}
+
+/// Extract text spans from a file for checking.
+///
+/// For markdown files, returns the full content minus code blocks.
+/// For Rust files, extracts doc comments.
+pub fn extract_text_spans(path: &PathBuf) -> Result<FileContent> {
+    let content = fs::read_to_string(path)?;
+
+    let spans = match path.extension().and_then(|e| e.to_str()) {
+        Some("md") => extract_markdown_spans(&content, path),
+        Some("rs") => extract_rust_doc_spans(&content, path),
+        _ => {
+            // For files without extension (README, CHANGELOG), treat as markdown
+            extract_markdown_spans(&content, path)
+        }
+    };
+
+    Ok(FileContent {
+        path: path.clone(),
+        spans,
+    })
+}
+
+/// Extract text spans from markdown, skipping code blocks.
+fn extract_markdown_spans(content: &str, path: &Path) -> Vec<TextSpan> {
+    let mut spans = Vec::new();
+    let mut current_text = String::new();
+    let mut span_start_line = 1;
+    let mut in_code_block = false;
+
+    for (line_idx, line) in content.lines().enumerate() {
+        let line_num = line_idx + 1;
+
+        // Check for code block delimiter
+        if line.trim_start().starts_with("```") {
+            if in_code_block {
+                // End of code block
+                in_code_block = false;
+            } else {
+                // Start of code block - save any accumulated text first
+                if !current_text.trim().is_empty() {
+                    spans.push(TextSpan {
+                        text: std::mem::take(&mut current_text),
+                        start_line: span_start_line,
+                        file: path.to_path_buf(),
+                    });
+                }
+                in_code_block = true;
+                current_text.clear();
+            }
+            continue;
+        }
+
+        if !in_code_block {
+            if current_text.is_empty() {
+                span_start_line = line_num;
+            }
+            current_text.push_str(line);
+            current_text.push('\n');
+        }
+    }
+
+    // Don't forget the last span
+    if !current_text.trim().is_empty() {
+        spans.push(TextSpan {
+            text: current_text,
+            start_line: span_start_line,
+            file: path.to_path_buf(),
+        });
+    }
+
+    spans
+}
+
+/// Extract doc comments from Rust source code.
+fn extract_rust_doc_spans(content: &str, path: &Path) -> Vec<TextSpan> {
+    let mut spans = Vec::new();
+    let mut current_doc = String::new();
+    let mut doc_start_line = 0;
+    let mut in_doc_block = false;
+
+    for (line_idx, line) in content.lines().enumerate() {
+        let line_num = line_idx + 1;
+        let trimmed = line.trim_start();
+
+        // Check for doc comments: /// or //!
+        let doc_content = if let Some(rest) = trimmed.strip_prefix("///") {
+            Some(rest.strip_prefix(' ').unwrap_or(rest))
+        } else if let Some(rest) = trimmed.strip_prefix("//!") {
+            Some(rest.strip_prefix(' ').unwrap_or(rest))
+        } else {
+            None
+        };
+
+        if let Some(text) = doc_content {
+            if !in_doc_block {
+                doc_start_line = line_num;
+                in_doc_block = true;
+            }
+            current_doc.push_str(text);
+            current_doc.push('\n');
+        } else {
+            // End of doc block
+            if in_doc_block && !current_doc.trim().is_empty() {
+                spans.push(TextSpan {
+                    text: std::mem::take(&mut current_doc),
+                    start_line: doc_start_line,
+                    file: path.to_path_buf(),
+                });
+            }
+            in_doc_block = false;
+            current_doc.clear();
+        }
+    }
+
+    // Don't forget the last doc block
+    if in_doc_block && !current_doc.trim().is_empty() {
+        spans.push(TextSpan {
+            text: current_doc,
+            start_line: doc_start_line,
+            file: path.to_path_buf(),
+        });
+    }
+
+    spans
+}
+
+/// Find matches of patterns in a text span.
+pub fn find_matches_in_span(span: &TextSpan, patterns: &[Pattern]) -> Vec<Match> {
+    let mut matches = Vec::new();
+
+    for (line_offset, line) in span.text.lines().enumerate() {
+        let line_num = span.start_line + line_offset;
+
+        for pattern in patterns {
+            for regex_match in pattern.regex.find_iter(line) {
+                matches.push(Match {
+                    file: span.file.clone(),
+                    line: line_num,
+                    column: regex_match.start() + 1, // 1-indexed
+                    matched_text: regex_match.as_str().to_string(),
+                    pattern: pattern.pattern_text.to_string(),
+                    category: pattern.category,
+                    severity: pattern.severity,
+                    suggestion: pattern.suggestion.to_string(),
+                });
+            }
+        }
+    }
+
+    matches
+}
+
 /// Run the prose linter with the given configuration.
 pub fn run(config: CheckProseConfig) -> Result<()> {
     if config.verbose {
@@ -1077,13 +1295,91 @@ pub fn run(config: CheckProseConfig) -> Result<()> {
         );
     }
 
-    // TODO: Implement file scanning in subsequent task
-    // TODO: Implement pattern matching in subsequent task
-    println!(
-        "Pattern data structure ready with {} patterns.",
-        patterns.len()
-    );
-    println!("File scanning will be implemented in the next task.");
+    // Discover files to check
+    let files = discover_files(&config.paths);
+    if config.verbose {
+        println!("Found {} files to check", files.len());
+    }
+
+    // Process each file and collect matches
+    let mut all_matches: Vec<Match> = Vec::new();
+    let mut files_checked = 0;
+    let mut files_with_matches = 0;
+
+    for file_path in &files {
+        match extract_text_spans(file_path) {
+            Ok(file_content) => {
+                files_checked += 1;
+                let mut file_had_matches = false;
+
+                for span in &file_content.spans {
+                    let matches = find_matches_in_span(span, &patterns);
+                    if !matches.is_empty() {
+                        file_had_matches = true;
+                        all_matches.extend(matches);
+                    }
+                }
+
+                if file_had_matches {
+                    files_with_matches += 1;
+                }
+            }
+            Err(e) => {
+                if config.verbose {
+                    eprintln!("Warning: Could not read {}: {}", file_path.display(), e);
+                }
+            }
+        }
+    }
+
+    // Build results
+    let results = CheckResults {
+        matches: all_matches,
+        summary: Summary {
+            total_matches: 0, // Will be set below
+            files_checked,
+            files_with_matches,
+        },
+    };
+    let total_matches = results.matches.len();
+
+    // Output results
+    match config.format {
+        OutputFormat::Json => {
+            let output = serde_json::json!({
+                "matches": results.matches,
+                "summary": {
+                    "total_matches": total_matches,
+                    "files_checked": files_checked,
+                    "files_with_matches": files_with_matches
+                }
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        }
+        OutputFormat::Text => {
+            for m in &results.matches {
+                println!(
+                    "{}:{}:{}: [{}] '{}' (suggestion: {})",
+                    m.file.display(),
+                    m.line,
+                    m.column,
+                    m.category.display_name(),
+                    m.matched_text,
+                    m.suggestion
+                );
+            }
+            println!();
+            println!(
+                "Summary: {} issues found in {} files ({} files checked)",
+                total_matches, files_with_matches, files_checked
+            );
+        }
+    }
+
+    // Exit with error if any matches found
+    if total_matches > 0 {
+        std::process::exit(1);
+    }
 
     Ok(())
 }
@@ -1149,5 +1445,167 @@ mod tests {
         assert!(delve_pattern.regex.is_match("delve into"));
         assert!(delve_pattern.regex.is_match("delves into"));
         assert!(delve_pattern.regex.is_match("delved into"));
+    }
+
+    #[test]
+    fn test_should_check_file() {
+        assert!(should_check_file(Path::new("README.md")));
+        assert!(should_check_file(Path::new("src/lib.rs")));
+        assert!(should_check_file(Path::new("docs/guide.MD")));
+        assert!(should_check_file(Path::new("README")));
+        assert!(should_check_file(Path::new("CHANGELOG")));
+        assert!(!should_check_file(Path::new("main.py")));
+        assert!(!should_check_file(Path::new("image.png")));
+    }
+
+    #[test]
+    fn test_extract_markdown_spans_skips_code_blocks() {
+        let content = r#"# Header
+
+This is prose that should be checked.
+
+```rust
+fn delve() {
+    // This should be skipped
+}
+```
+
+More prose after the code block.
+"#;
+        let spans = extract_markdown_spans(content, Path::new("test.md"));
+
+        // Should have 2 spans (before and after code block)
+        assert_eq!(spans.len(), 2);
+
+        // First span should include header and prose
+        assert!(spans[0].text.contains("Header"));
+        assert!(spans[0].text.contains("prose that should be checked"));
+        assert!(!spans[0].text.contains("fn delve"));
+        assert_eq!(spans[0].start_line, 1);
+
+        // Second span should include prose after code block
+        // Starts at line 10 (empty line after code block ends)
+        assert!(spans[1].text.contains("More prose after"));
+        assert_eq!(spans[1].start_line, 10);
+    }
+
+    #[test]
+    fn test_extract_markdown_spans_handles_nested_code_markers() {
+        let content = r#"Some text
+
+```
+code block
+```
+
+More text
+"#;
+        let spans = extract_markdown_spans(content, Path::new("test.md"));
+        assert_eq!(spans.len(), 2);
+        assert!(!spans[0].text.contains("code block"));
+    }
+
+    #[test]
+    fn test_extract_rust_doc_spans() {
+        let content = r#"//! Module-level docs.
+//! This is also module docs.
+
+/// Function docs.
+/// More function docs.
+fn my_func() {}
+
+// Regular comment (not doc)
+fn other_func() {}
+
+/// Another doc comment.
+fn third_func() {}
+"#;
+        let spans = extract_rust_doc_spans(content, Path::new("test.rs"));
+
+        // Should have 3 doc blocks
+        assert_eq!(spans.len(), 3);
+
+        // Module docs
+        assert!(spans[0].text.contains("Module-level docs"));
+        assert_eq!(spans[0].start_line, 1);
+
+        // Function docs
+        assert!(spans[1].text.contains("Function docs"));
+        assert!(spans[1].text.contains("More function docs"));
+        assert_eq!(spans[1].start_line, 4);
+
+        // Another doc comment
+        assert!(spans[2].text.contains("Another doc comment"));
+        assert_eq!(spans[2].start_line, 11);
+    }
+
+    #[test]
+    fn test_find_matches_in_span() {
+        let span = TextSpan {
+            text: "Let's delve into this topic.\nThis is robust and seamless.".to_string(),
+            start_line: 10,
+            file: PathBuf::from("test.md"),
+        };
+
+        let patterns = build_patterns();
+        let matches = find_matches_in_span(&span, &patterns);
+
+        // Should find at least delve, robust, seamless
+        assert!(
+            matches.len() >= 3,
+            "Expected at least 3 matches, got {}",
+            matches.len()
+        );
+
+        // Check that delve match is on line 10
+        let delve_match = matches
+            .iter()
+            .find(|m| m.matched_text.to_lowercase().contains("delve"));
+        assert!(delve_match.is_some(), "Should find 'delve' match");
+        assert_eq!(delve_match.unwrap().line, 10);
+
+        // Check that robust/seamless are on line 11
+        let robust_match = matches
+            .iter()
+            .find(|m| m.matched_text.to_lowercase() == "robust");
+        assert!(robust_match.is_some(), "Should find 'robust' match");
+        assert_eq!(robust_match.unwrap().line, 11);
+    }
+
+    #[test]
+    fn test_find_matches_reports_correct_columns() {
+        let span = TextSpan {
+            text: "The robust system works.".to_string(),
+            start_line: 1,
+            file: PathBuf::from("test.md"),
+        };
+
+        let patterns = build_patterns();
+        let matches = find_matches_in_span(&span, &patterns);
+
+        let robust_match = matches
+            .iter()
+            .find(|m| m.matched_text.to_lowercase() == "robust");
+        assert!(robust_match.is_some());
+        // "robust" starts at column 5 (1-indexed)
+        assert_eq!(robust_match.unwrap().column, 5);
+    }
+
+    #[test]
+    fn test_match_serialization() {
+        let m = Match {
+            file: PathBuf::from("test.md"),
+            line: 10,
+            column: 5,
+            matched_text: "delve".to_string(),
+            pattern: "delve".to_string(),
+            category: Category::TelltaleVerbs,
+            severity: Severity::Error,
+            suggestion: "explore".to_string(),
+        };
+
+        let json = serde_json::to_string(&m).unwrap();
+        assert!(json.contains("\"line\":10"));
+        assert!(json.contains("\"severity\":\"error\""));
+        assert!(json.contains("\"category\":\"telltale_verbs\""));
     }
 }
