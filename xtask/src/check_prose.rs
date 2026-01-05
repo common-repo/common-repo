@@ -1608,4 +1608,90 @@ fn third_func() {}
         assert!(json.contains("\"severity\":\"error\""));
         assert!(json.contains("\"category\":\"telltale_verbs\""));
     }
+
+    #[test]
+    fn test_output_format_parsing() {
+        assert!(matches!("text".parse::<OutputFormat>(), Ok(OutputFormat::Text)));
+        assert!(matches!("TEXT".parse::<OutputFormat>(), Ok(OutputFormat::Text)));
+        assert!(matches!("json".parse::<OutputFormat>(), Ok(OutputFormat::Json)));
+        assert!(matches!("JSON".parse::<OutputFormat>(), Ok(OutputFormat::Json)));
+        assert!("invalid".parse::<OutputFormat>().is_err());
+    }
+
+    #[test]
+    fn test_check_prose_config_default() {
+        let config = CheckProseConfig::default();
+        assert_eq!(config.paths, vec![PathBuf::from(".")]);
+        assert!(matches!(config.format, OutputFormat::Text));
+        assert!(!config.verbose);
+    }
+
+    #[test]
+    fn test_discover_files_on_xtask_directory() {
+        // Verify that discover_files can scan the xtask src directory
+        // This test runs from the xtask directory, so use src/
+        let files = discover_files(&[PathBuf::from("src")]);
+
+        // Should find some Rust files in src/
+        let rs_count = files.iter().filter(|f| {
+            f.extension().and_then(|e| e.to_str()) == Some("rs")
+        }).count();
+        assert!(rs_count > 0, "Should find some Rust files in xtask/src");
+
+        // Verify we found this file specifically
+        assert!(
+            files.iter().any(|f| f.ends_with("check_prose.rs")),
+            "Should find check_prose.rs"
+        );
+    }
+
+    #[test]
+    fn test_pattern_starter() {
+        let pattern = Pattern::starter(
+            "Basically,",
+            Category::FillerStarters,
+            Severity::Warning,
+            "omit",
+        )
+        .unwrap();
+
+        // Should match at start of line
+        assert!(pattern.regex.is_match("Basically, this is the point"));
+
+        // Should match after sentence ending
+        assert!(pattern.regex.is_match("End of sentence. Basically, new point"));
+    }
+
+    #[test]
+    fn test_extract_text_spans_handles_file_not_found() {
+        let result = extract_text_spans(&PathBuf::from("nonexistent.md"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_case_insensitive_matching() {
+        let patterns = build_patterns();
+        let span = TextSpan {
+            text: "LEVERAGE this ROBUST solution".to_string(),
+            start_line: 1,
+            file: PathBuf::from("test.md"),
+        };
+
+        let matches = find_matches_in_span(&span, &patterns);
+        assert!(matches.iter().any(|m| m.matched_text.to_uppercase() == "LEVERAGE"));
+        assert!(matches.iter().any(|m| m.matched_text.to_uppercase() == "ROBUST"));
+    }
+
+    #[test]
+    fn test_summary_serialization() {
+        let summary = Summary {
+            total_matches: 5,
+            files_checked: 10,
+            files_with_matches: 3,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("\"total_matches\":5"));
+        assert!(json.contains("\"files_checked\":10"));
+        assert!(json.contains("\"files_with_matches\":3"));
+    }
 }

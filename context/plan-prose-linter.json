@@ -122,7 +122,7 @@
     {
       "id": "add-tests",
       "name": "Add tests for the prose linter",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "implement-output-formats",
       "output_file": "xtask/src/check_prose.rs",
