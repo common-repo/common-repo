@@ -277,10 +277,11 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 
 ## Committing Guidelines for Claude Code
 
-1. **NEVER commit/push without explicit user approval**
-2. **Avoid hardcoding values that change** - No version numbers, dates, or timestamps in tests. Use dynamic checks.
-3. **When fixing tests** - Understand what's being validated, fix the underlying issue, make expectations flexible
-4. **Keep summaries brief** - 1-2 sentences, no code samples unless requested
+1. **Run `./script/ci` before every commit** - Catches formatting, linting, and prose issues
+2. **NEVER commit/push without explicit user approval**
+3. **Avoid hardcoding values that change** - No version numbers, dates, or timestamps in tests. Use dynamic checks.
+4. **When fixing tests** - Understand what's being validated, fix the underlying issue, make expectations flexible
+5. **Keep summaries brief** - 1-2 sentences, no code samples unless requested
 
 ## CI/CD Architecture
 
