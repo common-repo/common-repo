@@ -105,7 +105,7 @@
     {
       "id": "integrate-with-ci-script",
       "name": "Integrate with script/ci",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "implement-output-formats",
       "output_file": "script/ci",
