@@ -38,8 +38,9 @@ jobs:
             gh pr checks "${PR_NUMBER}" || true
 
             # Count in-progress checks (excluding this workflow to avoid counting ourselves)
+            # Use case-insensitive regex to match any variation: "auto-merge", "Auto Merge", etc.
             IN_PROGRESS=$(gh pr checks "${PR_NUMBER}" --json name,state \
-              --jq '[.[] | select(.name | startswith("Auto Merge") | not) | select(.state == "PENDING" or .state == "IN_PROGRESS" or .state == "QUEUED")] | length')
+              --jq '[.[] | select(.name | test("auto[- ]?merge"; "i") | not) | select(.state == "PENDING" or .state == "IN_PROGRESS" or .state == "QUEUED")] | length')
 
             if [ "$IN_PROGRESS" -eq 0 ]; then
               echo ""
@@ -60,7 +61,7 @@ jobs:
 
           # Count failed checks (excluding this workflow for consistency)
           FAILED=$(gh pr checks "${PR_NUMBER}" --json name,state \
-            --jq '[.[] | select(.name | startswith("Auto Merge") | not) | select(.state == "FAILURE" or .state == "ERROR")] | length')
+            --jq '[.[] | select(.name | test("auto[- ]?merge"; "i") | not) | select(.state == "FAILURE" or .state == "ERROR")] | length')
 
           if [ "$FAILED" -gt 0 ]; then
             echo ""

@@ -242,12 +242,14 @@ prek run --all-files  # Alternative: runs pre-commit hooks only
 
 Environment variables for `./script/ci`:
 - `SKIP_SECURITY=1` - Skip cargo audit and cargo deny checks
+- `SKIP_PROSE=1` - Skip prose style check (AI writing patterns)
 - `OFFLINE=1` - Skip network-dependent checks
 
 Or individually:
 ```bash
 cargo fmt                                              # Format code
 cargo clippy --all-targets --all-features -- -D warnings  # Lint
+cargo xtask check-prose .                              # Check for AI patterns
 cargo test                                             # Run tests
 ```
 
@@ -257,6 +259,7 @@ Pre-commit hooks (configured in `.pre-commit-config.yaml`) automatically run: ca
 - Commit message >100 chars or wrong format
 - Code not formatted
 - Clippy warnings
+- AI writing patterns in documentation (run `cargo xtask check-prose .` to check)
 
 ## Commit Message Requirements
 
@@ -274,10 +277,11 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 
 ## Committing Guidelines for Claude Code
 
-1. **NEVER commit/push without explicit user approval**
-2. **Avoid hardcoding values that change** - No version numbers, dates, or timestamps in tests. Use dynamic checks.
-3. **When fixing tests** - Understand what's being validated, fix the underlying issue, make expectations flexible
-4. **Keep summaries brief** - 1-2 sentences, no code samples unless requested
+1. **Run `./script/ci` before every commit** - Catches formatting, linting, and prose issues
+2. **NEVER commit/push without explicit user approval**
+3. **Avoid hardcoding values that change** - No version numbers, dates, or timestamps in tests. Use dynamic checks.
+4. **When fixing tests** - Understand what's being validated, fix the underlying issue, make expectations flexible
+5. **Keep summaries brief** - 1-2 sentences, no code samples unless requested
 
 ## CI/CD Architecture
 
@@ -288,12 +292,25 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 ## Documentation Style Guide
 
 - Follow [Rustdoc guide](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html), [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/), and [std-dev style guide](https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html)
-- **Avoid AI writing patterns** - See `context/ai-writing-patterns.md` for comprehensive list of phrases, words, and structures to avoid
+- **Avoid AI writing patterns** - See `context/ai-writing-patterns.md` for the list of phrases to avoid. Run `cargo xtask check-prose .` to scan for violations
 - Link to files/documentation appropriately
 - No emojis or hype language
 - No specific numbers that will change (versions, coverage percentages)
 - No line number references
 - Review for consistency and accuracy when done
+
+### Prose Linter
+
+The `check-prose` tool scans markdown files and Rust doc comments for AI writing patterns:
+
+```bash
+cargo xtask check-prose .                    # Check entire project
+cargo xtask check-prose docs/src README.md   # Check specific paths
+cargo xtask check-prose . --format json      # JSON output for tooling
+cargo xtask check-prose . --verbose          # Show files being checked
+```
+
+The tool exits with code 1 if any patterns are found, making it suitable for CI. Patterns include telltale verbs (delve, leverage), adjectives (robust, seamless), buzzwords (synergy, paradigm), and filler phrases.
 
 ## Important Notes
 
