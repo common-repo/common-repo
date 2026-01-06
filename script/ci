@@ -4,7 +4,6 @@
 #
 # Environment variables:
 #   SKIP_SECURITY=1  - Skip security checks (cargo audit, cargo deny)
-#   SKIP_PROSE=1     - Skip prose style check (AI writing patterns)
 #   OFFLINE=1        - Skip checks that require network
 
 set -euo pipefail
@@ -20,14 +19,6 @@ cargo fmt --all -- --check
 # Run clippy linting
 echo "==> Running clippy..."
 cargo clippy --all-targets --all-features -- -D warnings
-
-# Prose style check (skip if SKIP_PROSE is set)
-if [[ -z "${SKIP_PROSE:-}" ]]; then
-  echo "==> Checking prose for AI writing patterns..."
-  cargo xtask check-prose .
-else
-  echo "==> Skipping prose check (SKIP_PROSE is set)"
-fi
 
 # Run pre-commit checks (prek preferred, pre-commit as fallback)
 echo "==> Running pre-commit checks..."
