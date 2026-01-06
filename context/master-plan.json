@@ -14,7 +14,7 @@
       "status": "complete",
       "priority": 1,
       "blocked_by": null,
-      "plan_file": "context/plan-readme-cleanup.json",
+      "plan_file": "context/completed/plan-readme-cleanup.json",
       "estimated_sessions": 1,
       "description": "Remove invalid crates.io references, add docs badge/section, expand merge examples, update CLAUDE.md"
     },
@@ -24,7 +24,7 @@
       "status": "complete",
       "priority": 2,
       "blocked_by": null,
-      "plan_file": "context/plan-cache-bug-fix.json",
+      "plan_file": "context/completed/plan-cache-bug-fix.json",
       "estimated_sessions": 1,
       "description": "Create shared defaults module, fix apply.rs, centralize cache_root logic across all commands"
     },
@@ -34,7 +34,7 @@
       "status": "complete",
       "priority": 3,
       "blocked_by": "cache-bug-fix",
-      "plan_file": "context/plan-defaults-audit.json",
+      "plan_file": "context/completed/plan-defaults-audit.json",
       "estimated_sessions": 1,
       "description": "Extend defaults module with config filename, update all hardcoded strings to use constants"
     },
@@ -44,7 +44,7 @@
       "status": "complete",
       "priority": 4,
       "blocked_by": "readme-cleanup",
-      "plan_file": "context/plan-user-docs-fixes.json",
+      "plan_file": "context/completed/plan-user-docs-fixes.json",
       "estimated_sessions": 1,
       "description": "Fix CLI docs discrepancies, flesh out operator examples to match README"
     },
@@ -54,7 +54,7 @@
       "status": "complete",
       "priority": 5,
       "blocked_by": "user-docs-fixes",
-      "plan_file": "context/plan-ai-isms-removal.json",
+      "plan_file": "context/completed/plan-ai-isms-removal.json",
       "estimated_sessions": 1,
       "description": "Scan and rewrite docs to remove AI-generated patterns, make them read like developer-written docs"
     },
