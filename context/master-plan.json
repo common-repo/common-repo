@@ -61,10 +61,10 @@
     {
       "id": "prose-linter",
       "name": "Build Prose Linter Tool",
-      "status": "in_progress",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "ai-isms-removal",
-      "plan_file": "context/plan-prose-linter.json",
+      "plan_file": "context/completed/plan-prose-linter.json",
       "estimated_sessions": 1,
       "description": "Custom Rust tool (cargo xtask check-prose) to detect AI writing patterns in docs, code comments, and all text content"
     },
