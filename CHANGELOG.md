@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.25.0](https://github.com/common-repo/common-repo/compare/v0.24.0...v0.25.0) (2026-01-06)
+
+
+### Features
+
+* **ci:** integrate prose linter into CI checks ([c415ad2](https://github.com/common-repo/common-repo/commit/c415ad2135b5d620dc30922fb982c857ad2b5bca))
+* **xtask:** add check-prose command structure ([d85bf5b](https://github.com/common-repo/common-repo/commit/d85bf5baa867a0b8d10c64b9d96693722e0a3e1b))
+* **xtask:** add pattern data structures for prose linter ([b58fbec](https://github.com/common-repo/common-repo/commit/b58fbec8bc31d6ff9826ffb5c0b44ec48f4e9511))
+* **xtask:** implement file scanning and pattern matching for prose linter ([4793b1a](https://github.com/common-repo/common-repo/commit/4793b1a1b76b883b321e3074ead7fc24ecbc41ca))
+
+
+### Bug Fixes
+
+* **ci:** auto-merge workflow was waiting for itself to complete ([e8b2833](https://github.com/common-repo/common-repo/commit/e8b2833ef00eeb7988db76b21e25b5428ebb2ff5))
+
 ## [0.24.0](https://github.com/common-repo/common-repo/compare/v0.23.0...v0.24.0) (2026-01-03)
 
 
