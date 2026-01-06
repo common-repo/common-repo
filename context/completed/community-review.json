@@ -1,7 +1,9 @@
 {
   "plan_name": "Community Review",
   "description": "Improve community practices to meet OSS best practices",
-  "last_updated": "2025-12-03",
+  "status": "skipped",
+  "last_updated": "2026-01-06",
+  "skip_reason": "Deprioritized in favor of core functionality work",
   "audit_summary": {
     "current_score": "4/10",
     "pass": ["8.1 CONTRIBUTING.md exists", "8.2 CODE_OF_CONDUCT.md exists", "8.10 License clearly stated (LICENSE.md + Cargo.toml)"],
