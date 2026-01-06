@@ -8,7 +8,10 @@
 //! ```bash
 //! cargo xtask coverage      # Run test coverage with cargo-tarpaulin
 //! cargo xtask release-prep  # Prepare a new release
+//! cargo xtask check-prose   # Check for AI writing patterns in docs
 //! ```
+
+mod check_prose;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -47,6 +50,18 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Check for AI writing patterns in documentation and code comments
+    CheckProse {
+        /// Paths to check (files or directories). Defaults to current directory.
+        #[arg(default_value = ".")]
+        paths: Vec<PathBuf>,
+        /// Output format (text or json)
+        #[arg(long, short, default_value = "text")]
+        format: String,
+        /// Enable verbose output
+        #[arg(long, short)]
+        verbose: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -68,6 +83,11 @@ fn main() -> Result<()> {
             open,
         } => run_coverage(&format, fail_under, open),
         Commands::ReleasePrep { version, dry_run } => run_release_prep(version.as_deref(), dry_run),
+        Commands::CheckProse {
+            paths,
+            format,
+            verbose,
+        } => run_check_prose(paths, &format, verbose),
     }
 }
 
@@ -89,6 +109,21 @@ fn workspace_root() -> Result<PathBuf> {
     path.parent()
         .map(|p| p.to_path_buf())
         .context("Failed to get parent directory of Cargo.toml")
+}
+
+/// Run the prose linter to check for AI writing patterns.
+fn run_check_prose(paths: Vec<PathBuf>, format: &str, verbose: bool) -> Result<()> {
+    let output_format = format
+        .parse::<check_prose::OutputFormat>()
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    let config = check_prose::CheckProseConfig {
+        paths,
+        format: output_format,
+        verbose,
+    };
+
+    check_prose::run(config)
 }
 
 /// Run test coverage with cargo-tarpaulin.
