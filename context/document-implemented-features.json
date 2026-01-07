@@ -1,6 +1,7 @@
 {
   "plan_name": "Document Implemented Features from Competitive Analysis",
   "last_updated": "2026-01-07",
+  "status": "complete",
   "session_startup": [
     "Run git status to check branch",
     "Read context/research/competitive-analysis.md for the 'Current State' section",
@@ -11,7 +12,7 @@
     {
       "id": "audit-readme-features",
       "name": "Audit README for existing feature documentation",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_file": null,
@@ -22,12 +23,13 @@
       ],
       "acceptance_criteria": [
         "Gap list created identifying missing feature documentation"
-      ]
+      ],
+      "notes": "Gaps: No Features section, update workflow not explained, dry-run not emphasized, validate options not shown, no clear workflow example"
     },
     {
       "id": "audit-user-docs",
       "name": "Audit user docs for existing feature documentation",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_file": null,
@@ -38,12 +40,13 @@
       ],
       "acceptance_criteria": [
         "Gap list created for user docs"
-      ]
+      ],
+      "notes": "Gaps: No dedicated Update Workflow guide, no dedicated File Filtering guide"
     },
     {
       "id": "update-readme-features",
       "name": "Update README with feature examples",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "audit-readme-features",
       "output_file": "README.md",
@@ -62,10 +65,10 @@
     {
       "id": "create-update-workflow-guide",
       "name": "Create or update user guide for update workflow",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "audit-user-docs",
-      "output_file": "docs/src/guides/update-workflow.md",
+      "output_file": "docs/src/update-workflow.md",
       "steps": [
         "Document the check --updates, update, diff, apply workflow",
         "Show how to preview changes before applying",
@@ -81,10 +84,10 @@
     {
       "id": "create-include-exclude-guide",
       "name": "Create or update guide for include/exclude operations",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "audit-user-docs",
-      "output_file": "docs/src/guides/file-filtering.md",
+      "output_file": "docs/src/file-filtering.md",
       "steps": [
         "Document include and exclude operations with glob patterns",
         "Show usage in with clause and at top level",
@@ -100,7 +103,7 @@
     {
       "id": "final-review",
       "name": "Final review and prose check",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "update-readme-features",
       "output_file": null,
