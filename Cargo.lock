@@ -310,7 +310,7 @@ checksum = "55b672471b4e9f9e95499ea597ff64941a309b2cdbffcc46f2cc5e2d971fd335"
 
 [[package]]
 name = "common-repo"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2532,7 +2532,7 @@ checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "anyhow",
  "clap 4.5.51",
