@@ -46,7 +46,6 @@ use semver::Version;
 /// - Git credential helpers
 /// - Personal access tokens
 /// - Any authentication configured in ~/.gitconfig
-#[allow(dead_code)]
 pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(), Error> {
     // Remove target directory if it exists (git won't clone into existing non-empty dir)
     if target_dir.exists() {
@@ -104,7 +103,6 @@ pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(),
 
 /// Loads the contents of a cached repository from a directory on the host
 /// filesystem into an in-memory `MemoryFS`.
-#[allow(dead_code)]
 pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
     load_from_cache_with_path(cache_dir, None)
 }
@@ -116,7 +114,6 @@ pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
 /// repository will be loaded. Additionally, the paths of the loaded files
 /// will be remapped to be relative to the specified `path`, effectively making
 /// it the new root of the in-memory filesystem.
-#[allow(dead_code)]
 pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result<MemoryFS, Error> {
     let mut fs = MemoryFS::new();
 
@@ -225,7 +222,6 @@ pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result
 /// This function is used to cache the contents of a repository after it has
 /// been cloned and processed. It will create the necessary directory structure
 /// and preserve the file permissions (on Unix-like systems).
-#[allow(dead_code)]
 pub fn save_to_cache(cache_dir: &Path, fs: &MemoryFS) -> Result<(), Error> {
     // Create cache directory if it doesn't exist
     if !cache_dir.exists() {
@@ -257,7 +253,6 @@ pub fn save_to_cache(cache_dir: &Path, fs: &MemoryFS) -> Result<(), Error> {
 
 /// Generates a filesystem-safe cache path for a repository based on its URL
 /// and Git reference.
-#[allow(dead_code)]
 pub fn url_to_cache_path(cache_root: &Path, url: &str, ref_name: &str) -> PathBuf {
     url_to_cache_path_with_path(cache_root, url, ref_name, None)
 }
@@ -267,7 +262,6 @@ pub fn url_to_cache_path(cache_root: &Path, url: &str, ref_name: &str) -> PathBu
 ///
 /// This ensures that different sub-paths from the same repository and reference
 /// are cached separately.
-#[allow(dead_code)]
 pub fn url_to_cache_path_with_path(
     cache_root: &Path,
     url: &str,
@@ -304,7 +298,6 @@ pub fn url_to_cache_path_with_path(
 /// Retrieves a list of all tags from a remote Git repository.
 ///
 /// This is used to check for available updates for a repository.
-#[allow(dead_code)]
 pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
     let output = Command::new("git")
         .args(["ls-remote", "--tags", url])
@@ -378,7 +371,6 @@ pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
 /// // Invalid versions
 /// assert_eq!(parse_semver_tag("not-a-version"), None);
 /// ```
-#[allow(dead_code)]
 pub fn parse_semver_tag(tag: &str) -> Option<Version> {
     // Common tag formats: v1.0.0, 1.0.0, v1.0, 1.0
     let version_str = if let Some(stripped) = tag.strip_prefix('v') {
