@@ -523,14 +523,15 @@ Highly requested across all tools:
 
 common-repo already provides several features that competitors lack or that users frequently request:
 
-| Feature | Command | Notes |
-|---------|---------|-------|
+| Feature | Command/Config | Notes |
+|---------|----------------|-------|
 | **Version check** | `common-repo check --updates` | Check for newer versions of inherited repos |
 | **Dry-run mode** | `common-repo apply --dry-run` | Preview changes without writing files |
 | **Diff output** | `common-repo diff` | Show differences between current and configured state |
 | **Config validation** | `common-repo validate` | Validate config with `--check-repos` and `--strict` options |
 | **Update management** | `common-repo update` | Update refs with `--compatible` or `--latest` modes |
 | **File listing** | `common-repo ls --pattern` | Filter files by glob pattern |
+| **Conditional file inclusion** | `include`/`exclude` operations | Glob patterns in config or `with` clause |
 
 These address the top community requests from Copier (#1020 version check) and general templating tools (dry-run, diff).
 
@@ -538,11 +539,10 @@ These address the top community requests from Copier (#1020 version check) and g
 
 **Medium Effort:**
 1. **Selective source updates** - Update only specific sources (e.g., `common-repo update <source-name>`)
-2. **Conditional file inclusion** - Skip files based on project metadata or variables
-3. **JSON Schema for config** - Provide a schema for `.common-repo.yaml` validation in editors
+2. **JSON Schema for config** - Provide a schema for `.common-repo.yaml` validation in editors
 
 **Lower Priority:**
-4. **Multi-repo orchestration** - Apply updates across many repos at once (batch mode)
+3. **Multi-repo orchestration** - Apply updates across many repos at once (batch mode)
 
 ### Differentiators to Emphasize (Marketing)
 
