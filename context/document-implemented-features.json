@@ -1,0 +1,125 @@
+{
+  "plan_name": "Document Implemented Features from Competitive Analysis",
+  "last_updated": "2026-01-07",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read context/research/competitive-analysis.md for the 'Current State' section",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "audit-readme-features",
+      "name": "Audit README for existing feature documentation",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": null,
+      "steps": [
+        "Read README.md and note which features are already documented",
+        "Compare against competitive-analysis.md 'Current State' table",
+        "List gaps: features that exist but aren't well documented in README"
+      ],
+      "acceptance_criteria": [
+        "Gap list created identifying missing feature documentation"
+      ]
+    },
+    {
+      "id": "audit-user-docs",
+      "name": "Audit user docs for existing feature documentation",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": null,
+      "steps": [
+        "Read docs/src/SUMMARY.md to understand doc structure",
+        "Check each relevant doc file for coverage of implemented features",
+        "List gaps: features that need user guide content"
+      ],
+      "acceptance_criteria": [
+        "Gap list created for user docs"
+      ]
+    },
+    {
+      "id": "update-readme-features",
+      "name": "Update README with feature examples",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "audit-readme-features",
+      "output_file": "README.md",
+      "steps": [
+        "Add or enhance section highlighting key features with examples",
+        "Include: version check, dry-run, diff, validation, update management, include/exclude",
+        "Use concise examples showing actual commands",
+        "Run cargo xtask check-prose README.md to verify no AI patterns"
+      ],
+      "acceptance_criteria": [
+        "README documents key differentiating features",
+        "Each feature has a brief example",
+        "Prose check passes on README"
+      ]
+    },
+    {
+      "id": "create-update-workflow-guide",
+      "name": "Create or update user guide for update workflow",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "audit-user-docs",
+      "output_file": "docs/src/guides/update-workflow.md",
+      "steps": [
+        "Document the check --updates, update, diff, apply workflow",
+        "Show how to preview changes before applying",
+        "Include dry-run examples",
+        "Add to SUMMARY.md if new file"
+      ],
+      "acceptance_criteria": [
+        "Guide explains full update workflow",
+        "Examples show check, diff, dry-run, apply sequence",
+        "Linked from SUMMARY.md"
+      ]
+    },
+    {
+      "id": "create-include-exclude-guide",
+      "name": "Create or update guide for include/exclude operations",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "audit-user-docs",
+      "output_file": "docs/src/guides/file-filtering.md",
+      "steps": [
+        "Document include and exclude operations with glob patterns",
+        "Show usage in with clause and at top level",
+        "Provide practical examples (e.g., exclude tests, include only configs)",
+        "Add to SUMMARY.md if new file"
+      ],
+      "acceptance_criteria": [
+        "Guide explains include/exclude syntax",
+        "Multiple practical examples provided",
+        "Linked from SUMMARY.md"
+      ]
+    },
+    {
+      "id": "final-review",
+      "name": "Final review and prose check",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "update-readme-features",
+      "output_file": null,
+      "steps": [
+        "Run cargo xtask check-prose on all modified files",
+        "Review for consistency across README and user docs",
+        "Ensure no duplicate content between files"
+      ],
+      "acceptance_criteria": [
+        "Prose check passes",
+        "Documentation is consistent",
+        "No redundant content"
+      ]
+    }
+  ],
+  "notes": [
+    "Source: context/research/competitive-analysis.md 'Current State' section",
+    "Key features to document: version check, dry-run, diff, validation, update modes, include/exclude",
+    "Focus on practical examples that show common-repo's advantages over competitors",
+    "Tasks audit-readme-features and audit-user-docs can run in parallel"
+  ]
+}

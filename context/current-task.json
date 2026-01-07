@@ -1,25 +1,6 @@
 {
-  "task": "validate-competitive-analysis",
-  "plan": null,
+  "task": null,
+  "plan": "context/document-implemented-features.json",
   "last_updated": "2026-01-07",
-  "status": "complete",
-  "description": "Review competitive analysis recommendations against existing common-repo functionality",
-  "context": {
-    "input_file": "context/research/competitive-analysis.md",
-    "output_file": "context/research/competitive-analysis.md",
-    "reason": "Some recommended features (version check, dry-run) may already exist in the codebase"
-  },
-  "steps": [
-    "Read the recommendations section of competitive-analysis.md",
-    "For each recommended feature, search the codebase for existing implementation",
-    "Check CLI help output for existing commands/flags",
-    "Update the recommendations section to reflect what already exists vs what's new",
-    "Add a 'Current State' section documenting existing capabilities"
-  ],
-  "acceptance_criteria": [
-    "Each recommendation validated against codebase",
-    "Document updated with accurate 'already implemented' vs 'to consider' categorization",
-    "No false recommendations for features that already exist"
-  ],
-  "completion_notes": "Validated that version check (check --updates), dry-run (apply --dry-run, update --dry-run), diff (diff command), and config validation (validate command) all already exist. Updated recommendations section to categorize features as 'Already Implemented' vs 'To Consider'."
+  "description": "Document implemented features from competitive analysis in README and user docs"
 }
