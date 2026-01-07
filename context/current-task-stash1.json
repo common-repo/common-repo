@@ -1,0 +1,11 @@
+{
+  "task": "competitive-research",
+  "plan": "context/plan-competitive-research.json",
+  "last_updated": "2026-01-07",
+  "status": "in_progress",
+  "description": "Research copier, cookiecutter, yeoman, and other tools for feature ideas",
+  "context": {
+    "interactive": true,
+    "parallel_tasks": ["research-copier", "research-cookiecutter", "research-yeoman", "discover-other-tools"]
+  }
+}
