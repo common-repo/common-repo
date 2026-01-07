@@ -69,6 +69,49 @@ common-repo init your-org/shared-configs  # GitHub shorthand
 common-repo add your-org/another-repo
 ```
 
+## Key Features
+
+**Preview changes before applying.** See what would change with `diff` and `apply --dry-run`:
+
+```bash
+common-repo diff              # Show file differences
+common-repo apply --dry-run   # Preview all changes without writing
+```
+
+**Check for updates across inherited repos.** Track newer versions with semantic versioning awareness:
+
+```bash
+common-repo check --updates   # See available updates
+common-repo update            # Update to compatible versions (minor/patch)
+common-repo update --latest   # Include breaking changes (major versions)
+```
+
+**Validate configuration before applying.** Catch errors early:
+
+```bash
+common-repo validate                  # Check syntax
+common-repo validate --check-repos    # Also verify repos are accessible
+common-repo validate --strict         # Fail on warnings
+```
+
+**Filter files with glob patterns.** Use `include` and `exclude` in the `with` clause:
+
+```yaml
+- repo:
+    url: https://github.com/your-org/configs
+    ref: v1.0.0
+    with:
+      - include: [".github/**", "*.yml"]
+      - exclude: [".github/CODEOWNERS"]
+```
+
+**Merge configuration fragments.** Add sections to existing files without replacing them:
+
+```bash
+# List managed files, filter by pattern
+common-repo ls --pattern "*.yml"
+```
+
 ## Usage
 
 Create `.common-repo.yaml` in your repository:

@@ -5,6 +5,8 @@
 # User Guide
 
 - [Getting Started](getting-started.md)
+- [Update Workflow](update-workflow.md)
+- [File Filtering](file-filtering.md)
 - [Configuration Reference](configuration.md)
 - [CLI Reference](cli.md)
 - [Recipes](recipes.md)
