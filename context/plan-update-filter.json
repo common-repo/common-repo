@@ -1,0 +1,154 @@
+{
+  "plan_name": "Selective Source Updates with --filter",
+  "last_updated": "2026-01-07",
+  "spec_file": "context/spec-update-filter.md",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test in background to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "add-strip-url-scheme",
+      "name": "Add strip_url_scheme helper to src/path.rs",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "src/path.rs",
+      "steps": [
+        "Add strip_url_scheme function that removes scheme from URLs",
+        "Add unit tests for various schemes (https://, http://, git://)",
+        "Add test for URLs without scheme (passthrough)",
+        "Run cargo test path:: to verify"
+      ],
+      "acceptance_criteria": [
+        "Function exists and is public",
+        "Handles https://, http://, git://, ssh://",
+        "Returns original string if no scheme found",
+        "Unit tests pass"
+      ]
+    },
+    {
+      "id": "add-filter-arg",
+      "name": "Add --filter argument to UpdateArgs",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "src/commands/update.rs",
+      "steps": [
+        "Add filter: Vec<String> field to UpdateArgs struct",
+        "Add clap attributes with help text and GLOB value name",
+        "Verify cargo build succeeds",
+        "Verify --help shows new flag"
+      ],
+      "acceptance_criteria": [
+        "UpdateArgs has filter field",
+        "common-repo update --help shows --filter",
+        "Multiple --filter flags accepted"
+      ]
+    },
+    {
+      "id": "implement-filter-logic",
+      "name": "Implement filter matching in execute()",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": ["add-strip-url-scheme", "add-filter-arg"],
+      "output_file": "src/commands/update.rs",
+      "steps": [
+        "Add build_match_target helper function",
+        "Import glob_match from crate::path",
+        "Filter repos before calling version::check_updates",
+        "Track filtered count for output message",
+        "Update output to show filter status when active"
+      ],
+      "acceptance_criteria": [
+        "Repos are filtered before update check",
+        "Output shows 'Filtering sources matching: <pattern>'",
+        "Output shows count of filtered repos",
+        "Empty filter list means no filtering (existing behavior)"
+      ]
+    },
+    {
+      "id": "add-unit-tests",
+      "name": "Add unit tests for filter logic",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": ["implement-filter-logic"],
+      "output_file": "src/commands/update.rs",
+      "steps": [
+        "Add tests module if not present",
+        "Test build_match_target with url only",
+        "Test build_match_target with url and path",
+        "Test filter matching with various glob patterns",
+        "Test multiple filters (OR logic)"
+      ],
+      "acceptance_criteria": [
+        "Tests cover url-only and url+path cases",
+        "Tests verify scheme stripping",
+        "Tests verify OR logic for multiple patterns",
+        "cargo test update:: passes"
+      ]
+    },
+    {
+      "id": "add-e2e-test",
+      "name": "Add E2E test for filtered update",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": ["implement-filter-logic"],
+      "output_file": "tests/cli_e2e_update.rs",
+      "steps": [
+        "Create or extend E2E test file for update command",
+        "Test --filter with matching pattern shows subset",
+        "Test --filter with non-matching pattern shows nothing",
+        "Test --filter combined with --dry-run"
+      ],
+      "acceptance_criteria": [
+        "E2E test exists and passes",
+        "Tests use cargo_bin_cmd! macro",
+        "Filter behavior verified end-to-end"
+      ]
+    },
+    {
+      "id": "update-docs",
+      "name": "Update documentation for --filter flag",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": ["implement-filter-logic"],
+      "output_file": "docs/src/update-workflow.md",
+      "steps": [
+        "Add section on selective updates to update-workflow.md",
+        "Include pattern examples from spec",
+        "Run cargo xtask check-prose on modified docs"
+      ],
+      "acceptance_criteria": [
+        "--filter documented with examples",
+        "Prose check passes",
+        "Consistent with CLI --help text"
+      ]
+    },
+    {
+      "id": "final-validation",
+      "name": "Run full CI checks",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": ["add-unit-tests", "add-e2e-test", "update-docs"],
+      "output_file": null,
+      "steps": [
+        "Run ./script/cibuild",
+        "Verify all tests pass",
+        "Verify no clippy warnings",
+        "Manual smoke test with real config"
+      ],
+      "acceptance_criteria": [
+        "./script/cibuild passes",
+        "Feature works as specified"
+      ]
+    }
+  ],
+  "notes": [
+    "Spec file has detailed design decisions",
+    "Tasks add-strip-url-scheme and add-filter-arg can run in parallel",
+    "Tasks add-unit-tests, add-e2e-test, and update-docs can run in parallel after implement-filter-logic"
+  ]
+}
