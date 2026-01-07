@@ -39,7 +39,6 @@ use std::time::SystemTime;
 
 /// Represents a file with content and metadata
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct File {
     /// The raw byte content of the file.
     pub content: Vec<u8>,
@@ -51,7 +50,6 @@ pub struct File {
     pub is_template: bool,
 }
 
-#[allow(dead_code)]
 impl File {
     /// Creates a new `File` with the given content.
     ///
@@ -121,13 +119,11 @@ impl File {
 /// affecting the host filesystem, which is essential for staging changes and
 /// performing dry runs.
 #[derive(Debug, Clone, Default)]
-#[allow(dead_code)]
 pub struct MemoryFS {
     /// Files stored as path -> content mapping
     files: HashMap<PathBuf, File>,
 }
 
-#[allow(dead_code)]
 impl MemoryFS {
     /// Creates a new, empty `MemoryFS`.
     ///

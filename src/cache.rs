@@ -38,7 +38,6 @@ use crate::filesystem::MemoryFS;
 
 /// Cache key combining URL and reference
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 pub struct CacheKey {
     /// The URL of the repository.
     pub url: String,
@@ -46,7 +45,6 @@ pub struct CacheKey {
     pub r#ref: String,
 }
 
-#[allow(dead_code)]
 impl CacheKey {
     /// Creates a new `CacheKey` from a URL and a Git reference.
     ///
@@ -78,12 +76,10 @@ impl CacheKey {
 /// This cache is used to avoid re-processing the same repository with the same
 /// operations within a single application run.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct RepoCache {
     pub(crate) cache: Arc<Mutex<HashMap<CacheKey, MemoryFS>>>,
 }
 
-#[allow(dead_code)]
 impl RepoCache {
     /// Creates a new, empty `RepoCache`.
     pub fn new() -> Self {

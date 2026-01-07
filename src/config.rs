@@ -885,7 +885,6 @@ impl Operation {
 /// The complete configuration schema, represented as a list of operations.
 ///
 /// The operations are executed in the order they are defined in the file.
-#[allow(dead_code)]
 pub type Schema = Vec<Operation>;
 
 /// Parses a YAML string into a `Schema`.
@@ -894,7 +893,6 @@ pub type Schema = Vec<Operation>;
 /// original, more concise format for backward compatibility. It will first
 /// attempt to parse as the current format, and if that fails, it will fall back
 /// to the original format parser.
-#[allow(dead_code)]
 pub fn parse(yaml_content: &str) -> Result<Schema> {
     // First try parsing as the current format
     match serde_yaml::from_str::<Schema>(yaml_content) {
@@ -907,7 +905,6 @@ pub fn parse(yaml_content: &str) -> Result<Schema> {
 }
 
 /// Parse a YAML string using only the original user-friendly format
-#[allow(dead_code)]
 pub fn parse_original_format(yaml_content: &str) -> Result<Schema> {
     use serde_yaml::Value;
 
@@ -1140,7 +1137,6 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
 }
 
 /// Parse a Schema from a YAML file path
-#[allow(dead_code)]
 pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Schema> {
     let content = std::fs::read_to_string(path).map_err(Error::Io)?;
     parse(&content)
