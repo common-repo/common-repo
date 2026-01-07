@@ -166,7 +166,8 @@ pub(crate) mod repo {
     ///
     /// # Returns
     /// Result containing the processed MemoryFS with repository contents
-    #[allow(dead_code)] // Part of operator API, may be used in future
+    // Used in tests; available for future use as part of operator API
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn apply(op: &RepoOp, repo_manager: &RepositoryManager) -> Result<MemoryFS> {
         // Fetch the repository with optional path filtering
         let mut fs =
@@ -191,7 +192,8 @@ pub(crate) mod repo {
     ///
     /// # Returns
     /// Result indicating success or failure
-    #[allow(dead_code)] // Part of operator API, may be used in future
+    // Used in tests; available for future use as part of operator API
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn apply_with_clause(operations: &[Operation], fs: &mut MemoryFS) -> Result<()> {
         for operation in operations {
             match operation {

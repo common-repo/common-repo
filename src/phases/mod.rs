@@ -104,7 +104,8 @@ impl RepoTree {
     /// Note: This is a simple existence check. For proper cycle detection during
     /// tree construction, use `detect_cycles()` which checks for cycles in dependency paths.
     /// Multiple branches can reference the same repo without creating a cycle.
-    #[allow(dead_code)]
+    // Used in tests; available for future use in cycle detection API
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn would_create_cycle(&self, url: &str, ref_: &str) -> bool {
         self.all_repos
             .contains(&(url.to_string(), ref_.to_string()))

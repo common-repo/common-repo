@@ -30,7 +30,6 @@ use crate::filesystem::MemoryFS;
 use std::path::{Path, PathBuf};
 
 /// Trait for git operations - allows mocking in tests
-#[allow(dead_code)]
 pub trait GitOperations: Send + Sync {
     /// Clones a repository at a specific Git reference (branch, tag, or commit).
     ///
@@ -46,7 +45,6 @@ pub trait GitOperations: Send + Sync {
 ///
 /// This allows for the caching logic to be mocked in tests, enabling the
 /// simulation of cache hits and misses without actual filesystem interaction.
-#[allow(dead_code)]
 pub trait CacheOperations: Send + Sync {
     /// Check if a cached repository exists
     fn exists(&self, cache_path: &Path) -> bool;
@@ -81,7 +79,6 @@ pub trait CacheOperations: Send + Sync {
 
 /// The default implementation of `GitOperations`, which uses the system's
 /// `git` command to perform real Git operations.
-#[allow(dead_code)]
 pub struct DefaultGitOperations;
 
 impl GitOperations for DefaultGitOperations {
@@ -96,13 +93,11 @@ impl GitOperations for DefaultGitOperations {
 
 /// The default implementation of `CacheOperations`, which interacts with the
 /// host filesystem to manage the repository cache.
-#[allow(dead_code)]
 pub struct DefaultCacheOperations {
     cache_root: PathBuf,
 }
 
 impl DefaultCacheOperations {
-    #[allow(dead_code)]
     pub fn new(cache_root: PathBuf) -> Self {
         Self { cache_root }
     }
@@ -138,7 +133,6 @@ impl CacheOperations for DefaultCacheOperations {
 ///
 /// This struct orchestrates the Git and cache operations to provide a simple,
 /// high-level API for fetching repositories.
-#[allow(dead_code)]
 pub struct RepositoryManager {
     git_ops: Box<dyn GitOperations>,
     cache_ops: Box<dyn CacheOperations>,
@@ -147,7 +141,6 @@ pub struct RepositoryManager {
 impl RepositoryManager {
     /// Creates a new `RepositoryManager` with the default Git and cache
     /// operations, using the specified `cache_root` for the on-disk cache.
-    #[allow(dead_code)]
     pub fn new(cache_root: PathBuf) -> Self {
         Self {
             git_ops: Box::new(DefaultGitOperations),
@@ -175,7 +168,6 @@ impl RepositoryManager {
     ///     cache directory.
     /// 3.  Finally, it will load the repository's contents from the cache into
     ///     a `MemoryFS`.
-    #[allow(dead_code)]
     pub fn fetch_repository(&self, url: &str, ref_name: &str) -> Result<MemoryFS> {
         self.fetch_repository_with_path(url, ref_name, None)
     }
@@ -187,7 +179,6 @@ impl RepositoryManager {
     /// repository to be specified. If a path is provided, only the contents of
     /// that path will be loaded, and the paths in the resulting `MemoryFS` will
     /// be relative to that sub-path.
-    #[allow(dead_code)]
     pub fn fetch_repository_with_path(
         &self,
         url: &str,
@@ -210,7 +201,6 @@ impl RepositoryManager {
     ///
     /// This method will always perform a fresh, shallow clone of the repository
     /// and will overwrite any existing entry in the on-disk cache.
-    #[allow(dead_code)]
     pub fn fetch_repository_fresh(&self, url: &str, ref_name: &str) -> Result<MemoryFS> {
         self.fetch_repository_fresh_with_path(url, ref_name, None)
     }
@@ -220,7 +210,6 @@ impl RepositoryManager {
     ///
     /// This method is the "fresh" equivalent of `fetch_repository_with_path`,
     /// ensuring that the latest version of the repository is cloned.
-    #[allow(dead_code)]
     pub fn fetch_repository_fresh_with_path(
         &self,
         url: &str,
@@ -237,21 +226,18 @@ impl RepositoryManager {
     }
 
     /// Checks if a repository is present in the on-disk cache.
-    #[allow(dead_code)]
     pub fn is_cached(&self, url: &str, ref_name: &str) -> bool {
         self.is_cached_with_path(url, ref_name, None)
     }
 
     /// Checks if a repository with an optional sub-path is present in the
     /// on-disk cache.
-    #[allow(dead_code)]
     pub fn is_cached_with_path(&self, url: &str, ref_name: &str, path: Option<&str>) -> bool {
         let cache_path = self.cache_ops.get_cache_path_with_path(url, ref_name, path);
         self.cache_ops.exists(&cache_path)
     }
 
     /// Retrieves a list of all available tags for a remote repository.
-    #[allow(dead_code)]
     pub fn list_repository_tags(&self, url: &str) -> Result<Vec<String>> {
         self.git_ops.list_tags(url)
     }

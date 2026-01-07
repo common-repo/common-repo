@@ -53,7 +53,6 @@ use thiserror::Error;
 
 /// Main error type for common-repo operations
 #[derive(Error, Debug)]
-#[allow(dead_code)]
 pub enum Error {
     /// An error occurred while parsing the `.common-repo.yaml` configuration file.
     ///
@@ -176,7 +175,6 @@ pub enum Error {
 }
 
 /// A convenient type alias for `Result<T, Error>`.
-#[allow(dead_code)]
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]

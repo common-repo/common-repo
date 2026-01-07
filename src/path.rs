@@ -33,7 +33,6 @@ use regex::Regex;
 /// assert!(glob_match("src/*.rs", "src/main.rs").unwrap());
 /// assert!(!glob_match("*.rs", "main.js").unwrap());
 /// ```
-#[allow(dead_code)]
 pub fn glob_match(pattern: &str, path: &str) -> Result<bool> {
     let pattern = Pattern::new(pattern).map_err(Error::Glob)?;
     Ok(pattern.matches(path))
@@ -71,7 +70,6 @@ pub fn glob_match(pattern: &str, path: &str) -> Result<bool> {
 ///     None
 /// );
 /// ```
-#[allow(dead_code)]
 pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Option<String>> {
     let regex = Regex::new(pattern).map_err(Error::Regex)?;
     if let Some(captures) = regex.captures(path) {
@@ -143,7 +141,6 @@ pub fn regex_rename(pattern: &str, replacement: &str, path: &str) -> Result<Opti
 ///     "normal_file.txt"
 /// );
 /// ```
-#[allow(dead_code)]
 pub fn encode_url_path(url: &str) -> String {
     url.chars()
         .map(|c| match c {
