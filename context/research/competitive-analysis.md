@@ -519,22 +519,39 @@ Highly requested across all tools:
 
 ## Recommendations for common-repo
 
-### High-Value Features to Consider
+### Current State (Already Implemented)
 
-**Quick Wins:**
-1. **Version check command** - "Is my config outdated?" (Copier #1020 was highly requested)
-2. **Dry-run mode** - Show what would change without applying
-3. **Diff output** - Show changes before/after update
+common-repo already provides several features that competitors lack or that users frequently request:
+
+| Feature | Command | Notes |
+|---------|---------|-------|
+| **Version check** | `common-repo check --updates` | Check for newer versions of inherited repos |
+| **Dry-run mode** | `common-repo apply --dry-run` | Preview changes without writing files |
+| **Diff output** | `common-repo diff` | Show differences between current and configured state |
+| **Config validation** | `common-repo validate` | Validate config with `--check-repos` and `--strict` options |
+| **Update management** | `common-repo update` | Update refs with `--compatible` or `--latest` modes |
+| **File listing** | `common-repo ls --pattern` | Filter files by glob pattern |
+
+These address the top community requests from Copier (#1020 version check) and general templating tools (dry-run, diff).
+
+### Features to Consider Adding
 
 **Medium Effort:**
-4. **Selective updates** - Update only specific sources or files
-5. **Config validation** - JSON Schema validation for generated configs
-6. **Conditional file inclusion** - Skip files based on project metadata
+1. **Selective source updates** - Update only specific sources (e.g., `common-repo update <source-name>`)
+2. **Conditional file inclusion** - Skip files based on project metadata or variables
+3. **JSON Schema for config** - Provide a schema for `.common-repo.yaml` validation in editors
 
-**Differentiators to Emphasize:**
-7. **Section-level merge** - Unique capability; no other tool does this
-8. **Non-Git workflow** - Unlike Copier, common-repo doesn't require Git
-9. **Multi-repo orchestration** - Apply updates across many repos at once
+**Lower Priority:**
+4. **Multi-repo orchestration** - Apply updates across many repos at once (batch mode)
+
+### Differentiators to Emphasize (Marketing)
+
+These existing capabilities should be highlighted in documentation and positioning:
+
+1. **Section-level merge** - Unique capability; no other tool does this
+2. **Non-Git workflow** - Unlike Copier, common-repo doesn't require Git
+3. **Dry-run and diff** - Preview all changes before applying
+4. **Semantic versioning awareness** - `--compatible` vs `--latest` update modes
 
 ### Features to Avoid
 
@@ -558,12 +575,14 @@ Highly requested across all tools:
 3. **Git-optional** - Works without requiring Git (unlike Copier)
 4. **Rust performance** - Fast, single binary distribution (like Chezmoi, Comtrya)
 5. **Pull-based model** - Repos pull updates when ready (vs push-based sync)
+6. **Update workflow** - Built-in `check --updates`, `update`, `diff`, and `apply --dry-run` commands
 
 ---
 
 ## Next Steps
 
-1. Review this analysis and identify priority features
+1. ~~Review this analysis and identify priority features~~ (Validated 2026-01-07)
 2. Consider user research to validate assumptions
 3. Update roadmap based on competitive insights
 4. Consider marketing positioning that emphasizes differentiators
+5. Document existing features prominently in user-facing docs (version check, dry-run, diff)
