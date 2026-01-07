@@ -1,11 +1,11 @@
 {
-  "task": null,
-  "plan": null,
+  "task": "competitive-research",
+  "plan": "context/plan-competitive-research.json",
   "last_updated": "2026-01-07",
-  "status": "complete",
-  "description": "Dead code audit completed",
+  "status": "in_progress",
+  "description": "Research copier, cookiecutter, yeoman, and other tools for feature ideas",
   "context": {
-    "completed_plan": "context/plan-dead-code-audit.json",
-    "summary": "Removed 36 unnecessary dead_code directives from src/, converted 3 to cfg_attr for test-only code, retained 13 in test utilities with proper justification"
+    "interactive": true,
+    "parallel_tasks": ["research-copier", "research-cookiecutter", "research-yeoman", "discover-other-tools"]
   }
 }
