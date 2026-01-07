@@ -1,0 +1,297 @@
+{
+  "plan_name": "Dead Code and Unused Import Audit",
+  "last_updated": "2026-01-07",
+  "description": "Audit and clean up #[allow(dead_code)] and #[allow(unused_imports)] directives that may be artifacts from vibe coding",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test with run_in_background: true",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "summary": {
+    "total_dead_code_directives": 52,
+    "total_unused_imports_directives": 6,
+    "files_affected": 13,
+    "approach": "For each file, analyze each directive to determine if code is: (1) truly unused and should be removed, (2) part of public API and directive should be removed, (3) legitimately unused but kept for future use with proper justification comment"
+  },
+  "tasks": [
+    {
+      "id": "audit-git-rs",
+      "name": "Audit src/git.rs dead code directives",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "src/git.rs",
+      "directive_count": 8,
+      "lines": [49, 107, 119, 228, 260, 270, 307, 381],
+      "steps": [
+        "Read src/git.rs and understand each marked item",
+        "For each directive: check if the code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-repository-rs",
+      "name": "Audit src/repository.rs dead code directives",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "src/repository.rs",
+      "directive_count": 15,
+      "lines": [33, 49, 84, 99, 105, 141, 150, 178, 190, 213, 223, 240, 247, 254, 341],
+      "steps": [
+        "Read src/repository.rs and understand each marked item",
+        "For each directive: check if the code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-path-rs",
+      "name": "Audit src/path.rs dead code directives",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": null,
+      "output_file": "src/path.rs",
+      "directive_count": 3,
+      "lines": [36, 74, 146],
+      "steps": [
+        "Read src/path.rs and understand each marked item",
+        "For each directive: check if the code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-filesystem-rs",
+      "name": "Audit src/filesystem.rs dead code directives",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": null,
+      "output_file": "src/filesystem.rs",
+      "directive_count": 4,
+      "lines": [42, 54, 124, 130],
+      "steps": [
+        "Read src/filesystem.rs and understand each marked item",
+        "For each directive: check if the code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-config-rs",
+      "name": "Audit src/config.rs dead code directives",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": null,
+      "output_file": "src/config.rs",
+      "directive_count": 4,
+      "lines": [888, 897, 910, 1143],
+      "steps": [
+        "Read src/config.rs around the marked lines",
+        "For each directive: check if the code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-cache-rs",
+      "name": "Audit src/cache.rs dead code directives",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": null,
+      "output_file": "src/cache.rs",
+      "directive_count": 4,
+      "lines": [41, 49, 81, 86],
+      "steps": [
+        "Read src/cache.rs and understand each marked item",
+        "For each directive: check if the code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-error-rs",
+      "name": "Audit src/error.rs dead code directives",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": null,
+      "output_file": "src/error.rs",
+      "directive_count": 2,
+      "lines": [56, 179],
+      "steps": [
+        "Read src/error.rs and understand each marked item",
+        "For each directive: check if the code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-operators-rs",
+      "name": "Audit src/operators.rs dead code directives",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": null,
+      "output_file": "src/operators.rs",
+      "directive_count": 3,
+      "lines": [169, 194, 504],
+      "steps": [
+        "Read src/operators.rs around the marked lines",
+        "For each directive: check if the code is actually called anywhere",
+        "Note: lines 169 and 194 have comments 'Part of operator API, may be used in future'",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "No unjustified #[allow(dead_code)] remains",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-phases-mod-rs",
+      "name": "Audit src/phases/mod.rs dead code directive",
+      "status": "pending",
+      "priority": 9,
+      "blocked_by": null,
+      "output_file": "src/phases/mod.rs",
+      "directive_count": 1,
+      "lines": [107],
+      "steps": [
+        "Read src/phases/mod.rs around line 107",
+        "Check if the marked code is actually called anywhere",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "Directive reviewed and addressed",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-check-prose-rs",
+      "name": "Audit xtask/src/check_prose.rs dead code directive",
+      "status": "pending",
+      "priority": 10,
+      "blocked_by": null,
+      "output_file": "xtask/src/check_prose.rs",
+      "directive_count": 1,
+      "lines": [1079],
+      "steps": [
+        "Read xtask/src/check_prose.rs around line 1079",
+        "Note: comment says 'Used for debugging/tracing'",
+        "Check if this is a legitimate debug helper or truly dead",
+        "Remove directive if code is used, remove code if truly dead, or add justification comment",
+        "Run cargo check to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "Directive reviewed and addressed",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "audit-tests-common",
+      "name": "Audit tests/common/mod.rs directives",
+      "status": "pending",
+      "priority": 11,
+      "blocked_by": null,
+      "output_file": "tests/common/mod.rs",
+      "directive_count": 10,
+      "lines_dead_code": [43, 94, 153, 173, 179, 212],
+      "lines_unused_imports": [30, 34, 36, 38],
+      "steps": [
+        "Read tests/common/mod.rs",
+        "Check which test utilities are actually used by test files",
+        "Remove unused utilities or remove directives if they are used",
+        "Note: test utilities may be conditionally compiled, check all test files",
+        "Run cargo test to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "Test utilities that are used have directives removed",
+        "Unused utilities are removed or have clear justification",
+        "cargo test passes"
+      ]
+    },
+    {
+      "id": "audit-cli-e2e-tests",
+      "name": "Audit tests/cli_e2e_*.rs directives",
+      "status": "pending",
+      "priority": 12,
+      "blocked_by": null,
+      "output_files": ["tests/cli_e2e_tty.rs", "tests/cli_e2e_completions.rs"],
+      "steps": [
+        "Read tests/cli_e2e_tty.rs lines 8-10",
+        "Read tests/cli_e2e_completions.rs lines 6-8",
+        "Check if imports and code are actually used",
+        "Remove directives or unused code as appropriate",
+        "Run cargo test to verify no breakage"
+      ],
+      "acceptance_criteria": [
+        "All directives reviewed and addressed",
+        "cargo test passes"
+      ]
+    },
+    {
+      "id": "final-verification",
+      "name": "Final verification and cleanup",
+      "status": "pending",
+      "priority": 13,
+      "blocked_by": ["audit-git-rs", "audit-repository-rs", "audit-path-rs", "audit-filesystem-rs", "audit-config-rs", "audit-cache-rs", "audit-error-rs", "audit-operators-rs", "audit-phases-mod-rs", "audit-check-prose-rs", "audit-tests-common", "audit-cli-e2e-tests"],
+      "steps": [
+        "Run ./script/cibuild to verify full CI passes",
+        "Grep for remaining #[allow(dead_code)] and #[allow(unused_imports)]",
+        "Verify each remaining directive has a justification comment",
+        "Update plan status to complete"
+      ],
+      "acceptance_criteria": [
+        "Full CI passes",
+        "All remaining directives have justification comments",
+        "No unjustified suppression directives remain"
+      ]
+    }
+  ],
+  "notes": [
+    "Tasks priority 1-10 are independent and can be done in parallel by different sessions",
+    "Task 11-12 (test files) should be done after src files to avoid conflicts",
+    "Task 13 (final verification) blocks on all other tasks",
+    "When removing dead code, check if it's part of a planned feature first",
+    "Legitimate reasons to keep dead code: public API surface, feature flags, debugging utilities"
+  ]
+}

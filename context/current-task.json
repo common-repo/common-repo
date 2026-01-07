@@ -1,12 +1,12 @@
 {
-  "task": null,
-  "plan": null,
-  "last_updated": "2026-01-05",
-  "status": "complete",
-  "description": "Prose linter plan completed",
+  "task": "audit-git-rs",
+  "plan": "context/plan-dead-code-audit.json",
+  "last_updated": "2026-01-07",
+  "status": "pending",
+  "description": "Audit and clean up dead code and unused import directives",
   "context": {
     "parent_plan": "context/master-plan.json",
-    "completed_plans": ["context/completed/plan-readme-cleanup.json", "context/completed/plan-cache-bug-fix.json", "context/completed/plan-defaults-audit.json", "context/completed/plan-user-docs-fixes.json", "context/completed/plan-ai-isms-removal.json", "context/completed/plan-prose-linter.json"],
-    "patterns_reference": "context/ai-writing-patterns.md"
+    "total_directives": 58,
+    "files_to_audit": 13
   }
 }
