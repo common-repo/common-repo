@@ -58,3 +58,9 @@ path = "src/main.rs"
 [[test]]
 name = "schema_parsing_test"
 harness = false
+
+# Optimize release builds for performance
+[profile.release]
+lto = true          # Link-time optimization for better performance
+codegen-units = 1   # Single codegen unit for maximum optimization
+strip = true        # Strip symbols for smaller binaries
