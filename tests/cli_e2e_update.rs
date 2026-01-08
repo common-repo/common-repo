@@ -519,3 +519,158 @@ fn test_update_modifies_config_file() {
         updated_version
     );
 }
+
+/// Test that --filter flag is shown in help
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_filter_help() {
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--filter <GLOB>"))
+        .stdout(predicate::str::contains("Filter sources by glob pattern"));
+}
+
+/// Test that --filter with matching pattern shows only matching repos
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_filter_matching_pattern() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Config with multiple repos
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.4.0
+- repo:
+    url: https://github.com/tokio-rs/tokio.git
+    ref: tokio-1.0.0
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--filter")
+        .arg("*/common-repo/*")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Filtering sources matching"))
+        .stdout(predicate::str::contains("filtered out"));
+}
+
+/// Test that --filter with non-matching pattern shows nothing
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_filter_non_matching_pattern() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.4.0
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--filter")
+        .arg("gitlab.com/*")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Filtering sources matching"))
+        .stdout(predicate::str::contains(
+            "No repositories found that match the filter",
+        ))
+        .stdout(predicate::str::contains("filtered out"));
+}
+
+/// Test that multiple --filter flags use OR logic
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_filter_multiple_patterns() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.4.0
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--filter")
+        .arg("gitlab.com/*")
+        .arg("--filter")
+        .arg("github.com/common-repo/*")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Filtering sources matching: gitlab.com/*, github.com/common-repo/*",
+        ))
+        .stdout(predicate::str::contains("Checking for repository updates"));
+}
+
+/// Test --filter combined with --dry-run
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_filter_with_dry_run() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: v0.4.0
+"#,
+        )
+        .unwrap();
+
+    let original_content = std::fs::read_to_string(config_file.path()).unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--filter")
+        .arg("github.com/common-repo/*")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Filtering sources matching"))
+        .stdout(predicate::str::contains("Dry run mode"));
+
+    // Verify config was not modified
+    let final_content = std::fs::read_to_string(config_file.path()).unwrap();
+    assert_eq!(original_content, final_content);
+}

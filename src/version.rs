@@ -26,6 +26,13 @@
 //!     - **Compatible Updates**: If the minor or patch version number has
 //!       increased (e.g., `v1.2.3` to `v1.3.0` or `v1.2.4`).
 //!
+//! ## Filtering
+//!
+//! The [`check_updates_filtered`] function allows filtering which repositories
+//! are checked using glob patterns. Patterns match against the repository URL
+//! (with scheme stripped) combined with any optional path. This is used by the
+//! `--filter` flag in the update command.
+//!
 //! ## `UpdateInfo`
 //!
 //! The results of the update check are returned in a `Vec<UpdateInfo>`, where
@@ -64,17 +71,79 @@ pub struct UpdateInfo {
 /// process. It collects all the `repo` operations from the given `Schema` and
 /// then checks each one for available updates.
 pub fn check_updates(config: &Schema, repo_manager: &RepositoryManager) -> Result<Vec<UpdateInfo>> {
+    let result = check_updates_filtered(config, repo_manager, &[])?;
+    Ok(result.updates)
+}
+
+/// Result of a filtered update check, containing both the updates and filter statistics.
+#[derive(Debug)]
+pub struct FilteredUpdateResult {
+    /// The list of update information for repositories that matched the filter.
+    pub updates: Vec<UpdateInfo>,
+    /// The number of repositories that were excluded by the filter.
+    pub filtered_out_count: usize,
+}
+
+/// Checks inherited repositories for newer versions, with optional filtering.
+///
+/// This variant of [`check_updates`] allows filtering which repositories are
+/// checked using glob patterns. Patterns are matched against the repository URL
+/// (with scheme stripped) combined with any optional path. Multiple patterns
+/// use OR logic (any match passes).
+///
+/// # Arguments
+///
+/// * `config` - The configuration schema containing repo operations
+/// * `repo_manager` - The repository manager for fetching tag information
+/// * `filters` - Glob patterns to filter which repos to check (empty = all)
+///
+/// # Returns
+///
+/// A [`FilteredUpdateResult`] containing the updates for matching repos and
+/// the count of how many repos were excluded by the filter.
+pub fn check_updates_filtered(
+    config: &Schema,
+    repo_manager: &RepositoryManager,
+    filters: &[String],
+) -> Result<FilteredUpdateResult> {
     let mut results = Vec::new();
+    let mut filtered_out_count = 0;
 
     // Get all inherited repos from the configuration
     let inherited_repos = collect_inherited_repos(config);
 
     for repo in inherited_repos {
+        // Apply filter if any patterns specified
+        if !filters.is_empty() && !matches_filter(&repo, filters) {
+            filtered_out_count += 1;
+            continue;
+        }
+
         let update_info = check_repo_updates(&repo, repo_manager)?;
         results.push(update_info);
     }
 
-    Ok(results)
+    Ok(FilteredUpdateResult {
+        updates: results,
+        filtered_out_count,
+    })
+}
+
+/// Build the match target string for a repo (url without scheme + path).
+fn build_match_target(repo: &RepoOp) -> String {
+    let base = crate::path::strip_url_scheme(&repo.url);
+    match &repo.path {
+        Some(path) => format!("{}/{}", base, path.trim_matches('/')),
+        None => base.to_string(),
+    }
+}
+
+/// Check if a repo matches any of the given filter patterns.
+fn matches_filter(repo: &RepoOp, filters: &[String]) -> bool {
+    let target = build_match_target(repo);
+    filters
+        .iter()
+        .any(|pattern| crate::path::glob_match(pattern, &target).unwrap_or(false))
 }
 
 /// Check for updates for a single repository
@@ -337,5 +406,166 @@ mod tests {
         assert_eq!(repos.len(), 2);
         assert_eq!(repos[0].url, "https://github.com/org/repo1.git");
         assert_eq!(repos[1].url, "https://github.com/org/repo2.git");
+    }
+
+    #[test]
+    fn test_build_match_target_url_only() {
+        let repo = RepoOp {
+            url: "https://github.com/org/repo".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+        assert_eq!(build_match_target(&repo), "github.com/org/repo");
+    }
+
+    #[test]
+    fn test_build_match_target_url_with_path() {
+        let repo = RepoOp {
+            url: "https://github.com/org/monorepo".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: Some("configs/eslint".to_string()),
+            with: vec![],
+        };
+        assert_eq!(
+            build_match_target(&repo),
+            "github.com/org/monorepo/configs/eslint"
+        );
+    }
+
+    #[test]
+    fn test_build_match_target_strips_various_schemes() {
+        // Test https
+        let repo = RepoOp {
+            url: "https://github.com/org/repo".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+        assert_eq!(build_match_target(&repo), "github.com/org/repo");
+
+        // Test git://
+        let repo = RepoOp {
+            url: "git://gitlab.com/org/repo".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+        assert_eq!(build_match_target(&repo), "gitlab.com/org/repo");
+
+        // Test ssh://
+        let repo = RepoOp {
+            url: "ssh://git@github.com/org/repo".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+        assert_eq!(build_match_target(&repo), "git@github.com/org/repo");
+    }
+
+    #[test]
+    fn test_build_match_target_trims_path_slashes() {
+        let repo = RepoOp {
+            url: "https://github.com/org/repo".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: Some("/configs/eslint/".to_string()),
+            with: vec![],
+        };
+        assert_eq!(
+            build_match_target(&repo),
+            "github.com/org/repo/configs/eslint"
+        );
+    }
+
+    #[test]
+    fn test_matches_filter_single_pattern() {
+        let repo = RepoOp {
+            url: "https://github.com/org/ci-templates".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+
+        // Exact match
+        assert!(matches_filter(
+            &repo,
+            &["github.com/org/ci-templates".to_string()]
+        ));
+
+        // Wildcard match
+        assert!(matches_filter(&repo, &["github.com/org/*".to_string()]));
+        assert!(matches_filter(&repo, &["*/*/ci-*".to_string()]));
+
+        // No match
+        assert!(!matches_filter(&repo, &["gitlab.com/*".to_string()]));
+        assert!(!matches_filter(&repo, &["*/*/linter-*".to_string()]));
+    }
+
+    #[test]
+    fn test_matches_filter_multiple_patterns_or_logic() {
+        let repo = RepoOp {
+            url: "https://github.com/org/ci-templates".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+
+        // First pattern matches
+        assert!(matches_filter(
+            &repo,
+            &["*/*/ci-*".to_string(), "*/*/linter-*".to_string()]
+        ));
+
+        // Second pattern matches
+        let repo2 = RepoOp {
+            url: "https://github.com/org/linter-config".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+        assert!(matches_filter(
+            &repo2,
+            &["*/*/ci-*".to_string(), "*/*/linter-*".to_string()]
+        ));
+
+        // Neither pattern matches
+        let repo3 = RepoOp {
+            url: "https://github.com/org/utils".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: None,
+            with: vec![],
+        };
+        assert!(!matches_filter(
+            &repo3,
+            &["*/*/ci-*".to_string(), "*/*/linter-*".to_string()]
+        ));
+    }
+
+    #[test]
+    fn test_matches_filter_with_path() {
+        let repo = RepoOp {
+            url: "https://github.com/org/monorepo".to_string(),
+            r#ref: "v1.0.0".to_string(),
+            path: Some("configs/eslint".to_string()),
+            with: vec![],
+        };
+
+        // Match full path
+        assert!(matches_filter(
+            &repo,
+            &["github.com/org/monorepo/configs/eslint".to_string()]
+        ));
+
+        // Match with wildcard in path
+        assert!(matches_filter(
+            &repo,
+            &["github.com/org/monorepo/configs/*".to_string()]
+        ));
+
+        // Match with ** for any depth
+        assert!(matches_filter(
+            &repo,
+            &["github.com/org/monorepo/**".to_string()]
+        ));
     }
 }

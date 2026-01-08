@@ -17,10 +17,31 @@
 //! - **`encode_url_path`**: A function to convert a URL into a string that is
 //!   safe to use as a directory or file name on the filesystem. This is
 //!   important for creating predictable and safe cache directory names.
+//!
+//! - **`strip_url_scheme`**: Removes the scheme (e.g., `https://`) from a URL,
+//!   returning the remainder. Used for normalizing URLs in pattern matching.
 
 use crate::error::{Error, Result};
 use glob::Pattern;
 use regex::Regex;
+
+/// Strips the URL scheme (e.g., `https://`, `git://`) from a URL.
+///
+/// Returns everything after `://` if present, or the original string if no
+/// scheme is found. This is useful for normalizing URLs for pattern matching.
+///
+/// # Examples
+///
+/// ```
+/// use common_repo::path::strip_url_scheme;
+///
+/// assert_eq!(strip_url_scheme("https://github.com/org/repo"), "github.com/org/repo");
+/// assert_eq!(strip_url_scheme("git://gitlab.com/org/repo"), "gitlab.com/org/repo");
+/// assert_eq!(strip_url_scheme("github.com/org/repo"), "github.com/org/repo");
+/// ```
+pub fn strip_url_scheme(url: &str) -> &str {
+    url.find("://").map(|i| &url[i + 3..]).unwrap_or(url)
+}
 
 /// Match a path against a glob pattern
 ///
@@ -295,5 +316,41 @@ mod tests {
         // Test invalid glob patterns
         assert!(glob_match("*[invalid", "test").is_err());
         assert!(glob_match("**", "test").is_ok()); // Valid glob
+    }
+
+    #[test]
+    fn test_strip_url_scheme() {
+        // Standard schemes
+        assert_eq!(
+            strip_url_scheme("https://github.com/org/repo"),
+            "github.com/org/repo"
+        );
+        assert_eq!(
+            strip_url_scheme("http://github.com/org/repo"),
+            "github.com/org/repo"
+        );
+        assert_eq!(
+            strip_url_scheme("git://gitlab.com/org/repo"),
+            "gitlab.com/org/repo"
+        );
+        assert_eq!(
+            strip_url_scheme("ssh://git@github.com/org/repo"),
+            "git@github.com/org/repo"
+        );
+
+        // No scheme (passthrough)
+        assert_eq!(
+            strip_url_scheme("github.com/org/repo"),
+            "github.com/org/repo"
+        );
+
+        // Edge case: URL with :// in path (only first occurrence)
+        assert_eq!(
+            strip_url_scheme("https://example.com/path://with://colons"),
+            "example.com/path://with://colons"
+        );
+
+        // Empty string
+        assert_eq!(strip_url_scheme(""), "");
     }
 }
