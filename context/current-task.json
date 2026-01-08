@@ -1,6 +1,6 @@
 {
-  "task": "prose-cleanup",
-  "plan": "context/prose-cleanup-plan.json",
+  "task": null,
+  "plan": null,
   "last_updated": "2026-01-07",
-  "description": "Fix check_prose errors - auto-fix egregious AI-isms, interactively fix borderline cases"
+  "description": "Prose cleanup completed. Plan archived to context/completed/prose-cleanup-plan.json"
 }
