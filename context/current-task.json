@@ -1,6 +1,21 @@
 {
-  "task": "add-size-optimized-profile",
-  "plan": "context/performance-review.json",
+  "task": "investigate-flaky-precommit-test",
+  "plan": null,
   "last_updated": "2026-01-07",
-  "description": "Add size-optimized build profile for smaller binaries"
+  "description": "Investigate test_interactive_precommit_config_generation timeout - determine if slow or hanging on interactive input",
+  "details": {
+    "test_file": "tests/cli_e2e_init_interactive.rs",
+    "test_name": "test_interactive_precommit_config_generation",
+    "symptom": "Times out after 30 seconds in integration tests",
+    "hypothesis": [
+      "Test is hanging waiting for interactive input that never comes",
+      "Test is actually slow due to network or setup"
+    ],
+    "investigation_steps": [
+      "Read the test implementation to understand what it does",
+      "Check if rexpect is properly handling all prompts",
+      "Look for missing expect() calls that would cause hangs",
+      "Check if there are conditional prompts not being handled"
+    ]
+  }
 }
