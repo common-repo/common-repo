@@ -480,6 +480,22 @@ fn test_interactive_precommit_config_generation() {
         .exp_string("Created .pre-commit-config.yaml")
         .expect("Should see pre-commit config created");
 
+    // If prek or pre-commit is installed, there will be a second prompt asking
+    // "Run 'prek install' to set up git hooks?" - decline it to avoid side effects.
+    // If not installed, we'll see the "No pre-commit CLI found" message instead.
+    // Use exp_regex to match either case, then respond accordingly.
+    let result = session
+        .exp_regex("(Run '(prek|pre-commit) install'|No pre-commit CLI found)")
+        .expect("Should see either install prompt or CLI not found message");
+
+    // If we matched the install prompt, decline it
+    if result.1.contains("Run '") {
+        session
+            .send_line("n")
+            .expect("Failed to decline hook install");
+    }
+    // Otherwise, we saw "No pre-commit CLI found" and can continue
+
     // Wait for final success message
     session
         .exp_string("Created .common-repo.yaml")
