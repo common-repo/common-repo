@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/common-repo/common-repo/compare/v0.25.0...v0.26.0) (2026-01-08)
+
+
+### Features
+
+* **update:** add --filter flag for selective source updates ([d512a66](https://github.com/common-repo/common-repo/commit/d512a6634f898da2651c28f0c607b6cfeb9a942f))
+
 ## [0.25.0](https://github.com/common-repo/common-repo/compare/v0.24.0...v0.25.0) (2026-01-07)
 
 
