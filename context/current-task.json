@@ -1,6 +1,6 @@
 {
-  "task": null,
-  "plan": null,
+  "task": "add-release-profile-optimizations",
+  "plan": "context/performance-review.json",
   "last_updated": "2026-01-07",
-  "description": "No active task - plan-update-filter completed and archived"
+  "description": "Add [profile.release] optimizations to Cargo.toml for better performance"
 }
