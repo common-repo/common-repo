@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.27.0](https://github.com/common-repo/common-repo/compare/v0.26.1...v0.27.0) (2026-01-08)
+
+
+### Features
+
+* **xtask:** add context flag and improve prose pattern detection ([306841c](https://github.com/common-repo/common-repo/commit/306841c4892c2968a929068a5c913f3633013e6d))
+
+
+### Bug Fixes
+
+* **xtask:** exclude ai-writing-patterns.md and LICENSE.md from prose check ([dd03785](https://github.com/common-repo/common-repo/commit/dd03785106f64ef667430e9e8e2bc482b0ea303c))
+
 ## [0.26.1](https://github.com/common-repo/common-repo/compare/v0.26.0...v0.26.1) (2026-01-08)
 
 
