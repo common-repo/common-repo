@@ -47,6 +47,8 @@ assert_cmd = "2.0"
 predicates = "3.1"
 assert_fs = "1.1"
 rexpect = "0.6.2"
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
 integration-tests = []
@@ -57,6 +59,19 @@ path = "src/main.rs"
 
 [[test]]
 name = "schema_parsing_test"
+harness = false
+
+# Benchmarks
+[[bench]]
+name = "config_parsing"
+harness = false
+
+[[bench]]
+name = "filesystem_ops"
+harness = false
+
+[[bench]]
+name = "operators"
 harness = false
 
 # Optimize release builds for performance

@@ -1,6 +1,6 @@
 {
-  "task": "add-release-profile-optimizations",
+  "task": "add-size-optimized-profile",
   "plan": "context/performance-review.json",
   "last_updated": "2026-01-07",
-  "description": "Add [profile.release] optimizations to Cargo.toml for better performance"
+  "description": "Add size-optimized build profile for smaller binaries"
 }
