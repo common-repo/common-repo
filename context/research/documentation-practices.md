@@ -1,6 +1,6 @@
-# Documentation Best Practices Research
+# Documentation Guidelines Research
 
-Research compiled from OSS best practices (2024-2025) and analysis of exemplar Rust projects.
+Research compiled from OSS recommendations (2024-2025) and analysis of exemplar Rust projects.
 
 ## Reference Projects Analyzed
 
@@ -10,14 +10,14 @@ Research compiled from OSS best practices (2024-2025) and analysis of exemplar R
 4. **starship** (starship/starship) - Cross-shell prompt
 5. **tokio** (tokio-rs/tokio) - Async runtime
 
-## README Best Practices
+## README Guidelines
 
 ### Structure Pattern
 
 All analyzed projects follow a consistent hierarchy:
 
 1. **Header**: Logo/title, badges, one-line tagline
-2. **Value proposition**: 3-6 key features with visual emphasis
+2. **Key benefits**: 3-6 key features with visual emphasis
 3. **Installation**: Multiple methods (platform-specific, package managers)
 4. **Quick start**: Immediate usage examples
 5. **Documentation links**: External docs, guides, API reference
@@ -42,7 +42,7 @@ Common badges across projects:
 - **ripgrep**: "ripgrep recursively searches directories for a regex pattern while respecting your gitignore"
 - **tokio**: "A runtime for writing reliable, asynchronous, and slim applications"
 
-**Pattern**: State what it does + key differentiator (speed, reliability, universality).
+**Pattern**: State what it does + key advantage (speed, reliability, universality).
 
 ### Installation Section
 
@@ -82,7 +82,7 @@ All projects offer multiple installation paths:
 ### Documentation Types
 
 1. **Getting Started / Tutorials** - Onboarding new users
-2. **User Guide** - Comprehensive feature documentation
+2. **User Guide** - Complete feature documentation
 3. **API Reference** - Auto-generated from code (rustdoc)
 4. **FAQ** - Common questions and troubleshooting
 5. **Contributing Guide** - Development setup, PR process
@@ -102,12 +102,12 @@ All projects offer multiple installation paths:
 
 ## Rust-Specific Documentation
 
-### Rustdoc Best Practices
+### Rustdoc Guidelines
 
 From [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/documentation.html):
 
 1. **Crate-level docs**: Use `//!` at top of lib.rs/main.rs
-   - Describe purpose and ecosystem fit
+   - Describe purpose and how it fits with related crates
    - Setup instructions and common patterns
    - Link to examples
 
@@ -143,7 +143,7 @@ Use `#![doc = include_str!("../README.md")]` in lib.rs to:
 
 ### Popular Choices
 
-1. **mdBook** - Rust ecosystem standard, gitbook-like
+1. **mdBook** - Rust community standard, gitbook-like
 2. **mkdocs-material** - Feature-rich, used by uv/ruff
 3. **Docusaurus** - React-based, good for larger docs
 4. **rustdoc** - Built-in Rust API documentation
@@ -183,7 +183,7 @@ Ripgrep includes "Why shouldn't I use ripgrep?" section:
 
 **Consideration**: Important for broad adoption; adds maintenance burden.
 
-## Key Takeaways
+## Summary
 
 ### README Must-Haves
 
@@ -204,7 +204,7 @@ Ripgrep includes "Why shouldn't I use ripgrep?" section:
 
 ### Rust-Specific Requirements
 
-1. Comprehensive rustdoc comments
+1. Complete rustdoc comments
 2. Doctests for examples
 3. README/lib.rs sync mechanism
 4. Standard sections (Errors, Panics, Safety)

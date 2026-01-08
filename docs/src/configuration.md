@@ -642,7 +642,7 @@ Processing order: C -> A -> D -> B -> local
 
 ## Complete Example
 
-Here's a comprehensive configuration showing multiple operators:
+Here's a complete configuration showing multiple operators:
 
 ```yaml
 # .common-repo.yaml

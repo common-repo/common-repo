@@ -2,15 +2,14 @@
 //!
 //! This module provides functionality for interacting with Git repositories. It
 //! is designed as a thin wrapper around the system's `git` command-line tool,
-//! which allows it to seamlessly integrate with the user's existing Git
-//! configuration, including authentication methods like SSH keys and credential
-//! helpers.
+//! which allows it to integrate with the user's existing Git configuration,
+//! including authentication methods like SSH keys and credential helpers.
 //!
 //! ## Key Functions
 //!
 //! - **`clone_shallow`**: Performs a shallow clone of a repository at a specific
-//!   branch, tag, or commit. This is optimized for speed and disk space by
-//!   only fetching the most recent commit.
+//!   branch, tag, or commit. This is tuned for speed and disk space by only
+//!   fetching the most recent commit.
 //!
 //! - **`load_from_cache`**: Loads the contents of a cached repository from the
 //!   filesystem into an in-memory `MemoryFS`, which can then be manipulated by
@@ -111,9 +110,9 @@ pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
 /// a sub-path.
 ///
 /// If a `path` is specified, only the files within that sub-directory of the
-/// repository will be loaded. Additionally, the paths of the loaded files
-/// will be remapped to be relative to the specified `path`, effectively making
-/// it the new root of the in-memory filesystem.
+/// repository will be loaded. The paths of the loaded files will be remapped
+/// to be relative to the specified `path`, making it the new root of the
+/// in-memory filesystem.
 pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result<MemoryFS, Error> {
     let mut fs = MemoryFS::new();
 

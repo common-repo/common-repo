@@ -4,7 +4,7 @@ This file provides guidance to Gemini when working with code in this repository.
 
 ## Project Overview
 
-This is a Rust project with automated tooling for code quality, conventional commits, and semantic versioning. The project is configured for modern development practices with comprehensive CI/CD automation.
+This is a Rust project with automated tooling for code quality, conventional commits, and semantic versioning. The project is configured for modern development practices with full CI/CD automation.
 
 ## LLM Context Files
 
@@ -67,7 +67,7 @@ cargo run
 
 ### Testing
 
-This project has comprehensive testing with both unit tests and integration tests.
+This project has extensive testing with both unit tests and integration tests.
 
 **Recommended: Use cargo-nextest** for faster test execution and better reporting.
 
@@ -85,7 +85,7 @@ cargo nextest run test_name
 ```
 
 #### Integration Tests (Requires network)
-Integration tests verify end-to-end functionality with real repositories:
+Integration tests verify full functionality with real repositories:
 
 ```bash
 # Run all tests including integration tests

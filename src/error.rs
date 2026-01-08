@@ -2,7 +2,7 @@
 //!
 //! This module defines the centralized error handling mechanism for the
 //! `common-repo` application. It uses the `thiserror` library to create a
-//! comprehensive `Error` enum that covers all anticipated failure modes,
+//! unified `Error` enum that covers all anticipated failure modes,
 //! providing clear and descriptive error messages.
 //!
 //! ## Key Components

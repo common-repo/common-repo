@@ -1,6 +1,6 @@
-# Distribution Best Practices for Rust CLI Tools
+# Distribution Guidelines for Rust CLI Tools
 
-This document summarizes distribution strategies and best practices for Rust CLI tools, based on research of popular projects and community guidance.
+This document summarizes distribution strategies and recommendations for Rust CLI tools, based on research of popular projects and community guidance.
 
 ## Exemplar Projects Analyzed
 
@@ -29,7 +29,7 @@ This progression matches project maturity: early projects can start simple, addi
 
 **Pros:**
 - Zero setup for publication
-- Built-in to Rust ecosystem
+- Built-in to Rust toolchain
 - Version management via Cargo.toml
 
 **Cons:**
@@ -113,7 +113,7 @@ To support cargo-binstall, simply publish pre-built binaries to GitHub Releases 
 
 ### 6. Language-Specific Registries
 
-For tools targeting specific ecosystems:
+For tools targeting specific communities:
 
 - **PyPI** (pip/pipx) - Python tools like ruff, uv
 - **npm** - JavaScript/Node tools
@@ -177,7 +177,7 @@ cargo build --target x86_64-unknown-linux-musl
 
 ### Base Image Recommendations
 
-| Image | Size | Use Case |
+| Image | Size | Scenario |
 |-------|------|----------|
 | `scratch` | 0 MB | Fully static binaries |
 | `gcr.io/distroless/static` | ~2 MB | Static + CA certs + non-root user |
@@ -258,7 +258,7 @@ This generates `.github/workflows/release.yml` that handles the full release pip
 - MSI installers for Windows
 - conda-forge
 
-## Key Takeaways
+## Summary
 
 1. **Multi-channel is essential** - Offer multiple installation methods to maximize accessibility
 

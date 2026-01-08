@@ -1,6 +1,6 @@
-# CLI/UX Best Practices Research
+# CLI/UX Research
 
-Research compiled from OSS best practices (2024-2025) and analysis of exemplar Rust CLI projects.
+Research compiled from OSS recommendations (2024-2025) and analysis of exemplar Rust CLI projects.
 
 ## Reference Projects Analyzed
 
@@ -58,7 +58,7 @@ Examples:
 Run 'myapp <command> --help' for more information on a specific command.
 ```
 
-### Best Practices
+### Recommendations
 
 1. **Accept multiple help forms**: `-h`, `--help`, and `help` subcommand
 2. **Lead with examples**: Users prefer working samples over abstract explanations
@@ -66,7 +66,7 @@ Run 'myapp <command> --help' for more information on a specific command.
 4. **Show common commands first**: Don't overwhelm with exhaustive lists
 5. **Suggest corrections**: "Did you mean 'upgrade'?" for typos
 6. **Include support paths**: Website or GitHub links in top-level help
-7. **Format for scannability**: Use sections and alignment
+7. **Format for scannability**: Use sections and consistent spacing
 
 ### Clap-Specific Patterns
 
@@ -115,7 +115,7 @@ From research on Rust CLI error handling:
 
 1. **Rewrite errors for humans**: Catch expected errors and explain conversationally
 2. **Add context**: Use `anyhow::Context` or similar to add situational information
-3. **Suggest fixes**: Include actionable remediation when possible
+3. **Suggest fixes**: Include practical remediation when possible
 4. **Keep messages lowercase**: Without trailing punctuation
 5. **Separate from cause**: Error messages describe the current error only
 
@@ -230,7 +230,7 @@ for item in items {
 pb.finish_with_message("Done");
 ```
 
-### Best Practices
+### Recommendations
 
 1. **Auto-hide for non-TTY**: indicatif hides progress when output is piped
 2. **Steady tick for slow operations**: Background thread keeps spinner moving
@@ -358,7 +358,7 @@ fn output_result(result: &Output, json: bool) {
 
 ## Interactivity Guidelines
 
-### Prompt Best Practices
+### Prompt Guidelines
 
 1. **Only prompt when stdin is TTY**: Fail clearly in scripts
 2. **Never require prompts**: Always offer flag/argument equivalents
@@ -428,18 +428,18 @@ fn generate_completions(shell: Shell) {
 }
 ```
 
-### Best Practices
+### Recommendations
 
 1. **Support major shells**: Bash, Zsh, Fish, PowerShell
 2. **Include in installation**: Provide setup instructions
 3. **Consider config file**: Like ripgrep, include config values in completions
-4. **Dynamic completions**: For values like branch names, file paths
+4. **Runtime completions**: For values like branch names, file paths
 
 ## Exemplar Project Patterns
 
 ### ripgrep
 
-- **Excellent error messages**: Specific, actionable, includes file paths
+- **Excellent error messages**: Specific, practical, includes file paths
 - **Debug mode**: `--debug` for troubleshooting
 - **Smart suggestions**: Recommends flags based on pattern analysis
 - **Binary file handling**: Clear UX for searching binary files
@@ -464,7 +464,7 @@ fn generate_completions(shell: Shell) {
 - **Progress control**: `UV_NO_PROGRESS` environment variable
 - **Clear output**: Minimal but informative status updates
 
-## Key Takeaways
+## Summary
 
 ### Help Text
 1. Lead with examples, not abstract descriptions
@@ -495,8 +495,8 @@ fn generate_completions(shell: Shell) {
 
 ### CLI Design Guidelines
 - [Command Line Interface Guidelines](https://clig.dev/)
-- [Thoughtworks - CLI Design Guidelines](https://www.thoughtworks.com/insights/blog/engineering-effectiveness/elevate-developer-experiences-cli-design-guidelines)
-- [Evil Martians - CLI UX Best Practices](https://evilmartians.com/chronicles/cli-ux-best-practices-3-patterns-for-improving-progress-displays)
+- [Thoughtworks - CLI Design Guidelines](https://www.thoughtworks.com/insights/blog/engineering-effectiveness/improve-developer-experiences-cli-design-guidelines)
+- [Evil Martians - CLI UX Patterns](https://evilmartians.com/chronicles/cli-ux-best-practices-3-patterns-for-improving-progress-displays)
 - [Ubuntu - Command-line Usability](https://ubuntu.com/blog/command-line-usability-a-terminal-users-thought-process)
 
 ### Rust CLI Libraries
@@ -509,7 +509,7 @@ fn generate_completions(shell: Shell) {
 ### Error Handling
 - [thiserror, anyhow, or How I Handle Errors](https://www.shakacode.com/blog/thiserror-anyhow-or-how-i-handle-errors-in-rust-apps/)
 - [Error Handling for Large Rust Projects](https://greptime.com/blogs/2024-05-07-error-rust)
-- [Error Handling In Rust - A Deep Dive](https://lpalmieri.com/posts/error-handling-rust/)
+- [Error Handling In Rust](https://lpalmieri.com/posts/error-handling-rust/)
 - [Effective Error Handling in Rust CLI Apps](https://technorely.com/insights/effective-error-handling-in-rust-cli-apps-best-practices-examples-and-advanced-techniques)
 
 ### Reference Projects

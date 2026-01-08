@@ -2,7 +2,7 @@
 
 ## Context
 
-This document describes the comprehensive testdata fixtures created for Phase 5 merge operators (YAML, JSON, TOML, INI, Markdown). These fixtures are committed and will be tagged with releases, enabling integration tests to reference them via git refs.
+This document describes the full testdata fixtures created for Phase 5 merge operators (YAML, JSON, TOML, INI, Markdown). These fixtures are committed and will be tagged with releases, enabling integration tests to reference them via git refs.
 
 ## Created Testdata Fixtures
 
@@ -145,7 +145,7 @@ fn test_json_array_positioning() {
 
 **Test Coverage Goals:**
 - Basic object merge
-- Package.json dependency merging (real-world use case)
+- Package.json dependency merging (real-world scenario)
 - Array positioning (start)
 - Array positioning (end)
 - Nested object replacement
@@ -203,7 +203,7 @@ fn test_toml_comment_preservation() {
 
 **Test Coverage Goals:**
 - Basic table merge
-- Cargo.toml dependency merging (real-world Rust use case)
+- Cargo.toml dependency merging (real-world Rust scenario)
 - Array append to workspace members
 - Comment preservation (if feature implemented)
 - Complex dependency syntax (version + features)
@@ -265,7 +265,7 @@ fn test_ini_duplicate_handling() {
 - Section-specific targeting
 - Duplicate key handling (allow vs disallow)
 - Append mode for sections
-- Configuration file use cases (database, server, logging)
+- Configuration file scenarios (database, server, logging)
 
 ---
 
@@ -336,7 +336,7 @@ fn test_markdown_positioning() {
 - Relative positioning (before/after sections)
 - Section replacement (non-append mode)
 - Heading level handling
-- README.md and documentation use cases
+- README.md and documentation scenarios
 
 ---
 
@@ -584,7 +584,7 @@ pulldown-cmark-to-cmark = "10.0"  # Markdown rendering
 
 1. **Start with YAML**: Simplest format, good for initial implementation
 2. **Then JSON**: Similar to YAML, adds positioning complexity
-3. **Then TOML**: Adds comment preservation, Cargo.toml use case
+3. **Then TOML**: Adds comment preservation, Cargo.toml scenario
 4. **Then INI**: Different structure (sections), duplicate handling
 5. **Then Markdown**: Most complex, section-based, positioning
 

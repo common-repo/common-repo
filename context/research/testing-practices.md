@@ -1,13 +1,13 @@
-# Testing Best Practices Research
+# Testing Guidelines Research
 
-Research compiled from OSS best practices (2024-2025) and analysis of exemplar Rust projects.
+Research compiled from OSS recommendations (2024-2025) and analysis of exemplar Rust projects.
 
 ## Reference Projects Analyzed
 
 1. **uv** (astral-sh/uv) - Python package manager written in Rust
 2. **ripgrep** (BurntSushi/ripgrep) - Line-oriented search tool
-3. **serde** (serde-rs/serde) - Serialization framework
-4. **axum** (tokio-rs/axum) - Web framework built on Tokio/Tower
+3. **serde** (serde-rs/serde) - Serialization library
+4. **axum** (tokio-rs/axum) - Web server library built on Tokio/Tower
 
 ## Test Organization
 
@@ -70,7 +70,7 @@ Standard test runner included with Rust:
 
 ### cargo-nextest (Recommended for CI)
 
-Next-generation test runner with modern execution model:
+New test runner with modern execution model:
 
 | Feature | cargo test | cargo-nextest |
 |---------|-----------|---------------|
@@ -130,7 +130,7 @@ cargo tarpaulin --fail-under 80   # CI enforcement
 **Pros**: Simpler setup, integrates with coverage services
 **Cons**: Best on Linux, relies on ptrace instrumentation
 
-### Coverage Best Practices
+### Coverage Guidelines
 
 - **Target meaningful coverage**: 80% is a common threshold, but quality matters more than quantity
 - **Exclude generated code**: Use `#[cfg_attr(coverage_nightly, coverage(off))]`
@@ -211,7 +211,7 @@ cargo insta review         # Interactive review
 
 #### proptest (Recommended)
 
-Hypothesis-like framework with strategies:
+Hypothesis-like library with strategies:
 
 ```rust
 use proptest::prelude::*;
@@ -307,9 +307,9 @@ fn test_concurrent_access() {
 
 ### Turmoil: Network Simulation
 
-Simulated networking for distributed systems testing.
+Simulated networking for distributed systems testing. See the [Turmoil repository](https://github.com/tokio-rs/turmoil) for details.
 
-## Web Framework Testing (Axum Pattern)
+## Web Application Testing (Axum Pattern)
 
 ### Tower Service Testing
 
@@ -422,7 +422,7 @@ jobs:
 ### ripgrep
 
 - **Organization**: Workspace with multiple crates, each with unit tests
-- **Integration tests**: `tests/` directory with comprehensive CLI tests
+- **Integration tests**: `tests/` directory with full CLI tests
 - **Regression tests**: Dedicated `tests/regression.rs` for bug fixes
 - **CI scripts**: `ci/script.sh` for test orchestration
 
@@ -446,7 +446,7 @@ jobs:
 - **Integration tests**: Feature-gated behind flags
 - **CI matrix**: Multiple Python versions across platforms
 
-## Key Takeaways
+## Summary
 
 ### Test Organization
 

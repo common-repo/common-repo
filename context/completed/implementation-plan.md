@@ -109,7 +109,7 @@ These are the fundamental building blocks that everything else depends on.
 - `RepositoryManager::is_cached()` - Check if repository is already cached
 - `RepositoryManager::list_repository_tags()` - List available tags from remote
 
-**Why here**: Provides clean abstraction for operators to fetch repositories without worrying about caching details. Enables easy testing with mocks.
+**Why here**: Provides clean abstraction for operators to fetch repositories without worrying about caching details. Testable with mocks.
 
 **Dependencies**:
 - External: None (orchestrates existing components)
@@ -434,7 +434,7 @@ These implement the 6 phases from the design doc.
 - External: `clap`
 - Internal: All layers, including Layer 3.5 (Version Detection) for `check` and `update` commands
 
-**Testing**: End-to-end integration tests for each command and its options.
+**Testing**: Full integration tests for each command and its options.
 
 ---
 
@@ -450,14 +450,14 @@ These implement the 6 phases from the design doc.
 - External: `env_logger`, `log`
 - Internal: All layers
 
-**Testing**: End-to-end integration tests
+**Testing**: Full integration tests
 
 ---
 
 ## Implementation Strategy
 
 ### Phase 1: MVP (Minimum Viable Product)
-**Goal**: Get basic functionality working end-to-end
+**Goal**: Get basic functionality working full
 
 **Include**:
 - Layer 0: All foundation components
@@ -511,13 +511,13 @@ These implement the 6 phases from the design doc.
 ---
 
 ### Phase 4: Performance & Polish
-**Goal**: Optimize and productionize
+**Goal**: Improve performance and productionize
 
 **Add**:
 - Parallel cloning optimization
 - Progress indicators
 - Better error messages
-- Comprehensive logging
+- Full logging
 - Documentation
 
 **Milestone**: Production ready
@@ -540,7 +540,7 @@ These implement the 6 phases from the design doc.
 - Git operations (with test repos)
 - Version detection scenarios
 
-### End-to-End Tests
+### Full Tests
 - Full scenarios with real repos
 - Performance benchmarks
 - Error scenarios

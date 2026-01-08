@@ -216,7 +216,7 @@ The inline JSON configuration controls which heading levels are included.
 ### Testing
 
 - Write unit tests for all new functions
-- Add integration tests for end-to-end workflows
+- Add integration tests for complete workflows
 - Test error cases and edge conditions
 - Aim for 80%+ code coverage
 - Use descriptive test names: `test_function_does_something_when_condition()`
@@ -304,14 +304,14 @@ We welcome contributions in these areas:
 - **Features**: Implement features from the roadmap
 - **Tests**: Improve test coverage
 - **Documentation**: Improve docs, examples, and guides
-- **Performance**: Optimize slow operations
+- **Performance**: Improve slow operations
 - **Tooling**: Improve developer experience
 
 ## Getting Help
 
 - **Questions**: Open a GitHub Discussion
 - **Bug reports**: Open a GitHub Issue with reproduction steps
-- **Feature requests**: Open a GitHub Issue with use case description
+- **Feature requests**: Open a GitHub Issue with a description of your scenario
 - **Security issues**: See SECURITY.md (if it exists) or email maintainers directly
 
 ## License

@@ -18,7 +18,7 @@
 //!
 //! ## Functionality
 //!
-//! The `MemoryFS` provides a comprehensive set of methods for file manipulation,
+//! The `MemoryFS` provides a full set of methods for file manipulation,
 //! including:
 //!
 //! - Adding, retrieving, and removing files.

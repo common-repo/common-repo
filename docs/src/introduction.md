@@ -8,7 +8,7 @@ Modern software repositories require extensive configuration infrastructure: CI/
 
 - **Manual copy-paste** - Configuration files copied between projects lead to inconsistency and drift
 - **No versioning** - Unlike source dependencies, configs aren't semantically versioned or tracked
-- **Difficult updates** - No automated way to propagate best practices across repositories
+- **Difficult updates** - No automated way to propagate standards across repositories
 - **No inheritance** - Can't easily extend standard configurations
 
 common-repo treats repository configuration as software dependencies.

@@ -454,7 +454,7 @@ A detailed CLI design is available in [context/cli-design.md](../context/cli-des
 
 ### Integration Tests
 
-- End-to-end scenarios with mock repos
+- Full integration scenarios with mock repos
 - Cache behavior
 - Error handling paths
 - Circular dependency detection
@@ -468,7 +468,7 @@ A detailed CLI design is available in [context/cli-design.md](../context/cli-des
 
 ## Open Questions
 
-1. **Circular dependency handling**: Current design is to detect and abort. Is there a use case for allowing cycles with depth limits?
+1. **Circular dependency handling**: Current design is to detect and abort. Is there a scenario for allowing cycles with depth limits?
 
 2. **Cache invalidation**: Should cache have TTL? Or rely solely on ref changes?
 

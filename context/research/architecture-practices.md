@@ -1,6 +1,6 @@
-# Architecture Best Practices Research
+# Architecture Guidelines Research
 
-Research compiled from OSS best practices (2024-2025) and analysis of exemplar Rust projects.
+Research compiled from OSS recommendations (2024-2025) and analysis of exemplar Rust projects.
 
 ## Reference Projects Analyzed
 
@@ -104,7 +104,7 @@ edition.workspace = true
 serde.workspace = true
 ```
 
-### Best Practices
+### Recommendations
 
 1. **Virtual manifest root**: Don't put a crate in the root; use only workspace definition
 2. **Consistent naming**: Folder names should match crate names exactly
@@ -457,7 +457,7 @@ pub use crate::traits::{Parser, Validator};
 use crate::prelude::*;
 ```
 
-## Key Takeaways
+## Summary
 
 ### Project Structure
 
@@ -492,7 +492,7 @@ use crate::prelude::*;
 
 ### Project Structure
 - [The Rust Book - Modules](https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html)
-- [Rust Project Structure Best Practices](https://www.djamware.com/post/68b2c7c451ce620c6f5efc56/rust-project-structure-and-best-practices-for-clean-scalable-code)
+- [Rust Project Structure Guidelines](https://www.djamware.com/post/68b2c7c451ce620c6f5efc56/rust-project-structure-and-best-practices-for-clean-scalable-code) (djamware.com)
 - [Large Rust Workspaces](https://matklad.github.io/2021/08/22/large-rust-workspaces.html)
 - [Cargo Workspaces](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html)
 - [Rust Project Primer - Workspace](https://rustprojectprimer.com/organization/workspace.html)
@@ -506,7 +506,7 @@ use crate::prelude::*;
 - [thiserror, anyhow, or How I Handle Errors](https://www.shakacode.com/blog/thiserror-anyhow-or-how-i-handle-errors-in-rust-apps/)
 - [Rust Error Handling Guide](https://momori.dev/posts/rust-error-handling-thiserror-anyhow/)
 - [Error Handling for Large Rust Projects](https://greptime.com/blogs/2024-05-07-error-rust)
-- [Error Handling In Rust - A Deep Dive](https://lpalmieri.com/posts/error-handling-rust/)
+- [Error Handling In Rust - A Detailed Review](https://lpalmieri.com/posts/error-handling-rust/)
 - [SNAFU Documentation](https://docs.rs/snafu/latest/snafu/)
 - [anyhow GitHub](https://github.com/dtolnay/anyhow)
 - [thiserror crates.io](https://crates.io/crates/thiserror)

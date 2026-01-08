@@ -9,7 +9,7 @@
 //! The `apply` command executes the full 6-phase pipeline:
 //!
 //! 1.  **Discovery and Cloning**: Fetches all inherited repositories in parallel,
-//!     leveraging a cache to avoid redundant downloads.
+//!     using a cache to avoid redundant downloads.
 //! 2.  **Processing Individual Repos**: Applies operations (e.g., include, exclude,
 //!     rename) to each repository to create an intermediate filesystem.
 //! 3.  **Determining Operation Order**: Calculates a deterministic merge order to

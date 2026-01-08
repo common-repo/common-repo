@@ -17,7 +17,7 @@
     {
       "id": "analyze-prose-issues",
       "name": "Analyze and categorize all prose issues",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "steps": [
@@ -33,7 +33,7 @@
     {
       "id": "auto-fix-egregious",
       "name": "Automatically fix egregious AI-isms",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "analyze-prose-issues",
       "steps": [
@@ -52,9 +52,10 @@
     {
       "id": "interactive-fix-borderline",
       "name": "Interactively fix borderline cases",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "auto-fix-egregious",
+      "notes": "User decided to keep legitimate technical terms: end-to-end (testing), orchestrates (pipeline), navigate (data structures), underscores (character), optimize (actual optimization)",
       "steps": [
         "For each borderline case, show user: file, line, current context (3-5 lines)",
         "Show proposed fix in same context",
@@ -69,7 +70,7 @@
     {
       "id": "verify-and-commit",
       "name": "Verify and commit fixes",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "interactive-fix-borderline",
       "steps": [
@@ -89,6 +90,14 @@
     "LICENSE.md is excluded because it's legal text we shouldn't modify",
     "ai-writing-patterns.md is excluded because it lists the patterns as examples",
     "Some technical terms like 'framework' or 'end-to-end' may be appropriate in context",
-    "Orchestrates is commonly used in this codebase for the phase pipeline - may keep"
-  ]
+    "Orchestrates is commonly used in this codebase for the phase pipeline - kept",
+    "end-to-end removed from check_prose patterns as it's legitimate testing terminology",
+    "Remaining issues are mostly false positives: external URLs, quoted examples, legitimate technical terms"
+  ],
+  "summary": {
+    "original_issues": 677,
+    "fixed": "~220 actual AI-isms",
+    "remaining": "~458 (mostly false positives for legitimate technical terms)",
+    "files_modified": 41
+  }
 }

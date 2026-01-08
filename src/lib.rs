@@ -64,7 +64,7 @@
 //! 7.  **Disk Output**: Write the final filesystem to the specified output directory.
 //!
 //! By separating the logic into these distinct modules and phases, the library
-//! provides a flexible and extensible framework for managing shared configurations.
+//! provides a flexible and extensible system for managing shared configurations.
 
 pub mod cache;
 pub mod config;

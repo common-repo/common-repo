@@ -1,4 +1,4 @@
-# Community and Governance Best Practices
+# Community and Governance Guidelines
 
 Research on open source community management, governance models, and contributor engagement patterns.
 
@@ -13,7 +13,7 @@ Single maintainer or small group with final decision authority. Common in creato
 **Cons**: Burnout risk, bus factor, can disenfranchise contributors
 **Best for**: Early-stage projects, strong technical vision
 
-The role is "less about dictatorship and more about diplomacy"—ensuring the right people gain influence as the project grows. ([Stack Overflow](https://stackoverflow.blog/2020/09/09/open-source-governance-benevolent-dictator-or-decision-by-committee/))
+The role is "less about dictatorship, more about diplomacy"—ensuring the right people gain influence as the project grows. ([Stack Overflow](https://stackoverflow.blog/2020/09/09/open-source-governance-benevolent-dictator-or-decision-by-committee/))
 
 ### Meritocratic/Committee Governance
 
@@ -60,13 +60,13 @@ Maps code paths to responsible reviewers. Ensures appropriate expertise reviews 
 *.rs @org/rust-reviewers
 ```
 
-**Best practices**:
-- Start broad, refine as needed
+**Recommendations**:
+- Start broad, refine over time
 - Use team handles over individuals (reduces single points)
 - Review and update periodically
 - Particularly valuable in monorepos
 
-([Harness Blog](https://www.harness.io/blog/mastering-codeowners))
+([Source](https://www.harness.io/blog/mastering-codeowners))
 
 ## Community Health Files
 
@@ -128,7 +128,7 @@ Modern projects use YAML-based issue forms (not just markdown templates):
 - `3_question.yaml` - Questions
 - `config.yml` - Template configuration
 
-**Best practices**:
+**Recommendations**:
 - Use form schema for structured input
 - Required fields for critical info (version, reproduction steps)
 - Set `blank_issues_enabled: false` to enforce templates
@@ -176,7 +176,7 @@ Complementary to Issues for community engagement.
 - 60% more interactions with open-ended questions
 - 35% more engagement when discussions link to issues
 
-**Best practices**:
+**Recommendations**:
 - Use categories (General, Ideas, Q&A, Show and Tell)
 - Pin important discussions
 - Convert to issues when work is defined
@@ -215,7 +215,7 @@ Broader than good-first-issue, indicates maintainers welcome help but issue may 
 
 ### Onboarding Documentation
 
-**Best practices**:
+**Recommendations**:
 - Clear development setup instructions
 - Local testing guidance
 - Architecture overview
@@ -260,13 +260,13 @@ Consistent labeling improves discoverability and triage.
 
 | Project | Governance | Notable Practice |
 |---------|------------|------------------|
-| Rust | RFC + Teams | Comprehensive team structure |
+| Rust | RFC + Teams | Complete team structure |
 | uv | BDFL (Astral) | Strong contribution guidelines |
 | Tokio | Meritocratic | Detailed commit conventions |
 | Kubernetes | Committee | Label system, SIG structure |
 | Apache | Meritocratic | Foundation governance |
 
-## Key Takeaways
+## Summary
 
 1. **Start with basics**: CONTRIBUTING.md, CODE_OF_CONDUCT.md, issue templates
 2. **Match governance to stage**: BDFL for early projects, distribute as you grow
@@ -282,8 +282,8 @@ Consistent labeling improves discoverability and triage.
 - [Open Source Guide - Leadership and Governance](https://opensource.guide/leadership-and-governance/)
 - [The Open Source Way 2.0](https://www.redhat.com/en/blog/guidebook-open-source-community-management-open-source-way-20)
 - [GitHub Docs - Issue Templates](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)
-- [GitHub Docs - Discussions Best Practices](https://docs.github.com/en/discussions/guides/best-practices-for-community-conversations-on-github)
+- [GitHub Docs - Discussions Guidelines](https://docs.github.com/en/discussions/guides/best-practices-for-community-conversations-on-github)
 - [Contributor Covenant](https://www.contributor-covenant.org/)
 - [Rust Governance](https://www.rust-lang.org/governance)
-- [Harness - CODEOWNERS](https://www.harness.io/blog/mastering-codeowners)
+- [CODEOWNERS Guide](https://www.harness.io/blog/codeowners)
 - [Stack Overflow - BDFL vs Committee](https://stackoverflow.blog/2020/09/09/open-source-governance-benevolent-dictator-or-decision-by-committee/)
