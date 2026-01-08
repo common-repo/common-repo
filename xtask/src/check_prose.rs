@@ -1113,8 +1113,22 @@ pub fn discover_files(paths: &[PathBuf]) -> Vec<PathBuf> {
     files
 }
 
+/// Files that should never be checked for prose patterns.
+/// These files either document the patterns themselves or contain legal text.
+const EXCLUDED_FILES: &[&str] = &[
+    "ai-writing-patterns.md", // Documents patterns to avoid (contains examples)
+    "LICENSE.md",             // Legal text
+];
+
 /// Check if a file should be scanned for prose patterns.
 fn should_check_file(path: &Path) -> bool {
+    // Check exclusion list
+    if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+        if EXCLUDED_FILES.contains(&file_name) {
+            return false;
+        }
+    }
+
     let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
         // Check for README, CHANGELOG without extension
         let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
