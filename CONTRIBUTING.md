@@ -255,6 +255,22 @@ Snapshot files are stored in `tests/snapshots/` and should be committed to versi
 - Profile performance-critical code
 - Document performance characteristics of public APIs
 
+### Build Profiles
+
+The project includes two release profiles in `Cargo.toml`:
+
+**Release profile** (default for `cargo build --release`):
+- Link-time optimization (LTO) for better runtime performance
+- Single codegen unit for maximum optimization
+- Symbols stripped for smaller binaries
+
+**Size-focused profile** (`cargo build --profile release-small`):
+- Inherits release settings
+- Uses `opt-level = "z"` for minimal binary size
+- Uses `panic = "abort"` instead of unwinding
+
+Use the size-focused profile when distributing binaries where size matters more than speed (embedded systems, resource-limited environments). The standard release profile is recommended for most scenarios.
+
 ## Project Structure
 
 ```

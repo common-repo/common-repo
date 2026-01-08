@@ -79,3 +79,10 @@ harness = false
 lto = true          # Link-time optimization for better performance
 codegen-units = 1   # Single codegen unit for maximum optimization
 strip = true        # Strip symbols for smaller binaries
+
+# Size-optimized profile for minimal binary size
+# Use with: cargo build --profile release-small
+[profile.release-small]
+inherits = "release"
+opt-level = "z"     # Optimize for size over speed
+panic = "abort"     # Smaller than unwinding
