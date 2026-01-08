@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.26.1](https://github.com/common-repo/common-repo/compare/v0.26.0...v0.26.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* **test:** handle conditional pre-commit CLI prompt in interactive test ([da79040](https://github.com/common-repo/common-repo/commit/da79040a63b1147b29dbe8e912abe04d04f821a4))
+
+
+### Performance Improvements
+
+* add criterion benchmarks for core operations ([9ea851a](https://github.com/common-repo/common-repo/commit/9ea851af889adb2bfd9c3f4965e1300e74c4dce5))
+* add size-optimized build profile ([550b136](https://github.com/common-repo/common-repo/commit/550b1366a0d99636b12cf203935769a092c7b54b))
+
 ## [0.26.0](https://github.com/common-repo/common-repo/compare/v0.25.0...v0.26.0) (2026-01-08)
 
 
