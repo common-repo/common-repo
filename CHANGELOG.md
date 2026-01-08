@@ -46,7 +46,7 @@
 ### Features
 
 * add --verbose and --quiet global flags ([b569cf9](https://github.com/common-repo/common-repo/commit/b569cf918685a30d51eaa9acb591b0a6e9b1d4b1))
-* add actionable suggestions to error messages ([1bde6a6](https://github.com/common-repo/common-repo/commit/1bde6a63e3fac1811eced3f74e838e10b5468058))
+* add helpful suggestions to error messages ([1bde6a6](https://github.com/common-repo/common-repo/commit/1bde6a63e3fac1811eced3f74e838e10b5468058))
 * audit and standardize CLI exit codes ([d5121ad](https://github.com/common-repo/common-repo/commit/d5121ad7598449a8f692c0defaa1aabd0638826d))
 * **output:** add TTY-aware output with NO_COLOR support ([1b4a5a8](https://github.com/common-repo/common-repo/commit/1b4a5a885a98ff63d05b88e517eb247ea048f77c))
 * **workflow:** wait for in-progress checks before auto-merge ([84a3d0b](https://github.com/common-repo/common-repo/commit/84a3d0b36c2a92ebd74da7d8e841ba1e6fa5acc8))
@@ -66,7 +66,7 @@
 ### Features
 
 * **cli:** add shell completions command ([8d58636](https://github.com/common-repo/common-repo/commit/8d58636d8f2c3d116521df06e0003490464b03a7))
-* **error:** add actionable hints to error messages ([dad6c06](https://github.com/common-repo/common-repo/commit/dad6c06c2fb74da61cb902a74726d765ecc5e551))
+* **error:** add helpful hints to error messages ([dad6c06](https://github.com/common-repo/common-repo/commit/dad6c06c2fb74da61cb902a74726d765ecc5e551))
 * **workflow:** add check status verification before enabling auto-merge ([c0fa040](https://github.com/common-repo/common-repo/commit/c0fa040cc1bca2d24268b28e0ed7ce6124a16ec1))
 * **xtask:** add cargo xtask automation with coverage and release-prep ([30e8b5e](https://github.com/common-repo/common-repo/commit/30e8b5eb06b71a0623bee334ad6b69cdb95cff2f))
 
@@ -230,7 +230,7 @@
 
 ### Features
 
-* **cli:** implement info command with comprehensive tests ([d988629](https://github.com/common-repo/common-repo/commit/d988629bf4c96e7fe4517c12383fee386b96c9e7))
+* **cli:** implement info command with full tests ([d988629](https://github.com/common-repo/common-repo/commit/d988629bf4c96e7fe4517c12383fee386b96c9e7))
 
 
 ### Bug Fixes
@@ -272,7 +272,7 @@
 ### Features
 
 * **cli:** stub out long description ([ceabdcb](https://github.com/common-repo/common-repo/commit/ceabdcbb3bbf53e800ca8f4b87cb2b13db2ae2d6))
-* **validate:** add validate command with comprehensive tests ([205b4e5](https://github.com/common-repo/common-repo/commit/205b4e5b8bf54097484f3d4e986c89e70f0c62b2))
+* **validate:** add validate command with full tests ([205b4e5](https://github.com/common-repo/common-repo/commit/205b4e5b8bf54097484f3d4e986c89e70f0c62b2))
 
 ## [0.7.1](https://github.com/common-repo/common-repo/compare/v0.7.0...v0.7.1) (2025-11-16)
 
@@ -339,7 +339,7 @@
 * complete merge operators and phase pipeline ([9106fa5](https://github.com/common-repo/common-repo/commit/9106fa59e6c51b6cfa728f04aaca9eb3781b1923))
 * complete mvp end-to-end cli pipeline implementation ([a5ea6bc](https://github.com/common-repo/common-repo/commit/a5ea6bc51c810bec11fbd541d42b48db94bdd0f9))
 * enhance phase 1 with recursive repository discovery ([a964d3c](https://github.com/common-repo/common-repo/commit/a964d3cac9166265ae9228b7503d77b048024a1c))
-* implement layer 2.1 repo operator with comprehensive testing ([50f1183](https://github.com/common-repo/common-repo/commit/50f11837e641cdbcb331be331575463806ac8629))
+* implement layer 2.1 repo operator with full testing ([50f1183](https://github.com/common-repo/common-repo/commit/50f11837e641cdbcb331be331575463806ac8629))
 * implement phase 6 writing to disk and apply code review fixes ([d54b708](https://github.com/common-repo/common-repo/commit/d54b7085c996593c3680cc9c0d95be377b659571))
 * implement repository manager with trait-based design ([50fc6a5](https://github.com/common-repo/common-repo/commit/50fc6a58eaa9cb2cba7228ef2939b1fc2915c834))
 * implement template and YAML/JSON merge operators ([f935c47](https://github.com/common-repo/common-repo/commit/f935c47722d67254b2368c2683a0811ee9a7482c))
@@ -357,14 +357,14 @@
 * correct Rust edition and update test counts in documentation ([d69953c](https://github.com/common-repo/common-repo/commit/d69953c756e57b906ca8fdc84e4a38c42d181996))
 * correct variable names in execute_pull call ([72f4be1](https://github.com/common-repo/common-repo/commit/72f4be1c0dd3ea99b670ddd7a706c98f85a54b5a))
 * improve Phase 1 discovery and fix code review issues ([74ff794](https://github.com/common-repo/common-repo/commit/74ff79455e8eec04f88578e6f0ae4b2006b9873c))
-* **test:** make test_update_dry_run more robust and add ignored fixture test ([015150a](https://github.com/common-repo/common-repo/commit/015150a0b7944060df9862b591bcb97e08bb359c))
+* **test:** make test_update_dry_run more reliable and add ignored fixture test ([015150a](https://github.com/common-repo/common-repo/commit/015150a0b7944060df9862b591bcb97e08bb359c))
 
 ## [0.2.1](https://github.com/common-repo/common-repo/compare/common-repo-v0.2.0...common-repo-v0.2.1) (2025-11-16)
 
 
 ### Bug Fixes
 
-* **test:** make test_update_dry_run more robust and add ignored fixture test ([015150a](https://github.com/common-repo/common-repo/commit/015150a0b7944060df9862b591bcb97e08bb359c))
+* **test:** make test_update_dry_run more reliable and add ignored fixture test ([015150a](https://github.com/common-repo/common-repo/commit/015150a0b7944060df9862b591bcb97e08bb359c))
 
 ## [0.2.0](https://github.com/common-repo/common-repo/compare/common-repo-v0.1.0...common-repo-v0.2.0) (2025-11-16)
 
@@ -382,7 +382,7 @@
 * complete merge operators and phase pipeline ([9106fa5](https://github.com/common-repo/common-repo/commit/9106fa59e6c51b6cfa728f04aaca9eb3781b1923))
 * complete mvp end-to-end cli pipeline implementation ([a5ea6bc](https://github.com/common-repo/common-repo/commit/a5ea6bc51c810bec11fbd541d42b48db94bdd0f9))
 * enhance phase 1 with recursive repository discovery ([a964d3c](https://github.com/common-repo/common-repo/commit/a964d3cac9166265ae9228b7503d77b048024a1c))
-* implement layer 2.1 repo operator with comprehensive testing ([50f1183](https://github.com/common-repo/common-repo/commit/50f11837e641cdbcb331be331575463806ac8629))
+* implement layer 2.1 repo operator with full testing ([50f1183](https://github.com/common-repo/common-repo/commit/50f11837e641cdbcb331be331575463806ac8629))
 * implement phase 6 writing to disk and apply code review fixes ([d54b708](https://github.com/common-repo/common-repo/commit/d54b7085c996593c3680cc9c0d95be377b659571))
 * implement repository manager with trait-based design ([50fc6a5](https://github.com/common-repo/common-repo/commit/50fc6a58eaa9cb2cba7228ef2939b1fc2915c834))
 * implement template and YAML/JSON merge operators ([f935c47](https://github.com/common-repo/common-repo/commit/f935c47722d67254b2368c2683a0811ee9a7482c))
