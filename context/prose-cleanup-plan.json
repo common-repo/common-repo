@@ -1,0 +1,94 @@
+{
+  "plan_name": "Prose Cleanup - Fix AI Writing Patterns",
+  "description": "Fix check_prose errors across the codebase to enable reliable prose checking without pre-existing issues",
+  "last_updated": "2026-01-07",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test in background to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "approach": {
+    "automatic_fixes": "Fix egregious AI-isms automatically (delve, leverage, robust, seamless, synergy, paradigm, etc.)",
+    "interactive_fixes": "For borderline cases, show user the current text in context and proposed fix in context for approval",
+    "exclusions": "Skip LICENSE.md (legal text), context/ai-writing-patterns.md (reference doc listing the patterns)"
+  },
+  "tasks": [
+    {
+      "id": "analyze-prose-issues",
+      "name": "Analyze and categorize all prose issues",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "steps": [
+        "Run cargo xtask check-prose . --format json to get structured output",
+        "Categorize issues into: egregious (auto-fix), borderline (interactive), excluded (skip)",
+        "Create list of files to process, excluding LICENSE.md and ai-writing-patterns.md"
+      ],
+      "acceptance_criteria": [
+        "Have categorized list of all issues",
+        "Understand scope of work"
+      ]
+    },
+    {
+      "id": "auto-fix-egregious",
+      "name": "Automatically fix egregious AI-isms",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "analyze-prose-issues",
+      "steps": [
+        "Fix uses of: delve, leverage, harness, foster, elevate, streamline, illuminate, bolster",
+        "Fix uses of: robust, seamless, comprehensive, dynamic, actionable",
+        "Fix uses of: synergy, paradigm, framework (when not technical)",
+        "Fix uses of: Moreover, Additionally, Furthermore at sentence starts",
+        "Verify fixes don't break meaning or code"
+      ],
+      "acceptance_criteria": [
+        "All egregious patterns fixed",
+        "Tests still pass",
+        "Code compiles"
+      ]
+    },
+    {
+      "id": "interactive-fix-borderline",
+      "name": "Interactively fix borderline cases",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "auto-fix-egregious",
+      "steps": [
+        "For each borderline case, show user: file, line, current context (3-5 lines)",
+        "Show proposed fix in same context",
+        "Ask user to approve, modify, or skip",
+        "Apply approved fixes"
+      ],
+      "acceptance_criteria": [
+        "User has reviewed all borderline cases",
+        "Approved fixes applied"
+      ]
+    },
+    {
+      "id": "verify-and-commit",
+      "name": "Verify and commit fixes",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "interactive-fix-borderline",
+      "steps": [
+        "Run cargo xtask check-prose . excluding LICENSE.md and ai-writing-patterns.md",
+        "Run ./script/ci to verify no regressions",
+        "Run ./script/test to verify tests pass",
+        "Commit changes with appropriate message"
+      ],
+      "acceptance_criteria": [
+        "check-prose passes on non-excluded files",
+        "CI passes",
+        "Tests pass"
+      ]
+    }
+  ],
+  "notes": [
+    "LICENSE.md is excluded because it's legal text we shouldn't modify",
+    "ai-writing-patterns.md is excluded because it lists the patterns as examples",
+    "Some technical terms like 'framework' or 'end-to-end' may be appropriate in context",
+    "Orchestrates is commonly used in this codebase for the phase pipeline - may keep"
+  ]
+}
