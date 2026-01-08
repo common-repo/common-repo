@@ -19,7 +19,7 @@
 //! 3.  **Operation Application**: If not cached, it loads the repository's
 //!     contents from the on-disk cache into a `MemoryFS`. It then iterates
 //!     through the operations associated with that repository (from the `with:`
-//!     clause) and applies each one in order to the `MemoryFS`.
+//!     clause) and applies each one sequentially to the `MemoryFS`.
 //!
 //! 4.  **Template Variable Collection**: During this process, it also collects
 //!     any `template_vars` defined in the operations and stores them in the

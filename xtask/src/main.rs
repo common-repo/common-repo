@@ -61,6 +61,9 @@ enum Commands {
         /// Enable verbose output
         #[arg(long, short)]
         verbose: bool,
+        /// Show N lines of context around each match
+        #[arg(long, short = 'C', default_value = "0")]
+        context: usize,
     },
 }
 
@@ -87,7 +90,8 @@ fn main() -> Result<()> {
             paths,
             format,
             verbose,
-        } => run_check_prose(paths, &format, verbose),
+            context,
+        } => run_check_prose(paths, &format, verbose, context),
     }
 }
 
@@ -112,7 +116,7 @@ fn workspace_root() -> Result<PathBuf> {
 }
 
 /// Run the prose linter to check for AI writing patterns.
-fn run_check_prose(paths: Vec<PathBuf>, format: &str, verbose: bool) -> Result<()> {
+fn run_check_prose(paths: Vec<PathBuf>, format: &str, verbose: bool, context: usize) -> Result<()> {
     let output_format = format
         .parse::<check_prose::OutputFormat>()
         .map_err(|e| anyhow::anyhow!(e))?;
@@ -121,6 +125,7 @@ fn run_check_prose(paths: Vec<PathBuf>, format: &str, verbose: bool) -> Result<(
         paths,
         format: output_format,
         verbose,
+        context_lines: context,
     };
 
     check_prose::run(config)

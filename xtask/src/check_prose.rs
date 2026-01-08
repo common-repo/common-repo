@@ -9,6 +9,24 @@ use regex::Regex;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+
+/// Regex pattern for matching URIs in text.
+static URI_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"https?://[^\s\)>\]]+").expect("Invalid URI regex"));
+
+/// Check if a column position falls within any URI on the given line.
+fn is_within_uri(line: &str, column: usize) -> bool {
+    for uri_match in URI_PATTERN.find_iter(line) {
+        // column is 1-indexed, match positions are 0-indexed
+        let start = uri_match.start() + 1;
+        let end = uri_match.end();
+        if column >= start && column <= end {
+            return true;
+        }
+    }
+    false
+}
 
 /// Output format for the prose check results.
 #[derive(Debug, Clone, Copy, Default)]
@@ -41,6 +59,8 @@ pub struct CheckProseConfig {
     pub format: OutputFormat,
     /// Verbose output
     pub verbose: bool,
+    /// Number of context lines to show around each match (0 = no context)
+    pub context_lines: usize,
 }
 
 impl Default for CheckProseConfig {
@@ -49,6 +69,7 @@ impl Default for CheckProseConfig {
             paths: vec![PathBuf::from(".")],
             format: OutputFormat::Text,
             verbose: false,
+            context_lines: 0,
         }
     }
 }
@@ -263,9 +284,10 @@ pub fn build_patterns() -> Vec<Pattern> {
     let mut patterns = Vec::new();
 
     // Telltale Verbs
+    // Note: "navigate", "orchestrate", "underscore", and "optimize" are excluded
+    // as they are legitimate technical terms in software documentation.
     let verbs = [
         ("delve(?:s|d)?(?:\\s+into)?", "explore, examine, look at"),
-        ("navigat(?:e|es|ed|ing)", "work through, handle"),
         ("harness(?:es|ed|ing)?", "use, apply"),
         ("leverag(?:e|es|ed|ing)", "use"),
         ("unlock(?:s|ed|ing)?", "enable, allow"),
@@ -275,8 +297,6 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("streamlin(?:e|es|ed|ing)", "simplify, speed up"),
         ("illuminat(?:e|es|ed|ing)", "explain, clarify"),
         ("bolster(?:s|ed|ing)?", "support, strengthen"),
-        ("orchestrat(?:e|es|ed|ing)", "coordinate, organize"),
-        ("underscor(?:e|es|ed|ing)", "emphasize, highlight"),
         ("captivat(?:e|es|ed|ing)", "interest, engage"),
         ("resonat(?:e|es|ed|ing)", "connect, appeal"),
         ("reimagin(?:e|es|ed|ing)", "rethink, redesign"),
@@ -286,7 +306,6 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("spearhead(?:s|ed|ing)?", "lead"),
         ("catalyz(?:e|es|ed|ing)", "trigger, start"),
         ("synergiz(?:e|es|ed|ing)", "combine, work together"),
-        ("optimiz(?:e|es|ed|ing)", "improve"),
         ("revolutioniz(?:e|es|ed|ing)", "change, transform"),
     ];
     for (pattern, suggestion) in verbs {
@@ -527,7 +546,7 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("thought leadership", "expertise"),
         ("value proposition", "benefit"),
         ("pain points", "problems"),
-        ("use case", "example, scenario"),
+        // "use case" excluded - legitimate technical term
         ("best practices", "recommendations"),
         ("core competencies", "skills, strengths"),
         ("key differentiator", "advantage"),
@@ -539,6 +558,47 @@ pub fn build_patterns() -> Vec<Pattern> {
     for (phrase, suggestion) in buzzwords {
         if let Ok(p) = Pattern::phrase(
             phrase,
+            Category::BuzzwordPhrases,
+            Severity::Error,
+            suggestion,
+        ) {
+            patterns.push(p);
+        }
+    }
+
+    // Adverb + Technical Term combinations
+    // These technical terms are fine alone, but paired with AI adverbs they're fluff.
+    let adverb_combos = [
+        // seamlessly + term
+        ("seamlessly\\s+navigate", "just use 'navigate'"),
+        ("seamlessly\\s+orchestrate", "just use 'orchestrate'"),
+        ("seamlessly\\s+optimize", "just use 'optimize'"),
+        ("seamlessly\\s+integrate", "just use 'integrate'"),
+        // efficiently + term
+        ("efficiently\\s+navigate", "just use 'navigate'"),
+        ("efficiently\\s+orchestrate", "just use 'orchestrate'"),
+        ("efficiently\\s+optimize", "just use 'optimize'"),
+        // effectively + term
+        ("effectively\\s+navigate", "just use 'navigate'"),
+        ("effectively\\s+orchestrate", "just use 'orchestrate'"),
+        ("effectively\\s+optimize", "just use 'optimize'"),
+        ("effectively\\s+underscore", "just use 'underscore'"),
+        // holistically + term
+        ("holistically\\s+navigate", "just use 'navigate'"),
+        ("holistically\\s+orchestrate", "just use 'orchestrate'"),
+        ("holistically\\s+optimize", "just use 'optimize'"),
+        // comprehensively + term
+        ("comprehensively\\s+navigate", "just use 'navigate'"),
+        ("comprehensively\\s+orchestrate", "just use 'orchestrate'"),
+        ("comprehensively\\s+optimize", "just use 'optimize'"),
+        // proactively + term
+        ("proactively\\s+navigate", "just use 'navigate'"),
+        ("proactively\\s+orchestrate", "just use 'orchestrate'"),
+        ("proactively\\s+optimize", "just use 'optimize'"),
+    ];
+    for (pattern, suggestion) in adverb_combos {
+        if let Ok(p) = Pattern::new(
+            pattern,
             Category::BuzzwordPhrases,
             Severity::Error,
             suggestion,
@@ -791,13 +851,12 @@ pub fn build_patterns() -> Vec<Pattern> {
     }
 
     // Vague Personalization
+    // Note: "your use case" and "as needed" excluded - common in technical docs
     let personalization = [
-        ("your use case", "be specific"),
         ("your needs", "be specific"),
         ("your workflow", "be specific"),
         ("your situation", "be specific"),
         ("depending on your requirements", "be specific"),
-        ("as needed", "be specific"),
         ("as appropriate", "be specific"),
         ("when necessary", "be specific"),
     ];
@@ -1273,10 +1332,17 @@ pub fn find_matches_in_span(span: &TextSpan, patterns: &[Pattern]) -> Vec<Match>
 
         for pattern in patterns {
             for regex_match in pattern.regex.find_iter(line) {
+                let column = regex_match.start() + 1; // 1-indexed
+
+                // Skip matches that are within URIs
+                if is_within_uri(line, column) {
+                    continue;
+                }
+
                 matches.push(Match {
                     file: span.file.clone(),
                     line: line_num,
-                    column: regex_match.start() + 1, // 1-indexed
+                    column,
                     matched_text: regex_match.as_str().to_string(),
                     pattern: pattern.pattern_text.to_string(),
                     category: pattern.category,
@@ -1380,6 +1446,23 @@ pub fn run(config: CheckProseConfig) -> Result<()> {
                     m.matched_text,
                     m.suggestion
                 );
+
+                // Show context lines if requested
+                if config.context_lines > 0 {
+                    if let Ok(content) = fs::read_to_string(&m.file) {
+                        let lines: Vec<&str> = content.lines().collect();
+                        let start = m.line.saturating_sub(config.context_lines + 1);
+                        let end = (m.line + config.context_lines).min(lines.len());
+
+                        println!();
+                        for (i, line) in lines[start..end].iter().enumerate() {
+                            let line_num = start + i + 1;
+                            let marker = if line_num == m.line { ">" } else { " " };
+                            println!("  {} {:4} | {}", marker, line_num, line);
+                        }
+                        println!();
+                    }
+                }
             }
             println!();
             println!(

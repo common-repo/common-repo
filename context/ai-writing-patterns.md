@@ -9,7 +9,6 @@ These verbs appear disproportionately in AI output:
 | Avoid | Use Instead |
 |-------|-------------|
 | delve (into) | explore, examine, look at |
-| navigate | work through, handle |
 | harness | use, apply |
 | leverage | use |
 | unlock | enable, allow |
@@ -19,8 +18,6 @@ These verbs appear disproportionately in AI output:
 | streamline | simplify, speed up |
 | illuminate | explain, clarify |
 | bolster | support, strengthen |
-| orchestrate | coordinate, organize |
-| underscore | emphasize, highlight |
 | captivate | interest, engage |
 | resonate | connect, appeal |
 | reimagine | rethink, redesign |
@@ -30,8 +27,20 @@ These verbs appear disproportionately in AI output:
 | spearhead | lead |
 | catalyze | trigger, start |
 | synergize | combine, work together |
-| optimize | improve |
 | revolutionize | change, transform |
+
+### Excluded Technical Terms
+
+These are legitimate in technical writing and not flagged by check-prose:
+
+| Term | Why Excluded |
+|------|--------------|
+| navigate | Data structure traversal |
+| orchestrate | Orchestrator design pattern |
+| underscore | The `_` character |
+| optimize | Performance work |
+
+However, these terms paired with AI adverbs are still flagged (see Adverb Combinations below).
 
 ## Telltale Adjectives
 
@@ -207,7 +216,6 @@ Remove entirely:
 | "thought leadership" | expertise |
 | "value proposition" | benefit |
 | "pain points" | problems |
-| "use case" | example, scenario |
 | "best practices" | recommendations |
 | "core competencies" | skills, strengths |
 | "key differentiator" | advantage |
@@ -215,6 +223,8 @@ Remove entirely:
 | "win-win" | mutual benefit |
 | "at scale" | widely |
 | "out of the box" | built-in, default |
+
+Note: "use case" and "as needed" are excluded from check-prose as legitimate technical terms.
 
 ## Enthusiasm Patterns
 
@@ -676,6 +686,21 @@ These say nothing. Be specific about what changed.
 
 **Good:**
 > This framework automates repetitive tasks so you can focus on the interesting parts.
+
+## Adverb + Technical Term Combinations
+
+These technical terms are legitimate on their own, but when paired with AI adverbs they become fluff:
+
+| Avoid | Use Instead |
+|-------|-------------|
+| seamlessly navigate/orchestrate/optimize/integrate | just use the verb |
+| efficiently navigate/orchestrate/optimize | just use the verb |
+| effectively navigate/orchestrate/optimize/underscore | just use the verb |
+| holistically navigate/orchestrate/optimize | just use the verb |
+| comprehensively navigate/orchestrate/optimize | just use the verb |
+| proactively navigate/orchestrate/optimize | just use the verb |
+
+The adverb adds nothing. "Navigate the data structure" is fine. "Seamlessly navigate the data structure" is AI slop.
 
 ---
 

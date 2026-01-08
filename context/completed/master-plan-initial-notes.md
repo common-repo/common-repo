@@ -41,14 +41,9 @@ README/docs cleanup, bug fixes, tech debt, and feature research
 - Hardcoded config paths in add.rs, init.rs
 Need full audit and centralization.
 
-**Q9:** User docs contain AI-isms ("The Problem" / "The Solution" headers, etc.)?
+**Q9:** User docs contain AI-isms (headers like `Problem/Solution`, etc.)?
 **A9:** Yes, confirmed in `introduction.md`. Need to audit all docs and rewrite in natural human language.
-Known AI-ism patterns to scan for:
-- **Headers**: "The Problem/Solution", "Why This Matters", "Here's the Thing", "Key Takeaways"
-- **Filler**: "It's worth noting", "At its core", "Simply put", "In today's world"
-- **Buzzwords**: "Seamlessly", "Leverage", "Unlock", "Empower", "Streamline", "Robust", "Game-changer"
-- **Metaphors**: "Navigate" (non-literal), "Journey", "Embrace", "Harness", "Delve/Dive into"
-- **Openers**: "Whether you're...", "Imagine...", "Think of it as..."
+See `context/ai-writing-patterns.md` for the full list of patterns to scan for.
 
 **Q10:** Research similar projects for feature ideas?
 **A10:** Yes - go broad, explore what's out there. Investigate:
@@ -100,7 +95,7 @@ Interactive research task - find info, review together, prioritize.
    - This prevents future bugs from inconsistent defaults
 10. **DOCS**: Remove AI-isms from user documentation
     - Scan all files in `docs/src/` for AI-ism patterns (see Q9 list)
-    - Known issues: `introduction.md` has "The Problem" / "The Solution" headers
+    - Known issues: `introduction.md` has `Problem` / `Solution` headers
     - Rewrite affected sections in natural, direct language
     - Replace marketing-speak headers with descriptive ones
     - Goal: docs should read like they were written by a developer, not a chatbot
