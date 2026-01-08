@@ -18,7 +18,7 @@ Currently, when a consumer wants to merge files from a source repository (rather
 
 This creates boilerplate in every consumer and forces merge logic knowledge into consumers. Ideally, the source repository should be able to declare: "When this file is applied, merge it rather than overwrite."
 
-### Primary Use Case
+### Primary Scenario
 
 An organization maintains a source repo with CLAUDE.md rules that should merge into consumer repos. The source author knows best how their content should integrate.
 
@@ -297,7 +297,7 @@ When multiple source repos declare merge for the same destination:
 
 1. **Same file**: Uses `.common-repo.yaml` - no new file to learn
 2. **Minimal new syntax**: Just add `defer: true` to existing operators
-3. **Battle-tested**: Existing operator implementations handle edge cases
+3. **Well-tested**: Existing operator implementations handle edge cases
 4. **Clear intent**: `defer` flag explicitly marks source-side behavior
 5. **Full flexibility**: All operator options immediately available
 

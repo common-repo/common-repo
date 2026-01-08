@@ -39,7 +39,7 @@ README/docs cleanup, bug fixes, tech debt, and feature research
 - Cache dir fallback (`.common-repo-cache`) - 10 places
 - Config file default (`".common-repo.yaml"`) - 7+ command arg definitions
 - Hardcoded config paths in add.rs, init.rs
-Need comprehensive audit and centralization.
+Need full audit and centralization.
 
 **Q9:** User docs contain AI-isms ("The Problem" / "The Solution" headers, etc.)?
 **A9:** Yes, confirmed in `introduction.md`. Need to audit all docs and rewrite in natural human language.
@@ -78,7 +78,7 @@ Interactive research task - find info, review together, prioritize.
    - Markdown (e.g., README sections)
    - Each example links to full operator docs in user documentation
 5. Flesh out operator examples in user docs (`docs/src/`):
-   - Ensure each operator has comprehensive examples
+   - Ensure each operator has complete examples
    - Match the realistic examples added to README
 6. Fix CLI docs discrepancies in `docs/src/cli.md`:
    - Remove `off` from `--log-level` options (line 12)
@@ -89,7 +89,7 @@ Interactive research task - find info, review together, prioritize.
    - Fix `apply.rs` to use `dirs::cache_dir()` like other commands
    - Replace duplicated logic in all 10 command files with shared function
    - Update doc comments to reflect correct default (`~/.cache/common-repo` on Linux)
-9. **TECH DEBT**: Comprehensive defaults audit
+9. **TECH DEBT**: Full defaults audit
    - Scan entire `src/` directory for duplicated default values
    - Known duplications found so far:
      - Cache dir fallback (`.common-repo-cache`) - 10 places
@@ -113,5 +113,5 @@ Interactive research task - find info, review together, prioritize.
     - For each project:
       - Document key features common-repo lacks
       - Review Issues/Discussions for most-requested features
-      - Note community pain points
+      - Note community problems
     - Review findings together to prioritize what fits common-repo

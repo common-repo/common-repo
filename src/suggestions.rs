@@ -1,7 +1,7 @@
 //! # Error Suggestions
 //!
-//! This module provides helper functions for generating actionable error
-//! messages with hints and suggestions. Following CLI best practices,
+//! This module provides helper functions for generating helpful error
+//! messages with hints and suggestions. Following CLI recommendations,
 //! errors should tell users what went wrong AND how to fix it.
 //!
 //! ## Usage

@@ -332,7 +332,7 @@ Follow [semantic versioning](https://semver.org/) for source repositories:
 | Fixed bug in configuration | Patch | Corrected YAML syntax |
 | Updated documentation | Patch | Clarified usage instructions |
 
-### Git Tagging Best Practices
+### Git Tagging Guidelines
 
 ```bash
 # Create an annotated tag with message

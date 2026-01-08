@@ -19,7 +19,7 @@ We researched three major template tools (Copier, Cookiecutter, Yeoman) and disc
 ### Copier (copier-org/copier)
 
 **Language:** Python
-**Stars:** High adoption in Python ecosystem
+**Stars:** High adoption in Python community
 **URL:** https://copier.readthedocs.io/
 
 **What it does:** Template engine for project scaffolding with lifecycle management. Unlike one-shot scaffolding tools, Copier can update existing projects when templates evolve.
@@ -99,7 +99,7 @@ This is Cookiecutter's biggest limitation. Once a project is generated, there's 
 
 **Relevance to common-repo:**
 - Cruft's approach to updates is worth studying
-- Massive ecosystem proves demand for templating
+- Massive user base proves demand for templating
 - Their gaps (updates, conditional logic) are opportunities
 - "CookieKeeper" proposal describes exactly what common-repo does
 
@@ -111,7 +111,7 @@ This is Cookiecutter's biggest limitation. Once a project is generated, there's 
 **Generators:** 5,600+ community generators
 **URL:** https://yeoman.io/
 
-**What it does:** Scaffolding tool with a plugin ecosystem. Generators are npm packages that define project templates.
+**What it does:** Scaffolding tool with a plugin system. Generators are npm packages that define project templates.
 
 **Core Features:**
 - Generator plugin system (npm packages)
@@ -121,7 +121,7 @@ This is Cookiecutter's biggest limitation. Once a project is generated, there's 
 - In-memory file system (batched writes)
 - Conflict resolution prompts
 
-**Generator Ecosystem:**
+**Generator System:**
 - Generators named `generator-<name>` on npm
 - Extend base `Generator` class
 - Lifecycle phases: prompting → configuring → writing → install → end
@@ -149,7 +149,7 @@ Yeoman is designed for initial scaffolding only. Re-running a generator prompts 
 **Relevance to common-repo:**
 - `.yo-rc.json` pattern for project identification
 - Composability model maps to source inheritance
-- Their update gap is common-repo's core value proposition
+- Their update gap is common-repo's core advantage
 
 ---
 
@@ -178,7 +178,7 @@ Yeoman is designed for initial scaffolding only. Re-running a generator prompts 
 **Language:** Node.js
 **URL:** https://hygen.io/
 
-**What it does:** Fast, scalable code generator that lives in your project.
+**What it does:** Fast, extensible code generator that lives in your project.
 
 **Unique Features:**
 - Templates in local `_templates` folder (version-controlled with project)
@@ -214,7 +214,7 @@ Yeoman is designed for initial scaffolding only. Re-running a generator prompts 
 **Language:** Node.js
 **URL:** https://plopjs.com/
 
-**What it does:** Micro-generator framework for consistent code generation.
+**What it does:** Micro-generator tool for consistent code generation.
 
 **Unique Features:**
 - Handlebars templating
@@ -257,7 +257,7 @@ Yeoman is designed for initial scaffolding only. Re-running a generator prompts 
 - Templates called "bricks"
 - Hook support in Dart
 
-**Relevance:** Popular in Flutter ecosystem; shows demand beyond Python/Node.
+**Relevance:** Popular in Flutter community; shows demand beyond Python/Node.
 
 ---
 
@@ -274,7 +274,7 @@ Yeoman is designed for initial scaffolding only. Re-running a generator prompts 
 - Automatic dependency tracking
 - Publishable plugins for org-wide standardization
 
-**Relevance:** Monorepo-focused; different use case but similar goal of consistency.
+**Relevance:** Monorepo-focused; different scenario but similar goal of consistency.
 
 ---
 
@@ -406,7 +406,7 @@ jobs:
 - Combines package installation + dotfile management
 - 100% Rust
 
-**Relevance:** Rust ecosystem tool; similar performance/distribution characteristics to common-repo.
+**Relevance:** Rust community tool; similar performance/distribution characteristics to common-repo.
 
 ---
 
@@ -440,7 +440,7 @@ jobs:
 
 **Unique Features:**
 - Automatic detection of app config locations
-- Supports 600+ applications out of the box
+- Supports 600+ applications by default
 - Sync via Dropbox, Git, iCloud
 
 **Relevance:** Application-aware config discovery is interesting.
@@ -458,7 +458,7 @@ jobs:
 - Reproducible environments
 - Rollback capability
 
-**Relevance:** Nix ecosystem; different paradigm (functional, reproducible).
+**Relevance:** Nix community; different approach (functional, reproducible).
 
 ---
 

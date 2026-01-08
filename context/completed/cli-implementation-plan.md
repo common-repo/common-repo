@@ -414,7 +414,7 @@ Priority order:
 
 **Total estimated**: 12-18 hours
 
-**Deliverables**:
+**Outputs**:
 - Users can apply configurations
 - Users can validate configurations
 - Users can initialize new configs
@@ -434,7 +434,7 @@ Priority order:
 
 **Total estimated**: 13-17 hours
 
-**Deliverables**:
+**Outputs**:
 - Users can visualize inheritance
 - Users can inspect configurations
 - Users can preview changes
@@ -454,7 +454,7 @@ Priority order:
 
 **Total estimated**: 22-29 hours
 
-**Deliverables**:
+**Outputs**:
 - Full-featured tool
 - Excellent user experience
 - Production-ready
@@ -523,7 +523,7 @@ src/
 - Test CLI argument parsing
 
 ### Integration Tests
-- End-to-end command tests
+- Full command tests
 - Use `assert_cmd` crate
 - Test with real config files
 - Test error cases
@@ -557,7 +557,7 @@ tempfile = "3.0"    # Already present
 10. Implement `diff` command
 11. Implement `update` command
 12. Polish and documentation
-13. End-to-end testing
+13. Full testing
 
 ---
 

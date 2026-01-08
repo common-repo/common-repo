@@ -1,17 +1,17 @@
 # common-repo: Purpose and Goals
 
-## The Problem
+## Why common-repo
 
 Modern software repositories require extensive configuration and tooling infrastructure that isn't actually source code: CI/CD pipelines, pre-commit hooks, linters, formatters, dependency management configs, and countless other dotfiles. Currently, developers face several challenges:
 
 1. **Manual copypasta**: Developers copy configuration files between projects, leading to inconsistency and drift
 2. **Lack of versioning**: Unlike source dependencies, these configuration files aren't semantically versioned or tracked as dependencies
-3. **Difficult updates**: When best practices evolve or security patches are needed, there's no automated way to propagate changes across repositories
+3. **Difficult updates**: When standards evolve or security patches are needed, there's no automated way to propagate changes across repositories
 4. **No inheritance model**: Repositories can't easily build upon or extend standard configurations - it's all-or-nothing copying
 
 Existing tools like cookiecutter, copier, and repository templates have drawbacks and lack the features needed for a complete solution.
 
-## The Solution
+## What common-repo Does
 
 **common-repo is a tool that treats repository configuration files as software dependencies.**
 
@@ -54,21 +54,21 @@ Rather than creating massive, all-encompassing templates, common-repo encourages
 
 1. **Eliminate configuration copypasta** - No more copying .pre-commit-config.yaml between projects
 2. **Enable automatic updates** - Security patches and improvements propagate automatically
-3. **Standardize best practices** - The common-repo organization publishes opinionated, best-practice configurations for common platforms
+3. **Standardize configurations** - The common-repo organization publishes opinionated configurations for common platforms
 4. **Support customization** - Organizations and individuals can derive or create their own standard repositories
 
 ### Target Audiences
 
 **Initially**: Organizations wanting to standardize repositories across teams
 
-**Long-term**: The entire developer community - making it dead simple to bootstrap a repository with best practices and maintain it over time
+**Long-term**: The entire developer community - making it simple to bootstrap a repository with standard configurations and maintain it over time
 
 ### Success Metrics
 
 A successful common-repo deployment means:
 - Developers spend seconds, not hours, setting up new repositories
 - Configuration updates propagate across all repositories automatically
-- Every repository in an organization follows current best practices
+- Every repository in an organization follows current standards
 - The community builds and shares reusable configuration standards
 
 ## Non-Goals
@@ -82,4 +82,4 @@ A successful common-repo deployment means:
 
 We envision a future where repository infrastructure is as well-managed as source code dependencies. Just as developers don't manually copy libraries into their projects, they shouldn't manually copy CI/CD configs. Just as security updates can be applied to dependencies automatically, they should apply to repository configurations too.
 
-The common-repo ecosystem aims to standardize software development practices, making quality tooling and best practices accessible to everyone - from individual hobbyists to large organizations.
+The common-repo project aims to standardize software development configurations, making quality tooling and standards accessible to everyone - from individual hobbyists to large organizations.

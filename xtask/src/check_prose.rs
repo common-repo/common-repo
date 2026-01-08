@@ -534,7 +534,6 @@ pub fn build_patterns() -> Vec<Pattern> {
         ("value-add", "benefit"),
         ("win-win", "mutual benefit"),
         ("at scale", "widely"),
-        ("end-to-end", "complete"),
         ("out of the box", "built-in, default"),
     ];
     for (phrase, suggestion) in buzzwords {

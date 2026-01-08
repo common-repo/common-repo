@@ -52,7 +52,7 @@ pub struct ValidateArgs {
 /// Execute the `validate` command.
 ///
 /// This function handles the logic for the `validate` subcommand. It performs
-/// comprehensive validation of the configuration file and reports any issues.
+/// full validation of the configuration file and reports any issues.
 ///
 /// # Arguments
 /// * `args` - The command arguments

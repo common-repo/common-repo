@@ -214,7 +214,6 @@ Remove entirely:
 | "value-add" | benefit |
 | "win-win" | mutual benefit |
 | "at scale" | widely |
-| "end-to-end" | complete |
 | "out of the box" | built-in, default |
 
 ## Enthusiasm Patterns

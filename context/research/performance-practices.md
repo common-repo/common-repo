@@ -1,12 +1,12 @@
-# Performance Best Practices for Rust Projects
+# Performance Guidelines for Rust Projects
 
-Research findings from examining modern Rust projects and industry best practices for performance optimization, benchmarking, and profiling.
+Research findings from examining modern Rust projects and industry recommendations for performance improvement, benchmarking, and profiling.
 
 ## Benchmarking Frameworks
 
 ### Criterion (De Facto Standard)
 
-[Criterion](https://github.com/bheisler/criterion.rs) is the most popular benchmarking harness in the Rust ecosystem:
+[Criterion](https://github.com/bheisler/criterion.rs) is the most popular benchmarking tool in the Rust community:
 
 - Works on both stable and nightly Rust
 - Provides statistical analysis with confidence intervals
@@ -70,7 +70,7 @@ For CI environments where wall-time is noisy:
 | [perf](https://perf.wiki.kernel.org/) | Linux | Sampling-based profiling with call graphs |
 | [Instruments](https://developer.apple.com/instruments/) | macOS | Apple's profiling suite |
 
-Best practices:
+Recommended practices:
 - Enable frame pointers: `-C force-frame-pointers=yes`
 - Enable debug symbols in release: `[profile.release] debug = true`
 - Profile on warmed-up, idle machines
@@ -110,7 +110,7 @@ Performance regressions are like bugs—catch them in CI before production. Key 
 
 [Bencher](https://bencher.dev/) is an open-source continuous benchmarking platform:
 
-- Tracks Criterion, Divan, Iai, and custom harnesses
+- Tracks Criterion, Divan, Iai, and custom benchmark tools
 - Statistical threshold-based alerts
 - GitHub integration with PR comments
 - Historical tracking and visualization
@@ -131,7 +131,7 @@ Solutions:
 ### Rustls Case Study
 
 The [Rustls project](https://github.com/rustls/rustls) exemplifies mature continuous benchmarking:
-- Custom benchmarking harness (CI Bench)
+- Custom benchmarking tool (CI Bench)
 - Dedicated bare-metal server
 - Dual-mode: instruction count + wall-time
 - Delta Interquartile Range statistical thresholds
@@ -173,7 +173,7 @@ The [Rustls project](https://github.com/rustls/rustls) exemplifies mature contin
 - Rayon thread pool for CPU-intensive work
 - Parallel dependency resolution across tree branches
 
-**Optimized metadata fetching:**
+**Improved metadata fetching:**
 - Downloads only wheel metadata, not entire packages
 - Uses ZIP Central Directory to fetch specific files
 
@@ -200,11 +200,11 @@ The [Rustls project](https://github.com/rustls/rustls) exemplifies mature contin
 - Tracks scheduler behavior, task poll times
 - Integrates with Prometheus, Grafana, etc.
 
-**Best practices:**
+**Recommendations:**
 - Use `BufReader`/`BufWriter` for I/O
 - Configure `max_threads` based on workload
 - Use Rayon for CPU-bound work, not Tokio
-- Be careful with `FuturesUnordered` at scale
+- Be careful with `FuturesUnordered` under high load
 
 ## Optimization Techniques
 
@@ -250,10 +250,10 @@ Additional techniques:
 - Choose lightweight dependencies
 - Consider `no_std` for minimal binaries
 
-## Key Takeaways
+## Summary
 
 1. **Start with Criterion or Divan** for benchmarking—don't rely on ad-hoc timing
-2. **Profile before optimizing**—use flamegraphs to find actual bottlenecks
+2. **Profile before improving**—use flamegraphs to find actual bottlenecks
 3. **Implement continuous benchmarking** in CI to catch regressions early
 4. **Use instruction counting** (Iai) for deterministic CI results
 5. **Measure memory too**—allocations impact performance significantly

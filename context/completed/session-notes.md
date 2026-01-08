@@ -55,7 +55,7 @@ Add a new source repository to the configuration file.
 ```
 ...and the source repo's CLAUDE.md automatically merges into the consumer's CLAUDE.md without explicit `markdown:` operator in consumer config.
 
-**Use case:** A common repo with CLAUDE.md rules that should merge into many other repos simply.
+**Scenario:** A common repo with CLAUDE.md rules that should merge into many other repos simply.
 
 **Open questions:**
 - How does source repo declare "this file should merge, not overwrite"?
@@ -78,7 +78,7 @@ Add `cr` as a short alias for `common-repo` (the existing `cr` command for newli
 Current docs are focused on *consuming* existing common-repos.
 
 **Missing documentation for source repository authors:**
-- Best practices for creating a source repository
+- Recommendations for creating a source repository
 - What to include/exclude
 - How to structure for reusability
 - Template variable conventions

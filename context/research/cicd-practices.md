@@ -1,6 +1,6 @@
-# CI/CD Best Practices Research
+# CI/CD Research
 
-Research compiled from OSS best practices (2024-2025) and analysis of exemplar Rust projects.
+Research compiled from OSS recommendations (2024-2025) and analysis of exemplar Rust projects.
 
 ## Reference Projects Analyzed
 
@@ -93,7 +93,7 @@ Smart caching with sensible defaults:
     shared-key: ${{ runner.os }}-cargo
 ```
 
-**Best Practices**:
+**Recommendations**:
 - Install toolchain before cache action (cache key includes rustc version)
 - Use `save-if` to only persist cache from main branch
 - Use `shared-key` for cross-job cache sharing
@@ -142,7 +142,7 @@ For large projects, sccache enables concurrent cache fetching:
 
 ### Platform Coverage Matrix
 
-Comprehensive cross-platform testing:
+Complete cross-platform testing:
 
 ```yaml
 strategy:
@@ -215,7 +215,7 @@ lint:
 
 ### Test Job
 
-Comprehensive testing with nextest:
+Full testing with nextest:
 
 ```yaml
 test:
@@ -292,7 +292,7 @@ security:
 
 ### cargo-deny
 
-Comprehensive dependency checking:
+Full dependency checking:
 
 ```yaml
 - uses: EmbarkStudios/cargo-deny-action@v1
@@ -544,7 +544,7 @@ jobs:
 ### uv
 
 - **Tiered architecture**: Gate jobs filter work based on path changes
-- **Ecosystem testing**: Tests against real Python projects (Flask, Pydantic)
+- **Compatibility testing**: Tests against real Python projects (Flask, Pydantic)
 - **Registry testing**: Validates against multiple package indexes
 - **Smoke tests**: Quick validation per platform
 - **Trusted publishing**: PyPI via OIDC tokens
@@ -553,7 +553,7 @@ jobs:
 
 - **Change detection**: Conditional jobs based on component changes
 - **WASM builds**: WebAssembly target for playground
-- **Ecosystem comparison**: Compares baseline vs. candidate outputs
+- **Output comparison**: Compares baseline vs. candidate outputs
 - **Fuzzing**: Parser fuzzing with diff detection
 - **MSRV enforcement**: Verifies minimum Rust version
 
@@ -573,7 +573,7 @@ jobs:
 - **Canary releases**: Automated uploads to cloud storage
 - **Web Platform Tests**: WPT suite for compatibility
 
-## Security Best Practices
+## Security Recommendations
 
 ### Minimal Permissions
 
@@ -629,7 +629,7 @@ permissions:
 2. **Matrix builds**: Parallelize across platforms
 3. **Test sharding**: Split tests with nextest partitioning
 
-## Key Takeaways
+## Summary
 
 ### Workflow Structure
 
@@ -674,14 +674,14 @@ permissions:
 - [dtolnay/rust-toolchain](https://github.com/dtolnay/rust-toolchain)
 - [taiki-e/install-action](https://github.com/taiki-e/install-action)
 
-### Best Practices
-- [GitHub Actions best practices for Rust projects](https://www.infinyon.com/blog/2021/04/github-actions-best-practices/)
+### Recommendations
+- [GitHub Actions recommendations for Rust projects](https://www.infinyon.com/blog/2021/04/github-actions-best-practices/)
 - [Cargo Book - Continuous Integration](https://doc.rust-lang.org/cargo/guide/continuous-integration.html)
 - [actions-rs/meta](https://github.com/actions-rs/meta) - Workflow recipes
 
 ### Caching
 - [Fast Rust Builds with sccache](https://depot.dev/blog/sccache-in-github-actions)
-- [Optimizing Rust Builds for GitHub Actions](https://www.uffizzi.com/blog/optimizing-rust-builds-for-faster-github-actions-pipelines)
+- [Improving Rust Builds for GitHub Actions](https://www.uffizzi.com/blog/optimizing-rust-builds-for-faster-github-actions-pipelines)
 
 ### Release Automation
 - [cargo-dist](https://opensource.axo.dev/cargo-dist/)

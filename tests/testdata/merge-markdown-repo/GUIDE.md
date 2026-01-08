@@ -22,7 +22,7 @@ Create custom plugins by implementing the Plugin interface.
 
 ### Performance Tuning
 
-Optimize performance with these configuration options.
+Improve performance with these configuration options.
 
 ## Troubleshooting
 

@@ -1,13 +1,13 @@
-# Open Source Rust Project Best Practices Reference
+# Open Source Rust Project Reference
 
-Consolidated reference synthesized from research on documentation, testing, CI/CD, architecture, CLI/UX, security, distribution, community, and performance best practices. Based on analysis of leading Rust projects including uv, ruff, ripgrep, tokio, starship, and clap.
+Consolidated reference synthesized from research on documentation, testing, CI/CD, architecture, CLI/UX, security, distribution, community, and performance. Based on analysis of leading Rust projects including uv, ruff, ripgrep, tokio, starship, and clap.
 
 ## Quick Reference: Exemplar Projects by Area
 
 | Area | Primary Exemplars | Notable For |
 |------|-------------------|-------------|
 | Documentation | uv, ruff | mkdocs-material sites, README structure |
-| Testing | ripgrep, serde | Comprehensive test organization, fixtures |
+| Testing | ripgrep, serde | Complete test organization, fixtures |
 | CI/CD | uv, ruff, ripgrep | Tiered workflows, matrix builds, cargo-dist |
 | Architecture | tokio, clap | Workspace organization, crate separation |
 | CLI/UX | ripgrep, gh, starship | Error messages, progress, color handling |
@@ -20,7 +20,7 @@ Consolidated reference synthesized from research on documentation, testing, CI/C
 
 ## 1. Documentation
 
-### Key Takeaways
+### Recommendations
 
 1. **README structure**: Logo/badges → tagline → key features → installation → quick start → docs links → contributing → license
 2. **Multi-method installation**: CLI tools should offer 5+ installation methods (shell installer, cargo, homebrew, etc.)
@@ -41,7 +41,7 @@ Consolidated reference synthesized from research on documentation, testing, CI/C
 | Type | Purpose | Example |
 |------|---------|---------|
 | Getting Started | Onboard new users | Quick 5-minute tutorial |
-| User Guide | Comprehensive features | Full documentation site |
+| User Guide | Complete features | Full documentation site |
 | API Reference | Auto-generated | rustdoc |
 | FAQ | Common questions | In-repo markdown |
 | Contributing | Development setup | CONTRIBUTING.md |
@@ -51,7 +51,7 @@ Consolidated reference synthesized from research on documentation, testing, CI/C
 
 ## 2. Testing
 
-### Key Takeaways
+### Recommendations
 
 1. **Two-tier model**: Unit tests inline with `#[cfg(test)]`, integration tests in `tests/` directory
 2. **Use cargo-nextest**: Up to 3x faster than cargo test, better CI integration, flaky test retry
@@ -83,7 +83,7 @@ fail-fast = false
 
 ## 3. CI/CD
 
-### Key Takeaways
+### Recommendations
 
 1. **Tiered job architecture**: Gate jobs → lint → build → test → integration
 2. **Use Swatinem/rust-cache**: With `save-if: ${{ github.ref == 'refs/heads/main' }}` to reduce cache storage
@@ -120,7 +120,7 @@ env:
 
 ## 4. Architecture
 
-### Key Takeaways
+### Recommendations
 
 1. **Flat workspace layout**: Use `crates/` directory with virtual manifest at root
 2. **Workspace dependencies**: Centralize common dependencies in root Cargo.toml
@@ -165,7 +165,7 @@ project-root/
 
 ## 5. CLI/UX
 
-### Key Takeaways
+### Recommendations
 
 1. **Human-first design**: Prioritize interactive users, maintain composability
 2. **Help text**: Accept `-h`, `--help`, and `help`; lead with examples
@@ -208,7 +208,7 @@ Support Bash, Zsh, Fish, PowerShell using clap_complete.
 
 ## 6. Security
 
-### Key Takeaways
+### Recommendations
 
 1. **SECURITY.md required**: Document reporting process, response timeline, disclosure policy
 2. **cargo-audit in CI**: Scan Cargo.lock against RustSec database on every PR
@@ -258,7 +258,7 @@ We disclose via GitHub Security Advisories and RustSec.
 
 ## 7. Distribution
 
-### Key Takeaways
+### Recommendations
 
 1. **Multi-channel approach**: Meet users where they are (shell, cargo, homebrew, etc.)
 2. **Shell installers reduce friction**: Single-command installation for any user
@@ -286,7 +286,7 @@ We disclose via GitHub Security Advisories and RustSec.
 | macOS | ARM64 | aarch64-apple-darwin |
 | Windows | x86_64 | x86_64-pc-windows-msvc |
 
-### Container Best Practices
+### Container Guidelines
 
 - Use `distroless/static` or `chainguard/static` for production
 - Multi-stage builds with MUSL for smallest images
@@ -296,7 +296,7 @@ We disclose via GitHub Security Advisories and RustSec.
 
 ## 8. Community
 
-### Key Takeaways
+### Recommendations
 
 1. **Start with basics**: CONTRIBUTING.md, CODE_OF_CONDUCT.md, issue templates
 2. **Governance matches maturity**: BDFL for early projects, distribute as you grow
@@ -334,10 +334,10 @@ We disclose via GitHub Security Advisories and RustSec.
 
 ## 9. Performance
 
-### Key Takeaways
+### Recommendations
 
 1. **Benchmark with Criterion or Divan**: Don't rely on ad-hoc timing
-2. **Profile before optimizing**: Use flamegraphs to find actual bottlenecks
+2. **Profile before improving**: Use flamegraphs to find actual bottlenecks
 3. **Continuous benchmarking in CI**: Use Iai for deterministic instruction counting
 4. **Measure memory too**: Use dhat-rs or heaptrack for allocation profiling
 5. **Build optimizations**: LTO + codegen-units=1 for maximum performance

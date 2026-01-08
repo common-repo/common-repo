@@ -104,7 +104,7 @@ fn normalize_repo_url(input: &str) -> String {
 
 /// Fetch version information from a repository.
 ///
-/// Returns the best version to use (latest semver tag or fallback) and any warnings.
+/// Returns the preferred version to use (latest semver tag or fallback) and any warnings.
 fn fetch_version_info(url: &str) -> (String, Vec<String>) {
     print!("Fetching tags from {}... ", url);
 

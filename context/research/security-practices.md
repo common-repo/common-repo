@@ -1,10 +1,10 @@
-# Security Best Practices for Open Source Rust Projects
+# Security Guidelines for Open Source Rust Projects
 
 Research compiled from industry sources, OSS project analysis, and security frameworks (December 2025).
 
 ## Executive Summary
 
-Security in open source Rust projects spans multiple areas: dependency management, vulnerability disclosure, supply chain integrity, code auditing, and release signing. This document synthesizes best practices from leading projects and security frameworks.
+Security in open source Rust projects spans multiple areas: dependency management, vulnerability disclosure, supply chain integrity, code auditing, and release signing. This document synthesizes recommendations from leading projects and security standards.
 
 ## 1. Dependency Security
 
@@ -26,7 +26,7 @@ cargo audit fix               # Auto-fix (experimental, requires --features=fix)
 
 ### cargo-deny
 
-[cargo-deny](https://crates.io/crates/cargo-deny) provides comprehensive supply chain checks:
+[cargo-deny](https://crates.io/crates/cargo-deny) provides full supply chain checks:
 
 1. **Licenses** - Verify all dependencies use acceptable licenses
 2. **Bans** - Deny specific crates or detect duplicate versions
@@ -168,7 +168,7 @@ cargo +nightly miri run
 
 ### Sanitizers
 
-Rust supports LLVM sanitizers for dynamic analysis:
+Rust supports LLVM sanitizers for runtime analysis:
 
 ```bash
 # AddressSanitizer (memory errors)
@@ -181,7 +181,7 @@ RUSTFLAGS="-Z sanitizer=thread" cargo +nightly test
 RUSTFLAGS="-Z sanitizer=memory" cargo +nightly test
 ```
 
-### Best Practices for Unsafe Code
+### Guidelines for Unsafe Code
 
 1. **Minimize scope** - Keep `unsafe` blocks as small as possible
 2. **Safe abstractions** - Wrap unsafe code in safe APIs
@@ -191,11 +191,11 @@ RUSTFLAGS="-Z sanitizer=memory" cargo +nightly test
 
 ### RUDRA
 
-[RUDRA](https://github.com/sslab-gatech/Rudra) is a static analyzer for detecting unsafe bug patterns at ecosystem scale. It found bugs in heavily-tested crates that existed for years.
+[RUDRA](https://github.com/sslab-gatech/Rudra) is a static analyzer for detecting unsafe bug patterns across many crates. It found bugs in heavily-tested crates that existed for years.
 
 ## 4. Supply Chain Security
 
-### SLSA Framework
+### SLSA Standard
 
 [SLSA](https://slsa.dev/) (Supply-chain Levels for Software Artifacts) defines levels of supply chain security:
 
@@ -315,7 +315,7 @@ Enforce security requirements via branch protection:
 - Require signed commits
 - Restrict who can push to protected branches
 
-## 6. OpenSSF Scorecard and Best Practices Badge
+## 6. OpenSSF Scorecard and Certification Badge
 
 ### OpenSSF Scorecard
 
@@ -355,9 +355,9 @@ jobs:
 - Code review required
 - Fuzzing enabled
 
-### OpenSSF Best Practices Badge
+### OpenSSF Certification Badge
 
-[Best Practices Badge](https://www.bestpractices.dev/) is a self-certification program with three tiers: passing, silver, and gold.
+[Certification Badge](https://www.bestpractices.dev/) is a self-certification program with three tiers: passing, silver, and gold.
 
 **Badge in README:**
 ```markdown
@@ -384,7 +384,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Comprehensive Setup
+### Full Setup
 
 | Tool | Purpose | Frequency |
 |------|---------|-----------|
@@ -445,8 +445,8 @@ repos:
 - [cargo-deny Documentation](https://crates.io/crates/cargo-deny)
 - [GitHub Code Security](https://docs.github.com/en/code-security)
 - [OpenSSF Scorecard](https://scorecard.dev/)
-- [OpenSSF Best Practices Badge](https://www.bestpractices.dev/)
-- [SLSA Framework](https://slsa.dev/)
+- [OpenSSF Certification Badge](https://www.bestpractices.dev/)
+- [SLSA Standard](https://slsa.dev/)
 - [Sigstore](https://www.sigstore.dev/)
 - [OpenSSF Vulnerability Disclosure Guide](https://openssf.org/blog/2021/09/27/announcing-the-openssf-vulnerability-disclosure-wg-guide-to-disclosure-for-oss-projects/)
 - [Rust Foundation: Unsafe Rust in the Wild](https://rustfoundation.org/media/unsafe-rust-in-the-wild-notes-on-the-current-state-of-unsafe-rust/)

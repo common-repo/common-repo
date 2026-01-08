@@ -2,7 +2,7 @@
 
 ## Overview
 
-The CLI testing strategy builds on the existing comprehensive library tests (186 total tests) and adds CLI-specific testing layers to ensure the command-line interface is robust, user-friendly, and correct.
+The CLI testing strategy builds on the existing library tests (186 total tests) and adds CLI-specific testing layers to ensure the command-line interface is reliable, user-friendly, and correct.
 
 ## Current Testing Infrastructure
 
@@ -39,7 +39,7 @@ The CLI testing strategy builds on the existing comprehensive library tests (186
 └─────────────────────────────────────────────────────────────┘
                             ↑
 ┌─────────────────────────────────────────────────────────────┐
-│ Layer 3: End-to-End CLI Tests (assert_cmd)                │
+│ Layer 3: Full CLI Tests (assert_cmd)                │
 │ - Full CLI binary invocation                              │
 │ - Real file I/O, real processes                           │
 │ - Exit codes, stdout/stderr validation                    │
@@ -239,7 +239,7 @@ fn test_apply_command_with_real_repo() {
 
 ---
 
-## Layer 3: End-to-End CLI Tests
+## Layer 3: Full CLI Tests
 
 ### Purpose
 Test the actual CLI binary as users would invoke it.
@@ -836,7 +836,7 @@ jobs:
 ### Coverage Targets
 
 - **All modules**: 90%+ coverage
-- **Error handling**: Comprehensive coverage of error paths
+- **Error handling**: Full coverage of error paths
 - **Integration paths**: All major workflows covered
 
 ### Running Coverage
@@ -918,7 +918,7 @@ fn test_apply_missing_config() {
 - [x] Test `ls` command - `tests/cli_e2e_ls.rs`
 - [x] Test `check` command - `tests/cli_e2e_check.rs`
 
-### Phase 3: Comprehensive Testing (with Phase 3 commands)
+### Phase 3: Full Testing (with Phase 3 commands)
 
 - [x] Test `diff` command - `tests/cli_e2e_diff.rs`
 - [x] Test `update` command - `tests/cli_e2e_update.rs`
@@ -1013,7 +1013,7 @@ fn test_cli_apply_exit_codes() { /* ... */ }
 
 For 12 commands in full implementation: **180-360 CLI tests**
 
-Plus existing library tests = comprehensive test coverage
+Plus existing library tests = full test coverage
 
 ### Key Testing Principles
 

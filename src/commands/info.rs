@@ -38,7 +38,7 @@ pub struct InfoArgs {
 /// Execute the `info` command.
 ///
 /// This function handles the logic for the `info` subcommand. It loads the
-/// configuration file and displays comprehensive information about it.
+/// configuration file and displays detailed information about it.
 pub fn execute(args: InfoArgs) -> Result<()> {
     let config_path = &args.config;
     println!("📋 Configuration: {}", config_path.display());

@@ -4,7 +4,7 @@ This file provides guidance to Devin when working with code in this repository.
 
 ## Project Overview
 
-This is a Rust library for managing repository inheritance and file composition across multiple Git repositories. The project uses automated tooling for code quality, conventional commits, and semantic versioning with comprehensive CI/CD automation.
+This is a Rust library for managing repository inheritance and file composition across multiple Git repositories. The project uses automated tooling for code quality, conventional commits, and semantic versioning with full CI/CD automation.
 
 ## LLM Context Files
 
@@ -47,7 +47,7 @@ cargo run
 
 ### Testing
 
-This project has comprehensive testing with both unit tests and integration tests.
+This project has extensive testing with both unit tests and integration tests.
 
 **Recommended: Use cargo-nextest** for faster test execution and better reporting.
 
@@ -82,7 +82,7 @@ cargo nextest run test_name
 
 #### Integration Tests (Requires network)
 
-Integration tests verify end-to-end functionality with real repositories:
+Integration tests verify full functionality with real repositories:
 
 ```bash
 # Run all tests including integration tests

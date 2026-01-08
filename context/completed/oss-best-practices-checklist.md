@@ -1,6 +1,6 @@
 # Open Source Rust Project Evaluation Checklist
 
-Use this checklist to evaluate a project against open source best practices. Each item can be marked:
+Use this checklist to evaluate a project against open source recommendations. Each item can be marked:
 - **Pass** - Fully implemented
 - **Partial** - Partially implemented or needs improvement
 - **Fail** - Not implemented or missing
@@ -166,13 +166,13 @@ Use this checklist to evaluate a project against open source best practices. Eac
 |---|-----------|--------|-------|
 | 9.1 | Benchmarks exist using Criterion, Divan, or Iai | | |
 | 9.2 | Benchmarks run in CI (at least nightly or weekly) | | |
-| 9.3 | Release profile optimized (LTO, codegen-units=1) | | |
+| 9.3 | Release profile improved (LTO, codegen-units=1) | | |
 | 9.4 | Profiling documented or scripted (flamegraphs) | | |
 | 9.5 | Memory usage tracked (dhat-rs or heaptrack) | | |
 | 9.6 | Performance regression detection in CI | | |
-| 9.7 | Size-optimized profile available (for size-sensitive deployments) | | |
+| 9.7 | Size-improved profile available (for size-sensitive deployments) | | |
 | 9.8 | Compile time optimization (workspace hack or similar) | | |
-| 9.9 | Critical paths identified and optimized | | |
+| 9.9 | Critical paths identified and improved | | |
 | 9.10 | Performance documentation exists | | |
 
 **Section Score**: ___ / 10
