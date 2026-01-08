@@ -71,6 +71,17 @@ pub struct UpdateArgs {
     /// changes to the configuration file.
     #[arg(long)]
     pub dry_run: bool,
+
+    /// Filter sources by glob pattern (matches against url/path, scheme stripped).
+    ///
+    /// The pattern is matched against a normalized string combining the repository
+    /// URL (without scheme) and optional path. Multiple filters use OR logic.
+    ///
+    /// Examples:
+    ///   --filter "github.com/org/*"
+    ///   --filter "*/*/ci-*" --filter "*/*/linter-*"
+    #[arg(long, value_name = "GLOB")]
+    pub filter: Vec<String>,
 }
 
 /// Execute the `update` command.
@@ -98,16 +109,31 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
 
     let repo_manager = RepositoryManager::new(cache_root);
 
-    // Check for updates
+    // Show filter status if filters are active
+    if !args.filter.is_empty() {
+        let patterns = args.filter.join(", ");
+        println!("Filtering sources matching: {}", patterns);
+    }
+
+    // Check for updates (with optional filtering)
     println!("Checking for repository updates...");
-    let updates = version::check_updates(&schema, &repo_manager)?;
+    let update_result = version::check_updates_filtered(&schema, &repo_manager, &args.filter)?;
+    let updates = update_result.updates;
+    let filtered_out = update_result.filtered_out_count;
 
     if updates.is_empty() {
-        println!("✅ No repositories found that can be checked for updates.");
+        if filtered_out > 0 {
+            println!(
+                "✅ No repositories found that match the filter ({} filtered out).",
+                filtered_out
+            );
+        } else {
+            println!("✅ No repositories found that can be checked for updates.");
+        }
         return Ok(());
     }
 
-    // Filter updates based on flags
+    // Filter updates based on flags (--compatible/--latest)
     let relevant_updates: Vec<_> = updates
         .into_iter()
         .filter(|update| {
@@ -135,7 +161,15 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
 
     // Display available updates
     println!("\n📦 Available Updates:");
-    println!("{} repositories can be updated\n", relevant_updates.len());
+    if filtered_out > 0 {
+        println!(
+            "{} repositories can be updated ({} filtered out)\n",
+            relevant_updates.len(),
+            filtered_out
+        );
+    } else {
+        println!("{} repositories can be updated\n", relevant_updates.len());
+    }
 
     for update in &relevant_updates {
         println!("🔄 {} (current: {})", update.url, update.current_ref);

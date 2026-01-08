@@ -238,6 +238,7 @@ mod tests {
                 latest: false,
                 yes: false,
                 dry_run: true, // Use dry run to avoid actual changes
+                filter: vec![],
             }),
             color: "auto".to_string(),
             log_level: "info".to_string(),

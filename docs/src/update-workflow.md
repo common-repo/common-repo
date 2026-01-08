@@ -67,6 +67,33 @@ For scripting or CI, skip the confirmation prompt:
 common-repo update --yes
 ```
 
+### Selective Updates
+
+Update only specific sources using glob patterns:
+
+```bash
+# Update repos matching a pattern
+common-repo update --filter "github.com/org/*"
+
+# Update multiple patterns (OR logic)
+common-repo update --filter "*/*/ci-*" --filter "*/*/linter-*"
+
+# Combine with other flags
+common-repo update --filter "github.com/org/*" --latest --dry-run
+```
+
+Patterns match against the repository URL (with scheme stripped) combined with the optional path. For example:
+
+| Config | Match Target |
+|--------|--------------|
+| `url: https://github.com/org/repo` | `github.com/org/repo` |
+| `url: https://github.com/org/monorepo`, `path: configs/eslint` | `github.com/org/monorepo/configs/eslint` |
+
+Pattern examples:
+- `github.com/org/*` - repos under a specific org
+- `*/*/ci-*` - any repo with "ci-" prefix
+- `github.com/**` - all GitHub repos
+
 ## Complete Example
 
 A typical update session:

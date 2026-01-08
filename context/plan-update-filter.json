@@ -12,7 +12,7 @@
     {
       "id": "add-strip-url-scheme",
       "name": "Add strip_url_scheme helper to src/path.rs",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_file": "src/path.rs",
@@ -32,7 +32,7 @@
     {
       "id": "add-filter-arg",
       "name": "Add --filter argument to UpdateArgs",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": null,
       "output_file": "src/commands/update.rs",
@@ -51,7 +51,7 @@
     {
       "id": "implement-filter-logic",
       "name": "Implement filter matching in execute()",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": ["add-strip-url-scheme", "add-filter-arg"],
       "output_file": "src/commands/update.rs",
@@ -72,10 +72,10 @@
     {
       "id": "add-unit-tests",
       "name": "Add unit tests for filter logic",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": ["implement-filter-logic"],
-      "output_file": "src/commands/update.rs",
+      "output_file": "src/version.rs",
       "steps": [
         "Add tests module if not present",
         "Test build_match_target with url only",
@@ -87,13 +87,13 @@
         "Tests cover url-only and url+path cases",
         "Tests verify scheme stripping",
         "Tests verify OR logic for multiple patterns",
-        "cargo test update:: passes"
+        "cargo test version:: passes"
       ]
     },
     {
       "id": "add-e2e-test",
       "name": "Add E2E test for filtered update",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": ["implement-filter-logic"],
       "output_file": "tests/cli_e2e_update.rs",
@@ -112,7 +112,7 @@
     {
       "id": "update-docs",
       "name": "Update documentation for --filter flag",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": ["implement-filter-logic"],
       "output_file": "docs/src/update-workflow.md",
@@ -130,7 +130,7 @@
     {
       "id": "final-validation",
       "name": "Run full CI checks",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": ["add-unit-tests", "add-e2e-test", "update-docs"],
       "output_file": null,
