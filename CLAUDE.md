@@ -72,7 +72,7 @@ When all tasks in a plan are complete:
 
 ## Agent Effectiveness Guidelines
 
-Based on [Anthropic's "Effective Harnesses for Long-Running Agents"](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents):
+Based on [Anthropic's guide to long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents):
 
 - **Follow recommendations precisely** - Read entire sources before proposing solutions; don't paraphrase without justification
 - **If corrected, acknowledge and fix** - Don't defend substitutions that contradict the source
@@ -279,7 +279,7 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 
 1. **Run `./script/ci` before every commit** - Catches formatting, linting, and prose issues
 2. **NEVER commit/push without explicit user approval**
-3. **Avoid hardcoding values that change** - No version numbers, dates, or timestamps in tests. Use dynamic checks.
+3. **Avoid hardcoding values that change** - No version numbers, dates, or timestamps in tests. Use runtime checks.
 4. **When fixing tests** - Understand what's being validated, fix the underlying issue, make expectations flexible
 5. **Keep summaries brief** - 1-2 sentences, no code samples unless requested
 
@@ -310,7 +310,7 @@ cargo xtask check-prose . --format json      # JSON output for tooling
 cargo xtask check-prose . --verbose          # Show files being checked
 ```
 
-The tool exits with code 1 if any patterns are found, making it suitable for CI. Patterns include telltale verbs (delve, leverage), adjectives (robust, seamless), buzzwords (synergy, paradigm), and filler phrases.
+The tool exits with code 1 if any patterns are found, making it suitable for CI. See `context/ai-writing-patterns.md` for the full pattern list.
 
 ## Important Notes
 

@@ -11,7 +11,7 @@
 ### Performance Improvements
 
 * add criterion benchmarks for core operations ([9ea851a](https://github.com/common-repo/common-repo/commit/9ea851af889adb2bfd9c3f4965e1300e74c4dce5))
-* add size-optimized build profile ([550b136](https://github.com/common-repo/common-repo/commit/550b1366a0d99636b12cf203935769a092c7b54b))
+* add minimal-size build profile ([550b136](https://github.com/common-repo/common-repo/commit/550b1366a0d99636b12cf203935769a092c7b54b))
 
 ## [0.26.0](https://github.com/common-repo/common-repo/compare/v0.25.0...v0.26.0) (2026-01-08)
 
@@ -248,7 +248,7 @@
 ### Bug Fixes
 
 * **tests:** update test expectations for v0.9.0 and context/ directory ([1fad196](https://github.com/common-repo/common-repo/commit/1fad1960489afa75647605fc4d5511f4f8555566))
-* **tests:** use dynamic version comparison in update test ([4abd79f](https://github.com/common-repo/common-repo/commit/4abd79f7cb8277d9a322c4ab113e37f808cf6883))
+* **tests:** use runtime version comparison in update test ([4abd79f](https://github.com/common-repo/common-repo/commit/4abd79f7cb8277d9a322c4ab113e37f808cf6883))
 
 ## [0.9.0](https://github.com/common-repo/common-repo/compare/v0.8.0...v0.9.0) (2025-11-21)
 

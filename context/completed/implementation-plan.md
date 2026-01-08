@@ -112,7 +112,7 @@ These are the fundamental building blocks that everything else depends on.
 **Why here**: Provides clean abstraction for operators to fetch repositories without worrying about caching details. Testable with mocks.
 
 **Dependencies**:
-- External: None (orchestrates existing components)
+- External: None (coordinates existing components)
 - Internal: Layer 1.1 (Git Operations), Layer 1.3 (Repository Cache)
 
 **Testing**: Unit tests with mock git/cache operations, full coverage of cache hit/miss scenarios
