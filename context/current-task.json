@@ -1,7 +1,6 @@
 {
-  "task": null,
-  "plan": null,
+  "task": "add-size-optimized-profile",
+  "plan": "context/performance-review.json",
   "last_updated": "2026-01-07",
-  "description": null,
-  "details": null
+  "description": "Add size-optimized build profile for smaller binaries"
 }
