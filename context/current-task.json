@@ -1,6 +1,6 @@
 {
-  "task": "add-size-optimized-profile",
-  "plan": "context/performance-review.json",
+  "task": "prose-cleanup",
+  "plan": "context/prose-cleanup-plan.json",
   "last_updated": "2026-01-07",
-  "description": "Add size-optimized build profile for smaller binaries"
+  "description": "Fix check_prose errors - auto-fix egregious AI-isms, interactively fix borderline cases"
 }
