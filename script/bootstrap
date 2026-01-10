@@ -71,6 +71,20 @@ else
   echo "==> prek is already installed ($(prek --version))"
 fi
 
+# Install action-validator for GitHub Actions validation (used by pre-commit)
+if ! command -v action-validator >/dev/null 2>&1; then
+  echo "==> Installing action-validator..."
+  if command -v brew >/dev/null 2>&1; then
+    brew install action-validator
+    echo "    action-validator installed successfully!"
+  else
+    echo "    Warning: action-validator not installed (homebrew not available)"
+    echo "    Install manually: https://github.com/mpalmer/action-validator"
+  fi
+else
+  echo "==> action-validator is already installed ($(action-validator --version))"
+fi
+
 # Install pre-commit as fallback if prek is not available
 if ! command -v prek >/dev/null 2>&1 && ! command -v pre-commit >/dev/null 2>&1; then
   echo "==> Installing pre-commit as fallback..."
