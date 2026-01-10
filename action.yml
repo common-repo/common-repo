@@ -1,0 +1,166 @@
+name: 'common-repo sync'
+description: 'Update inherited configuration files from upstream common-repo sources'
+author: 'common-repo'
+
+inputs:
+  token:
+    description: 'GitHub token for creating PRs'
+    required: false
+    default: ${{ github.token }}
+  config-path:
+    description: 'Path to .common-repo.yaml'
+    required: false
+    default: '.common-repo.yaml'
+  version:
+    description: 'Pin common-repo binary version (e.g., v0.27.0). Use "latest" for most recent.'
+    required: false
+    default: 'latest'
+  update-strategy:
+    description: 'Version strategy: compatible (minor/patch) or latest (including major)'
+    required: false
+    default: 'compatible'
+  force-sync:
+    description: 'Run apply even without version updates (handles config drift)'
+    required: false
+    default: 'false'
+  pr-title:
+    description: 'Pull request title'
+    required: false
+    default: 'chore(deps): update common-repo inherited files'
+  pr-branch:
+    description: 'Branch name for the PR'
+    required: false
+    default: 'chore/upstream-sync'
+  commit-message:
+    description: 'Commit message'
+    required: false
+    default: 'chore(deps): update common-repo files'
+  dry-run:
+    description: 'Check for updates without creating PR'
+    required: false
+    default: 'false'
+
+outputs:
+  has-updates:
+    description: 'Whether version updates were available'
+    value: ${{ steps.check.outputs.has-updates }}
+  has-changes:
+    description: 'Whether any file changes were made'
+    value: ${{ steps.apply.outputs.has-changes }}
+  pr-url:
+    description: 'URL of created/updated PR'
+    value: ${{ steps.pr.outputs.pr-url }}
+  pr-number:
+    description: 'PR number'
+    value: ${{ steps.pr.outputs.pr-number }}
+  updated-repos:
+    description: 'JSON array of updated repos'
+    value: ${{ steps.check.outputs.updated-repos }}
+  files-changed:
+    description: 'JSON array of changed files'
+    value: ${{ steps.apply.outputs.files-changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate config exists
+      shell: bash
+      run: |
+        if [ ! -f "${{ inputs.config-path }}" ]; then
+          echo "::error::Config file not found: ${{ inputs.config-path }}"
+          exit 1
+        fi
+
+    - name: Install common-repo
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version != 'latest' && inputs.version || '' }}
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Check for updates
+      id: check
+      shell: bash
+      run: |
+        # Check for available updates
+        if common-repo check --updates --config "${{ inputs.config-path }}" 2>&1 | tee /tmp/updates.txt | grep -q "updates available"; then
+          echo "has-updates=true" >> $GITHUB_OUTPUT
+        else
+          echo "has-updates=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Update configuration
+      if: steps.check.outputs.has-updates == 'true'
+      shell: bash
+      run: |
+        strategy_flag=""
+        if [ "${{ inputs.update-strategy }}" = "latest" ]; then
+          strategy_flag="--latest"
+        else
+          strategy_flag="--compatible"
+        fi
+        common-repo update --config "${{ inputs.config-path }}" $strategy_flag --yes
+
+    - name: Apply configuration
+      id: apply
+      if: steps.check.outputs.has-updates == 'true' || inputs.force-sync == 'true'
+      shell: bash
+      run: |
+        common-repo apply --config "${{ inputs.config-path }}"
+
+        # Check for any changes (staged, unstaged, or untracked)
+        if git diff --quiet && git diff --cached --quiet && [ -z "$(git status --porcelain)" ]; then
+          echo "has-changes=false" >> $GITHUB_OUTPUT
+          echo "files-changed=[]" >> $GITHUB_OUTPUT
+        else
+          echo "has-changes=true" >> $GITHUB_OUTPUT
+          # Capture all changed/new files
+          files=$(git status --porcelain | awk '{print $2}' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "files-changed=$files" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Pull Request
+      id: pr
+      if: steps.apply.outputs.has-changes == 'true' && inputs.dry-run != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        # Configure git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Create branch and commit
+        git checkout -B "${{ inputs.pr-branch }}"
+        git add -A
+        git commit -m "${{ inputs.commit-message }}"
+        git push -u origin "${{ inputs.pr-branch }}" --force
+
+        # Check if dependencies label exists
+        label_flag=""
+        if gh label list --json name --jq '.[].name' | grep -q "^dependencies$"; then
+          label_flag="--label dependencies"
+        fi
+
+        # Create or update PR
+        pr_url=$(gh pr list --head "${{ inputs.pr-branch }}" --json url --jq '.[0].url')
+        if [ -z "$pr_url" ]; then
+          pr_url=$(gh pr create \
+            --title "${{ inputs.pr-title }}" \
+            --body "## Upstream Configuration Updates
+
+        This PR updates inherited configuration files from common-repo sources.
+
+        ### Changed Files
+        ${{ steps.apply.outputs.files-changed }}
+
+        ---
+        *Generated by [common-repo](https://github.com/common-repo/common-repo)*" \
+            --head "${{ inputs.pr-branch }}" \
+            $label_flag)
+        fi
+
+        echo "pr-url=$pr_url" >> $GITHUB_OUTPUT
+        pr_number=$(echo "$pr_url" | grep -oE '[0-9]+$')
+        echo "pr-number=$pr_number" >> $GITHUB_OUTPUT

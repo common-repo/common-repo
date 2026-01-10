@@ -10,7 +10,7 @@
     {
       "id": "add-action-validator",
       "name": "Add action-validator to pre-commit config",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "output_file": ".pre-commit-config.yaml",
@@ -27,7 +27,7 @@
     {
       "id": "write-action-yml",
       "name": "Write the action.yml file",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "add-action-validator",
       "output_file": "action.yml",
@@ -47,7 +47,7 @@
     {
       "id": "create-test-workflow",
       "name": "Create test workflow for the action",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "write-action-yml",
       "output_file": ".github/workflows/test-action.yml",
@@ -66,7 +66,7 @@
     {
       "id": "update-readme",
       "name": "Update README with action usage",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "write-action-yml",
       "output_file": "README.md",
@@ -84,7 +84,7 @@
     {
       "id": "create-action-docs",
       "name": "Create GitHub Action documentation page",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "write-action-yml",
       "output_file": "docs/src/github-action.md",
@@ -105,7 +105,7 @@
     {
       "id": "update-summary",
       "name": "Add action docs to SUMMARY.md",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "create-action-docs",
       "output_file": "docs/src/SUMMARY.md",
@@ -121,7 +121,7 @@
     {
       "id": "run-ci-checks",
       "name": "Run CI checks and verify",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "update-summary",
       "output_file": null,

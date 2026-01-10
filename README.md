@@ -194,6 +194,33 @@ common-repo check --updates   # Check for newer versions
 common-repo update            # Update refs
 ```
 
+### Automated updates with GitHub Actions
+
+Use the common-repo GitHub Action to automatically create PRs when upstream configurations change:
+
+```yaml
+# .github/workflows/upstream-sync.yml
+name: Sync Upstream Configuration
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly on Monday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: common-repo/common-repo@v1
+```
+
+See [GitHub Action documentation](docs/src/github-action.md) for all options.
+
 ## Commands
 
 ```
