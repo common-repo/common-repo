@@ -1,0 +1,146 @@
+{
+  "plan_name": "GitHub Action Implementation",
+  "last_updated": "2026-01-09",
+  "session_startup": [
+    "Run git status to check branch",
+    "Read context/github-action-plan.md for design decisions",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "add-action-validator",
+      "name": "Add action-validator to pre-commit config",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": ".pre-commit-config.yaml",
+      "steps": [
+        "Add action-validator hook to .pre-commit-config.yaml",
+        "Override files pattern to include root action.yml: (^\\.github/(workflows|actions)/.*\\.ya?ml$|^action\\.ya?ml$)",
+        "Run prek run --all-files to verify hook works"
+      ],
+      "acceptance_criteria": [
+        "action-validator hook is configured in .pre-commit-config.yaml",
+        "Hook targets both .github/workflows/ and root action.yml"
+      ]
+    },
+    {
+      "id": "write-action-yml",
+      "name": "Write the action.yml file",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "add-action-validator",
+      "output_file": "action.yml",
+      "steps": [
+        "Create action.yml at repo root based on implementation in github-action-plan.md",
+        "Ensure all inputs have proper defaults",
+        "Ensure all outputs are properly defined",
+        "Run action-validator action.yml to validate"
+      ],
+      "acceptance_criteria": [
+        "action.yml exists at repo root",
+        "action-validator passes with no errors",
+        "All inputs from plan are defined",
+        "All outputs from plan are defined"
+      ]
+    },
+    {
+      "id": "create-test-workflow",
+      "name": "Create test workflow for the action",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "write-action-yml",
+      "output_file": ".github/workflows/test-action.yml",
+      "steps": [
+        "Create .github/workflows/test-action.yml",
+        "Add lint job that runs action-validator",
+        "Add test-dry-run job that tests the action",
+        "Trigger on push/PR to action.yml and the test workflow"
+      ],
+      "acceptance_criteria": [
+        "Workflow file exists at .github/workflows/test-action.yml",
+        "actionlint/action-validator passes on the workflow",
+        "Workflow has lint and test-dry-run jobs"
+      ]
+    },
+    {
+      "id": "update-readme",
+      "name": "Update README with action usage",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "write-action-yml",
+      "output_file": "README.md",
+      "steps": [
+        "Add 'Automated updates with GitHub Actions' section after 'Checking for updates'",
+        "Include minimal workflow example",
+        "Link to full documentation"
+      ],
+      "acceptance_criteria": [
+        "README.md has GitHub Action section",
+        "Example workflow is valid YAML",
+        "Links to docs/src/github-action.md"
+      ]
+    },
+    {
+      "id": "create-action-docs",
+      "name": "Create GitHub Action documentation page",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "write-action-yml",
+      "output_file": "docs/src/github-action.md",
+      "steps": [
+        "Create docs/src/github-action.md based on content in github-action-plan.md",
+        "Include quick start, inputs table, outputs table",
+        "Add usage examples for common scenarios",
+        "Document requirements (permissions, private repos, self-hosted runners)",
+        "Run cargo xtask check-prose docs/src/github-action.md"
+      ],
+      "acceptance_criteria": [
+        "docs/src/github-action.md exists",
+        "All inputs and outputs documented",
+        "Examples cover: update-strategy, version pinning, force-sync, dry-run, custom PR settings",
+        "No AI writing patterns (check-prose passes)"
+      ]
+    },
+    {
+      "id": "update-summary",
+      "name": "Add action docs to SUMMARY.md",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "create-action-docs",
+      "output_file": "docs/src/SUMMARY.md",
+      "steps": [
+        "Add '- [GitHub Action](./github-action.md)' to SUMMARY.md",
+        "Place in appropriate location in table of contents"
+      ],
+      "acceptance_criteria": [
+        "GitHub Action page is listed in SUMMARY.md",
+        "mdbook build succeeds (if available)"
+      ]
+    },
+    {
+      "id": "run-ci-checks",
+      "name": "Run CI checks and verify",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "update-summary",
+      "output_file": null,
+      "steps": [
+        "Run ./script/ci to verify all checks pass",
+        "Run action-validator on action.yml",
+        "Run cargo xtask check-prose on new docs",
+        "Verify no formatting or linting issues"
+      ],
+      "acceptance_criteria": [
+        "./script/ci passes",
+        "action-validator passes",
+        "check-prose passes on new documentation"
+      ]
+    }
+  ],
+  "notes": [
+    "Design details are in context/github-action-plan.md",
+    "Tasks 4, 5 can run in parallel after task 2 (both blocked_by write-action-yml)",
+    "This is a docs/config-only change - no Rust code changes needed"
+  ]
+}
