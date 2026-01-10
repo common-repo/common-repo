@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.28.0](https://github.com/common-repo/common-repo/compare/v0.27.0...v0.28.0) (2026-01-10)
+
+
+### Features
+
+* add GitHub Action for automated upstream sync ([2b2f5bf](https://github.com/common-repo/common-repo/commit/2b2f5bfd1f48025e8cadb6a1ee423335298fc6a9))
+
+
+### Bug Fixes
+
+* **bootstrap:** add action-validator installation ([d7d8a3e](https://github.com/common-repo/common-repo/commit/d7d8a3e16e7f2a44e47dfb1be1d30941e0be6fe2))
+* **ci:** install action-validator for pre-commit ([b9dac0b](https://github.com/common-repo/common-repo/commit/b9dac0b03e3966577c740bc9eec19ca86dc28fbf))
+
 ## [0.27.0](https://github.com/common-repo/common-repo/compare/v0.26.1...v0.27.0) (2026-01-08)
 
 
