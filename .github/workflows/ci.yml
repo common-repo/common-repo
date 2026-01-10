@@ -37,6 +37,11 @@ jobs:
       - name: Install pre-commit
         run: pip install pre-commit
 
+      - name: Install action-validator
+        run: |
+          curl -sSL https://github.com/mpalmer/action-validator/releases/download/v0.6.0/action-validator_linux_amd64 -o /usr/local/bin/action-validator
+          chmod +x /usr/local/bin/action-validator
+
       - name: Run pre-commit
         run: pre-commit run --all-files
 
