@@ -1,0 +1,53 @@
+name: Test Action
+
+on:
+  push:
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+  pull_request:
+    paths:
+      - 'action.yml'
+      - '.github/workflows/test-action.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install action-validator
+        run: |
+          cargo install action-validator
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Validate action.yml
+        run: action-validator action.yml
+
+  test-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Create a minimal test config
+      - name: Create test config
+        run: |
+          cat > .common-repo.yaml << 'EOF'
+          - repo:
+              url: https://github.com/common-repo/common-repo
+              ref: main
+              with:
+                - include: [README.md]
+          EOF
+
+      # Test the action in dry-run mode
+      - name: Test action (dry-run)
+        id: sync
+        uses: ./
+        with:
+          dry-run: 'true'
+
+      - name: Check outputs
+        run: |
+          echo "has-updates: ${{ steps.sync.outputs.has-updates }}"
+          echo "has-changes: ${{ steps.sync.outputs.has-changes }}"

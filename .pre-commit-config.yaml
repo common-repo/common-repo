@@ -21,6 +21,14 @@ repos:
   #       stages: [commit-msg]
   #       args: []
 
+  - repo: https://github.com/mpalmer/action-validator
+    rev: v0.6.0
+    hooks:
+      - id: action-validator
+        name: action-validator
+        description: Validate GitHub Actions workflow files
+        files: (^\.github/(workflows|actions)/.*\.ya?ml$|^action\.ya?ml$)
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
