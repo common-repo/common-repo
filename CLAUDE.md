@@ -79,6 +79,10 @@ Based on [Anthropic's guide to long-running agents](https://www.anthropic.com/en
 - **Work on one task at a time** - Avoid scope creep and doing too much at once
 - **Documentation is part of implementation** - When adding functionality, update all related docs (module docs, function docs, user-facing docs) in the same change. Don't defer documentation to later.
 
+### Platform Limitations
+
+- **AskUserQuestion tool**: Does not work on Claude Code iOS. Do not use this tool; instead proceed with reasonable defaults or mention alternatives in your response.
+
 ### Use JSON for Structured Tracking
 
 - **Use JSON, not YAML or markdown** for task lists and progress tracking
