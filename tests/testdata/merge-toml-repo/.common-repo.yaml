@@ -2,8 +2,7 @@
 # This repo provides test fixtures for TOML merge operations
 
 - include:
-    patterns:
-      - "*.toml"
+    - "*.toml"
 
 # Test 1: Basic merge at root level
 - toml:

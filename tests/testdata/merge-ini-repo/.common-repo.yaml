@@ -2,9 +2,8 @@
 # This repo provides test fixtures for INI merge operations
 
 - include:
-    patterns:
-      - "*.ini"
-      - "*.cfg"
+    - "*.ini"
+    - "*.cfg"
 
 # Test 1: Basic merge at root level (no section specified)
 - ini:
