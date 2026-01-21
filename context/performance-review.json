@@ -91,7 +91,7 @@
     {
       "id": "add-benchmark-ci",
       "name": "Add benchmark runs to CI",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": ["add-benchmarks"],
       "steps": [
