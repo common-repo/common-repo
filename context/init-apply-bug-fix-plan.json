@@ -103,7 +103,7 @@
     {
       "id": "update-unit-tests",
       "name": "Update unit tests for new behavior",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "auto-exclude-config-files",
       "description": "Add/update unit tests for the new source operation semantics",
@@ -122,7 +122,7 @@
     {
       "id": "verify-e2e-tests-pass",
       "name": "Verify E2E tests now pass",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "update-unit-tests",
       "description": "Run the E2E tests created in task 1 and verify they pass",

@@ -1317,4 +1317,182 @@ mod tests {
             }
         }
     }
+
+    // ========================================================================
+    // Tests for extract_source_filtering_operations
+    // ========================================================================
+
+    mod extract_source_filtering_ops_tests {
+        use super::*;
+        use crate::config::{JsonMergeOp, RenameOp, YamlMergeOp};
+
+        #[test]
+        fn test_extracts_include_operations() {
+            let config = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["*.md".to_string()],
+                    },
+                },
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "example".to_string(),
+                        r#ref: "main".to_string(),
+                        path: None,
+                        with: vec![],
+                    },
+                },
+            ];
+            let result = extract_source_filtering_operations(&config);
+            assert_eq!(result.len(), 1);
+            match &result[0] {
+                Operation::Include { include } => {
+                    assert_eq!(include.patterns, vec!["*.md".to_string()]);
+                }
+                _ => panic!("Expected Include operation"),
+            }
+        }
+
+        #[test]
+        fn test_extracts_exclude_operations() {
+            let config = vec![
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.bak".to_string()],
+                    },
+                },
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "example".to_string(),
+                        r#ref: "main".to_string(),
+                        path: None,
+                        with: vec![],
+                    },
+                },
+            ];
+            let result = extract_source_filtering_operations(&config);
+            assert_eq!(result.len(), 1);
+            match &result[0] {
+                Operation::Exclude { exclude } => {
+                    assert_eq!(exclude.patterns, vec!["*.bak".to_string()]);
+                }
+                _ => panic!("Expected Exclude operation"),
+            }
+        }
+
+        #[test]
+        fn test_extracts_rename_operations() {
+            let config = vec![
+                Operation::Rename {
+                    rename: RenameOp {
+                        mappings: vec![],
+                    },
+                },
+            ];
+            let result = extract_source_filtering_operations(&config);
+            assert_eq!(result.len(), 1);
+            matches!(&result[0], Operation::Rename { .. });
+        }
+
+        #[test]
+        fn test_extracts_all_filtering_operations() {
+            let config = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["src/**".to_string()],
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.test".to_string()],
+                    },
+                },
+                Operation::Rename {
+                    rename: RenameOp {
+                        mappings: vec![],
+                    },
+                },
+                // Non-filtering operations should be ignored
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "example".to_string(),
+                        r#ref: "main".to_string(),
+                        path: None,
+                        with: vec![],
+                    },
+                },
+            ];
+            let result = extract_source_filtering_operations(&config);
+            assert_eq!(result.len(), 3);
+        }
+
+        #[test]
+        fn test_preserves_order() {
+            let config = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["first".to_string()],
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["second".to_string()],
+                    },
+                },
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["third".to_string()],
+                    },
+                },
+            ];
+            let result = extract_source_filtering_operations(&config);
+            assert_eq!(result.len(), 3);
+            // Verify order is preserved
+            match &result[0] {
+                Operation::Include { include } => {
+                    assert_eq!(include.patterns[0], "first");
+                }
+                _ => panic!("Expected Include"),
+            }
+            match &result[1] {
+                Operation::Exclude { exclude } => {
+                    assert_eq!(exclude.patterns[0], "second");
+                }
+                _ => panic!("Expected Exclude"),
+            }
+            match &result[2] {
+                Operation::Include { include } => {
+                    assert_eq!(include.patterns[0], "third");
+                }
+                _ => panic!("Expected Include"),
+            }
+        }
+
+        #[test]
+        fn test_empty_config_returns_empty() {
+            let config: Vec<Operation> = vec![];
+            let result = extract_source_filtering_operations(&config);
+            assert!(result.is_empty());
+        }
+
+        #[test]
+        fn test_ignores_deferred_operations() {
+            let config = vec![
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        defer: Some(true),
+                        ..Default::default()
+                    },
+                },
+                Operation::Json {
+                    json: JsonMergeOp {
+                        auto_merge: Some("test.json".to_string()),
+                        ..Default::default()
+                    },
+                },
+            ];
+            let result = extract_source_filtering_operations(&config);
+            assert!(result.is_empty());
+        }
+    }
 }

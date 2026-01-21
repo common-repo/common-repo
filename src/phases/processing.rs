@@ -1900,4 +1900,75 @@ mod tests {
             assert!(intermediate_fss.contains_key("https://github.com/child/repo.git@v1.0"));
         }
     }
+
+    // ========================================================================
+    // Tests for remove_source_config_files
+    // ========================================================================
+
+    mod remove_source_config_files_tests {
+        use super::*;
+
+        #[test]
+        fn test_removes_primary_config_file() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string(".common-repo.yaml", "config content").unwrap();
+            fs.add_file_string("README.md", "readme").unwrap();
+
+            remove_source_config_files(&mut fs);
+
+            assert!(!fs.exists(".common-repo.yaml"));
+            assert!(fs.exists("README.md"));
+        }
+
+        #[test]
+        fn test_removes_alternate_config_file() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string(".commonrepo.yaml", "config content").unwrap();
+            fs.add_file_string("README.md", "readme").unwrap();
+
+            remove_source_config_files(&mut fs);
+
+            assert!(!fs.exists(".commonrepo.yaml"));
+            assert!(fs.exists("README.md"));
+        }
+
+        #[test]
+        fn test_removes_both_config_files() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string(".common-repo.yaml", "primary config").unwrap();
+            fs.add_file_string(".commonrepo.yaml", "alternate config").unwrap();
+            fs.add_file_string("src/lib.rs", "code").unwrap();
+
+            remove_source_config_files(&mut fs);
+
+            assert!(!fs.exists(".common-repo.yaml"));
+            assert!(!fs.exists(".commonrepo.yaml"));
+            assert!(fs.exists("src/lib.rs"));
+        }
+
+        #[test]
+        fn test_no_error_when_config_files_missing() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("README.md", "readme").unwrap();
+
+            // Should not panic or error when config files don't exist
+            remove_source_config_files(&mut fs);
+
+            assert!(fs.exists("README.md"));
+        }
+
+        #[test]
+        fn test_preserves_other_yaml_files() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string(".common-repo.yaml", "config").unwrap();
+            fs.add_file_string("config.yaml", "app config").unwrap();
+            fs.add_file_string(".github/workflows/ci.yaml", "workflow").unwrap();
+
+            remove_source_config_files(&mut fs);
+
+            assert!(!fs.exists(".common-repo.yaml"));
+            assert!(fs.exists("config.yaml"));
+            assert!(fs.exists(".github/workflows/ci.yaml"));
+        }
+    }
 }
