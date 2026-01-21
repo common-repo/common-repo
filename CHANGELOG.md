@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.28.0](https://github.com/common-repo/common-repo/compare/v0.27.0...v0.28.0) (2026-01-21)
+
+
+### Features
+
+* add GitHub Action for automated upstream sync ([2b2f5bf](https://github.com/common-repo/common-repo/commit/2b2f5bfd1f48025e8cadb6a1ee423335298fc6a9))
+
+
+### Bug Fixes
+
+* **bootstrap:** add action-validator installation ([d7d8a3e](https://github.com/common-repo/common-repo/commit/d7d8a3e16e7f2a44e47dfb1be1d30941e0be6fe2))
+* **ci:** install action-validator for pre-commit ([b9dac0b](https://github.com/common-repo/common-repo/commit/b9dac0b03e3966577c740bc9eec19ca86dc28fbf))
+* **phases:** respect source repo's filtering operations and auto-exclude config files ([c404843](https://github.com/common-repo/common-repo/commit/c404843a6147507a170890cc88e1dc89d761fda1))
+* **schema:** remove patterns subkey from include/exclude/template ops ([fb4e27e](https://github.com/common-repo/common-repo/commit/fb4e27ed5e2590a19cb0de97f05f5919b5229142))
+* **testdata:** update fixture configs to new schema format ([832ab4f](https://github.com/common-repo/common-repo/commit/832ab4f71309f02b3c9db9fc6aa239a7aabaa66a))
+
 ## [0.27.0](https://github.com/common-repo/common-repo/compare/v0.26.1...v0.27.0) (2026-01-08)
 
 
