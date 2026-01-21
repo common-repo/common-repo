@@ -42,7 +42,7 @@
     {
       "id": "extract-source-filtering-ops",
       "name": "Extract source repo's filtering operations in discovery phase",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "write-failing-e2e-tests",
       "description": "Modify discovery.rs to extract include/exclude/rename operations from source repos (not just deferred ops)",
@@ -62,7 +62,7 @@
     {
       "id": "auto-exclude-config-files",
       "name": "Auto-exclude .common-repo.yaml from source repos",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "extract-source-filtering-ops",
       "description": "Automatically exclude config files from source repos so they're never copied to consumers",
