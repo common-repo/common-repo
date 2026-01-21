@@ -140,7 +140,7 @@
     {
       "id": "update-documentation",
       "name": "Update documentation for source/consumer semantics",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "verify-e2e-tests-pass",
       "description": "Update user documentation to explain source repo operation behavior",
