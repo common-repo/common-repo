@@ -23,6 +23,7 @@ env:
 jobs:
   benchmark:
     name: Run Benchmarks
+    if: false  # Disabled: benchmarks are slow, re-enable when needed
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,8 +49,8 @@ jobs:
   # Compare with main branch baseline (PRs only)
   compare:
     name: Compare with Baseline
+    if: false  # Disabled: benchmarks are slow, re-enable when needed
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
