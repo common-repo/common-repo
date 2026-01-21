@@ -57,6 +57,76 @@ org-base/          # Base standards
       └── my-app/  # Consumer (inherits rust-base)
 ```
 
+## Source-Declared File Filtering
+
+Source repositories can define their "public API" by specifying which files are exposed to consumers. This is useful when a repository contains internal files that should not be inherited.
+
+### Filtering Operations in Source Repos
+
+Source repos can use these operations to control which files consumers receive:
+
+| Operation | Purpose |
+|-----------|---------|
+| `include` | Allowlist of files to expose (all others excluded) |
+| `exclude` | Blocklist of files to hide (all others included) |
+| `rename` | Transform file paths before consumers see them |
+
+### Example: Exposing Only Public Files
+
+A source repo with internal test fixtures that should not be inherited:
+
+```yaml
+# Source repo: .common-repo.yaml
+- include:
+    patterns:
+      - "templates/**"
+      - "configs/**"
+      - ".github/**"
+# Internal test fixtures, scripts, and docs are NOT exposed
+```
+
+Consumers automatically receive only the declared public files.
+
+### Example: Hiding Internal Files
+
+A source repo that exposes everything except internal directories:
+
+```yaml
+# Source repo: .common-repo.yaml
+- exclude:
+    patterns:
+      - "internal/**"
+      - "scripts/dev-*.sh"
+      - ".internal-*"
+```
+
+### Example: Renaming Template Files
+
+A source repo that provides templates with a different naming convention:
+
+```yaml
+# Source repo: .common-repo.yaml
+- rename:
+    - from: "templates/(.*)\\.template"
+      to: "$1"
+```
+
+This transforms `templates/config.yaml.template` to `config.yaml` in consumers.
+
+### Operation Order
+
+Operations are applied in this order:
+
+1. **Source filtering** (include/exclude/rename from source's config)
+2. **Source merge declarations** (deferred merge operations)
+3. **Consumer's with: clause** (further filtering/transforms by consumer)
+
+This ensures source repos control their exposed files, while consumers can further filter (but not expand) what they receive.
+
+### Config File Auto-Exclusion
+
+Source repository config files (`.common-repo.yaml` and `.commonrepo.yaml`) are automatically excluded and never copied to consumers. This prevents source configs from overwriting consumer configs.
+
 ## Source-Declared Merge Behavior
 
 By default, files from source repositories overwrite files in consumer repositories. However, source authors often know best how their files should integrate. The **defer** mechanism allows source repos to declare merge behavior that automatically applies when consumers inherit from them.
