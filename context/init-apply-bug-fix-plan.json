@@ -1,6 +1,6 @@
 {
   "plan_name": "Fix init/apply Source Repo Operation Handling",
-  "last_updated": "2026-01-21",
+  "last_updated": "2026-01-21T01",
   "description": "Implement fixes for source repo operation semantics: apply source's include/exclude/rename operations and auto-exclude config files",
   "confirmed_semantics": {
     "include_in_source": "Defines the set of files exposed to consumers (allowlist). If omitted, all files from the repo are exposed.",
@@ -21,7 +21,7 @@
     {
       "id": "write-failing-e2e-tests",
       "name": "Write failing E2E tests demonstrating the bugs",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "description": "Create E2E tests that fail with current implementation but will pass after fixes",
