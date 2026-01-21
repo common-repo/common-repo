@@ -271,6 +271,77 @@ The project includes two release profiles in `Cargo.toml`:
 
 Use the size-focused profile when distributing binaries where size matters more than speed (embedded systems, resource-limited environments). The standard release profile is recommended for most scenarios.
 
+### Profiling
+
+For performance investigations, use these profiling techniques.
+
+#### CPU Profiling with Flamegraphs
+
+Generate flamegraphs using [samply](https://github.com/mstange/samply) (recommended) or [flamegraph-rs](https://github.com/flamegraph-rs/flamegraph):
+
+```bash
+# Using samply (macOS, Linux)
+cargo install samply
+samply record cargo run --release -- apply path/to/config
+
+# Using flamegraph-rs (requires perf on Linux)
+cargo install flamegraph
+cargo flamegraph -- apply path/to/config
+```
+
+Samply opens an interactive profile viewer in your browser. Flamegraph generates an SVG file (`flamegraph.svg`) you can view in any browser.
+
+#### CPU Profiling with perf (Linux)
+
+For detailed CPU analysis on Linux:
+
+```bash
+# Build with debug symbols
+cargo build --release
+
+# Record performance data
+perf record -g ./target/release/common-repo apply path/to/config
+
+# View interactive report
+perf report
+
+# Generate text report
+perf report --stdio > perf-report.txt
+```
+
+#### Memory Profiling with heaptrack (Linux)
+
+Profile heap allocations using [heaptrack](https://github.com/KDE/heaptrack):
+
+```bash
+# Install heaptrack (Debian/Ubuntu)
+sudo apt install heaptrack
+
+# Profile memory usage
+heaptrack ./target/release/common-repo apply path/to/config
+
+# Analyze with GUI
+heaptrack_gui heaptrack.common-repo.*.gz
+```
+
+For macOS, use Instruments or the `leaks` command-line tool.
+
+#### Common Profiling Scenarios
+
+| Scenario | What to Profile | Suggested Tool |
+|----------|-----------------|----------------|
+| Slow config parsing | CPU time in config module | samply, flamegraph |
+| High memory on large repos | Heap allocations | heaptrack |
+| Git clone bottleneck | I/O and network calls | perf with `--call-graph` |
+| Slow file operations | Filesystem syscalls | strace (Linux), dtruss (macOS) |
+
+#### Profiling Tips
+
+- Always profile release builds (`--release`) for realistic performance data
+- Enable debug symbols for meaningful stack traces: add `debug = true` to `[profile.release]` temporarily
+- Use representative workloads that match real-world usage
+- Compare before/after profiles when optimizing
+
 ## Project Structure
 
 ```

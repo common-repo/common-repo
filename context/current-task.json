@@ -1,6 +1,6 @@
 {
-  "task": "add-size-optimized-profile",
+  "task": "document-profiling",
   "plan": "context/performance-review.json",
-  "last_updated": "2026-01-07",
-  "description": "Add size-optimized build profile for smaller binaries"
+  "last_updated": "2026-01-21",
+  "description": "Document profiling workflows for CPU and memory analysis"
 }
