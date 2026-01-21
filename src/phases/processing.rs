@@ -1911,7 +1911,8 @@ mod tests {
         #[test]
         fn test_removes_primary_config_file() {
             let mut fs = MemoryFS::new();
-            fs.add_file_string(".common-repo.yaml", "config content").unwrap();
+            fs.add_file_string(".common-repo.yaml", "config content")
+                .unwrap();
             fs.add_file_string("README.md", "readme").unwrap();
 
             remove_source_config_files(&mut fs);
@@ -1923,7 +1924,8 @@ mod tests {
         #[test]
         fn test_removes_alternate_config_file() {
             let mut fs = MemoryFS::new();
-            fs.add_file_string(".commonrepo.yaml", "config content").unwrap();
+            fs.add_file_string(".commonrepo.yaml", "config content")
+                .unwrap();
             fs.add_file_string("README.md", "readme").unwrap();
 
             remove_source_config_files(&mut fs);
@@ -1935,8 +1937,10 @@ mod tests {
         #[test]
         fn test_removes_both_config_files() {
             let mut fs = MemoryFS::new();
-            fs.add_file_string(".common-repo.yaml", "primary config").unwrap();
-            fs.add_file_string(".commonrepo.yaml", "alternate config").unwrap();
+            fs.add_file_string(".common-repo.yaml", "primary config")
+                .unwrap();
+            fs.add_file_string(".commonrepo.yaml", "alternate config")
+                .unwrap();
             fs.add_file_string("src/lib.rs", "code").unwrap();
 
             remove_source_config_files(&mut fs);
@@ -1962,7 +1966,8 @@ mod tests {
             let mut fs = MemoryFS::new();
             fs.add_file_string(".common-repo.yaml", "config").unwrap();
             fs.add_file_string("config.yaml", "app config").unwrap();
-            fs.add_file_string(".github/workflows/ci.yaml", "workflow").unwrap();
+            fs.add_file_string(".github/workflows/ci.yaml", "workflow")
+                .unwrap();
 
             remove_source_config_files(&mut fs);
 

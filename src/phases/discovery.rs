@@ -1382,13 +1382,9 @@ mod tests {
 
         #[test]
         fn test_extracts_rename_operations() {
-            let config = vec![
-                Operation::Rename {
-                    rename: RenameOp {
-                        mappings: vec![],
-                    },
-                },
-            ];
+            let config = vec![Operation::Rename {
+                rename: RenameOp { mappings: vec![] },
+            }];
             let result = extract_source_filtering_operations(&config);
             assert_eq!(result.len(), 1);
             matches!(&result[0], Operation::Rename { .. });
@@ -1408,9 +1404,7 @@ mod tests {
                     },
                 },
                 Operation::Rename {
-                    rename: RenameOp {
-                        mappings: vec![],
-                    },
+                    rename: RenameOp { mappings: vec![] },
                 },
                 // Non-filtering operations should be ignored
                 Operation::Repo {
