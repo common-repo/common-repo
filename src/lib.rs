@@ -25,8 +25,7 @@
 //! // Parse a configuration
 //! let config_yaml = r#"
 //! - include:
-//!     patterns:
-//!       - "*.rs"
+//!     - "*.rs"
 //! "#;
 //! let schema = config::parse(config_yaml).unwrap();
 //! assert_eq!(schema.len(), 1);
