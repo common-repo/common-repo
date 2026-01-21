@@ -634,7 +634,7 @@ fn test_alternate_config_filename_not_copied() {
 // Real-world test: shakefu/vibes repository
 // =============================================================================
 
-/// Test against the real shakefu/vibes repository.
+/// Test against the real shakefu/vibes repository (pinned to v0.1.0-test tag).
 ///
 /// This repo has an include filter that only exposes CLAUDE.md and .mcp.json.
 /// This test verifies that:
@@ -654,7 +654,7 @@ fn test_real_world_shakefu_vibes_repo() {
             r#"# Consumer config - testing against real shakefu/vibes repo
 - repo:
     url: "https://github.com/shakefu/vibes"
-    ref: main
+    ref: v0.1.0-test
 "#,
         )
         .unwrap();
