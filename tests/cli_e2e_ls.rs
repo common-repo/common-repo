@@ -159,8 +159,7 @@ fn test_ls_with_reverse_sort() {
 fn test_ls_empty_result() {
     let fixture = TestFixture::new().with_config(
         r#"
-- include:
-    patterns: ["*.nonexistent"]
+- include: ["*.nonexistent"]
 "#,
     );
 

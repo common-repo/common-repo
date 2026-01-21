@@ -281,8 +281,7 @@ mod tests {
 
         // Create a simple config file that includes all files
         let config_content = r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#;
 
         fs::write(&config_path, config_content).unwrap();
@@ -318,8 +317,7 @@ mod tests {
         let config_path = temp_dir.path().join("config.yaml");
 
         let config_content = r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#;
 
         fs::write(&config_path, config_content).unwrap();

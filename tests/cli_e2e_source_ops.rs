@@ -89,7 +89,7 @@ fn test_source_config_file_not_copied() {
         &[
             (
                 ".common-repo.yaml",
-                "# Source repo config\n- include:\n    patterns: [\"**/*\"]\n",
+                "# Source repo config\n- include: [\"**/*\"]\n",
             ),
             ("README.md", "# Source README\n"),
             ("src/lib.rs", "// Source library\n"),
@@ -175,9 +175,8 @@ fn test_source_include_operator_respected() {
                 ".common-repo.yaml",
                 r#"# Source declares its public API
 - include:
-    patterns:
-      - "public-file.txt"
-      - "docs/**"
+    - "public-file.txt"
+    - "docs/**"
 "#,
             ),
             ("public-file.txt", "This should be copied\n"),
@@ -249,9 +248,8 @@ fn test_source_exclude_operator_respected() {
                 ".common-repo.yaml",
                 r#"# Source excludes internal files
 - exclude:
-    patterns:
-      - "internal/**"
-      - "secret.txt"
+    - "internal/**"
+    - "secret.txt"
 "#,
             ),
             ("README.md", "Public readme\n"),
@@ -326,8 +324,7 @@ fn test_operation_order_source_then_consumer() {
                 ".common-repo.yaml",
                 r#"# Source only exposes public/ directory
 - include:
-    patterns:
-      - "public/**"
+    - "public/**"
 "#,
             ),
             ("public/readme.txt", "Public file\n"),
@@ -356,8 +353,7 @@ fn test_operation_order_source_then_consumer() {
     ref: main
     with:
       # Consumer asks for ALL files - but should only get source's exposed set
-      - include:
-          patterns: ["**/*"]
+      - include: ["**/*"]
 "#,
             source_url
         ))
@@ -484,12 +480,10 @@ fn test_source_combined_operations() {
                 ".common-repo.yaml",
                 r#"# Combined include and exclude
 - include:
-    patterns:
-      - "configs/**"
-      - "docs/**"
+    - "configs/**"
+    - "docs/**"
 - exclude:
-    patterns:
-      - "configs/internal.yaml"
+    - "configs/internal.yaml"
 "#,
             ),
             ("configs/app.yaml", "app config\n"),
@@ -580,7 +574,7 @@ fn test_alternate_config_filename_not_copied() {
     // Use alternate config filename
     source_repo
         .child(".commonrepo.yaml")
-        .write_str("# Alternate config\n- include:\n    patterns: [\"**/*\"]\n")
+        .write_str("# Alternate config\n- include: [\"**/*\"]\n")
         .unwrap();
     source_repo
         .child("data.txt")
@@ -634,4 +628,72 @@ fn test_alternate_config_filename_not_copied() {
 
     // Other files should be copied
     consumer.child("data.txt").assert(predicate::path::exists());
+}
+
+// =============================================================================
+// Real-world test: shakefu/vibes repository
+// =============================================================================
+
+/// Test against the real shakefu/vibes repository.
+///
+/// This repo has an include filter that only exposes CLAUDE.md and .mcp.json.
+/// This test verifies that:
+/// 1. Only included files are copied (CLAUDE.md, .mcp.json)
+/// 2. The source's .common-repo.yaml is NOT copied to consumer
+/// 3. Files not in the include list are not copied (LICENSE, README.md, etc.)
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_real_world_shakefu_vibes_repo() {
+    // Create consumer repository
+    let consumer = assert_fs::TempDir::new().unwrap();
+
+    // Consumer config references the real shakefu/vibes repo
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(
+            r#"# Consumer config - testing against real shakefu/vibes repo
+- repo:
+    url: "https://github.com/shakefu/vibes"
+    ref: main
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    // Apply the configuration
+    let assert = cmd
+        .current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert();
+
+    assert.success();
+
+    // Files in source's include SHOULD be copied
+    consumer
+        .child("CLAUDE.md")
+        .assert(predicate::path::exists());
+    consumer
+        .child(".mcp.json")
+        .assert(predicate::path::exists());
+
+    // Source's .common-repo.yaml should NOT be copied
+    // Consumer's config should still contain "Consumer config"
+    let config_content = std::fs::read_to_string(consumer.child(".common-repo.yaml").path())
+        .expect("Config file should exist");
+    assert!(
+        config_content.contains("Consumer config"),
+        "Consumer's .common-repo.yaml should NOT be overwritten.\nFound: {}",
+        config_content
+    );
+
+    // Files NOT in source's include should NOT be copied
+    consumer.child("LICENSE").assert(predicate::path::missing());
+    consumer
+        .child("README.md")
+        .assert(predicate::path::missing());
+    consumer
+        .child(".pre-commit-config.yaml")
+        .assert(predicate::path::missing());
 }

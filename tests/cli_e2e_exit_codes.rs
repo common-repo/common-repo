@@ -21,8 +21,7 @@ fn test_exit_code_success() {
         .write_str(
             r#"
 - include:
-    patterns:
-      - "*.txt"
+    - "*.txt"
 "#,
         )
         .unwrap();
@@ -153,8 +152,7 @@ fn test_exit_code_diff_no_changes() {
         .write_str(
             r#"
 - include:
-    patterns:
-      - "*.nonexistent"
+    - "*.nonexistent"
 "#,
         )
         .unwrap();
@@ -223,8 +221,7 @@ fn test_verbose_flag_works_with_subcommand() {
         .write_str(
             r#"
 - include:
-    patterns:
-      - "*.txt"
+    - "*.txt"
 "#,
         )
         .unwrap();
@@ -251,8 +248,7 @@ fn test_quiet_flag_works_with_subcommand() {
         .write_str(
             r#"
 - include:
-    patterns:
-      - "*.txt"
+    - "*.txt"
 "#,
         )
         .unwrap();

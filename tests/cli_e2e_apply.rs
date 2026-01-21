@@ -62,8 +62,7 @@ fn test_apply_valid_config() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["README.md"]
+- include: ["README.md"]
 "#,
         )
         .unwrap();
@@ -89,8 +88,7 @@ fn test_apply_dry_run() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -116,8 +114,7 @@ fn test_apply_verbose() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -144,8 +141,7 @@ fn test_apply_force() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -172,8 +168,7 @@ fn test_apply_no_cache() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -200,8 +195,7 @@ fn test_apply_quiet() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -229,8 +223,7 @@ fn test_apply_custom_output() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -259,8 +252,7 @@ fn test_apply_custom_cache_root() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -334,8 +326,7 @@ fn test_apply_env_config() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -361,8 +352,7 @@ fn test_apply_env_cache() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -429,8 +419,7 @@ fn test_apply_nested_repo_inheritance_invalid() {
     url: "https://invalid-domain-that-does-not-exist.example/parent"
     ref: "main"
     with:
-      - include:
-          patterns: ["**/*"]
+      - include: ["**/*"]
 "#,
         )
         .unwrap();

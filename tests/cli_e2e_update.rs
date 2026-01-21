@@ -59,8 +59,7 @@ fn test_update_no_repos() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["*.md"]
+- include: ["*.md"]
 "#,
         )
         .unwrap();

@@ -299,10 +299,8 @@ mod tests {
 - repo:
     url: https://example.com/repo
     ref: main
-- include:
-    patterns: ["*.rs"]
-- exclude:
-    patterns: ["*.tmp"]
+- include: ["*.rs"]
+- exclude: ["*.tmp"]
 "#;
 
         std::fs::write(&config_path, config_content).unwrap();

@@ -387,8 +387,7 @@ fn build_config_from_repos(repos: &[RepoEntry]) -> String {
         }
 
         config.push_str("- include:\n");
-        config.push_str("    patterns:\n");
-        config.push_str("      - \"**/*\"\n");
+        config.push_str("    - \"**/*\"\n");
     }
 
     config
