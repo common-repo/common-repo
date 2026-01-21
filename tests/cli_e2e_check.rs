@@ -62,8 +62,7 @@ fn test_check_valid_config_no_repos() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["README.md"]
+- include: ["README.md"]
 "#,
         )
         .unwrap();
@@ -126,10 +125,8 @@ fn test_check_shows_operation_counts() {
 - repo:
     url: https://github.com/common-repo/common-repo.git
     ref: main
-- include:
-    patterns: ["**/*.md"]
-- exclude:
-    patterns: ["vendor/**"]
+- include: ["**/*.md"]
+- exclude: ["vendor/**"]
 "#,
         )
         .unwrap();
@@ -156,8 +153,7 @@ fn test_check_shows_updates_tip() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["*.md"]
+- include: ["*.md"]
 "#,
         )
         .unwrap();
@@ -205,8 +201,7 @@ fn test_check_custom_cache_root() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -236,8 +231,7 @@ fn test_check_env_cache() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -265,8 +259,7 @@ fn test_check_updates_no_repos() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["*.md"]
+- include: ["*.md"]
 "#,
         )
         .unwrap();

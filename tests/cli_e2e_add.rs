@@ -53,8 +53,7 @@ fn test_add_to_existing_config() {
     ref: v1.0.0
 
 - include:
-    patterns:
-      - "**/*"
+    - "**/*"
 "#,
         )
         .unwrap();

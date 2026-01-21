@@ -189,7 +189,7 @@ mod tests {
         let config_path = temp_dir.path().join(".common-repo.yaml");
 
         // Create a minimal valid config file
-        fs::write(&config_path, "- include:\n    patterns: ['**/*']").unwrap();
+        fs::write(&config_path, "- include: ['**/*']").unwrap();
 
         let args = ApplyArgs {
             config: Some(config_path),
@@ -229,7 +229,7 @@ mod tests {
     fn test_dry_run_mode() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join(".common-repo.yaml");
-        fs::write(&config_path, "- include:\n    patterns: ['**/*']").unwrap();
+        fs::write(&config_path, "- include: ['**/*']").unwrap();
 
         let args = ApplyArgs {
             config: Some(config_path),
@@ -253,7 +253,7 @@ mod tests {
         let output_dir = temp_dir.path().join("output");
 
         // Create a minimal valid config file
-        fs::write(&config_path, "- include:\n    patterns: ['**/*']").unwrap();
+        fs::write(&config_path, "- include: ['**/*']").unwrap();
 
         let args = ApplyArgs {
             config: Some(config_path),
@@ -282,7 +282,11 @@ mod tests {
             .join("path");
 
         // Create a config that tries to include files
-        fs::write(&config_path, "- include:\n    patterns: ['**/*']\n- repo:\n    url: https://github.com/invalid/repo\n    ref: main").unwrap();
+        fs::write(
+            &config_path,
+            "- include: ['**/*']\n- repo:\n    url: https://github.com/invalid/repo\n    ref: main",
+        )
+        .unwrap();
 
         let args = ApplyArgs {
             config: Some(config_path),

@@ -44,22 +44,18 @@ pub mod prelude {
 pub mod configs {
     /// Minimal valid configuration with include patterns.
     pub const MINIMAL: &str = r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#;
 
     /// Minimal configuration with README only.
     pub const README_ONLY: &str = r#"
-- include:
-    patterns: ["README.md"]
+- include: ["README.md"]
 "#;
 
     /// Configuration with include and exclude.
     pub const WITH_EXCLUDE: &str = r#"
-- include:
-    patterns: ["**/*"]
-- exclude:
-    patterns: ["target/**", ".git/**"]
+- include: ["**/*"]
+- exclude: ["target/**", ".git/**"]
 "#;
 
     /// Invalid YAML for error testing.

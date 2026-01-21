@@ -32,10 +32,8 @@ fn test_info_minimal_config() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["*.rs"]
-- exclude:
-    patterns: ["*.tmp"]
+- include: ["*.rs"]
+- exclude: ["*.tmp"]
 "#,
         )
         .unwrap();
@@ -68,8 +66,7 @@ fn test_info_config_with_repositories() {
 - repo:
     url: https://github.com/common-repo/common-repo.git
     ref: main
-- include:
-    patterns: ["*.rs"]
+- include: ["*.rs"]
 "#,
         )
         .unwrap();
@@ -145,16 +142,13 @@ fn test_info_various_operations() {
 - repo:
     url: https://github.com/common-repo/common-repo.git
     ref: main
-- include:
-    patterns: ["*.rs", "*.toml"]
-- exclude:
-    patterns: ["*.tmp"]
+- include: ["*.rs", "*.toml"]
+- exclude: ["*.tmp"]
 - rename:
     mappings:
       - from: "old_(.+)"
         to: "new_$1"
-- template:
-    patterns: ["*.md"]
+- template: ["*.md"]
 - tools:
     tools:
       - name: cargo
@@ -288,8 +282,7 @@ fn test_info_template_vars() {
     vars:
       VERSION: "1.0.0"
       AUTHOR: "test"
-- template:
-    patterns: ["*.md"]
+- template: ["*.md"]
 "#,
         )
         .unwrap();

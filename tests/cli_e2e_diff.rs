@@ -42,8 +42,7 @@ fn test_diff_no_changes() {
     temp.child(".common-repo.yaml")
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -79,8 +78,7 @@ fn test_diff_with_changes_exits_nonzero() {
     temp.child(".common-repo.yaml")
         .write_str(
             r#"
-- include:
-    patterns: ["nonexistent_pattern_to_force_empty/*"]
+- include: ["nonexistent_pattern_to_force_empty/*"]
 "#,
         )
         .unwrap();
@@ -106,8 +104,7 @@ fn test_diff_with_summary_flag() {
     temp.child(".common-repo.yaml")
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -138,8 +135,7 @@ fn test_diff_detects_file_content_change() {
     temp.child(".common-repo.yaml")
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -169,8 +165,7 @@ fn test_diff_shows_modified_files() {
     temp.child(".common-repo.yaml")
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -202,8 +197,7 @@ fn test_diff_custom_config_path() {
     std::fs::write(
         &custom_config,
         r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
     )
     .unwrap();
@@ -250,8 +244,7 @@ fn test_diff_summary_flag_works() {
     temp.child(".common-repo.yaml")
         .write_str(
             r#"
-- include:
-    patterns: ["**/*"]
+- include: ["**/*"]
 "#,
         )
         .unwrap();
@@ -281,8 +274,7 @@ fn test_diff_empty_config_no_changes() {
     temp.child(".common-repo.yaml")
         .write_str(
             r#"
-- include:
-    patterns: ["*.nonexistent"]
+- include: ["*.nonexistent"]
 "#,
         )
         .unwrap();

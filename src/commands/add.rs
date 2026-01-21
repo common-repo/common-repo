@@ -187,8 +187,7 @@ fn create_minimal_config(config_path: &Path, url: &str, version: &str) -> Result
     ref: {}
 
 - include:
-    patterns:
-      - "**/*"
+    - "**/*"
 "#,
         url, version
     );
@@ -328,8 +327,7 @@ mod tests {
     ref: v1.0.0
 
 - include:
-    patterns:
-      - "**/*"
+    - "**/*"
 "#;
         fs::write(&config_path, initial_config).unwrap();
 

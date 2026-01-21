@@ -312,12 +312,9 @@ fn test_basic_inheritance_pipeline() {
     url: https://github.com/common-repo/common-repo.git
     ref: main
     with:
-    - include:
-        patterns: ["README.md", "Cargo.toml"]
-    - exclude:
-        patterns: ["target/**", ".git/**"]
-- include:
-    patterns: ["src/**/*.rs"]
+    - include: ["README.md", "Cargo.toml"]
+    - exclude: ["target/**", ".git/**"]
+- include: ["src/**/*.rs"]
 - rename:
     mappings:
     - from: "(.*)\\.rs"

@@ -32,10 +32,8 @@ fn test_tree_minimal_config() {
     config_file
         .write_str(
             r#"
-- include:
-    patterns: ["*.rs"]
-- exclude:
-    patterns: ["*.tmp"]
+- include: ["*.rs"]
+- exclude: ["*.tmp"]
 "#,
         )
         .unwrap();
@@ -69,8 +67,7 @@ fn test_tree_config_with_repositories() {
 - repo:
     url: https://github.com/example/repo2.git
     ref: v1.0.0
-- include:
-    patterns: ["*.rs"]
+- include: ["*.rs"]
 "#,
         )
         .unwrap();
@@ -278,10 +275,8 @@ fn test_tree_config_with_with_clauses() {
     url: https://github.com/example/base-config.git
     ref: main
     with:
-      - include:
-          patterns: ["*.yaml"]
-      - exclude:
-          patterns: ["*.tmp"]
+      - include: ["*.yaml"]
+      - exclude: ["*.tmp"]
 - repo:
     url: https://github.com/example/templates.git
     ref: v2.0.0

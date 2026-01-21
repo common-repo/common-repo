@@ -73,21 +73,44 @@ pub struct RepoOp {
 }
 
 /// Include operator configuration
+///
+/// Deserializes directly from a list of patterns:
+/// ```yaml
+/// - include:
+///     - "**/*"
+///     - "*.md"
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct IncludeOp {
     /// A list of glob patterns specifying the files to include.
     pub patterns: Vec<String>,
 }
 
 /// Exclude operator configuration
+///
+/// Deserializes directly from a list of patterns:
+/// ```yaml
+/// - exclude:
+///     - ".git/**"
+///     - "*.tmp"
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ExcludeOp {
     /// A list of glob patterns specifying the files to exclude.
     pub patterns: Vec<String>,
 }
 
 /// Template operator configuration
+///
+/// Deserializes directly from a list of patterns:
+/// ```yaml
+/// - template:
+///     - "templates/**"
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct TemplateOp {
     /// A list of glob patterns specifying the files to mark as templates.
     pub patterns: Vec<String>,
@@ -667,7 +690,8 @@ pub struct MarkdownMergeOp {
     /// Destination file to merge into (required unless auto_merge is set)
     #[serde(default)]
     pub dest: Option<String>,
-    /// Section header to merge under
+    /// Section header to merge under (empty string means merge entire file)
+    #[serde(default)]
     pub section: String,
     /// Whether to append (true) or replace (false)
     #[serde(default)]
@@ -1153,9 +1177,11 @@ mod tests {
     url: https://github.com/example/repo
     ref: main
 - include:
-    patterns: ["**/*", "*.md"]
+    - "**/*"
+    - "*.md"
 - exclude:
-    patterns: [".git/**", "*.tmp"]
+    - ".git/**"
+    - "*.tmp"
 "#;
 
         let schema = parse(yaml).unwrap();
@@ -1259,13 +1285,15 @@ mod tests {
     ref: main
     with:
       - include:
-          patterns: ["src/**/*"]
+          - "src/**/*"
 - include:
-    patterns: ["**/*.md", "docs/**"]
+    - "**/*.md"
+    - "docs/**"
 - exclude:
-    patterns: [".git/**", "*.tmp"]
+    - ".git/**"
+    - "*.tmp"
 - template:
-    patterns: ["*.template"]
+    - "*.template"
 - rename:
     mappings:
       - from: "old_(.*)"
@@ -1347,9 +1375,9 @@ mod tests {
           ref: main
           with:
             - include:
-                patterns: ["src/**"]
+                - "src/**"
       - exclude:
-          patterns: ["tests/**"]
+          - "tests/**"
 "#;
 
         let schema = parse(nested_yaml).unwrap();
@@ -2343,15 +2371,22 @@ mod tests {
         }
 
         #[test]
-        fn test_parse_markdown_merge_missing_section() {
-            // Markdown merge requires a section
+        fn test_parse_markdown_merge_section_optional() {
+            // Markdown merge section is optional (defaults to empty string)
             let yaml = r#"
 - markdown:
     source: fragment.md
     dest: README.md
 "#;
             let result = parse(yaml);
-            assert!(result.is_err());
+            assert!(result.is_ok());
+            let ops = result.unwrap();
+            match &ops[0] {
+                Operation::Markdown { markdown } => {
+                    assert_eq!(markdown.section, "");
+                }
+                _ => panic!("Expected Markdown operation"),
+            }
         }
 
         #[test]

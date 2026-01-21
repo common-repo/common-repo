@@ -96,8 +96,7 @@ fn test_validate_invalid_glob_pattern() {
         .write_str(
             r#"
 - include:
-    patterns:
-      - "[invalid"
+    - "[invalid"
 "#,
         )
         .unwrap();
@@ -224,14 +223,12 @@ fn test_validate_complex_valid_config() {
         to: "new_"
 
 - include:
-    patterns:
-      - "*.rs"
-      - "Cargo.toml"
+    - "*.rs"
+    - "Cargo.toml"
 
 - exclude:
-    patterns:
-      - "target/**"
-      - "*.bak"
+    - "target/**"
+    - "*.bak"
 
 - tools:
     tools:
