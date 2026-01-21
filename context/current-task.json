@@ -1,6 +1,7 @@
 {
-  "task": "init-apply-bug",
-  "plan": "context/init-apply-bug-plan.json",
-  "last_updated": "2026-01-20",
-  "description": "Fix bug where common-repo init/apply copies source's .common-repo.yaml and ignores source's include operator"
+  "task": "init-apply-bug-fix",
+  "plan": "context/init-apply-bug-fix-plan.json",
+  "last_updated": "2026-01-21",
+  "description": "Implement fixes for source repo operation semantics",
+  "investigation_plan": "context/init-apply-bug-plan.json"
 }

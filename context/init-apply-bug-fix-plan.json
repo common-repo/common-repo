@@ -1,0 +1,172 @@
+{
+  "plan_name": "Fix init/apply Source Repo Operation Handling",
+  "last_updated": "2026-01-21",
+  "description": "Implement fixes for source repo operation semantics: apply source's include/exclude/rename operations and auto-exclude config files",
+  "confirmed_semantics": {
+    "include_in_source": "Defines the set of files exposed to consumers (allowlist). If omitted, all files from the repo are exposed.",
+    "exclude_in_source": "Removes files from the composite (all files inherited/composited thus far). Applied after include.",
+    "rename_in_source": "Renames files in the exposed set before consumers see them.",
+    "with_clause_in_consumer": "Further filters/transforms the files received from source. Applied after source operations.",
+    "config_file_handling": ".common-repo.yaml and .commonrepo.yaml are auto-excluded from all source repos",
+    "operation_order": "Source ops first, then consumer with: ops",
+    "pure_inheritance_repos": "Valid use case for meta/complex repo chains"
+  },
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test in background to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "write-failing-e2e-tests",
+      "name": "Write failing E2E tests demonstrating the bugs",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "description": "Create E2E tests that fail with current implementation but will pass after fixes",
+      "steps": [
+        "Create test for source's .common-repo.yaml NOT being copied to consumer",
+        "Create test for source's include: operator being respected",
+        "Create test for source's exclude: operator being respected",
+        "Create test verifying operation order: source ops then consumer with: ops",
+        "Verify all tests fail with current implementation"
+      ],
+      "output_file": "tests/cli_e2e_source_ops.rs",
+      "acceptance_criteria": [
+        "Tests exist in tests/cli_e2e_source_ops.rs",
+        "Tests fail with current implementation",
+        "Tests cover both bug symptoms: config file copying and include/exclude ignored"
+      ]
+    },
+    {
+      "id": "extract-source-filtering-ops",
+      "name": "Extract source repo's filtering operations in discovery phase",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "write-failing-e2e-tests",
+      "description": "Modify discovery.rs to extract include/exclude/rename operations from source repos (not just deferred ops)",
+      "steps": [
+        "Create new function extract_source_filtering_operations() that extracts include/exclude/rename ops",
+        "Modify discover_inherited_configs() to call this function",
+        "Combine source filtering ops with deferred ops, then consumer's with: clause ops",
+        "Ensure operation order is: source filtering ops -> deferred ops -> consumer with: ops"
+      ],
+      "output_file": "src/phases/discovery.rs",
+      "acceptance_criteria": [
+        "Source repo's include/exclude/rename operations are extracted",
+        "Operations are combined in correct order",
+        "Existing tests still pass"
+      ]
+    },
+    {
+      "id": "auto-exclude-config-files",
+      "name": "Auto-exclude .common-repo.yaml from source repos",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "extract-source-filtering-ops",
+      "description": "Automatically exclude config files from source repos so they're never copied to consumers",
+      "implementation_options": [
+        {
+          "option": "A",
+          "description": "Add auto-exclude in discovery.rs when building combined_operations",
+          "pros": ["Explicit in the discovery phase", "Easy to understand"],
+          "cons": ["Adds an operation that wasn't in the original config"]
+        },
+        {
+          "option": "B",
+          "description": "Filter config files in processing.rs after fetching repo",
+          "pros": ["Centralized filtering", "Works regardless of operations"],
+          "cons": ["Hidden behavior not visible in operation list"]
+        },
+        {
+          "option": "C",
+          "description": "Add implicit exclude to RepositoryManager.fetch_repository()",
+          "pros": ["Lowest level, always applied"],
+          "cons": ["May surprise users expecting raw repo contents"]
+        }
+      ],
+      "recommended_option": "B",
+      "steps": [
+        "In processing.rs process_single_repo(), after fetching repo but before applying ops",
+        "Remove .common-repo.yaml and .commonrepo.yaml from the MemoryFS",
+        "Add constant for config file patterns to crate::config",
+        "Ensure this applies to all source repos (not local)"
+      ],
+      "output_file": "src/phases/processing.rs",
+      "acceptance_criteria": [
+        "Source repo's .common-repo.yaml is never in intermediate filesystem",
+        "Local repo's .common-repo.yaml handling unchanged",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "update-unit-tests",
+      "name": "Update unit tests for new behavior",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "auto-exclude-config-files",
+      "description": "Add/update unit tests for the new source operation semantics",
+      "steps": [
+        "Add unit tests for extract_source_filtering_operations()",
+        "Add unit tests for config file auto-exclusion",
+        "Update any existing tests that may be affected",
+        "Ensure test coverage for edge cases"
+      ],
+      "acceptance_criteria": [
+        "Unit tests cover new functionality",
+        "All existing tests pass",
+        "Edge cases covered: no include (all files), exclude only, rename"
+      ]
+    },
+    {
+      "id": "verify-e2e-tests-pass",
+      "name": "Verify E2E tests now pass",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "update-unit-tests",
+      "description": "Run the E2E tests created in task 1 and verify they pass",
+      "steps": [
+        "Run cargo nextest run cli_e2e_source_ops",
+        "Verify all tests pass",
+        "Run full test suite to ensure no regressions"
+      ],
+      "acceptance_criteria": [
+        "E2E tests from task 1 pass",
+        "Full test suite passes",
+        "No regressions"
+      ]
+    },
+    {
+      "id": "update-documentation",
+      "name": "Update documentation for source/consumer semantics",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "verify-e2e-tests-pass",
+      "description": "Update user documentation to explain source repo operation behavior",
+      "steps": [
+        "Update docs/src/configuration.md or relevant doc file",
+        "Document that source repos can use include/exclude/rename to define exposed files",
+        "Document that .common-repo.yaml is auto-excluded from source repos",
+        "Add examples showing source repo configuration"
+      ],
+      "acceptance_criteria": [
+        "Documentation explains source repo operations",
+        "Examples provided",
+        "prose check passes"
+      ]
+    }
+  ],
+  "key_files": {
+    "discovery_phase": "src/phases/discovery.rs",
+    "processing_phase": "src/phases/processing.rs",
+    "config_module": "src/config.rs",
+    "e2e_tests": "tests/cli_e2e_source_ops.rs"
+  },
+  "notes": [
+    "The fix requires changes in both discovery.rs (extract ops) and processing.rs (auto-exclude config)",
+    "Operation order matters: source filtering ops -> deferred ops -> consumer with: ops",
+    "Config files (.common-repo.yaml, .commonrepo.yaml) must NEVER be copied to consumers",
+    "Pure inheritance repos (no files, only repo: operations) are a valid use case"
+  ]
+}
