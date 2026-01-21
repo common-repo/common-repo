@@ -1,7 +1,6 @@
 {
-  "task": "init-apply-bug-fix",
-  "plan": "context/init-apply-bug-fix-plan.json",
-  "last_updated": "2026-01-21",
-  "description": "Implement fixes for source repo operation semantics",
-  "investigation_plan": "context/init-apply-bug-plan.json"
+  "task": "add-size-optimized-profile",
+  "plan": "context/performance-review.json",
+  "last_updated": "2026-01-07",
+  "description": "Add size-optimized build profile for smaller binaries"
 }
