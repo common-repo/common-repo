@@ -1,6 +1,6 @@
 {
-  "task": "add-action-validator",
-  "plan": "context/github-action-impl-plan.json",
-  "last_updated": "2026-01-09",
-  "description": "Implement GitHub Action for automated upstream sync"
+  "task": "init-apply-bug",
+  "plan": "context/init-apply-bug-plan.json",
+  "last_updated": "2026-01-20",
+  "description": "Fix bug where common-repo init/apply copies source's .common-repo.yaml and ignores source's include operator"
 }

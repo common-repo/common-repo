@@ -1,0 +1,199 @@
+{
+  "plan_name": "Investigate common-repo init/apply Bug",
+  "last_updated": "2026-01-20",
+  "description": "Investigate bug where common-repo init copies source's .common-repo.yaml and ignores source's include operator",
+  "reported_symptoms": [
+    "Running 'common-repo init shakefu/vibes' then 'apply' copies the source's .common-repo.yaml instead of keeping the generated config",
+    "The source repo's 'include' operator in its .common-repo.yaml is ignored - all files are brought in"
+  ],
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test in background to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "initial_analysis": {
+    "init_command": {
+      "file": "src/commands/init.rs",
+      "behavior": "Creates a .common-repo.yaml with '- repo:' pointing to source and '- include: [\"**/*\"]' to include all files from inherited repos"
+    },
+    "apply_command": {
+      "phases": [
+        "Phase 1 (discovery.rs): Fetches source repo, parses its .common-repo.yaml to find nested repos and deferred ops",
+        "Phase 2 (processing.rs): Applies operations to each repo's filesystem",
+        "Phase 5 (local_merge.rs): Merges composite with local files - ONLY excludes LOCAL .common-repo.yaml (lines 132-138)",
+        "Phase 6 (write.rs): Writes final filesystem to disk"
+      ]
+    },
+    "suspected_root_causes": [
+      {
+        "symptom": "Source's .common-repo.yaml is copied",
+        "cause": "Phase 5 only excludes .common-repo.yaml from LOCAL files (lines 132-138 in local_merge.rs). The source repo's .common-repo.yaml is included in the composite filesystem and gets written to disk.",
+        "evidence": "load_local_fs() skips DEFAULT_CONFIG_FILENAME but this only applies to loading local files, not filtering the composite filesystem"
+      },
+      {
+        "symptom": "Source's include operator is ignored",
+        "cause": "In discovery.rs discover_inherited_configs(), source repo's own operations (like include) are NOT applied to filter its files. Only deferred ops (auto-merge, defer:true) and consumer's with: clause operations are used.",
+        "evidence": "Lines 109-133 in discovery.rs: extract_deferred_operations() only extracts ops with is_deferred()=true. The inherited_node's operations are not applied to the source's filesystem - only used for recursive inheritance discovery.",
+        "confirmed_bug": true,
+        "intended_behavior": "Source repos should be able to use include/exclude/rename to define their 'public API' of files exposed to consumers, without requiring consumers to specify with: clauses"
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "define-source-consumer-semantics",
+      "name": "Define source/consumer operation semantics",
+      "status": "pending",
+      "priority": 0,
+      "blocked_by": null,
+      "description": "Clarify and document the intended behavior for how source repo operations affect consumers",
+      "context": "Currently, source repo's include/exclude/rename operations are ignored - only deferred ops (auto-merge) affect consumers. The intended design is that source repos should be able to define what files they expose without consumers needing to specify everything in with: clauses.",
+      "discussion_points": [
+        "Source repos without inheritance should be able to use include/exclude/rename to define their 'public API' of files",
+        "When a source has no nested repo: operations, its include/exclude/rename should filter what files consumers receive",
+        "The .common-repo.yaml file itself should never be copied to consumers",
+        "How should source operations interact with consumer's with: clause? (source filters first, then consumer filters?)",
+        "Should this apply to all source repos, or only 'leaf' repos with no inheritance?",
+        "Backwards compatibility: repos currently exposing all files would now need explicit include patterns"
+      ],
+      "proposed_semantics": {
+        "include_in_source": "Defines the set of files exposed to consumers (allowlist). If no include, all files are exposed.",
+        "exclude_in_source": "Removes files from the exposed set (denylist). Applied after include.",
+        "rename_in_source": "Renames files in the exposed set before consumers see them.",
+        "with_clause_in_consumer": "Further filters/transforms the files received from source. Applied after source operations.",
+        "config_file_handling": ".common-repo.yaml and .commonrepo.yaml should be auto-excluded from all source repos"
+      },
+      "steps": [
+        "Review existing documentation in context/design.md and context/cli-design.md for stated intentions",
+        "Document the proposed source/consumer operation semantics",
+        "Identify any edge cases or conflicts with current behavior",
+        "Get user confirmation on the intended semantics before proceeding with fixes"
+      ],
+      "acceptance_criteria": [
+        "Clear written specification of how source include/exclude/rename should work",
+        "Decision on whether source ops apply to all repos or only leaf repos",
+        "User approval of the semantics before implementation"
+      ]
+    },
+    {
+      "id": "reproduce-bug",
+      "name": "Reproduce the bug with shakefu/vibes",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": "define-source-consumer-semantics",
+      "steps": [
+        "Create a temp directory",
+        "Run 'common-repo init shakefu/vibes'",
+        "Examine the generated .common-repo.yaml",
+        "Run 'common-repo apply --dry-run' to see what files would be created",
+        "Verify whether source's .common-repo.yaml appears in output",
+        "Check what files from shakefu/vibes would be copied"
+      ],
+      "acceptance_criteria": [
+        "Bug reproduction confirmed or denied",
+        "Clear understanding of actual vs expected behavior"
+      ]
+    },
+    {
+      "id": "examine-source-repo-config",
+      "name": "Examine shakefu/vibes .common-repo.yaml",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": null,
+      "steps": [
+        "Fetch or view shakefu/vibes .common-repo.yaml from GitHub",
+        "Document what operations it contains (especially include patterns)",
+        "Determine what files SHOULD be copied based on its config"
+      ],
+      "acceptance_criteria": [
+        "Source repo's config documented",
+        "Expected behavior defined"
+      ]
+    },
+    {
+      "id": "trace-config-file-handling",
+      "name": "Trace how .common-repo.yaml is handled throughout pipeline",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "reproduce-bug",
+      "steps": [
+        "Add debug logging to Phase 1 to see what files are in source repo",
+        "Trace through Phase 2 to see if .common-repo.yaml is in intermediate filesystem",
+        "Verify Phase 5 only excludes LOCAL config, not source's config",
+        "Check if there's any mechanism to exclude config files from source repos"
+      ],
+      "acceptance_criteria": [
+        "Full trace of where .common-repo.yaml comes from in output",
+        "Confirmed whether Phase 5 is the culprit"
+      ]
+    },
+    {
+      "id": "analyze-include-operator-handling",
+      "name": "Analyze how source repo's include operator is (not) handled",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "reproduce-bug",
+      "steps": [
+        "Review discovery.rs extract_deferred_operations() to confirm include is not deferred",
+        "Verify that source's own operations are only used for recursive inheritance",
+        "Determine if this is by design or a bug",
+        "Check documentation for expected behavior of source repo operations"
+      ],
+      "acceptance_criteria": [
+        "Clear understanding of whether source include ops SHOULD be applied",
+        "Documentation of current vs expected behavior"
+      ]
+    },
+    {
+      "id": "identify-fix-options",
+      "name": "Identify potential fixes",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": ["trace-config-file-handling", "analyze-include-operator-handling"],
+      "steps": [
+        "For .common-repo.yaml copying: Consider excluding it from source repos in Phase 2 or composite construction",
+        "For include operator: Determine if source's include should act as a 'public files' declaration",
+        "Consider backwards compatibility implications",
+        "Document pros/cons of each approach"
+      ],
+      "acceptance_criteria": [
+        "At least 2 fix options documented with trade-offs",
+        "Recommended approach identified"
+      ]
+    },
+    {
+      "id": "write-failing-tests",
+      "name": "Write failing tests that demonstrate the bug",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "identify-fix-options",
+      "steps": [
+        "Write E2E test for .common-repo.yaml not being copied from source",
+        "Write E2E test for source's include operator being respected",
+        "Ensure tests fail with current implementation"
+      ],
+      "acceptance_criteria": [
+        "Tests fail demonstrating both bug symptoms",
+        "Tests are in tests/cli_e2e_*.rs format"
+      ]
+    }
+  ],
+  "key_files": {
+    "init_command": "src/commands/init.rs",
+    "apply_command": "src/commands/apply.rs",
+    "discovery_phase1": "src/phases/discovery.rs",
+    "processing_phase2": "src/phases/processing.rs",
+    "local_merge_phase5": "src/phases/local_merge.rs",
+    "write_phase6": "src/phases/write.rs",
+    "operators": "src/operators.rs",
+    "orchestrator": "src/phases/orchestrator.rs"
+  },
+  "notes": [
+    "The init command generates a config with '- include: [**/*]' but this applies to LOCAL files, not inherited repos",
+    "Source repo files are included wholesale unless consumer specifies 'with:' clause filters",
+    "Deferred operations (auto-merge, defer:true) are the only source-defined operations that affect consumers",
+    "CONFIRMED BUG: Source repos should be able to define their exposed files via include/exclude/rename without consumers needing with: clauses",
+    "The .common-repo.yaml file should NEVER be copied from source repos to consumers"
+  ]
+}
