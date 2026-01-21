@@ -38,9 +38,12 @@ use std::hash::{Hash, Hasher};
 
 use serde_yaml;
 
+use std::path::Path;
+
 use super::{IntermediateFS, RepoNode, RepoTree};
 use crate::cache::{CacheKey, RepoCache};
 use crate::config::Operation;
+use crate::defaults::{ALT_CONFIG_FILENAME, DEFAULT_CONFIG_FILENAME};
 use crate::error::{Error, Result};
 use crate::filesystem::MemoryFS;
 use crate::operators;
@@ -107,6 +110,8 @@ fn process_single_repo(
     if let Some(cache_key) = cache_key_for_node(node)? {
         let fs = cache.get_or_process(cache_key, || -> Result<MemoryFS> {
             let mut fs = repo_manager.fetch_repository(&node.url, &node.ref_)?;
+            // Remove source repo's config files so they don't get copied to consumers
+            remove_source_config_files(&mut fs);
             for operation in &node.operations {
                 apply_operation(&mut fs, operation)?;
             }
@@ -198,6 +203,18 @@ fn cache_key_for_node(node: &RepoNode) -> Result<Option<CacheKey>> {
         &format!("{}#{}", node.url, fingerprint),
         &node.ref_,
     )))
+}
+
+/// Remove source repository's config files from the filesystem
+///
+/// Config files (.common-repo.yaml and .commonrepo.yaml) should never be
+/// copied from source repos to consumers. This function removes them after
+/// fetching a source repository but before applying any operations.
+fn remove_source_config_files(fs: &mut MemoryFS) {
+    // Remove primary config filename
+    let _ = fs.remove_file(Path::new(DEFAULT_CONFIG_FILENAME));
+    // Remove alternate config filename
+    let _ = fs.remove_file(Path::new(ALT_CONFIG_FILENAME));
 }
 
 /// Apply a single operation to a filesystem

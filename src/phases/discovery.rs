@@ -106,8 +106,13 @@ fn discover_inherited_configs(
             // Try to fetch and parse the inherited config
             match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
                 Ok(inherited_config) => {
+                    // Extract source filtering operations (include/exclude/rename)
+                    // These define the "public API" of files the source exposes
+                    let source_filtering_ops =
+                        extract_source_filtering_operations(&inherited_config);
+
                     // Extract deferred operations from the source repo's config
-                    // These will be prepended to the consumer's operations
+                    // These are merge operations with defer: true or auto-merge
                     let deferred_ops = extract_deferred_operations(&inherited_config);
 
                     // Process the inherited config to get its repo operations
@@ -117,9 +122,12 @@ fn discover_inherited_configs(
                     let inherited_node =
                         discover_inherited_configs(inherited_node, repo_manager, visited)?;
 
-                    // Combine deferred ops with consumer's with: operations
-                    // Deferred ops come first, then consumer ops (which can override)
-                    let mut combined_operations = deferred_ops;
+                    // Combine operations in correct order:
+                    // 1. Source filtering ops (define exposed file set)
+                    // 2. Deferred ops (source-declared merge behavior)
+                    // 3. Consumer's with: ops (can further filter/transform)
+                    let mut combined_operations = source_filtering_ops;
+                    combined_operations.extend(deferred_ops);
                     combined_operations.extend(child.operations.clone());
 
                     // The inherited node becomes a child with combined operations
@@ -201,6 +209,24 @@ fn extract_deferred_operations(config: &Schema) -> Vec<Operation> {
     config
         .iter()
         .filter(|op| op.is_deferred())
+        .cloned()
+        .collect()
+}
+
+/// Extract source filtering operations from a source repository's config
+///
+/// Source filtering operations are include, exclude, and rename operations
+/// that define the "public API" of files a source repo exposes to consumers.
+/// These are applied BEFORE deferred operations and consumer's with: clause.
+fn extract_source_filtering_operations(config: &Schema) -> Vec<Operation> {
+    config
+        .iter()
+        .filter(|op| {
+            matches!(
+                op,
+                Operation::Include { .. } | Operation::Exclude { .. } | Operation::Rename { .. }
+            )
+        })
         .cloned()
         .collect()
 }
