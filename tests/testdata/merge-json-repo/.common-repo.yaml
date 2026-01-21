@@ -2,8 +2,7 @@
 # This repo provides test fixtures for JSON merge operations
 
 - include:
-    patterns:
-      - "*.json"
+    - "*.json"
 
 # Test 1: Basic merge at root level
 - json:

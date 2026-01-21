@@ -2,9 +2,8 @@
 # This repo provides test fixtures for YAML merge operations
 
 - include:
-    patterns:
-      - "*.yml"
-      - "*.yaml"
+    - "*.yml"
+    - "*.yaml"
 
 # Test 1: Basic merge at root level
 - yaml:

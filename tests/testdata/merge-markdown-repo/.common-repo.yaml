@@ -2,8 +2,7 @@
 # This repo provides test fixtures for Markdown merge operations
 
 - include:
-    patterns:
-      - "*.md"
+    - "*.md"
 
 # Test 1: Append content to end of existing section
 # - Fragment content is appended after existing content in Features section
