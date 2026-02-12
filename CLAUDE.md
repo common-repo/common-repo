@@ -83,7 +83,7 @@ Per [Anthropic's long-running agent guide](https://www.anthropic.com/engineering
 </rules>
 
 <platform_limitations>
-<rule>AskUserQuestion unavailable on Claude Code iOS. Proceed with reasonable defaults or mention alternatives</rule>
+AskUserQuestion unavailable on Claude Code iOS. Proceed with reasonable defaults or mention alternatives.
 </platform_limitations>
 
 <structured_tracking>
@@ -123,15 +123,7 @@ Per [Anthropic's long-running agent guide](https://www.anthropic.com/engineering
         "No clippy warnings"
       ]
     },
-    {
-      "id": "dependent-task",
-      "name": "Task that depends on first",
-      "status": "pending",
-      "priority": 2,
-      "blocked_by": "task-id-kebab-case",
-      "steps": ["..."],
-      "acceptance_criteria": ["..."]
-    }
+    {"id": "dependent-task", "status": "pending", "blocked_by": "task-id-kebab-case", "...": "..."}
   ],
   "notes": [
     "Tasks with blocked_by=null can run in parallel",
@@ -182,23 +174,19 @@ How it works:
 <critical>Do not mark features complete prematurely.</critical>
 
 <rules>
-<rule>1. E2E tests exist and pass. Unit tests alone insufficient</rule>
-<rule>2. All acceptance criteria met. Check each explicitly</rule>
-<rule>3. Tests run and pass via `./script/test`. Don't assume</rule>
-<rule>4. Documentation updated for new commands/features</rule>
+<rule>E2E tests exist and pass. Unit tests alone insufficient</rule>
+<rule>All acceptance criteria met. Check each explicitly</rule>
+<rule>Tests run and pass via `./script/test`. Don't assume</rule>
+<rule>Documentation updated for new commands/features</rule>
 </rules>
 </feature_completion_criteria>
 </agent_effectiveness_guidelines>
 
-<development_commands>
-
-<building>
 ```bash
 cargo build           # Debug build
 cargo build --release # Release build
 cargo run             # Run application
 ```
-</building>
 
 <testing>
 Uses cargo-nextest for faster execution (falls back to `cargo test` if unavailable).
@@ -244,19 +232,15 @@ Command::cargo_bin("common-repo").unwrap()  // Don't use
 </example>
 </e2e_cli_tests>
 
-<test_coverage>
 ```bash
 cargo xtask coverage                 # HTML report (default)
 cargo xtask coverage --format json   # JSON report
 cargo xtask coverage --fail-under 80 # Fail if coverage < 80%
 cargo xtask coverage --open          # Open report in browser
 ```
-</test_coverage>
-
-</development_commands>
 
 <code_quality>
-<critical>Before every commit, run:</critical>
+Pre-commit validation tools:
 
 ```bash
 ./script/ci           # Recommended: all CI checks (no tests)
