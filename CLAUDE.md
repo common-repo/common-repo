@@ -16,42 +16,47 @@ This project follows the [Scripts to Rule Them All](https://github.com/github/sc
 
 Other scripts: `./script/bootstrap` (install deps), `./script/update` (after pulling changes)
 
-<when context="quick_validation_before_commit">`./script/ci` - fmt, clippy, pre-commit, security audits</when>
-<when context="run_tests_only">`./script/test`</when>
-<when context="full_ci_validation">`./script/cibuild` - update deps + checks + tests</when>
+When to use each script:
+<when context="quick_validation_before_commit">`./script/ci` - Quick validation before committing (fmt, clippy, pre-commit, security audits)</when>
+<when context="run_tests_only">`./script/test` - Run tests only</when>
+<when context="full_ci_validation">`./script/cibuild` - Full CI validation (update deps + checks + tests)</when>
 </quick_setup>
 
 <agent_session_protocol>
 Each session starts with no memory of previous work. Follow this protocol:
 
-1. Run `git status`, `git stash list`, check for unpushed commits. Ask user if any pending changes exist.
-2. Checkout main, pull latest changes on main branch, create branch `<type>/<description>-<session-id>`
-3. Run `./script/test` with `run_in_background: true` (skip for docs/context-only changes)
-4. Read `context/current-task.json` for active work
-5. Run `git log --oneline -5`
-6. Find first task where `status=pending` and `blocked_by=null`, complete it, update status
+1. Verify clean state: Run `git status`, `git stash list`, check for unpushed commits. Ask user if any pending changes exist.
+2. Create feature branch: Checkout main, pull latest changes on main branch, create branch `<type>/<description>-<session-id>`
+3. Start baseline tests: Run `./script/test` with `run_in_background: true` (skip for docs/context-only changes)
+4. Find current task: Read `context/current-task.json` for active work
+5. Review recent history: Run `git log --oneline -5`
+6. Execute: Find first task where `status=pending` and `blocked_by=null`, complete it, update status
 
-After making code changes, use `BashOutput` to check results. Start a new background test run after edits to verify changes.
+Using background tests: After making code changes, use `BashOutput` to check results. Start a new background test run after edits to verify changes.
 
 <context_files>
+Key context files:
 - `context/current-task.json` - Active task and plan file
 - `context/traceability-map.md` - Component to documentation mapping
-- Archived files in `context/completed/`: feature-status.json, implementation plans, testing guides
-- Reference docs: `context/cli-design.md`, `context/purpose.md`, `context/design.md`, `README.md`
-- User documentation: `docs/src/` contains mdBook-formatted user guides, served at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/)
+
+Archived files (in `context/completed/`): feature-status.json, implementation plans, testing guides
+
+Reference docs: `context/cli-design.md`, `context/purpose.md`, `context/design.md`, `README.md`
+
+User documentation: `docs/src/` contains mdBook-formatted user guides, served at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/)
 </context_files>
 
 <task_stash_stack>
 When interrupted by higher-priority work:
 
-<stash_push>
+<stash_push label="preserve current, start new">
 1. Rename `current-task.json` to `current-task-stash{N}.json` (skip if current task is null/empty)
 2. Create new `current-task.json` with new task
 3. Commit and push the change
 4. <critical>Do not start the new task without confirmation - user typically wants fresh sessions</critical>
 </stash_push>
 
-<stash_pop>
+<stash_pop label="resume after completing current">
 1. Delete/clear `current-task.json`
 2. Rename highest-numbered stash back to `current-task.json`
 </stash_pop>
