@@ -1,5 +1,5 @@
 <project_overview>
-Rust project. Automated code quality, conventional commits, semantic versioning, CI/CD.
+Rust project. Binary: `common-repo`. Automated code quality, conventional commits, semantic versioning, CI/CD.
 </project_overview>
 
 <quick_setup>
@@ -15,9 +15,9 @@ Follows [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-the
 Other scripts: `./script/bootstrap` (install deps), `./script/update` (after pulling changes)
 
 When to use each script:
-<when context="quick_validation_before_commit">`./script/ci` - fmt, clippy, pre-commit, security audits</when>
-<when context="run_tests_only">`./script/test`</when>
-<when context="full_ci_validation">`./script/cibuild` - deps update + checks + tests</when>
+- `./script/ci` - fmt, clippy, pre-commit, security audits
+- `./script/test` - tests only
+- `./script/cibuild` - deps update + checks + tests
 </quick_setup>
 
 <agent_session_protocol>
@@ -47,14 +47,16 @@ User docs: `docs/src/` mdBook guides at [common-repo.github.io/common-repo](http
 <task_stash_stack>
 On higher-priority interruption:
 
-<stash_push label="preserve current, start new">
+<stash_push>
+Push (preserve current, start new):
 1. Rename `current-task.json` to `current-task-stash{N}.json` (skip if null/empty)
 2. Create new `current-task.json` with new task
 3. Commit and push
 4. <critical>Do not start new task without user confirmation</critical>
 </stash_push>
 
-<stash_pop label="resume after completing current">
+<stash_pop>
+Pop (resume after completing current):
 1. Delete/clear `current-task.json`
 2. Rename highest-numbered stash back to `current-task.json`
 </stash_pop>
@@ -219,10 +221,11 @@ QUICK=1 ./script/test  # Also: SKIP_UPDATE=1 or CI=1
 <rule>Unit tests during development (fast, no network)</rule>
 <rule>Integration tests before major changes</rule>
 <rule>Integration tests disabled by default (feature-gated)</rule>
-<rule>Datatest tests for schema parsing auto-discover from YAML files</rule>
 <rule>All tests must pass for CI/CD</rule>
-<rule>Slow test config: `.config/nextest.toml`</rule>
 </rules>
+
+Datatest tests for schema parsing auto-discover from YAML files.
+Slow test config: `.config/nextest.toml`.
 </testing>
 
 <e2e_cli_tests>
@@ -275,6 +278,8 @@ cargo test                                             # Run tests
 
 Pre-commit hooks (`.pre-commit-config.yaml`): cargo fmt, cargo check, cargo clippy, conventional commit validation, trailing whitespace/YAML checks.
 
+Clippy is strict: all warnings are errors (`-D warnings`).
+
 <common_ci_failures>
 - Commit message >100 chars or wrong format
 - Code not formatted
@@ -306,6 +311,8 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 <rule>No hardcoded versions/dates/timestamps in tests. Use runtime checks</rule>
 <rule>When fixing tests: understand what's validated, fix underlying issue, flexible expectations</rule>
 <rule>Summaries: 1-2 sentences, no code samples unless requested</rule>
+<rule>When reviewing: look for flimsy tests, check for TODOs/stubs</rule>
+<rule>Before pushing: rebase on main and resolve conflicts</rule>
 </rules>
 </committing_guidelines>
 
@@ -339,12 +346,3 @@ cargo xtask check-prose . --verbose          # Show files being checked
 Exits 1 on match (CI-compatible). Full pattern list: `context/ai-writing-patterns.md`.
 </prose_linter>
 </documentation_style_guide>
-
-<important_notes>
-<rules>
-<rule>Clippy is strict: all warnings are errors (`-D warnings`)</rule>
-<rule>Binary name is `common-repo`</rule>
-<rule>When reviewing: look for flimsy tests, check for TODOs/stubs</rule>
-<rule>Before pushing: rebase on main and resolve conflicts</rule>
-</rules>
-</important_notes>
