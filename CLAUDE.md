@@ -15,17 +15,17 @@ Follows [Scripts to Rule Them All](https://github.com/github/scripts-to-rule-the
 Other scripts: `./script/bootstrap` (install deps), `./script/update` (after pulling changes)
 
 When to use each script:
-- `./script/ci` - fmt, clippy, pre-commit, security audits
+- `./script/ci` - quick validation before committing (fmt, clippy, pre-commit, security audits)
 - `./script/test` - tests only
-- `./script/cibuild` - deps update + checks + tests
+- `./script/cibuild` - full CI validation (deps update + checks + tests)
 </quick_setup>
 
 <agent_session_protocol>
-No memory of previous sessions. Protocol:
+No memory of previous work. Protocol:
 
 1. Verify clean state: `git status`, `git stash list`, check unpushed commits. Ask user about pending changes.
-2. Create feature branch: checkout main, pull latest, create `<type>/<description>-<session-id>`
-3. Start baseline tests: `./script/test` with `run_in_background: true` (skip for docs-only changes)
+2. Create feature branch: checkout main, pull latest on main, create `<type>/<description>-<session-id>`
+3. Start baseline tests: `./script/test` with `run_in_background: true` (skip for docs/context-only changes)
 4. Find current task: read `context/current-task.json`
 5. Review history: `git log --oneline -5`
 6. Execute: first task with `status=pending` and `blocked_by=null`, complete, update status
@@ -52,7 +52,7 @@ Push (preserve current, start new):
 1. Rename `current-task.json` to `current-task-stash{N}.json` (skip if null/empty)
 2. Create new `current-task.json` with new task
 3. Commit and push
-4. <critical>Do not start new task without user confirmation</critical>
+4. <critical>Do not start new task without user confirmation - user typically wants fresh sessions</critical>
 </stash_push>
 
 <stash_pop>
@@ -65,7 +65,7 @@ Stack order: highest number = oldest task.
 </task_stash_stack>
 
 <archiving_completed_plans>
-When plan complete:
+When all tasks in a plan are complete:
 1. `git mv context/<plan>.json context/completed/`
 2. Update `current-task.json` to next plan or clear
 3. Commit: `chore(context): archive completed <plan-name>`
@@ -73,13 +73,13 @@ When plan complete:
 </agent_session_protocol>
 
 <agent_effectiveness_guidelines>
-Per [Anthropic's agent guide](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents):
+Per [Anthropic's long-running agent guide](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents):
 
 <rules>
 <rule>Follow recommendations precisely. Read entire sources before proposing; no unjustified paraphrasing</rule>
 <rule>If corrected, acknowledge and fix. Don't defend substitutions contradicting source</rule>
-<rule>One task at a time. No scope creep</rule>
-<rule>Documentation is part of implementation. Update all related docs (module, function, user-facing) in same change. Never defer</rule>
+<rule>One task at a time. No scope creep or doing too much at once</rule>
+<rule>Documentation is part of implementation. When adding functionality, update all related docs (module, function, user-facing) in same change. Never defer</rule>
 </rules>
 
 <platform_limitations>
@@ -89,7 +89,7 @@ Per [Anthropic's agent guide](https://www.anthropic.com/engineering/effective-ha
 <structured_tracking>
 <rules>
 <rule>Use JSON for task lists and progress tracking, not YAML/markdown</rule>
-<rule>Never substitute formats</rule>
+<rule>Never substitute formats. If a reference says "use JSON", use JSON</rule>
 <rule>Include explicit status fields: `"status": "pending|in_progress|complete"`</rule>
 <rule>Add verifiable step-by-step descriptions</rule>
 </rules>
@@ -143,7 +143,7 @@ Per [Anthropic's agent guide](https://www.anthropic.com/engineering/effective-ha
 </structured_tracking>
 
 <plan_to_plan_pattern>
-When a task would consume too much context, break into sub-plans.
+When a task requires reading excessive files/lines that would consume too much context, break into sub-plans.
 
 How it works:
 1. Parent plan includes task: `"Create sub-plan for X"` → complete when sub-plan file created
@@ -174,7 +174,7 @@ How it works:
 <rules>
 <rule>Sub-plans are functionally separate (no parent references needed)</rule>
 <rule>Archive sub-plans separately when complete</rule>
-<rule>Confirm with user at 3+ nesting levels</rule>
+<rule>Nesting depth is unlimited, but confirm with user at 3+ levels</rule>
 </rules>
 </plan_to_plan_pattern>
 
@@ -182,10 +182,10 @@ How it works:
 <critical>Do not mark features complete prematurely.</critical>
 
 <rules>
-<rule>E2E tests exist and pass. Unit tests alone insufficient</rule>
-<rule>All acceptance criteria met. Check each explicitly</rule>
-<rule>Tests run and pass via `./script/test`. Don't assume</rule>
-<rule>Documentation updated for new commands/features</rule>
+<rule>1. E2E tests exist and pass. Unit tests alone insufficient</rule>
+<rule>2. All acceptance criteria met. Check each explicitly</rule>
+<rule>3. Tests run and pass via `./script/test`. Don't assume</rule>
+<rule>4. Documentation updated for new commands/features</rule>
 </rules>
 </feature_completion_criteria>
 </agent_effectiveness_guidelines>
@@ -201,7 +201,7 @@ cargo run             # Run application
 </building>
 
 <testing>
-Uses cargo-nextest (falls back to `cargo test`).
+Uses cargo-nextest for faster execution (falls back to `cargo test` if unavailable).
 
 ```bash
 # Unit tests (fast, no network)
@@ -265,7 +265,7 @@ prek run --all-files  # Alternative: pre-commit hooks only
 
 `./script/ci` env vars:
 - `SKIP_SECURITY=1` - skip cargo audit/deny
-- `SKIP_PROSE=1` - skip prose style check
+- `SKIP_PROSE=1` - skip prose style check (AI writing patterns)
 - `OFFLINE=1` - skip network-dependent checks
 
 Or individually:
@@ -284,7 +284,7 @@ Clippy is strict: all warnings are errors (`-D warnings`).
 - Commit message >100 chars or wrong format
 - Code not formatted
 - Clippy warnings
-- AI writing patterns (`cargo xtask check-prose .` to check)
+- AI writing patterns in documentation (`cargo xtask check-prose .` to check)
 </common_ci_failures>
 </code_quality>
 
@@ -306,9 +306,9 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 
 <committing_guidelines>
 <rules>
-<rule>Run `./script/ci` before every commit</rule>
+<rule>Run `./script/ci` before every commit. Catches formatting, linting, and prose issues</rule>
 <critical>NEVER commit/push without explicit user approval</critical>
-<rule>No hardcoded versions/dates/timestamps in tests. Use runtime checks</rule>
+<rule>No hardcoded values that change (versions, dates, timestamps) in tests. Use runtime checks</rule>
 <rule>When fixing tests: understand what's validated, fix underlying issue, flexible expectations</rule>
 <rule>Summaries: 1-2 sentences, no code samples unless requested</rule>
 <rule>When reviewing: look for flimsy tests, check for TODOs/stubs</rule>
@@ -317,7 +317,7 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 </committing_guidelines>
 
 <ci_cd_architecture>
-CI Pipeline (`.github/workflows/ci.yml`): Lint, Test, Rustfmt, Clippy jobs
+CI Pipeline (`.github/workflows/ci.yml`): Lint (pre-commit checks), Test, Rustfmt, Clippy jobs
 
 Commit Linting (`.github/workflows/commitlint.yml`): conventional commit validation in PRs
 </ci_cd_architecture>
@@ -325,7 +325,7 @@ Commit Linting (`.github/workflows/commitlint.yml`): conventional commit validat
 <documentation_style_guide>
 <rules>
 <rule>Follow [Rustdoc guide](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html), [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/), and [std-dev style guide](https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html)</rule>
-<rule>Avoid AI writing patterns per `context/ai-writing-patterns.md`. Scan: `cargo xtask check-prose .`</rule>
+<rule>Avoid AI writing patterns per `context/ai-writing-patterns.md` (phrases to avoid). Scan: `cargo xtask check-prose .`</rule>
 <rule>Link files/docs appropriately</rule>
 <rule>No emojis or hype language</rule>
 <rule>No volatile numbers (versions, coverage %)</rule>
