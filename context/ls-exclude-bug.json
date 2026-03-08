@@ -1,0 +1,139 @@
+{
+  "plan_name": "Fix ls command not respecting exclude filters (#226)",
+  "last_updated": "2026-03-07",
+  "issue": "https://github.com/common-repo/common-repo/issues/226",
+  "session_startup": [
+    "Run git status to check branch",
+    "Run ./script/test with run_in_background: true to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "root_cause": {
+    "summary": "Two related bugs cause ls to show files that should be excluded by source-declared and consumer-level exclude filters.",
+    "problem_1": "Consumer-level exclude/include/rename operations are silently ignored. In Phase 1, these go into the root RepoNode (url=local). In Phase 2, the local node starts with an empty MemoryFS, so exclude/include on it does nothing. In Phase 5, apply_local_operations() only handles merge operations (yaml/json/toml/ini/markdown) — exclude, include, and rename are never applied to the final FS.",
+    "problem_2": "Phase 5 merges ALL local files from the working directory into the composite FS via load_local_fs() + merge_local_files(). This re-adds files that were excluded by source repos in Phase 2. For example, if a source excluded go.mod but the consumer has a local go.mod on disk, Phase 5 adds it back.",
+    "why_diff_appears_correct": "diff shows no output for excluded files because the local file content matches itself (local file merged into FS in Phase 5, then compared to the same local file on disk). The absence of output is misleading, not a correct exclude."
+  },
+  "key_files": {
+    "ls_command": "src/commands/ls.rs (lines 85-196)",
+    "diff_command": "src/commands/diff.rs (lines 80-201)",
+    "orchestrator": "src/phases/orchestrator.rs (lines 26-54)",
+    "phase1_discovery": "src/phases/discovery.rs (lines 85-143, 221-232, 276-315)",
+    "phase2_processing": "src/phases/processing.rs (lines 94-143, 220-269)",
+    "phase5_local_merge": "src/phases/local_merge.rs (lines 41-60, 159-191, 197-236)",
+    "operators": "src/operators.rs (exclude at lines 71-98)",
+    "e2e_tests": "tests/cli_e2e_source_ops.rs"
+  },
+  "tasks": [
+    {
+      "id": "add-filtering-to-phase5",
+      "name": "Apply consumer-level exclude/include/rename in Phase 5",
+      "status": "complete",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "src/phases/local_merge.rs",
+      "steps": [
+        "Read src/phases/local_merge.rs apply_local_operations() (line 197)",
+        "Add handling for Operation::Exclude, Operation::Include, and Operation::Rename in apply_local_operations()",
+        "These should be applied to final_fs AFTER merge_local_files() but BEFORE merge operations",
+        "Use the existing operators::exclude::apply(), operators::include::apply(), operators::rename::apply()",
+        "Verify with cargo check that the new code compiles"
+      ],
+      "acceptance_criteria": [
+        "apply_local_operations() handles Exclude, Include, and Rename operations",
+        "Operations are applied to final_fs in the correct order (filter ops before merge ops)",
+        "cargo check passes with no errors"
+      ]
+    },
+    {
+      "id": "prevent-local-readd-of-excluded",
+      "name": "Filter local files against composite FS to prevent re-adding excluded files",
+      "status": "complete",
+      "priority": 2,
+      "blocked_by": null,
+      "output_file": "src/phases/local_merge.rs",
+      "steps": [
+        "Read src/phases/local_merge.rs execute() (line 41) and merge_local_files() (line 151)",
+        "Decide approach: either (a) only merge local files that also exist in composite_fs, or (b) track which files were explicitly excluded by source repos and skip those during local merge",
+        "Option (a) is simpler but changes semantics: local-only files would no longer appear in final_fs. This may break template/merge use cases where local files are inputs.",
+        "Option (b) preserves existing behavior for non-excluded files but requires plumbing excluded-file tracking through the pipeline.",
+        "Recommended: Option (a) with a careful review of whether any Phase 5 operations depend on local-only files being in final_fs. If they do, apply filtering AFTER merge operations.",
+        "Implement the chosen approach",
+        "Verify with cargo check"
+      ],
+      "acceptance_criteria": [
+        "Source-excluded files that exist locally are not re-added by Phase 5",
+        "Local files that ARE part of the composite (inherited) set still merge correctly",
+        "Template and merge operations still work on local files",
+        "cargo check passes"
+      ]
+    },
+    {
+      "id": "unit-tests-phase5-filtering",
+      "name": "Add unit tests for Phase 5 filtering behavior",
+      "status": "complete",
+      "priority": 3,
+      "blocked_by": "add-filtering-to-phase5",
+      "output_file": "src/phases/local_merge.rs",
+      "steps": [
+        "Add test: consumer exclude operation removes files from final_fs",
+        "Add test: consumer include operation filters final_fs to only matching files",
+        "Add test: consumer rename operation renames files in final_fs",
+        "Add test: operations are applied in correct order (exclude before merge)",
+        "Run cargo nextest run to verify tests pass"
+      ],
+      "acceptance_criteria": [
+        "All new unit tests pass",
+        "Tests cover exclude, include, and rename operations in Phase 5",
+        "No existing tests broken"
+      ]
+    },
+    {
+      "id": "e2e-test-ls-excludes",
+      "name": "Add E2E tests for ls respecting exclude filters",
+      "status": "complete",
+      "priority": 4,
+      "blocked_by": "unit-tests-phase5-filtering",
+      "output_file": "tests/cli_e2e_source_ops.rs",
+      "steps": [
+        "Read tests/cli_e2e_source_ops.rs for existing test patterns",
+        "Add test: ls with source-declared exclude does not show excluded files",
+        "Add test: ls with consumer top-level exclude does not show excluded files",
+        "Add test: ls with consumer with-clause exclude does not show excluded files",
+        "Add test: diff with source-declared exclude does not show excluded files as changes",
+        "Run cargo nextest run to verify all tests pass"
+      ],
+      "acceptance_criteria": [
+        "E2E tests confirm ls output respects source-declared excludes",
+        "E2E tests confirm ls output respects consumer top-level excludes",
+        "E2E tests confirm ls output respects consumer with-clause excludes",
+        "All existing tests still pass"
+      ]
+    },
+    {
+      "id": "run-full-ci",
+      "name": "Run full CI validation",
+      "status": "complete",
+      "priority": 5,
+      "blocked_by": "e2e-test-ls-excludes",
+      "output_file": null,
+      "steps": [
+        "Run ./script/cibuild to execute full CI checks + tests",
+        "Fix any formatting, clippy, or prose issues",
+        "Verify all tests pass including new ones"
+      ],
+      "acceptance_criteria": [
+        "./script/cibuild passes cleanly",
+        "No clippy warnings",
+        "No formatting issues",
+        "All tests pass"
+      ]
+    }
+  ],
+  "notes": [
+    "Tasks 1 and 2 can potentially be worked in parallel since they modify different parts of Phase 5",
+    "Task 2 needs careful design — option (a) vs (b) should be decided after reading how templates and merges use local files",
+    "The diff command has the same underlying issue but it's masked by content matching — fixing Phase 5 fixes both ls and diff",
+    "apply is also affected but less visibly since writing local files back to disk is a no-op for unchanged content"
+  ]
+}

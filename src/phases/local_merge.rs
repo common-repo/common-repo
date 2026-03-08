@@ -192,27 +192,29 @@ fn apply_local_operations_to_local_fs(
 
 /// Apply local operations from the configuration
 ///
-/// These are operations that apply to the final merged filesystem,
-/// typically merge operations that combine local and inherited content.
+/// These are operations that apply to the final merged filesystem.
+/// Filtering operations (exclude, include, rename) are applied first to
+/// ensure the file set is correct before merge operations run.
 fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
-    // Filter to only merge operations that are appropriate for local merging
-    // (template operations are handled separately in apply_local_operations_to_local_fs)
-    let merge_operations: Vec<&Operation> = local_config
-        .iter()
-        .filter(|op| {
-            matches!(
-                op,
-                Operation::Yaml { .. }
-                    | Operation::Json { .. }
-                    | Operation::Toml { .. }
-                    | Operation::Ini { .. }
-                    | Operation::Markdown { .. }
-            )
-        })
-        .collect();
+    use crate::operators;
 
-    for operation in merge_operations {
+    for operation in local_config {
         match operation {
+            // Filtering operations: applied to final_fs to control which files
+            // appear in the output. This fixes #226 where consumer-level
+            // exclude/include/rename operations were silently ignored.
+            Operation::Exclude { exclude } => {
+                operators::exclude::apply(exclude, final_fs)?;
+            }
+            Operation::Include { include } => {
+                let mut filtered_fs = MemoryFS::new();
+                operators::include::apply(include, final_fs, &mut filtered_fs)?;
+                *final_fs = filtered_fs;
+            }
+            Operation::Rename { rename } => {
+                operators::rename::apply(rename, final_fs)?;
+            }
+            // Merge operations: combine local and inherited content
             Operation::Yaml { yaml } => {
                 crate::merge::yaml::apply_yaml_merge_operation(final_fs, yaml)?;
             }
@@ -228,8 +230,9 @@ fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Res
             Operation::Markdown { markdown } => {
                 crate::merge::markdown::apply_markdown_merge_operation(final_fs, markdown)?;
             }
-            // This should never happen due to filtering above
-            _ => unreachable!("Filtered operations should only include merge operations"),
+            // Template and template_vars are handled in apply_local_operations_to_local_fs.
+            // Repo operations are resolved in Phase 1. Tools are validated separately.
+            _ => {}
         }
     }
     Ok(())
@@ -238,6 +241,7 @@ fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{ExcludeOp, IncludeOp, RenameMapping, RenameOp};
     use tempfile::TempDir;
 
     #[test]
@@ -334,5 +338,114 @@ mod tests {
 
         assert_eq!(final_fs.len(), 1);
         assert!(final_fs.exists("local.txt"));
+    }
+
+    #[test]
+    fn test_phase5_consumer_exclude_removes_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Create local files
+        std::fs::write(working_dir.join("keep.txt"), b"keep").unwrap();
+        std::fs::write(working_dir.join("remove.txt"), b"remove").unwrap();
+
+        // Composite has inherited files
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("inherited.txt", "inherited")
+            .unwrap();
+
+        // Consumer config excludes "remove.txt"
+        let local_config = vec![Operation::Exclude {
+            exclude: ExcludeOp {
+                patterns: vec!["remove.txt".to_string()],
+            },
+        }];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        assert!(final_fs.exists("keep.txt"));
+        assert!(final_fs.exists("inherited.txt"));
+        assert!(!final_fs.exists("remove.txt"));
+    }
+
+    #[test]
+    fn test_phase5_consumer_exclude_with_glob_pattern() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::create_dir_all(working_dir.join("cmd/app")).unwrap();
+        std::fs::write(working_dir.join("main.go"), b"package main").unwrap();
+        std::fs::write(working_dir.join("cmd/app/run.go"), b"package app").unwrap();
+
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("inherited.txt", "data")
+            .unwrap();
+
+        // Exclude cmd/** glob
+        let local_config = vec![Operation::Exclude {
+            exclude: ExcludeOp {
+                patterns: vec!["cmd/**".to_string()],
+            },
+        }];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        assert!(final_fs.exists("main.go"));
+        assert!(final_fs.exists("inherited.txt"));
+        assert!(!final_fs.exists("cmd/app/run.go"));
+    }
+
+    #[test]
+    fn test_phase5_consumer_include_filters_to_matching() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join("wanted.txt"), b"yes").unwrap();
+        std::fs::write(working_dir.join("unwanted.rs"), b"no").unwrap();
+
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("inherited.txt", "data")
+            .unwrap();
+
+        // Include only *.txt files
+        let local_config = vec![Operation::Include {
+            include: IncludeOp {
+                patterns: vec!["*.txt".to_string()],
+            },
+        }];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        assert!(final_fs.exists("wanted.txt"));
+        assert!(final_fs.exists("inherited.txt"));
+        assert!(!final_fs.exists("unwanted.rs"));
+    }
+
+    #[test]
+    fn test_phase5_consumer_rename_renames_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("old_name.txt", "content")
+            .unwrap();
+
+        let local_config = vec![Operation::Rename {
+            rename: RenameOp {
+                mappings: vec![RenameMapping {
+                    from: r"old_name\.txt".to_string(),
+                    to: "new_name.txt".to_string(),
+                }],
+            },
+        }];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+
+        assert!(!final_fs.exists("old_name.txt"));
+        assert!(final_fs.exists("new_name.txt"));
     }
 }

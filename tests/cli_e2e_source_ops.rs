@@ -58,15 +58,21 @@ fn init_git_repo(
         file.write_str(content)?;
     }
 
-    // Add and commit all files
+    // Add and commit all files (--no-verify skips pre-commit hooks that
+    // would fail in temp directories without a .pre-commit-config.yaml)
     Command::new("git")
         .args(["add", "."])
         .current_dir(dir.path())
         .output()?;
-    Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
+    let commit_output = Command::new("git")
+        .args(["commit", "--no-verify", "-m", "Initial commit"])
         .current_dir(dir.path())
         .output()?;
+    assert!(
+        commit_output.status.success(),
+        "git commit failed: {}",
+        String::from_utf8_lossy(&commit_output.stderr)
+    );
 
     Ok(())
 }
@@ -696,4 +702,210 @@ fn test_real_world_shakefu_vibes_repo() {
     consumer
         .child(".pre-commit-config.yaml")
         .assert(predicate::path::missing());
+}
+
+// =============================================================================
+// Bug #226: ls should respect exclude filters
+// =============================================================================
+
+/// Test that `ls` respects source-declared exclude filters.
+///
+/// When a source repo excludes files in its .common-repo.yaml, those files
+/// should not appear in the `ls` output.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_ls_respects_source_declared_excludes() {
+    let source_repo = assert_fs::TempDir::new().unwrap();
+    init_git_repo(
+        &source_repo,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- exclude:
+    - "go.mod"
+    - "go.sum"
+    - "cmd/**"
+"#,
+            ),
+            ("go.mod", "module example.com/test\n"),
+            ("go.sum", "hash\n"),
+            ("cmd/app/main.go", "package main\n"),
+            ("lib/utils.go", "package lib\n"),
+            ("README.md", "# Test\n"),
+        ],
+    )
+    .unwrap();
+
+    let consumer = assert_fs::TempDir::new().unwrap();
+    let source_url = format!("file://{}", source_repo.path().display());
+
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+"#,
+            source_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    let output = cmd
+        .current_dir(consumer.path())
+        .arg("ls")
+        .output()
+        .expect("failed to execute ls");
+
+    assert!(
+        output.status.success(),
+        "ls command failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = String::from_utf8_lossy(&output.stdout);
+
+    // Files NOT excluded should appear
+    assert!(
+        output.contains("lib/utils.go"),
+        "ls should show lib/utils.go"
+    );
+    assert!(output.contains("README.md"), "ls should show README.md");
+
+    // Excluded files should NOT appear
+    assert!(
+        !output.contains("go.mod"),
+        "ls should not show source-excluded go.mod, got:\n{output}"
+    );
+    assert!(
+        !output.contains("go.sum"),
+        "ls should not show source-excluded go.sum, got:\n{output}"
+    );
+    assert!(
+        !output.contains("cmd/app/main.go"),
+        "ls should not show source-excluded cmd/app/main.go, got:\n{output}"
+    );
+}
+
+/// Test that `ls` respects consumer top-level exclude filters.
+///
+/// When the consumer's .common-repo.yaml has a top-level exclude, those files
+/// should not appear in the `ls` output.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_ls_respects_consumer_top_level_excludes() {
+    let source_repo = assert_fs::TempDir::new().unwrap();
+    init_git_repo(
+        &source_repo,
+        &[
+            ("lib/utils.go", "package lib\n"),
+            ("README.md", "# Test\n"),
+            ("Makefile", "all:\n"),
+        ],
+    )
+    .unwrap();
+
+    let consumer = assert_fs::TempDir::new().unwrap();
+    let source_url = format!("file://{}", source_repo.path().display());
+
+    // Consumer excludes Makefile at top level
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+- exclude:
+    - "Makefile"
+"#,
+            source_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    let output = cmd
+        .current_dir(consumer.path())
+        .arg("ls")
+        .output()
+        .expect("failed to execute ls");
+
+    assert!(
+        output.status.success(),
+        "ls command failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.contains("lib/utils.go"),
+        "ls should show lib/utils.go"
+    );
+    assert!(output.contains("README.md"), "ls should show README.md");
+    assert!(
+        !output.contains("Makefile"),
+        "ls should not show consumer-excluded Makefile, got:\n{output}"
+    );
+}
+
+/// Test that `ls` respects consumer with-clause exclude filters.
+///
+/// When the consumer uses `with:` to exclude files from a source, those files
+/// should not appear in the `ls` output.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_ls_respects_consumer_with_clause_excludes() {
+    let source_repo = assert_fs::TempDir::new().unwrap();
+    init_git_repo(
+        &source_repo,
+        &[
+            ("lib/utils.go", "package lib\n"),
+            ("README.md", "# Test\n"),
+            ("LICENSE", "MIT\n"),
+        ],
+    )
+    .unwrap();
+
+    let consumer = assert_fs::TempDir::new().unwrap();
+    let source_url = format!("file://{}", source_repo.path().display());
+
+    // Consumer uses with: clause to exclude LICENSE
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+    with:
+      - exclude:
+          - "LICENSE"
+"#,
+            source_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    let output = cmd
+        .current_dir(consumer.path())
+        .arg("ls")
+        .output()
+        .expect("failed to execute ls");
+
+    assert!(
+        output.status.success(),
+        "ls command failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.contains("lib/utils.go"),
+        "ls should show lib/utils.go"
+    );
+    assert!(output.contains("README.md"), "ls should show README.md");
+    assert!(
+        !output.contains("LICENSE"),
+        "ls should not show with-clause-excluded LICENSE, got:\n{output}"
+    );
 }

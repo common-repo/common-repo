@@ -1,6 +1,6 @@
 {
-  "task": "add-size-optimized-profile",
-  "plan": "context/performance-review.json",
-  "last_updated": "2026-01-21",
-  "description": "Add size-optimized build profile for smaller binaries"
+  "task": "ls-exclude-bug",
+  "plan": "context/ls-exclude-bug.json",
+  "last_updated": "2026-03-07",
+  "description": "Fix ls command not respecting exclude filters (issue #226)"
 }
