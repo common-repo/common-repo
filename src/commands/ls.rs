@@ -107,18 +107,11 @@ pub fn execute(args: LsArgs) -> Result<()> {
     let repo_manager = RepositoryManager::new(cache_root);
     let repo_cache = RepoCache::new();
 
-    // Execute phases 1-5 (skip phase 6 - writing to disk)
-    let working_dir = args
-        .working_dir
-        .unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
-    let final_fs = orchestrator::execute_pull(
-        &schema,
-        &repo_manager,
-        &repo_cache,
-        &working_dir,
-        None, // Don't write to disk
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to process configuration: {}", e))?;
+    // Execute phases 1-4 with consumer filtering (skip Phase 5 local merge
+    // and Phase 6 disk write). This returns only the files managed through
+    // inheritance, excluding local-only files that would be added by Phase 5.
+    let final_fs = orchestrator::execute_pull_composite(&schema, &repo_manager, &repo_cache)
+        .map_err(|e| anyhow::anyhow!("Failed to process configuration: {}", e))?;
 
     // Collect files with their metadata
     let mut files: Vec<FileInfo> = final_fs
