@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.1](https://github.com/common-repo/common-repo/compare/v0.28.0...v0.28.1) (2026-03-14)
+
+
+### Bug Fixes
+
+* **ls:** respect exclude filters in ls output ([#226](https://github.com/common-repo/common-repo/issues/226)) ([701b1b7](https://github.com/common-repo/common-repo/commit/701b1b7e59e3ff86ddcde1161d01261e57d924a9))
+* **ls:** restore --working-dir flag and remove duplicate orchestrator ([2987020](https://github.com/common-repo/common-repo/commit/29870207019cf330653b328b448b2c2bd1468050))
+
 ## [0.28.0](https://github.com/common-repo/common-repo/compare/v0.27.0...v0.28.0) (2026-01-21)
 
 
