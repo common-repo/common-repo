@@ -193,8 +193,8 @@ fn apply_local_operations_to_local_fs(
 /// Apply local operations from the configuration
 ///
 /// These are operations that apply to the final merged filesystem.
-/// Filtering operations (exclude, include, rename) are applied first to
-/// ensure the file set is correct before merge operations run.
+/// Operations are applied in declaration order as they appear in the
+/// configuration file.
 fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
     use crate::operators;
 

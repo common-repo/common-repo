@@ -318,6 +318,7 @@ The tool exits with code 1 if any patterns are found, making it suitable for CI.
 
 ## Important Notes
 
+- **Backwards compatibility is required** - Do not break existing CLI flags, public APIs, or documented behavior unless the user explicitly requests it. If a refactor would remove or change the behavior of an existing flag/option, wire it up to the new code path instead.
 - Clippy is strict: all warnings are errors (`-D warnings`)
 - Binary name is `common-repo`
 - When reviewing: look for flimsy tests, check for TODOs/stubs
