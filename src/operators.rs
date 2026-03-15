@@ -1438,7 +1438,8 @@ pub(crate) mod template {
         use regex::Regex;
 
         // Regex to match ${VAR} and ${VAR:-default} patterns
-        let re = Regex::new(r"\$\{([^:}]+)(?::-(.+?))?\}").map_err(|e| Error::Template {
+        // [^:{}] excludes { from var names, so ${{ (GitHub Actions expressions) pass through
+        let re = Regex::new(r"\$\{([^:{}]+)(?::-(.+?))?\}").map_err(|e| Error::Template {
             message: format!("Invalid regex pattern: {}", e),
             variable: None,
         })?;
@@ -1702,6 +1703,97 @@ mod template_tests {
         let file = fs.get_file("template.txt").unwrap();
         let result_content = String::from_utf8(file.content.clone()).unwrap();
         assert_eq!(result_content, "Hello World!");
+    }
+
+    #[test]
+    fn test_template_skips_gha_double_brace_expressions() {
+        // GitHub Actions ${{ }} expressions must pass through untouched
+        let content = "token: ${{ steps.app-token.outputs.token }}";
+        let vars = HashMap::new();
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("workflow.yml", content).unwrap();
+
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.yml".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        template::process(&mut fs, &vars).unwrap();
+
+        let file = fs.get_file("workflow.yml").unwrap();
+        let result_content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(
+            result_content,
+            "token: ${{ steps.app-token.outputs.token }}"
+        );
+    }
+
+    #[test]
+    fn test_template_expands_var_inside_gha_expression() {
+        // ${VAR} inside ${{ }} should expand, but ${{ }} itself stays
+        let content = "${{ vars.${MY_VAR:-FALLBACK} }}";
+        let vars = HashMap::new();
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("workflow.yml", content).unwrap();
+
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.yml".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        template::process(&mut fs, &vars).unwrap();
+
+        let file = fs.get_file("workflow.yml").unwrap();
+        let result_content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(result_content, "${{ vars.FALLBACK }}");
+    }
+
+    #[test]
+    fn test_template_expands_var_inside_gha_with_value() {
+        // ${VAR} inside ${{ }} with a provided value
+        let content = "${{ secrets.${MY_SECRET} }}";
+        let mut vars = HashMap::new();
+        vars.insert("MY_SECRET".to_string(), "prod-key".to_string());
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("workflow.yml", content).unwrap();
+
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.yml".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        template::process(&mut fs, &vars).unwrap();
+
+        let file = fs.get_file("workflow.yml").unwrap();
+        let result_content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(result_content, "${{ secrets.prod-key }}");
+    }
+
+    #[test]
+    fn test_template_mixed_gha_and_template_vars() {
+        // Mix of GHA expressions and template vars in same file
+        let content = "owner: ${GH_APP_OWNER:-christmas-island}\napp-id: ${{ vars.${GH_APP_ID_VAR:-CHRISTMAS_ISLAND_APP_ID} }}";
+        let vars = HashMap::new();
+
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("workflow.yml", content).unwrap();
+
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.yml".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        template::process(&mut fs, &vars).unwrap();
+
+        let file = fs.get_file("workflow.yml").unwrap();
+        let result_content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(
+            result_content,
+            "owner: christmas-island\napp-id: ${{ vars.CHRISTMAS_ISLAND_APP_ID }}"
+        );
     }
 }
 
