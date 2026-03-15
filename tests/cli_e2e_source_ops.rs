@@ -909,3 +909,169 @@ fn test_ls_respects_consumer_with_clause_excludes() {
         "ls should not show with-clause-excluded LICENSE, got:\n{output}"
     );
 }
+
+// =============================================================================
+// Bug #249: Source-declared template vars baked into cache — consumer overrides ignored
+// =============================================================================
+
+/// Test that consumer's `with:` template-vars override source's default template-vars.
+///
+/// When a source repo declares `template:` and `template-vars:`, and a consumer
+/// overrides some vars via `with: template-vars:`, the consumer's values should
+/// take precedence over the source's defaults.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_consumer_with_template_vars_override_source_defaults() {
+    // Create source repository with template + template-vars
+    let source_repo = assert_fs::TempDir::new().unwrap();
+    init_git_repo(
+        &source_repo,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "src/**"
+    - "src/.*"
+    - "src/.*/**"
+- template:
+    - "src/.github/workflows/release.yaml"
+- template-vars:
+    GH_APP_OWNER: christmas-island
+    GH_APP_ID_VAR: CHRISTMAS_ISLAND_APP_ID
+- rename:
+    - from: "^src/(.*)"
+      to: "$1"
+"#,
+            ),
+            (
+                "src/.github/workflows/release.yaml",
+                "owner: ${GH_APP_OWNER:-christmas-island}\napp_id: ${GH_APP_ID_VAR}\n",
+            ),
+        ],
+    )
+    .unwrap();
+
+    // Create consumer that overrides GH_APP_OWNER via with: clause
+    let consumer = assert_fs::TempDir::new().unwrap();
+    let source_url = format!("file://{}", source_repo.path().display());
+
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+    with:
+      - template-vars:
+          GH_APP_OWNER: my-cool-org
+"#,
+            source_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    // Verify the template was expanded with consumer's override
+    let workflow_path = consumer.child(".github/workflows/release.yaml");
+    workflow_path.assert(predicate::path::exists());
+
+    let content = std::fs::read_to_string(workflow_path.path()).unwrap();
+
+    // Consumer override should win for GH_APP_OWNER
+    assert!(
+        content.contains("owner: my-cool-org"),
+        "Consumer's template-vars override should be applied.\n\
+         Expected 'owner: my-cool-org' but got:\n{}",
+        content
+    );
+
+    // Source defaults should be preserved for non-overridden vars
+    assert!(
+        content.contains("app_id: CHRISTMAS_ISLAND_APP_ID"),
+        "Source's non-overridden template-vars should be preserved.\n\
+         Expected 'app_id: CHRISTMAS_ISLAND_APP_ID' but got:\n{}",
+        content
+    );
+}
+
+/// Test that consumer's top-level template-vars override source's defaults.
+///
+/// When a consumer has top-level `template-vars:` (not in `with:`), these should
+/// override the source's default values during Phase 4 composite construction.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_consumer_top_level_template_vars_override_source_defaults() {
+    // Create source repository with template + template-vars
+    let source_repo = assert_fs::TempDir::new().unwrap();
+    init_git_repo(
+        &source_repo,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "configs/**"
+- template:
+    - "configs/app.yaml"
+- template-vars:
+    APP_NAME: default-app
+    APP_PORT: "8080"
+"#,
+            ),
+            ("configs/app.yaml", "name: ${APP_NAME}\nport: ${APP_PORT}\n"),
+        ],
+    )
+    .unwrap();
+
+    // Create consumer with top-level template-vars override
+    let consumer = assert_fs::TempDir::new().unwrap();
+    let source_url = format!("file://{}", source_repo.path().display());
+
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- template-vars:
+    APP_NAME: my-custom-app
+- repo:
+    url: "{}"
+    ref: main
+"#,
+            source_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    // Verify the template was expanded with consumer's override
+    let config_path = consumer.child("configs/app.yaml");
+    config_path.assert(predicate::path::exists());
+
+    let content = std::fs::read_to_string(config_path.path()).unwrap();
+
+    // Consumer override should win for APP_NAME
+    assert!(
+        content.contains("name: my-custom-app"),
+        "Consumer's top-level template-vars override should be applied.\n\
+         Expected 'name: my-custom-app' but got:\n{}",
+        content
+    );
+
+    // Source defaults should be preserved for non-overridden vars
+    assert!(
+        content.contains("port: 8080"),
+        "Source's non-overridden template-vars should be preserved.\n\
+         Expected 'port: 8080' but got:\n{}",
+        content
+    );
+}

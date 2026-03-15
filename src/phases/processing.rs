@@ -82,7 +82,7 @@ fn process_repo_recursive(
     }
 
     // Process this repository
-    let key = format!("{}@{}", node.url, node.ref_);
+    let key = node.node_key();
     if let std::collections::hash_map::Entry::Vacant(e) = intermediate_fss.entry(key) {
         let intermediate_fs = process_single_repo(node, repo_manager, cache)?;
         e.insert(intermediate_fs);
@@ -272,7 +272,7 @@ fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ExcludeOp, Operation, RepoOp};
+    use crate::config::{ExcludeOp, Operation, RepoOp, TemplateVars};
     use crate::filesystem::MemoryFS;
     use crate::repository::{CacheOperations, GitOperations, RepositoryManager};
     use std::collections::HashMap;
@@ -469,6 +469,7 @@ mod tests {
             "main".to_string(),
             operations.clone(),
         );
+        let repo_key = child1.node_key();
         let child2 = RepoNode::new(
             "https://example.com/repo.git".to_string(),
             "main".to_string(),
@@ -489,10 +490,76 @@ mod tests {
         assert_eq!(intermediate.len(), 2);
 
         // Ensure the cached filesystem respected the exclude operation
-        let repo_key = "https://example.com/repo.git@main";
-        let repo_fs = &intermediate.get(repo_key).unwrap().fs;
+        let repo_fs = &intermediate.get(&repo_key).unwrap().fs;
         assert!(repo_fs.exists("keep.txt"));
         assert!(!repo_fs.exists("temp.tmp"));
+    }
+
+    #[test]
+    fn test_same_repo_different_operations_get_separate_entries() {
+        // When the same repo URL+ref appears in the tree with different operations
+        // (e.g., different template-vars from different consumers), each instance
+        // should get its own entry in intermediate_fss with its own template vars.
+        let clone_calls = Arc::new(Mutex::new(0));
+        let cached_flag = Arc::new(Mutex::new(false));
+
+        let repo_manager = RepositoryManager::with_operations(
+            Box::new(MockGitOps::new(clone_calls.clone(), cached_flag.clone())),
+            Box::new(MockCacheOps::new(cached_flag.clone())),
+        );
+
+        let cache = RepoCache::new();
+
+        // Two references to the same repo but with different template-vars
+        let child1_ops = vec![Operation::TemplateVars {
+            template_vars: TemplateVars {
+                vars: {
+                    let mut vars = HashMap::new();
+                    vars.insert("OWNER".to_string(), "org-a".to_string());
+                    vars
+                },
+            },
+        }];
+
+        let child2_ops = vec![Operation::TemplateVars {
+            template_vars: TemplateVars {
+                vars: {
+                    let mut vars = HashMap::new();
+                    vars.insert("OWNER".to_string(), "org-b".to_string());
+                    vars
+                },
+            },
+        }];
+
+        let child1 = RepoNode::new(
+            "https://example.com/repo.git".to_string(),
+            "main".to_string(),
+            child1_ops,
+        );
+        let child1_key = child1.node_key();
+
+        let child2 = RepoNode::new(
+            "https://example.com/repo.git".to_string(),
+            "main".to_string(),
+            child2_ops,
+        );
+        let child2_key = child2.node_key();
+
+        // Keys should be different because operations differ
+        assert_ne!(child1_key, child2_key);
+
+        let tree = build_tree_with_children(vec![child1, child2]);
+        let intermediate = execute(&tree, &repo_manager, &cache).expect("phase2 execute");
+
+        // Should have 3 entries: local + two separate repo entries
+        assert_eq!(intermediate.len(), 3);
+
+        // Each entry should have its own template vars
+        let fs1 = intermediate.get(&child1_key).unwrap();
+        assert_eq!(fs1.template_vars.get("OWNER"), Some(&"org-a".to_string()));
+
+        let fs2 = intermediate.get(&child2_key).unwrap();
+        assert_eq!(fs2.template_vars.get("OWNER"), Some(&"org-b".to_string()));
     }
 
     #[test]
@@ -1208,6 +1275,44 @@ mod tests {
             assert_eq!(result.len(), 1);
             assert_eq!(result.get("KEY"), Some(&"value".to_string()));
         }
+
+        #[test]
+        fn test_collect_template_vars_consumer_overrides_source() {
+            // Simulates combined operations after discovery:
+            // source template-vars come first, consumer with: template-vars come last
+            let mut source_vars = HashMap::new();
+            source_vars.insert("GH_APP_OWNER".to_string(), "christmas-island".to_string());
+            source_vars.insert(
+                "GH_APP_ID_VAR".to_string(),
+                "CHRISTMAS_ISLAND_APP_ID".to_string(),
+            );
+
+            let mut consumer_vars = HashMap::new();
+            consumer_vars.insert("GH_APP_OWNER".to_string(), "my-cool-org".to_string());
+
+            let operations = vec![
+                // Source operations come first (from extract_source_operations)
+                Operation::TemplateVars {
+                    template_vars: TemplateVars { vars: source_vars },
+                },
+                // Consumer with: operations come last
+                Operation::TemplateVars {
+                    template_vars: TemplateVars {
+                        vars: consumer_vars,
+                    },
+                },
+            ];
+
+            let result = collect_template_vars(&operations).expect("should not error");
+            assert_eq!(result.len(), 2);
+            // Consumer override should win
+            assert_eq!(result.get("GH_APP_OWNER"), Some(&"my-cool-org".to_string()));
+            // Non-overridden source var should be preserved
+            assert_eq!(
+                result.get("GH_APP_ID_VAR"),
+                Some(&"CHRISTMAS_ISLAND_APP_ID".to_string())
+            );
+        }
     }
 
     mod merge_operations_tests {
@@ -1854,15 +1959,14 @@ mod tests {
                     },
                 }],
             );
+            let child_key = child.node_key();
             root.add_child(child);
             let tree = RepoTree::new(root);
 
             let result = execute(&tree, &repo_manager, &cache);
             assert!(result.is_ok());
             let intermediate_fss = result.unwrap();
-            let child_fs = intermediate_fss
-                .get("https://github.com/example/repo.git@main")
-                .unwrap();
+            let child_fs = intermediate_fss.get(&child_key).unwrap();
             // The exclude operation should have removed .txt files
             assert!(!child_fs.fs.exists("file.txt"));
         }

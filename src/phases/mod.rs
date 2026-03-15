@@ -71,6 +71,31 @@ impl RepoNode {
     pub fn add_child(&mut self, child: RepoNode) {
         self.children.push(child);
     }
+
+    /// Generate a unique key for this node that includes the operations fingerprint.
+    ///
+    /// The key format is `url@ref` for nodes without operations, or
+    /// `url#ops-<hash>@ref` for nodes with operations. This ensures that the
+    /// same repository referenced with different operations (e.g., different
+    /// `with:` template-vars) gets distinct keys in the intermediate filesystem
+    /// map and operation order.
+    pub fn node_key(&self) -> String {
+        if self.operations.is_empty() {
+            return format!("{}@{}", self.url, self.ref_);
+        }
+
+        // Serialize operations and hash them for a compact fingerprint
+        if let Ok(serialized) = serde_yaml::to_string(&self.operations) {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            let mut hasher = DefaultHasher::new();
+            serialized.hash(&mut hasher);
+            format!("{}#ops-{:016x}@{}", self.url, hasher.finish(), self.ref_)
+        } else {
+            // Fall back to simple key if serialization fails
+            format!("{}@{}", self.url, self.ref_)
+        }
+    }
 }
 
 /// Repository dependency tree for inheritance tracking
