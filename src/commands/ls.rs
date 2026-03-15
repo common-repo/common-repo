@@ -170,7 +170,7 @@ pub fn execute(args: LsArgs) -> Result<()> {
     }
 
     if files.is_empty() {
-        println!("No files would be created.");
+        println!("No files would be created or modified.");
         return Ok(());
     }
 
