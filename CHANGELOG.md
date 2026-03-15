@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.2](https://github.com/common-repo/common-repo/compare/v0.28.1...v0.28.2) (2026-03-15)
+
+
+### Bug Fixes
+
+* **discovery:** pass template and template-vars from source repos to consumers ([ba88086](https://github.com/common-repo/common-repo/commit/ba880864c9d441323dd5940e79d1845656c3b3c4)), closes [#235](https://github.com/common-repo/common-repo/issues/235)
+
 ## [0.28.1](https://github.com/common-repo/common-repo/compare/v0.28.0...v0.28.1) (2026-03-14)
 
 
