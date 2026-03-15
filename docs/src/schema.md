@@ -59,17 +59,17 @@ template:
 # passing the working list through the rename transforms, in order
 rename:
   # Rename a path
-  - "badname/(.*)": "goodname/%[1]s"
+  - "badname/(.*)": "goodname/$1"
   # Strip one directory from the path
-  - "^files/(.*)": "%[1]s"
+  - "^files/(.*)": "$1"
   # Strip multiple directories from the path
-  - "some/parent/dir/(.*)": "%[1]s"
+  - "some/parent/dir/(.*)": "$1"
   # Recompose directories
-  - "parent/([^/]+)/dir/(.*)": "%[1]s/%[2]s"
+  - "parent/([^/]+)/dir/(.*)": "$1/$2"
   # Add a prefix to the path
-  - "(.*\\.md)": "docs/%[1]s"
+  - "(.*\\.md)": "docs/$1"
   # Move templates to repo root
-  - "templates/(.*)": "%[1]s"
+  - "templates/(.*)": "$1"
 
 # Install specs use SemVer constraints
 install:
@@ -99,7 +99,7 @@ upstream:
     overwrite: false  # TBD if this should be implemented
     include: [.*]
     exclude: [.gitignore]
-    rename: [{".*\\.md": "docs/%[1]s"}]
+    rename: [{".*\\.md": "docs/$1"}]
 
 # Template context for all upstreams...
 template-vars:
