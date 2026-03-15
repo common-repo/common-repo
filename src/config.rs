@@ -2860,4 +2860,43 @@ mod tests {
             assert_eq!(md_new, md_default);
         }
     }
+
+    #[test]
+    fn test_parse_template_vars_in_with_clause() {
+        let yaml = r#"
+- repo:
+    url: https://github.com/christmas-island/cr-semantic-release
+    ref: main
+    with:
+      - template-vars:
+          GH_APP_OWNER: my-cool-org
+"#;
+        let schema = parse(yaml).unwrap();
+        assert_eq!(schema.len(), 1);
+        match &schema[0] {
+            Operation::Repo { repo } => {
+                assert_eq!(
+                    repo.url,
+                    "https://github.com/christmas-island/cr-semantic-release"
+                );
+                assert_eq!(repo.r#ref, "main");
+                assert_eq!(
+                    repo.with.len(),
+                    1,
+                    "with: clause should have 1 operation, got: {:?}",
+                    repo.with
+                );
+                match &repo.with[0] {
+                    Operation::TemplateVars { template_vars } => {
+                        assert_eq!(
+                            template_vars.vars.get("GH_APP_OWNER"),
+                            Some(&"my-cool-org".to_string())
+                        );
+                    }
+                    other => panic!("Expected TemplateVars, got: {:?}", other),
+                }
+            }
+            _ => panic!("Expected Repo operation"),
+        }
+    }
 }

@@ -49,7 +49,7 @@ pub fn execute(tree: &RepoTree) -> Result<OperationOrder> {
 /// The resulting order guarantees that base repositories are applied before
 /// repositories that depend on them.
 fn build_order_recursive(node: &RepoNode, order: &mut Vec<String>, visited: &mut HashSet<String>) {
-    let node_key = format!("{}@{}", node.url, node.ref_);
+    let node_key = node.node_key();
 
     // Skip if already processed (shouldn't happen in a tree, but safety check)
     if visited.contains(&node_key) {
