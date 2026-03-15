@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.3](https://github.com/common-repo/common-repo/compare/v0.28.2...v0.28.3) (2026-03-15)
+
+
+### Bug Fixes
+
+* **template:** skip ${{ }} GitHub Actions expressions in variable substitution ([90f351f](https://github.com/common-repo/common-repo/commit/90f351fe096053525a34da8e1b9a1cb4094b186d)), closes [#239](https://github.com/common-repo/common-repo/issues/239)
+
 ## [0.28.2](https://github.com/common-repo/common-repo/compare/v0.28.1...v0.28.2) (2026-03-15)
 
 
