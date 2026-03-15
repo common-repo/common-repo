@@ -13,9 +13,9 @@
 - [Recipes](recipes.md)
 - [Troubleshooting](troubleshooting.md)
 
-# For Source Repo Authors
+# For Upstream Repo Authors
 
-- [Authoring Source Repositories](authoring-source-repos.md)
+- [Authoring Upstream Repositories](authoring-upstream-repos.md)
 
 # Reference
 

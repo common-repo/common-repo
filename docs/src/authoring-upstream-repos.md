@@ -1,21 +1,21 @@
-# Authoring Source Repositories
+# Authoring Upstream Repositories
 
-This guide explains how to create and maintain source repositories that other projects can inherit from using common-repo.
+This guide explains how to create and maintain upstream repositories that other projects can inherit from using common-repo.
 
-## What is a Source Repository?
+## What is an Upstream Repository?
 
-A **source repository** contains configuration files, templates, and standards that other repositories (consumers) can inherit—essentially a library of reusable project configurations.
+An **upstream repository** contains configuration files, templates, and standards that other repositories (consumers) can inherit—essentially a library of reusable project configurations.
 
-**Source repository** vs **consumer repository**:
+**Upstream repository** vs **consumer repository**:
 
-| Aspect | Source Repository | Consumer Repository |
+| Aspect | Upstream Repository | Consumer Repository |
 |--------|-------------------|---------------------|
-| Purpose | Provides files for others to inherit | Uses files from source repos |
+| Purpose | Provides files for others to inherit | Uses files from upstream repos |
 | Audience | Maintainers of shared standards | Individual projects |
 | Config file | Optional `.common-repo.yaml` | Required `.common-repo.yaml` |
-| Versioning | Semantic versioning with Git tags | References source repo versions |
+| Versioning | Semantic versioning with Git tags | References upstream repo versions |
 
-**Common use cases for source repositories:**
+**Common use cases for upstream repositories:**
 
 - Organization-wide coding standards (linting, formatting rules)
 - CI/CD workflow templates (GitHub Actions, GitLab CI)
@@ -25,12 +25,12 @@ A **source repository** contains configuration files, templates, and standards t
 
 ## Getting Started
 
-### Minimal Source Repository Structure
+### Minimal Upstream Repository Structure
 
-A source repository can be as simple as a directory with files to share:
+A upstream repository can be as simple as a directory with files to share:
 
 ```
-my-source-repo/
+my-upstream-repo/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
@@ -43,13 +43,13 @@ No special configuration is required. Consumers reference your repository direct
 ```yaml
 # Consumer's .common-repo.yaml
 - repo:
-    url: https://github.com/your-org/my-source-repo
+    url: https://github.com/your-org/my-upstream-repo
     ref: v1.0.0
 ```
 
-### Optional: Configuration in Source Repos
+### Optional: Configuration in Upstream Repos
 
-Source repositories can include their own `.common-repo.yaml` to inherit from other sources, creating an inheritance chain:
+Upstream repositories can include their own `.common-repo.yaml` to inherit from other upstreams, creating an inheritance chain:
 
 ```
 org-base/          # Base standards
@@ -57,13 +57,13 @@ org-base/          # Base standards
       └── my-app/  # Consumer (inherits rust-base)
 ```
 
-## Source-Declared File Filtering
+## Upstream-Declared File Filtering
 
-Source repositories can define their "public API" by specifying which files are exposed to consumers. This is useful when a repository contains internal files that should not be inherited.
+Upstream repositories can define their "public API" by specifying which files are exposed to consumers. This is useful when a repository contains internal files that should not be inherited.
 
-### Filtering Operations in Source Repos
+### Filtering Operations in Upstream Repos
 
-Source repos can use these operations to control which files consumers receive:
+Upstream repos can use these operations to control which files consumers receive:
 
 | Operation | Purpose |
 |-----------|---------|
@@ -73,10 +73,10 @@ Source repos can use these operations to control which files consumers receive:
 
 ### Example: Exposing Only Public Files
 
-A source repo with internal test fixtures that should not be inherited:
+An upstream repo with internal test fixtures that should not be inherited:
 
 ```yaml
-# Source repo: .common-repo.yaml
+# Upstream repo: .common-repo.yaml
 - include:
     patterns:
       - "templates/**"
@@ -89,10 +89,10 @@ Consumers automatically receive only the declared public files.
 
 ### Example: Hiding Internal Files
 
-A source repo that exposes everything except internal directories:
+An upstream repo that exposes everything except internal directories:
 
 ```yaml
-# Source repo: .common-repo.yaml
+# Upstream repo: .common-repo.yaml
 - exclude:
     patterns:
       - "internal/**"
@@ -102,10 +102,10 @@ A source repo that exposes everything except internal directories:
 
 ### Example: Renaming Template Files
 
-A source repo that provides templates with a different naming convention:
+An upstream repo that provides templates with a different naming convention:
 
 ```yaml
-# Source repo: .common-repo.yaml
+# Upstream repo: .common-repo.yaml
 - rename:
     - from: "templates/(.*)\\.template"
       to: "$1"
@@ -117,25 +117,25 @@ This transforms `templates/config.yaml.template` to `config.yaml` in consumers.
 
 Operations are applied in this order:
 
-1. **Source filtering** (include/exclude/rename from source's config)
-2. **Source merge declarations** (deferred merge operations)
+1. **Upstream filtering** (include/exclude/rename from upstream's config)
+2. **Upstream merge declarations** (deferred merge operations)
 3. **Consumer's with: clause** (further filtering/transforms by consumer)
 
-This ensures source repos control their exposed files, while consumers can further filter (but not expand) what they receive.
+This ensures upstream repos control their exposed files, while consumers can further filter (but not expand) what they receive.
 
 ### Config File Auto-Exclusion
 
-Source repository config files (`.common-repo.yaml` and `.commonrepo.yaml`) are automatically excluded and never copied to consumers. This prevents source configs from overwriting consumer configs.
+Upstream repository config files (`.common-repo.yaml` and `.commonrepo.yaml`) are automatically excluded and never copied to consumers. This prevents upstream configs from overwriting consumer configs.
 
-## Source-Declared Merge Behavior
+## Upstream-Declared Merge Behavior
 
-By default, files from source repositories overwrite files in consumer repositories. However, source authors often know best how their files should integrate. The **defer** mechanism allows source repos to declare merge behavior that automatically applies when consumers inherit from them.
+By default, files from upstream repositories overwrite files in consumer repositories. However, upstream authors often know best how their files should integrate. The **defer** mechanism allows upstream repos to declare merge behavior that automatically applies when consumers inherit from them.
 
-### When to Use Source-Declared Merges
+### When to Use Upstream-Declared Merges
 
-Use source-declared merges when:
+Use upstream-declared merges when:
 
-- Your source provides partial content meant to augment consumer files (e.g., additional CLAUDE.md rules)
+- Your upstream provides partial content meant to augment consumer files (e.g., additional CLAUDE.md rules)
 - Files need intelligent merging rather than overwriting (e.g., shared dependencies in Cargo.toml)
 - You want to reduce boilerplate in consumer configurations
 
@@ -144,7 +144,7 @@ Use source-declared merges when:
 **1. `auto-merge` - When source and destination have the same filename (most common):**
 
 ```yaml
-# Source repo: .common-repo.yaml
+# Upstream repo: .common-repo.yaml
 - markdown:
     auto-merge: CLAUDE.md
     section: "## Inherited Rules"
@@ -156,7 +156,7 @@ This is shorthand for: source=CLAUDE.md, dest=CLAUDE.md, defer=true.
 **2. `defer: true` - When source and destination paths differ:**
 
 ```yaml
-# Source repo: .common-repo.yaml
+# Upstream repo: .common-repo.yaml
 - yaml:
     source: config/labels.yaml
     dest: kubernetes.yaml
@@ -169,7 +169,7 @@ This is shorthand for: source=CLAUDE.md, dest=CLAUDE.md, defer=true.
 An organization wants all repos to inherit coding guidelines:
 
 ```yaml
-# Source repo: org-standards/.common-repo.yaml
+# Upstream repo: org-standards/.common-repo.yaml
 - markdown:
     auto-merge: CLAUDE.md
     section: "## Organization Standards"
@@ -192,7 +192,7 @@ Consumer repos automatically get merged CLAUDE.md content:
 A base Rust configuration shares common dependencies:
 
 ```yaml
-# Source repo: rust-base/.common-repo.yaml
+# Upstream repo: rust-base/.common-repo.yaml
 - toml:
     auto-merge: Cargo.toml
     path: dependencies
@@ -202,7 +202,7 @@ Consumers inherit the base dependencies merged into their Cargo.toml.
 
 ### Consumer Override
 
-Consumers can always override source-declared behavior using the `with:` clause:
+Consumers can always override upstream-declared behavior using the `with:` clause:
 
 ```yaml
 # Consumer .common-repo.yaml
@@ -212,7 +212,7 @@ Consumers can always override source-declared behavior using the `with:` clause:
     with:
       # Override: copy instead of merge
       - include: ["CLAUDE.md"]
-      # This replaces the source-declared merge with a simple copy
+      # This replaces the upstream-declared merge with a simple copy
 ```
 
 When a consumer specifies operations for the same destination file, the consumer's operations take precedence.
@@ -240,7 +240,7 @@ All merge operators support `defer` and `auto-merge`:
 3. **Consumers can now reference it**:
    ```yaml
    - repo:
-       url: https://github.com/your-org/my-source-repo
+       url: https://github.com/your-org/my-upstream-repo
        ref: v1.0.0
    ```
 
@@ -251,7 +251,7 @@ All merge operators support `defer` and `auto-merge`:
 By default, consumers inherit from the repository root. Use the `path` option to expose a subdirectory:
 
 ```
-my-source-repo/
+my-upstream-repo/
 ├── templates/
 │   ├── rust/          # Rust project templates
 │   │   ├── .github/
@@ -267,7 +267,7 @@ Consumers select which template to use:
 ```yaml
 # Consumer's .common-repo.yaml
 - repo:
-    url: https://github.com/your-org/my-source-repo
+    url: https://github.com/your-org/my-upstream-repo
     ref: v1.0.0
     path: templates/rust  # Only inherit from this subdirectory
 ```
@@ -277,7 +277,7 @@ Consumers select which template to use:
 Group related files together to make selective inheritance easier:
 
 ```
-source-repo/
+upstream-repo/
 ├── ci/                    # CI/CD configurations
 │   ├── .github/
 │   └── .gitlab-ci.yml
@@ -295,7 +295,7 @@ Consumers can pick specific concerns:
 
 ```yaml
 - repo:
-    url: https://github.com/your-org/source-repo
+    url: https://github.com/your-org/upstream-repo
     ref: v1.0.0
     with:
       - include: ["ci/**", "quality/**"]
@@ -306,7 +306,7 @@ Consumers can pick specific concerns:
 Dotfiles (files starting with `.`) are included by default. Structure them naturally:
 
 ```
-source-repo/
+upstream-repo/
 ├── .github/
 │   ├── workflows/
 │   │   └── ci.yml
@@ -316,7 +316,7 @@ source-repo/
 └── .gitignore
 ```
 
-Files you typically **should not** include in source repos:
+Files you typically **should not** include in upstream repos:
 - `.git/` directory (automatically excluded)
 - `.env` files with secrets
 - Local IDE configurations (`.vscode/`, `.idea/`)
@@ -347,7 +347,7 @@ projectName: my-app  # CamelCase
 Document which variables consumers must provide. In your template files, use sensible defaults where possible:
 
 ```yaml
-# .github/workflows/ci.yml (in source repo)
+# .github/workflows/ci.yml (in upstream repo)
 name: CI
 
 env:
@@ -384,7 +384,7 @@ Variables can reference environment variables as defaults:
 
 ### Semantic Versioning
 
-Follow [semantic versioning](https://semver.org/) for source repositories:
+Follow [semantic versioning](https://semver.org/) for upstream repositories:
 
 - **MAJOR** (`v2.0.0`): Breaking changes that require consumer updates
 - **MINOR** (`v1.1.0`): New files or features, backward compatible
@@ -437,25 +437,25 @@ Maintain a `CHANGELOG.md` to document changes:
 - Security policy template
 ```
 
-## Testing Your Source Repository
+## Testing Your Upstream Repository
 
 ### Testing Locally
 
-Test your source repo against a local consumer before publishing:
+Test your upstream repo against a local consumer before publishing:
 
 ```bash
 # In consumer repository
 cd my-consumer-project
 
-# Reference local source repo instead of remote
+# Reference local upstream repo instead of remote
 # Edit .common-repo.yaml temporarily:
 # - repo:
-#     url: /path/to/local/source-repo
+#     url: /path/to/local/upstream-repo
 #     ref: HEAD
 
 # Or use a file:// URL
 # - repo:
-#     url: file:///absolute/path/to/source-repo
+#     url: file:///absolute/path/to/upstream-repo
 #     ref: HEAD
 
 common-repo ls      # Verify expected files
@@ -468,7 +468,7 @@ common-repo apply --dry-run
 Maintain a test consumer repository or directory:
 
 ```
-source-repo/
+upstream-repo/
 ├── .github/
 ├── templates/
 ├── tests/
@@ -478,12 +478,12 @@ source-repo/
 └── README.md
 ```
 
-The test consumer validates that your source repo works correctly:
+The test consumer validates that your upstream repo works correctly:
 
 ```yaml
 # tests/test-consumer/.common-repo.yaml
 - repo:
-    url: ../..  # Relative path to source repo root
+    url: ../..  # Relative path to upstream repo root
     ref: HEAD
     with:
       - include: ["templates/rust/**"]
@@ -491,11 +491,11 @@ The test consumer validates that your source repo works correctly:
 
 ### CI Testing Strategies
 
-Add CI workflows that validate your source repository:
+Add CI workflows that validate your upstream repository:
 
 ```yaml
 # .github/workflows/test.yml
-name: Test Source Repo
+name: Test Upstream Repo
 
 on: [push, pull_request]
 
@@ -517,12 +517,12 @@ jobs:
 
 ## Composability
 
-### Designing for Multi-Source Inheritance
+### Designing for Multiple Upstream Inheritance
 
-Consumers often inherit from multiple source repositories. Design yours to work alongside others:
+Consumers often inherit from multiple upstream repositories. Design yours to work alongside others:
 
 ```yaml
-# Consumer inheriting from multiple sources
+# Consumer inheriting from multiple upstream repos
 - repo:
     url: https://github.com/org/base-standards
     ref: v1.0.0
@@ -538,16 +538,16 @@ Consumers often inherit from multiple source repositories. Design yours to work 
 
 ### Avoiding File Conflicts
 
-When multiple sources provide similar files, conflicts can occur. Strategies to avoid this:
+When multiple upstream repos provide similar files, conflicts can occur. Strategies to avoid this:
 
 **Use specific subdirectories:**
 ```
 # Instead of:
-source-repo/
+upstream-repo/
 └── ci.yml
 
 # Use:
-source-repo/
+upstream-repo/
 └── .github/workflows/
     └── source-name-ci.yml   # Prefixed to avoid conflicts
 ```
@@ -556,17 +556,17 @@ source-repo/
 ```markdown
 ## Files Provided
 
-This source repository provides:
+This upstream repository provides:
 - `.github/workflows/lint.yml` - Linting workflow
 - `.github/workflows/test.yml` - Test workflow
 
-If you inherit from other sources, ensure they don't provide the same files,
+If you inherit from other upstream repos, ensure they don't provide the same files,
 or use `exclude` to skip conflicting files.
 ```
 
 ### Namespace Considerations
 
-Consider prefixing files with your source repo's purpose:
+Consider prefixing files with your upstream repo's purpose:
 
 ```
 org-security/
@@ -582,7 +582,7 @@ org-quality/
 
 ## What to Include and Exclude
 
-### Good Candidates for Source Repos
+### Good Candidates for Upstream Repos
 
 | File Type | Examples | Why Share |
 |-----------|----------|-----------|

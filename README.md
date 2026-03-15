@@ -53,7 +53,7 @@ Full documentation is available at [common-repo.github.io/common-repo](https://c
 | [CLI Reference](docs/src/cli.md) | Command documentation |
 | [Recipes](docs/src/recipes.md) | Common patterns |
 | [Troubleshooting](docs/src/troubleshooting.md) | Common issues and solutions |
-| [Authoring Source Repos](docs/src/authoring-source-repos.md) | Create your own source repos |
+| [Authoring Upstream Repos](docs/src/authoring-upstream-repos.md) | Create your own upstream repos |
 
 ## Quick Start
 
