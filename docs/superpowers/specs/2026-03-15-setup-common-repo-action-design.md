@@ -38,7 +38,7 @@ setup-common-repo/
 │       ├── test-action.yml   # Test job: self-consume action, verify binaries
 │       ├── commitlint.yml    # Conventional commit linting on PRs
 │       └── release.yaml      # Semantic release with floating major version tags
-├── LICENSE                   # MIT
+├── LICENSE                   # AGPL-3.0-or-later
 └── README.md                 # Usage documentation
 ```
 
