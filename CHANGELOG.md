@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.4](https://github.com/common-repo/common-repo/compare/v0.28.3...v0.28.4) (2026-03-15)
+
+
+### Bug Fixes
+
+* **ls:** correct empty-state message to include modified files ([39d8cb8](https://github.com/common-repo/common-repo/commit/39d8cb839a45cccc8047f2252381fceb75b64873))
+
 ## [0.28.3](https://github.com/common-repo/common-repo/compare/v0.28.2...v0.28.3) (2026-03-15)
 
 
