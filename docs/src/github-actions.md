@@ -1,8 +1,56 @@
-# GitHub Action
+# GitHub Actions
 
-The common-repo GitHub Action checks for upstream updates and creates pull requests with the changes.
+common-repo provides two GitHub Actions:
 
-## Quick Start
+- **setup-common-repo** -- installs the `common-repo` binary
+- **common-repo** -- checks for upstream updates and creates PRs
+
+## Setup Action
+
+Installs the `common-repo` binary and adds it to `PATH`.
+Use this in CI workflows that need the binary directly.
+
+```yaml
+steps:
+  - uses: common-repo/setup-common-repo@v1
+  - run: common-repo validate
+```
+
+### Inputs
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `version` | Version to install (e.g., `v0.28.1`) | `latest` |
+
+### Outputs
+
+| Output | Description |
+|--------|-------------|
+| `version` | The installed version of common-repo |
+| `path` | Path to the installed binary |
+
+### Pin to a specific version
+
+```yaml
+- uses: common-repo/setup-common-repo@v1
+  with:
+    version: v0.28.1
+```
+
+The `cr` alias is also available after setup:
+
+```yaml
+- uses: common-repo/setup-common-repo@v1
+- run: cr validate
+```
+
+## Sync Action
+
+Checks for upstream updates and creates pull requests
+with the changes. This is the primary action for keeping
+inherited configuration files up to date.
+
+### Quick Start
 
 Add this workflow to your repository:
 
@@ -27,7 +75,7 @@ jobs:
       - uses: common-repo/common-repo@v1
 ```
 
-## Inputs
+### Inputs
 
 | Input | Description | Default |
 |-------|-------------|---------|
@@ -41,7 +89,7 @@ jobs:
 | `commit-message` | Commit message | `chore(deps): update common-repo files` |
 | `dry-run` | Check without creating PR | `false` |
 
-## Outputs
+### Outputs
 
 | Output | Description |
 |--------|-------------|
@@ -51,9 +99,9 @@ jobs:
 | `pr-number` | PR number |
 | `files-changed` | JSON array of changed files |
 
-## Examples
+### Examples
 
-### Update to latest versions (including breaking changes)
+#### Update to latest versions (including breaking changes)
 
 ```yaml
 - uses: common-repo/common-repo@v1
@@ -61,7 +109,7 @@ jobs:
     update-strategy: latest
 ```
 
-### Pin common-repo version for reproducibility
+#### Pin common-repo version for reproducibility
 
 ```yaml
 - uses: common-repo/common-repo@v1
@@ -69,7 +117,7 @@ jobs:
     version: v0.27.0
 ```
 
-### Force re-sync (even without version updates)
+#### Force re-sync (even without version updates)
 
 Useful if someone manually edited a managed file:
 
@@ -79,7 +127,7 @@ Useful if someone manually edited a managed file:
     force-sync: true
 ```
 
-### Dry-run to check for updates without creating PR
+#### Dry-run to check for updates without creating PR
 
 ```yaml
 - uses: common-repo/common-repo@v1
@@ -90,7 +138,7 @@ Useful if someone manually edited a managed file:
 - run: echo "Updates available: ${{ steps.check.outputs.has-updates }}"
 ```
 
-### Custom PR settings
+#### Custom PR settings
 
 ```yaml
 - uses: common-repo/common-repo@v1
@@ -100,9 +148,9 @@ Useful if someone manually edited a managed file:
     commit-message: 'chore: update shared configuration files'
 ```
 
-## Requirements
+### Requirements
 
-### Permissions
+#### Permissions
 
 The workflow needs these permissions:
 
@@ -112,9 +160,10 @@ permissions:
   pull-requests: write  # Create/update PRs
 ```
 
-### Private inherited repos
+#### Private inherited repos
 
-If your `.common-repo.yaml` references private repositories, you need a Personal Access Token (PAT) with `repo` scope:
+If your `.common-repo.yaml` references private repositories,
+you need a Personal Access Token (PAT) with `repo` scope:
 
 ```yaml
 - uses: common-repo/common-repo@v1
@@ -122,17 +171,23 @@ If your `.common-repo.yaml` references private repositories, you need a Personal
     token: ${{ secrets.PAT_TOKEN }}
 ```
 
-### Self-hosted runners
+#### Self-hosted runners
 
-The action requires `curl`, `git`, `gh` (GitHub CLI), and `jq`. These are pre-installed on GitHub-hosted runners but may need to be installed on self-hosted runners.
+The action requires `curl`, `git`, `gh` (GitHub CLI), and
+`jq`. These are pre-installed on GitHub-hosted runners but
+may need to be installed on self-hosted runners.
 
-## How It Works
+### How It Works
 
 1. Installs the `common-repo` binary
-2. Runs `common-repo check --updates` to detect available updates
+   (via `setup-common-repo` internally)
+2. Runs `common-repo check --updates` to detect
+   available updates
 3. If updates exist (or `force-sync: true`):
-   - Runs `common-repo update` to bump refs in `.common-repo.yaml`
+   - Runs `common-repo update` to bump refs in
+     `.common-repo.yaml`
    - Runs `common-repo apply` to regenerate files
 4. Creates or updates a PR with all changes
 
-The action adds the `dependencies` label to PRs if that label exists in your repository.
+The action adds the `dependencies` label to PRs if that
+label exists in your repository.
