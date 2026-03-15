@@ -9,7 +9,7 @@
 - [File Filtering](file-filtering.md)
 - [Configuration Reference](configuration.md)
 - [CLI Reference](cli.md)
-- [GitHub Action](github-action.md)
+- [GitHub Actions](github-actions.md)
 - [Recipes](recipes.md)
 - [Troubleshooting](troubleshooting.md)
 
