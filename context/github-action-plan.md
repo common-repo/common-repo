@@ -16,7 +16,7 @@ From `context/purpose.md`, `context/design.md`, and `README.md`:
 
 ## How It Works
 
-The action leverages existing CLI commands:
+The action uses existing CLI commands:
 
 1. **Install** - Use existing `install.sh` to get the binary
 2. **`common-repo check --updates`** - Detects if any inherited repos have newer versions
@@ -442,7 +442,7 @@ jobs:
           dry-run: 'true'
 ```
 
-### Best Practices
+### Recommendations
 
 1. **Lint in pre-commit** - Catch issues before commit with `action-validator`
 2. **Lint in CI** - Run `action-validator` in CI as backup
