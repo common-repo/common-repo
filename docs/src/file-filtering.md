@@ -1,6 +1,6 @@
 # File Filtering
 
-This guide explains how to use `include` and `exclude` patterns to control which files are inherited from source repositories.
+This guide explains how to use `include` and `exclude` patterns to control which files are inherited from upstream repositories.
 
 ## Basic Syntax
 

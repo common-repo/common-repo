@@ -16,7 +16,7 @@ common-repo treats repository configuration as software dependencies.
 Configuration files become:
 - **Semantically versioned** - Track exactly which version you're using
 - **Automatically updateable** - Detect outdated configs and upgrade deterministically
-- **Composable** - Pull from multiple sources and merge intelligently
+- **Composable** - Pull from multiple upstream repos and merge intelligently
 - **Inheritable** - Build upon standards that themselves extend other standards
 
 ## Quick Start

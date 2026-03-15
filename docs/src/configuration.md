@@ -266,19 +266,19 @@ This operator validates but does not install tools. Warnings are issued for miss
 
 Merge operators intelligently combine configuration fragments into destination files.
 
-### Source-Declared Merge (defer/auto-merge)
+### Upstream-Declared Merge (defer/auto-merge)
 
-All merge operators support two additional options for source-declared merge behavior:
+All merge operators support two additional options for upstream-declared merge behavior:
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `auto-merge` | string | Shorthand: sets source=dest to this value and implies defer=true |
-| `defer` | bool | When true, this operation only runs when repo is used as a source |
+| `defer` | bool | When true, this operation only runs when repo is used as an upstream |
 
 **`auto-merge`** is the preferred syntax when the source and destination filenames are the same:
 
 ```yaml
-# In source repo's .common-repo.yaml
+# In upstream repo's .common-repo.yaml
 - markdown:
     auto-merge: CLAUDE.md     # source=dest=CLAUDE.md, defer=true
     section: "## Rules"
@@ -295,7 +295,7 @@ All merge operators support two additional options for source-declared merge beh
     defer: true               # Only applies when repo is inherited
 ```
 
-See [Source-Declared Merge Behavior](authoring-source-repos.md#source-declared-merge-behavior) for detailed usage.
+See [Upstream-Declared Merge Behavior](authoring-upstream-repos.md#upstream-declared-merge-behavior) for detailed usage.
 
 ### Path Syntax
 
@@ -352,7 +352,7 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `source` | Yes* | - | Source fragment file |
 | `dest` | Yes* | - | Destination file |
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
-| `defer` | No | false | Only apply when repo is used as a source |
+| `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
 | `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
 | `append` | No | false | Deprecated: use `array_mode: append` instead |
@@ -421,7 +421,7 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `source` | Yes* | - | Source fragment file |
 | `dest` | Yes* | - | Destination file |
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
-| `defer` | No | false | Only apply when repo is used as a source |
+| `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Dot-notation path to merge at |
 | `append` | No | false | Append to arrays instead of replace |
 | `position` | No | - | Where to append: `start` or `end` (only used when `append: true`) |
@@ -472,7 +472,7 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `source` | Yes* | - | Source fragment file |
 | `dest` | Yes* | - | Destination file |
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
-| `defer` | No | false | Only apply when repo is used as a source |
+| `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
 | `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
 | `append` | No | false | Deprecated: use `array_mode: append` instead |
@@ -525,7 +525,7 @@ See [Array Merge Modes](#array-merge-modes) for details on array handling option
 | `source` | Yes* | - | Source fragment file |
 | `dest` | Yes* | - | Destination file |
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
-| `defer` | No | false | Only apply when repo is used as a source |
+| `defer` | No | false | Only apply when repo is used as an upstream |
 | `section` | No | - | INI section to merge into |
 | `append` | No | false | Append values instead of replace |
 | `allow-duplicates` | No | false | Allow duplicate keys |
@@ -575,7 +575,7 @@ See [Array Merge Modes](#array-merge-modes) for details on array handling option
 | `source` | Yes* | - | Source fragment file |
 | `dest` | Yes* | - | Destination file |
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
-| `defer` | No | false | Only apply when repo is used as a source |
+| `defer` | No | false | Only apply when repo is used as an upstream |
 | `section` | No | - | Heading to merge under |
 | `level` | No | 2 | Heading level (1-6) |
 | `append` | No | false | Append to section |
@@ -607,9 +607,9 @@ See [Array Merge Modes](#array-merge-modes) for details on array handling option
     create-section: true
 ```
 
-**Merge CLAUDE.md rules (source-declared):**
+**Merge CLAUDE.md rules (upstream-declared):**
 ```yaml
-# In source repo - will only apply when inherited
+# In upstream repo - will only apply when inherited
 - markdown:
     auto-merge: CLAUDE.md
     section: "## Rules"

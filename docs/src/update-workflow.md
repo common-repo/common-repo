@@ -69,7 +69,7 @@ common-repo update --yes
 
 ### Selective Updates
 
-Update only specific sources using glob patterns:
+Update only specific upstream repos using glob patterns:
 
 ```bash
 # Update repos matching a pattern

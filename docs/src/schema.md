@@ -21,9 +21,9 @@ The original v1 schema from [commonrepo](https://github.com/shakefu/commonrepo).
 # This v1 schema is from the codebase at https://github.com/shakefu/commonrepo.
 
 #########
-# Sources
+# Upstreams
 #
-# Source repositories define which of their files should be imported into the
+# Upstream repositories define which of their files should be imported into the
 # child repository.
 #
 # This should be defined in the `.commonrepo.yml` file.
@@ -89,10 +89,10 @@ install-with: [apt-get, brew, platform]
 ###########
 # Consumers
 #
-# Consumer repositories can define which sources they want to consume from, as
-# well as apply additional filters to the ones defined in the sources.
+# Consumer repositories can define which upstream repos they want to consume from, as
+# well as apply additional filters to the ones defined in the upstream repos.
 
-# define a list of source repositories, which mimic the consumer repos keys
+# define a list of upstream repositories, which mimic the consumer repos keys
 upstream:
   - url: https://github.com/shakefu/commonrepo
     ref: v1.1.0
