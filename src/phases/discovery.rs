@@ -106,10 +106,9 @@ fn discover_inherited_configs(
             // Try to fetch and parse the inherited config
             match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
                 Ok(inherited_config) => {
-                    // Extract source filtering operations (include/exclude/rename)
+                    // Extract source operations (include/exclude/rename/template/template-vars)
                     // These define the "public API" of files the source exposes
-                    let source_filtering_ops =
-                        extract_source_filtering_operations(&inherited_config);
+                    let source_filtering_ops = extract_source_operations(&inherited_config);
 
                     // Extract deferred operations from the source repo's config
                     // These are merge operations with defer: true or auto-merge
@@ -213,18 +212,22 @@ fn extract_deferred_operations(config: &Schema) -> Vec<Operation> {
         .collect()
 }
 
-/// Extract source filtering operations from a source repository's config
+/// Extract source operations from a source repository's config
 ///
-/// Source filtering operations are include, exclude, and rename operations
-/// that define the "public API" of files a source repo exposes to consumers.
+/// Source operations are include, exclude, rename, template, and template-vars
+/// operations that define how a source repo exposes files to consumers.
 /// These are applied BEFORE deferred operations and consumer's with: clause.
-fn extract_source_filtering_operations(config: &Schema) -> Vec<Operation> {
+fn extract_source_operations(config: &Schema) -> Vec<Operation> {
     config
         .iter()
         .filter(|op| {
             matches!(
                 op,
-                Operation::Include { .. } | Operation::Exclude { .. } | Operation::Rename { .. }
+                Operation::Include { .. }
+                    | Operation::Exclude { .. }
+                    | Operation::Rename { .. }
+                    | Operation::Template { .. }
+                    | Operation::TemplateVars { .. }
             )
         })
         .cloned()
@@ -1319,12 +1322,12 @@ mod tests {
     }
 
     // ========================================================================
-    // Tests for extract_source_filtering_operations
+    // Tests for extract_source_operations
     // ========================================================================
 
-    mod extract_source_filtering_ops_tests {
+    mod extract_source_ops_tests {
         use super::*;
-        use crate::config::{JsonMergeOp, RenameOp, YamlMergeOp};
+        use crate::config::{JsonMergeOp, RenameOp, TemplateOp, TemplateVars, YamlMergeOp};
 
         #[test]
         fn test_extracts_include_operations() {
@@ -1343,7 +1346,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_filtering_operations(&config);
+            let result = extract_source_operations(&config);
             assert_eq!(result.len(), 1);
             match &result[0] {
                 Operation::Include { include } => {
@@ -1370,7 +1373,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_filtering_operations(&config);
+            let result = extract_source_operations(&config);
             assert_eq!(result.len(), 1);
             match &result[0] {
                 Operation::Exclude { exclude } => {
@@ -1385,7 +1388,7 @@ mod tests {
             let config = vec![Operation::Rename {
                 rename: RenameOp { mappings: vec![] },
             }];
-            let result = extract_source_filtering_operations(&config);
+            let result = extract_source_operations(&config);
             assert_eq!(result.len(), 1);
             matches!(&result[0], Operation::Rename { .. });
         }
@@ -1416,7 +1419,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_filtering_operations(&config);
+            let result = extract_source_operations(&config);
             assert_eq!(result.len(), 3);
         }
 
@@ -1439,7 +1442,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_filtering_operations(&config);
+            let result = extract_source_operations(&config);
             assert_eq!(result.len(), 3);
             // Verify order is preserved
             match &result[0] {
@@ -1465,7 +1468,7 @@ mod tests {
         #[test]
         fn test_empty_config_returns_empty() {
             let config: Vec<Operation> = vec![];
-            let result = extract_source_filtering_operations(&config);
+            let result = extract_source_operations(&config);
             assert!(result.is_empty());
         }
 
@@ -1485,8 +1488,123 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_filtering_operations(&config);
+            let result = extract_source_operations(&config);
             assert!(result.is_empty());
+        }
+
+        #[test]
+        fn test_extracts_template_operations() {
+            let config = vec![
+                Operation::Template {
+                    template: TemplateOp {
+                        patterns: vec!["*.yaml".to_string()],
+                    },
+                },
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "example".to_string(),
+                        r#ref: "main".to_string(),
+                        path: None,
+                        with: vec![],
+                    },
+                },
+            ];
+            let result = extract_source_operations(&config);
+            assert_eq!(result.len(), 1);
+            match &result[0] {
+                Operation::Template { template } => {
+                    assert_eq!(template.patterns, vec!["*.yaml".to_string()]);
+                }
+                _ => panic!("Expected Template operation"),
+            }
+        }
+
+        #[test]
+        fn test_extracts_template_vars_operations() {
+            let config = vec![
+                Operation::TemplateVars {
+                    template_vars: TemplateVars {
+                        vars: {
+                            let mut m = std::collections::HashMap::new();
+                            m.insert("APP_ID".to_string(), "MY_APP_ID".to_string());
+                            m.insert("APP_KEY".to_string(), "MY_APP_KEY".to_string());
+                            m
+                        },
+                    },
+                },
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "example".to_string(),
+                        r#ref: "main".to_string(),
+                        path: None,
+                        with: vec![],
+                    },
+                },
+            ];
+            let result = extract_source_operations(&config);
+            assert_eq!(result.len(), 1);
+            match &result[0] {
+                Operation::TemplateVars { template_vars } => {
+                    assert_eq!(
+                        template_vars.vars.get("APP_ID"),
+                        Some(&"MY_APP_ID".to_string())
+                    );
+                    assert_eq!(
+                        template_vars.vars.get("APP_KEY"),
+                        Some(&"MY_APP_KEY".to_string())
+                    );
+                }
+                _ => panic!("Expected TemplateVars operation"),
+            }
+        }
+
+        #[test]
+        fn test_extracts_all_source_operations_including_templates() {
+            let config = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["src/**".to_string()],
+                    },
+                },
+                Operation::Template {
+                    template: TemplateOp {
+                        patterns: vec!["*.yaml".to_string()],
+                    },
+                },
+                Operation::TemplateVars {
+                    template_vars: TemplateVars {
+                        vars: {
+                            let mut m = std::collections::HashMap::new();
+                            m.insert("KEY".to_string(), "VALUE".to_string());
+                            m
+                        },
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.test".to_string()],
+                    },
+                },
+                Operation::Rename {
+                    rename: RenameOp { mappings: vec![] },
+                },
+                // Non-source operations should be ignored
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "example".to_string(),
+                        r#ref: "main".to_string(),
+                        path: None,
+                        with: vec![],
+                    },
+                },
+            ];
+            let result = extract_source_operations(&config);
+            assert_eq!(result.len(), 5);
+            assert!(matches!(&result[0], Operation::Include { .. }));
+            assert!(matches!(&result[1], Operation::Template { .. }));
+            assert!(matches!(&result[2], Operation::TemplateVars { .. }));
+            assert!(matches!(&result[3], Operation::Exclude { .. }));
+            assert!(matches!(&result[4], Operation::Rename { .. }));
         }
     }
 }

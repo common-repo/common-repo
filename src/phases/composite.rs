@@ -826,4 +826,78 @@ port = 8080
             assert_eq!(target.len(), 5);
         }
     }
+
+    #[test]
+    fn test_phase4_source_template_vars_overridden_by_consumer() {
+        // Simulates: source repo declares template + template-vars defaults,
+        // consumer overrides some vars via with: clause
+        let mut fs1 = MemoryFS::new();
+        fs1.add_file_string(
+            "workflow.yaml",
+            "app_id: ${GH_APP_ID_VAR}\napp_key: ${GH_APP_KEY_SECRET}\nowner: ${GH_APP_OWNER}",
+        )
+        .unwrap();
+
+        // Mark as template (source repo declared template:)
+        let template_op = crate::config::TemplateOp {
+            patterns: vec!["workflow.yaml".to_string()],
+        };
+        crate::operators::template::mark(&template_op, &mut fs1).unwrap();
+
+        // Source repo's default template-vars
+        let mut source_vars = HashMap::new();
+        source_vars.insert(
+            "GH_APP_ID_VAR".to_string(),
+            "CHRISTMAS_ISLAND_APP_ID".to_string(),
+        );
+        source_vars.insert(
+            "GH_APP_KEY_SECRET".to_string(),
+            "CHRISTMAS_ISLAND_PRIVATE_KEY".to_string(),
+        );
+        source_vars.insert("GH_APP_OWNER".to_string(), "christmas-island".to_string());
+
+        // Consumer's override vars (only overrides owner)
+        let mut consumer_vars = HashMap::new();
+        consumer_vars.insert("GH_APP_OWNER".to_string(), "my-org".to_string());
+
+        let mut intermediate_fss = HashMap::new();
+        // Source repo provides the filesystem + default vars
+        intermediate_fss.insert(
+            "https://github.com/source-repo.git@main".to_string(),
+            IntermediateFS::new_with_vars(
+                fs1,
+                "https://github.com/source-repo.git".to_string(),
+                "main".to_string(),
+                source_vars,
+            ),
+        );
+        // Consumer provides override vars (empty filesystem, just vars)
+        intermediate_fss.insert(
+            "local@local".to_string(),
+            IntermediateFS::new_with_vars(
+                MemoryFS::new(),
+                "local".to_string(),
+                "local".to_string(),
+                consumer_vars,
+            ),
+        );
+
+        // Source first, then consumer (consumer overrides)
+        let order = OperationOrder::new(vec![
+            "https://github.com/source-repo.git@main".to_string(),
+            "local@local".to_string(),
+        ]);
+
+        let composite = execute(&order, &intermediate_fss).unwrap();
+
+        let file = composite.get_file("workflow.yaml").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+
+        // Source defaults preserved for non-overridden vars
+        assert!(content.contains("CHRISTMAS_ISLAND_APP_ID"));
+        assert!(content.contains("CHRISTMAS_ISLAND_PRIVATE_KEY"));
+        // Consumer override applied
+        assert!(content.contains("my-org"));
+        assert!(!content.contains("christmas-island"));
+    }
 }
