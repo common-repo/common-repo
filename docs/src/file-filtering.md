@@ -140,7 +140,7 @@ Filtering happens before other operations in the `with` clause:
       - exclude: ["templates/internal/**"]
       # Then rename
       - rename:
-          - "^templates/(.*)": "%[1]s"
+          - "^templates/(.*)": "$1"
 ```
 
 ## Viewing Filtered Results

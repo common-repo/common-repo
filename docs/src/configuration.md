@@ -153,15 +153,15 @@ Transform file paths using regex patterns with capture group placeholders.
 
 ```yaml
 - rename:
-    - "old-name/(.*)": "new-name/%[1]s"
-    - "^templates/(.*)": "%[1]s"
-    - "(.+)\\.template$": "%[1]s"
+    - "old-name/(.*)": "new-name/$1"
+    - "^templates/(.*)": "$1"
+    - "(.+)\\.template$": "$1"
 ```
 
 #### Placeholders
 
-- `%[1]s` - First capture group
-- `%[2]s` - Second capture group
+- `$1` - First capture group
+- `$2` - Second capture group
 - etc.
 
 #### Examples
@@ -169,21 +169,21 @@ Transform file paths using regex patterns with capture group placeholders.
 **Strip a directory prefix:**
 ```yaml
 - rename:
-    - "^files/(.*)": "%[1]s"
+    - "^files/(.*)": "$1"
 ```
 Result: `files/config.yaml` becomes `config.yaml`
 
 **Move files to a subdirectory:**
 ```yaml
 - rename:
-    - "^(.+\\.md)$": "docs/%[1]s"
+    - "^(.+\\.md)$": "docs/$1"
 ```
 Result: `README.md` becomes `docs/README.md`
 
 **Rename file extensions:**
 ```yaml
 - rename:
-    - "(.+)\\.template$": "%[1]s"
+    - "(.+)\\.template$": "$1"
 ```
 Result: `config.yaml.template` becomes `config.yaml`
 
@@ -674,7 +674,7 @@ Here's a complete configuration showing multiple operators:
 
 # Rename template files
 - rename:
-    - "(.+)\\.template$": "%[1]s"
+    - "(.+)\\.template$": "$1"
 
 # Define template variables
 - template-vars:

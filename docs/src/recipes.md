@@ -474,7 +474,7 @@ templates/
     with:
       - include: ["templates/**"]
       - rename:
-          - "templates/(.+)\\.template$": "%[1]s"
+          - "templates/(.+)\\.template$": "$1"
 
 - template-vars:
     project_name: my-project
