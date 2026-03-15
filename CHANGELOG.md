@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.5](https://github.com/common-repo/common-repo/compare/v0.28.4...v0.28.5) (2026-03-15)
+
+
+### Bug Fixes
+
+* **processing:** use operations-aware keys so consumer template-vars overrides are not dropped ([5dca64e](https://github.com/common-repo/common-repo/commit/5dca64e3590e7ecaec95e032bec2919cdcea61d5)), closes [#249](https://github.com/common-repo/common-repo/issues/249)
+
 ## [0.28.4](https://github.com/common-repo/common-repo/compare/v0.28.3...v0.28.4) (2026-03-15)
 
 
