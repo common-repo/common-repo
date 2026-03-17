@@ -62,12 +62,10 @@ Plans:
   3. "source authors" is now "upstream authors" in all code paths
   4. "source_ops" / "source ops" references are now "upstream_ops" / "upstream ops"
   5. Code compiles and the renamed operations concepts function identically
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 03-01: Rename source-declared to upstream-declared in operations code
-- [ ] 03-02: Rename source filtering and source authors terminology
-- [ ] 03-03: Rename source_ops to upstream_ops across codebase
+- [ ] 03-01-PLAN.md -- Rename all operations terminology in discovery.rs and processing.rs
 
 ### Phase 4: Operators Preservation
 **Goal**: Merge operator source: field is confirmed preserved and protected from accidental rename
@@ -148,7 +146,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 |-------|----------------|--------|-----------|
 | 1. Config Structs | 0/1 | Not started | - |
 | 2. Core Code Rename | 0/4 | Not started | - |
-| 3. Operations Terminology | 0/3 | Not started | - |
+| 3. Operations Terminology | 0/1 | Not started | - |
 | 4. Operators Preservation | 0/1 | Not started | - |
 | 5. Code Comments | 0/2 | Not started | - |
 | 6. CLI and Error Output | 0/2 | Not started | - |
