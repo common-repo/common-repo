@@ -12,7 +12,7 @@ Systematically replace "source repo" terminology with "upstream repo" across the
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Config Structs** - Rename config struct fields from "source" to "upstream" (hard rename, no backwards compat)
+- [x] **Phase 1: Config Structs** - Rename config struct fields from "source" to "upstream" (hard rename, no backwards compat) ✓ 2026-03-17
 - [ ] **Phase 2: Core Code Rename** - Rename struct fields, variable names, and function names across all key source files
 - [ ] **Phase 3: Operations Terminology** - Rename source-declared, source filtering, source authors, and source_ops to upstream equivalents
 - [ ] **Phase 4: Operators Preservation** - Verify and guard that merge operator source: field is preserved unchanged
@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 01-01-PLAN.md -- Update config struct doc comments to use "upstream" terminology
+- [x] 01-01-PLAN.md -- Update config struct doc comments to use "upstream" terminology
 
 ### Phase 2: Core Code Rename
 **Goal**: All Rust identifiers (struct fields, variables, function names) across key source files use "upstream" instead of "source repo"
@@ -134,7 +134,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Config Structs | 0/1 | Not started | - |
+| 1. Config Structs | 1/1 | Complete | 2026-03-17 |
 | 2. Core Code Rename | 0/1 | Not started | - |
 | 3. Operations Terminology | 0/1 | Not started | - |
 | 4. Operators Preservation | 0/1 | Not started | - |

@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Consistent, intuitive "upstream" terminology replacing "source repo" throughout the codebase
-**Current focus:** Phase 1: Config Structs
+**Current focus:** Phase 2: Core Code Rename
 
 ## Current Position
 
