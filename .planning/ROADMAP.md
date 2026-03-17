@@ -44,18 +44,11 @@ Plans:
   1. No struct field, variable, or function name contains "source_repo" or similar where it refers to the upstream repository
   2. Files src/phases/discovery.rs, src/phases/processing.rs, src/phases/composite.rs, src/config.rs, src/error.rs use "upstream" identifiers
   3. Code compiles cleanly after all identifier renames
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: Rename identifiers in src/phases/discovery.rs
-- [ ] 02-02: Rename identifiers in src/phases/processing.rs
-- [ ] 02-03: Rename identifiers in src/phases/composite.rs
-- [ ] 02-04: Rename identifiers in src/error.rs and remaining files
+- [ ] 02-01-PLAN.md — Rename IntermediateFS source_url/source_ref fields to upstream_url/upstream_ref
 
-### Phase 3: Operations Terminology
-**Goal**: All operations-related terminology uses "upstream" instead of "source" (upstream-declared, upstream filtering, upstream authors, upstream_ops)
-**Depends on**: Phase 2
-**Requirements**: CODE-03, CODE-04, CODE-05, CODE-06
 **Success Criteria** (what must be TRUE):
   1. "source-declared" operations are now called "upstream-declared" in all code paths
   2. "source filtering" is now "upstream filtering" in all code paths
@@ -102,11 +95,10 @@ Plans:
   1. Running `common-repo --help` and subcommand help shows "upstream" instead of "source repo"
   2. Normal operation output messages reference "upstream" repository, not "source"
   3. Error messages triggered by invalid config or missing repos say "upstream" not "source repo"
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 06-01: Update CLI help text strings
-- [ ] 06-02: Update user-facing output and error message strings
+- [ ] 06-01-PLAN.md -- Update CLI help text and output messages, verify no remaining source repo references
 
 ### Phase 7: Test Updates
 **Goal**: Test files and assertions reflect the new "upstream" terminology
@@ -143,10 +135,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config Structs | 0/1 | Not started | - |
-| 2. Core Code Rename | 0/4 | Not started | - |
+| 2. Core Code Rename | 0/1 | Not started | - |
 | 3. Operations Terminology | 0/1 | Not started | - |
 | 4. Operators Preservation | 0/1 | Not started | - |
 | 5. Code Comments | 0/2 | Not started | - |
-| 6. CLI and Error Output | 0/2 | Not started | - |
+| 6. CLI and Error Output | 0/1 | Not started | - |
 | 7. Test Updates | 0/1 | Not started | - |
 | 8. Final Validation | 0/2 | Not started | - |
