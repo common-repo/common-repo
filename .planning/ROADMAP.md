@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Config Structs** - Rename config struct fields from "source" to "upstream" (hard rename, no backwards compat) ✓ 2026-03-17
 - [x] **Phase 2: Core Code Rename** - Rename struct fields, variable names, and function names across all key source files ✓ 2026-03-17
-- [ ] **Phase 3: Operations Terminology** - Rename source-declared, source filtering, source authors, and source_ops to upstream equivalents
+- [x] **Phase 3: Operations Terminology** - Rename source-declared, source filtering, source authors, and source_ops to upstream equivalents ✓ 2026-03-17
 - [ ] **Phase 4: Operators Preservation** - Verify and guard that merge operator source: field is preserved unchanged
 - [ ] **Phase 5: Code Comments** - Update all code comments referencing "source repo" to "upstream repo"
 - [ ] **Phase 6: CLI and Error Output** - Update help text, user-facing messages, and error messages to use "upstream"
@@ -49,6 +49,10 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Rename IntermediateFS source_url/source_ref fields to upstream_url/upstream_ref
 
+### Phase 3: Operations Terminology
+**Goal**: Rename source-declared, source filtering, source authors, and source_ops to upstream equivalents
+**Depends on**: Phase 2
+**Requirements**: CODE-03, CODE-04, CODE-05, CODE-06
 **Success Criteria** (what must be TRUE):
   1. "source-declared" operations are now called "upstream-declared" in all code paths
   2. "source filtering" is now "upstream filtering" in all code paths
@@ -58,7 +62,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 03-01-PLAN.md -- Rename all operations terminology in discovery.rs and processing.rs
+- [x] 03-01-PLAN.md -- Rename all operations terminology in discovery.rs and processing.rs
 
 ### Phase 4: Operators Preservation
 **Goal**: Merge operator source: field is confirmed preserved and protected from accidental rename
@@ -136,7 +140,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 |-------|----------------|--------|-----------|
 | 1. Config Structs | 1/1 | Complete | 2026-03-17 |
 | 2. Core Code Rename | 1/1 | Complete | 2026-03-17 |
-| 3. Operations Terminology | 0/1 | Not started | - |
+| 3. Operations Terminology | 1/1 | Complete | 2026-03-17 |
 | 4. Operators Preservation | 0/1 | Not started | - |
 | 5. Code Comments | 0/2 | Not started | - |
 | 6. CLI and Error Output | 0/1 | Not started | - |

@@ -11,10 +11,10 @@ Requirements for the complete rename. Each maps to roadmap phases.
 
 - [x] **CODE-01**: Rename struct fields, variable names, and function names that use "source_repo" or similar to "upstream_repo"
 - [ ] **CODE-02**: Update all code comments referencing "source repo" to use "upstream repo"
-- [ ] **CODE-03**: Rename "source-declared" operations terminology to "upstream-declared" in code
-- [ ] **CODE-04**: Rename "source filtering" to "upstream filtering" in code
-- [ ] **CODE-05**: Rename "source authors" to "upstream authors" in code
-- [ ] **CODE-06**: Rename "source_ops" / "source ops" references to "upstream_ops" / "upstream ops"
+- [x] **CODE-03**: Rename "source-declared" operations terminology to "upstream-declared" in code
+- [x] **CODE-04**: Rename "source filtering" to "upstream filtering" in code
+- [x] **CODE-05**: Rename "source authors" to "upstream authors" in code
+- [x] **CODE-06**: Rename "source_ops" / "source ops" references to "upstream_ops" / "upstream ops"
 - [ ] **CODE-07**: Preserve `source:` field in merge operators (yaml, json, toml, ini, markdown) — this refers to fragment file path, not the repository
 
 ### CLI Output
@@ -59,10 +59,10 @@ Requirements for the complete rename. Each maps to roadmap phases.
 | CONF-01 | Phase 1 | Complete |
 | CONF-02 | Phase 1 | Complete |
 | CODE-01 | Phase 2 | Complete |
-| CODE-03 | Phase 3 | Pending |
-| CODE-04 | Phase 3 | Pending |
-| CODE-05 | Phase 3 | Pending |
-| CODE-06 | Phase 3 | Pending |
+| CODE-03 | Phase 3 | Complete |
+| CODE-04 | Phase 3 | Complete |
+| CODE-05 | Phase 3 | Complete |
+| CODE-06 | Phase 3 | Complete |
 | CODE-07 | Phase 4 | Pending |
 | CODE-02 | Phase 5 | Pending |
 | CLI-01 | Phase 6 | Pending |
