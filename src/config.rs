@@ -180,7 +180,7 @@ pub struct YamlMergeOp {
     pub append: bool,
     #[serde(default, rename = "array_mode")]
     pub array_mode: Option<ArrayMergeMode>,
-    /// Mark this operation as deferred (applies when repo is used as a source)
+    /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
     /// Shorthand: sets source=dest to this value and implies defer=true
@@ -309,7 +309,7 @@ pub struct JsonMergeOp {
     /// Position for appending ("end" or "start")
     #[serde(default)]
     pub position: Option<String>,
-    /// Mark this operation as deferred (applies when repo is used as a source)
+    /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
     /// Shorthand: sets source=dest to this value and implies defer=true
@@ -337,7 +337,7 @@ pub struct TomlMergeOp {
     pub preserve_comments: bool,
     #[serde(default, rename = "array_mode")]
     pub array_mode: Option<ArrayMergeMode>,
-    /// Mark this operation as deferred (applies when repo is used as a source)
+    /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
     /// Shorthand: sets source=dest to this value and implies defer=true
@@ -572,7 +572,7 @@ pub struct IniMergeOp {
     /// Whether to allow duplicate keys
     #[serde(default, rename = "allow-duplicates")]
     pub allow_duplicates: bool,
-    /// Mark this operation as deferred (applies when repo is used as a source)
+    /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
     /// Shorthand: sets source=dest to this value and implies defer=true
@@ -705,7 +705,7 @@ pub struct MarkdownMergeOp {
     /// Whether to create section if it doesn't exist
     #[serde(default, rename = "create-section")]
     pub create_section: bool,
-    /// Mark this operation as deferred (applies when repo is used as a source)
+    /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
     /// Shorthand: sets source=dest to this value and implies defer=true
@@ -889,7 +889,7 @@ pub enum Operation {
 }
 
 impl Operation {
-    /// Check if this operation is deferred (applies when repo is used as a source)
+    /// Check if this operation is deferred (applies when repo is used as an upstream)
     ///
     /// Deferred operations have `defer: true` or `auto-merge` set.
     /// Only merge operators (yaml, json, toml, ini, markdown) can be deferred.
