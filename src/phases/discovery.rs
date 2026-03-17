@@ -106,11 +106,11 @@ fn discover_inherited_configs(
             // Try to fetch and parse the inherited config
             match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
                 Ok(inherited_config) => {
-                    // Extract source operations (include/exclude/rename/template/template-vars)
-                    // These define the "public API" of files the source exposes
-                    let source_filtering_ops = extract_source_operations(&inherited_config);
+                    // Extract upstream operations (include/exclude/rename/template/template-vars)
+                    // These define the "public API" of files the upstream repo exposes
+                    let upstream_filtering_ops = extract_upstream_operations(&inherited_config);
 
-                    // Extract deferred operations from the source repo's config
+                    // Extract deferred operations from the upstream repo's config
                     // These are merge operations with defer: true or auto-merge
                     let deferred_ops = extract_deferred_operations(&inherited_config);
 
@@ -122,10 +122,10 @@ fn discover_inherited_configs(
                         discover_inherited_configs(inherited_node, repo_manager, visited)?;
 
                     // Combine operations in correct order:
-                    // 1. Source filtering ops (define exposed file set)
-                    // 2. Deferred ops (source-declared merge behavior)
+                    // 1. Upstream filtering ops (define exposed file set)
+                    // 2. Deferred ops (upstream-declared merge behavior)
                     // 3. Consumer's with: ops (can further filter/transform)
-                    let mut combined_operations = source_filtering_ops;
+                    let mut combined_operations = upstream_filtering_ops;
                     combined_operations.extend(deferred_ops);
                     combined_operations.extend(child.operations.clone());
 
@@ -212,12 +212,12 @@ fn extract_deferred_operations(config: &Schema) -> Vec<Operation> {
         .collect()
 }
 
-/// Extract source operations from a source repository's config
+/// Extract upstream operations from an upstream repository's config
 ///
-/// Source operations are include, exclude, rename, template, and template-vars
-/// operations that define how a source repo exposes files to consumers.
+/// Upstream operations are include, exclude, rename, template, and template-vars
+/// operations that define how an upstream repo exposes files to consumers.
 /// These are applied BEFORE deferred operations and consumer's with: clause.
-fn extract_source_operations(config: &Schema) -> Vec<Operation> {
+fn extract_upstream_operations(config: &Schema) -> Vec<Operation> {
     config
         .iter()
         .filter(|op| {
@@ -1322,10 +1322,10 @@ mod tests {
     }
 
     // ========================================================================
-    // Tests for extract_source_operations
+    // Tests for extract_upstream_operations
     // ========================================================================
 
-    mod extract_source_ops_tests {
+    mod extract_upstream_ops_tests {
         use super::*;
         use crate::config::{JsonMergeOp, RenameOp, TemplateOp, TemplateVars, YamlMergeOp};
 
@@ -1346,7 +1346,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 1);
             match &result[0] {
                 Operation::Include { include } => {
@@ -1373,7 +1373,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 1);
             match &result[0] {
                 Operation::Exclude { exclude } => {
@@ -1388,7 +1388,7 @@ mod tests {
             let config = vec![Operation::Rename {
                 rename: RenameOp { mappings: vec![] },
             }];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 1);
             matches!(&result[0], Operation::Rename { .. });
         }
@@ -1419,7 +1419,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 3);
         }
 
@@ -1442,7 +1442,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 3);
             // Verify order is preserved
             match &result[0] {
@@ -1468,7 +1468,7 @@ mod tests {
         #[test]
         fn test_empty_config_returns_empty() {
             let config: Vec<Operation> = vec![];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert!(result.is_empty());
         }
 
@@ -1488,7 +1488,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert!(result.is_empty());
         }
 
@@ -1509,7 +1509,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 1);
             match &result[0] {
                 Operation::Template { template } => {
@@ -1541,7 +1541,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 1);
             match &result[0] {
                 Operation::TemplateVars { template_vars } => {
@@ -1559,7 +1559,7 @@ mod tests {
         }
 
         #[test]
-        fn test_extracts_all_source_operations_including_templates() {
+        fn test_extracts_all_upstream_operations_including_templates() {
             let config = vec![
                 Operation::Include {
                     include: IncludeOp {
@@ -1588,7 +1588,7 @@ mod tests {
                 Operation::Rename {
                     rename: RenameOp { mappings: vec![] },
                 },
-                // Non-source operations should be ignored
+                // Non-upstream operations should be ignored
                 Operation::Repo {
                     repo: RepoOp {
                         url: "example".to_string(),
@@ -1598,7 +1598,7 @@ mod tests {
                     },
                 },
             ];
-            let result = extract_source_operations(&config);
+            let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 5);
             assert!(matches!(&result[0], Operation::Include { .. }));
             assert!(matches!(&result[1], Operation::Template { .. }));
