@@ -25,8 +25,8 @@ Requirements for the complete rename. Each maps to roadmap phases.
 
 ### Config
 
-- [ ] **CONF-01**: Rename any config struct fields from "source" to "upstream" where they refer to the repository
-- [ ] **CONF-02**: Hard rename with no backwards compatibility (no deprecation warnings)
+- [x] **CONF-01**: Rename any config struct fields from "source" to "upstream" where they refer to the repository
+- [x] **CONF-02**: Hard rename with no backwards compatibility (no deprecation warnings)
 
 ### Tests
 
@@ -56,8 +56,8 @@ Requirements for the complete rename. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONF-01 | Phase 1 | Pending |
-| CONF-02 | Phase 1 | Pending |
+| CONF-01 | Phase 1 | Complete |
+| CONF-02 | Phase 1 | Complete |
 | CODE-01 | Phase 2 | Pending |
 | CODE-03 | Phase 3 | Pending |
 | CODE-04 | Phase 3 | Pending |
