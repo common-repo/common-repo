@@ -1757,8 +1757,8 @@ mod tests {
             let result = process_single_repo(&node, &repo_manager, &cache);
             assert!(result.is_ok());
             let intermediate = result.unwrap();
-            assert_eq!(intermediate.source_url, "local");
-            assert_eq!(intermediate.source_ref, "HEAD");
+            assert_eq!(intermediate.upstream_url, "local");
+            assert_eq!(intermediate.upstream_ref, "HEAD");
             // Cache should remain empty for local repos
             assert_eq!(cache.len().unwrap(), 0);
         }
