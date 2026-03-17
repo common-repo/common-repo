@@ -13,7 +13,7 @@ Systematically replace "source repo" terminology with "upstream repo" across the
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Config Structs** - Rename config struct fields from "source" to "upstream" (hard rename, no backwards compat) ✓ 2026-03-17
-- [ ] **Phase 2: Core Code Rename** - Rename struct fields, variable names, and function names across all key source files
+- [x] **Phase 2: Core Code Rename** - Rename struct fields, variable names, and function names across all key source files ✓ 2026-03-17
 - [ ] **Phase 3: Operations Terminology** - Rename source-declared, source filtering, source authors, and source_ops to upstream equivalents
 - [ ] **Phase 4: Operators Preservation** - Verify and guard that merge operator source: field is preserved unchanged
 - [ ] **Phase 5: Code Comments** - Update all code comments referencing "source repo" to "upstream repo"
@@ -47,7 +47,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 02-01-PLAN.md — Rename IntermediateFS source_url/source_ref fields to upstream_url/upstream_ref
+- [x] 02-01-PLAN.md — Rename IntermediateFS source_url/source_ref fields to upstream_url/upstream_ref
 
 **Success Criteria** (what must be TRUE):
   1. "source-declared" operations are now called "upstream-declared" in all code paths
@@ -135,7 +135,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config Structs | 1/1 | Complete | 2026-03-17 |
-| 2. Core Code Rename | 0/1 | Not started | - |
+| 2. Core Code Rename | 1/1 | Complete | 2026-03-17 |
 | 3. Operations Terminology | 0/1 | Not started | - |
 | 4. Operators Preservation | 0/1 | Not started | - |
 | 5. Code Comments | 0/2 | Not started | - |
