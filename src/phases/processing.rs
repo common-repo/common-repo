@@ -1291,7 +1291,7 @@ mod tests {
             consumer_vars.insert("GH_APP_OWNER".to_string(), "my-cool-org".to_string());
 
             let operations = vec![
-                // Source operations come first (from extract_source_operations)
+                // Upstream operations come first (from extract_upstream_operations)
                 Operation::TemplateVars {
                     template_vars: TemplateVars { vars: source_vars },
                 },
