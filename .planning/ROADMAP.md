@@ -129,12 +129,11 @@ Plans:
   1. `./script/test` passes with zero failures
   2. `./script/ci` passes (fmt, clippy, pre-commit, prose checks all green)
   3. No remaining references to "source repo" in code identifiers, comments, or CLI output (except merge operator source: field)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: Run full test suite and fix any failures
-- [ ] 08-02: Run CI checks and fix any issues
-- [ ] 08-03: Final audit for any remaining "source repo" references
+- [ ] 08-01-PLAN.md — Run full test suite and CI checks, fix any failures
+- [ ] 08-02-PLAN.md — Final grep audit for remaining "source repo" references
 
 ## Progress
 
@@ -150,4 +149,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 5. Code Comments | 0/2 | Not started | - |
 | 6. CLI and Error Output | 0/2 | Not started | - |
 | 7. Test Updates | 0/1 | Not started | - |
-| 8. Final Validation | 0/3 | Not started | - |
+| 8. Final Validation | 0/2 | Not started | - |
