@@ -77,10 +77,10 @@ Plans:
   1. The `source:` field in yaml, json, toml, ini, and markdown merge operators remains named "source"
   2. No code change in phases 1-3 accidentally renamed the merge operator source: field
   3. Merge operators function correctly with their source: field pointing to fragment file paths
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: Audit and verify source: field preservation in src/operators.rs and related files
+- [ ] 04-01-PLAN.md -- Audit source: field preservation and add regression test guard
 
 ### Phase 5: Code Comments
 **Goal**: All code comments throughout the codebase use "upstream repo" instead of "source repo"
