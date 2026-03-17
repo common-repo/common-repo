@@ -144,9 +144,9 @@ pub struct IntermediateFS {
     /// The processed filesystem
     pub fs: MemoryFS,
     /// Repository URL this FS came from (for debugging/tracking)
-    pub source_url: String,
+    pub upstream_url: String,
     /// Git reference used
-    pub source_ref: String,
+    pub upstream_ref: String,
     /// Template variables collected from this repository's operations
     pub template_vars: HashMap<String, String>,
     /// Merge operations to be applied during Phase 4 composition
@@ -154,11 +154,11 @@ pub struct IntermediateFS {
 }
 
 impl IntermediateFS {
-    pub fn new(fs: MemoryFS, source_url: String, source_ref: String) -> Self {
+    pub fn new(fs: MemoryFS, upstream_url: String, upstream_ref: String) -> Self {
         Self {
             fs,
-            source_url,
-            source_ref,
+            upstream_url,
+            upstream_ref,
             template_vars: HashMap::new(),
             merge_operations: Vec::new(),
         }
@@ -166,14 +166,14 @@ impl IntermediateFS {
 
     pub fn new_with_vars(
         fs: MemoryFS,
-        source_url: String,
-        source_ref: String,
+        upstream_url: String,
+        upstream_ref: String,
         template_vars: HashMap<String, String>,
     ) -> Self {
         Self {
             fs,
-            source_url,
-            source_ref,
+            upstream_url,
+            upstream_ref,
             template_vars,
             merge_operations: Vec::new(),
         }
@@ -181,15 +181,15 @@ impl IntermediateFS {
 
     pub fn new_with_vars_and_merges(
         fs: MemoryFS,
-        source_url: String,
-        source_ref: String,
+        upstream_url: String,
+        upstream_ref: String,
         template_vars: HashMap<String, String>,
         merge_operations: Vec<Operation>,
     ) -> Self {
         Self {
             fs,
-            source_url,
-            source_ref,
+            upstream_url,
+            upstream_ref,
             template_vars,
             merge_operations,
         }
