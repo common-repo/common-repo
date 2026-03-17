@@ -31,10 +31,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. All config struct fields that previously referenced "source repo" now use "upstream" naming
   2. No backwards compatibility shims or deprecation warnings exist for renamed fields
   3. Code compiles after the config rename (downstream breakage is expected and fixed in later phases)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: Rename config struct fields in src/config.rs
+- [ ] 01-01-PLAN.md -- Update config struct doc comments to use "upstream" terminology
 
 ### Phase 2: Core Code Rename
 **Goal**: All Rust identifiers (struct fields, variables, function names) across key source files use "upstream" instead of "source repo"
@@ -90,11 +90,11 @@ Plans:
   1. No code comment refers to "source repo" or "source repository" where it means the upstream repository
   2. Comments about the merge operator source: field still correctly reference "source" (since that field is unchanged)
   3. Comments are accurate and consistent with the renamed identifiers
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Update comments in src/phases/ files
-- [ ] 05-02: Update comments in src/config.rs, src/error.rs, src/operators.rs, and other files
+- [ ] 05-01-PLAN.md -- Update comments in src/phases/ files (discovery.rs, processing.rs, composite.rs)
+- [ ] 05-02-PLAN.md -- Update repo-role comments in src/config.rs (preserve merge operator source: field comments)
 
 ### Phase 6: CLI and Error Output
 **Goal**: All user-facing text (help, output messages, error messages) uses "upstream" terminology
