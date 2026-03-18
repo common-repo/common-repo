@@ -1,16 +1,16 @@
-//! E2E tests for source repository operation semantics.
+//! E2E tests for upstream repository operation semantics.
 //!
-//! These tests verify that source repositories can define their "public API" of
+//! These tests verify that upstream repositories can define their "public API" of
 //! files using include/exclude/rename operations in their .common-repo.yaml,
 //! and that these operations are respected by consumers.
 //!
 //! ## Confirmed semantics being tested:
 //!
-//! - `include` in source: Defines the set of files exposed to consumers (allowlist)
-//! - `exclude` in source: Removes files from the exposed set
-//! - `rename` in source: Renames files before consumers see them
-//! - Config files (.common-repo.yaml, .commonrepo.yaml): Auto-excluded from source repos
-//! - Operation order: Source ops first, then consumer's `with:` ops
+//! - `include` in upstream: Defines the set of files exposed to consumers (allowlist)
+//! - `exclude` in upstream: Removes files from the exposed set
+//! - `rename` in upstream: Renames files before consumers see them
+//! - Config files (.common-repo.yaml, .commonrepo.yaml): Auto-excluded from upstream repos
+//! - Operation order: Upstream ops first, then consumer's `with:` ops
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
@@ -78,36 +78,36 @@ fn init_git_repo(
 }
 
 // =============================================================================
-// Bug: Source's .common-repo.yaml should NOT be copied to consumer
+// Bug: Upstream's .common-repo.yaml should NOT be copied to consumer
 // =============================================================================
 
-/// Test that source repository's .common-repo.yaml is NOT copied to consumer.
+/// Test that upstream repository's .common-repo.yaml is NOT copied to consumer.
 ///
-/// This is a critical security/correctness issue: the source's config file
+/// This is a critical security/correctness issue: the upstream's config file
 /// should never overwrite or appear in the consumer's repository.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_source_config_file_not_copied() {
-    // Create source repository
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_upstream_config_file_not_copied() {
+    // Create upstream repository
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             (
                 ".common-repo.yaml",
-                "# Source repo config\n- include: [\"**/*\"]\n",
+                "# Upstream repo config\n- include: [\"**/*\"]\n",
             ),
-            ("README.md", "# Source README\n"),
-            ("src/lib.rs", "// Source library\n"),
+            ("README.md", "# Upstream README\n"),
+            ("src/lib.rs", "// Upstream library\n"),
         ],
     )
     .unwrap();
 
     // Create consumer repository
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
-    // Consumer config references the source repo
+    // Consumer config references the upstream repo
     consumer
         .child(".common-repo.yaml")
         .write_str(&format!(
@@ -116,14 +116,14 @@ fn test_source_config_file_not_copied() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
     // Create consumer's own README that should be preserved
     consumer
         .child("README.md")
-        .write_str("# Consumer README - should be overwritten by source\n")
+        .write_str("# Consumer README - should be overwritten by upstream\n")
         .unwrap();
 
     let mut cmd = cargo_bin_cmd!("common-repo");
@@ -136,50 +136,50 @@ fn test_source_config_file_not_copied() {
         .success();
 
     // The consumer's .common-repo.yaml should still contain "Consumer config"
-    // NOT "Source repo config"
+    // NOT "Upstream repo config"
     let config_content = std::fs::read_to_string(consumer.child(".common-repo.yaml").path())
         .expect("Config file should exist");
 
     assert!(
         config_content.contains("Consumer config"),
-        "Consumer's .common-repo.yaml should NOT be overwritten by source's config.\n\
+        "Consumer's .common-repo.yaml should NOT be overwritten by upstream's config.\n\
          Found content: {}",
         config_content
     );
 
     assert!(
-        !config_content.contains("Source repo config"),
-        "Source's .common-repo.yaml content should NOT appear in consumer.\n\
+        !config_content.contains("Upstream repo config"),
+        "Upstream's .common-repo.yaml content should NOT appear in consumer.\n\
          Found content: {}",
         config_content
     );
 
-    // Source files should be copied
+    // Upstream files should be copied
     consumer
         .child("src/lib.rs")
         .assert(predicate::path::exists());
 }
 
 // =============================================================================
-// Bug: Source's include operator should be respected
+// Bug: Upstream's include operator should be respected
 // =============================================================================
 
-/// Test that source repository's `include` operator filters which files consumers receive.
+/// Test that upstream repository's `include` operator filters which files consumers receive.
 ///
-/// When a source repo has `include: [file1.txt, file2.txt]`, only those files
+/// When an upstream repo has `include: [file1.txt, file2.txt]`, only those files
 /// should be exposed to consumers - not the entire repository.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_source_include_operator_respected() {
-    // Create source repository with include filter
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_upstream_include_operator_respected() {
+    // Create upstream repository with include filter
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
-            // Source config says: only expose public-file.txt and docs/
+            // Upstream config says: only expose public-file.txt and docs/
             (
                 ".common-repo.yaml",
-                r#"# Source declares its public API
+                r#"# Upstream declares its public API
 - include:
     - "public-file.txt"
     - "docs/**"
@@ -195,7 +195,7 @@ fn test_source_include_operator_respected() {
 
     // Create consumer repository
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -204,7 +204,7 @@ fn test_source_include_operator_respected() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -216,7 +216,7 @@ fn test_source_include_operator_respected() {
         .assert()
         .success();
 
-    // Files matching source's include SHOULD be copied
+    // Files matching upstream's include SHOULD be copied
     consumer
         .child("public-file.txt")
         .assert(predicate::path::exists());
@@ -224,7 +224,7 @@ fn test_source_include_operator_respected() {
         .child("docs/guide.md")
         .assert(predicate::path::exists());
 
-    // Files NOT matching source's include should NOT be copied
+    // Files NOT matching upstream's include should NOT be copied
     consumer
         .child("private-file.txt")
         .assert(predicate::path::missing());
@@ -234,25 +234,25 @@ fn test_source_include_operator_respected() {
 }
 
 // =============================================================================
-// Bug: Source's exclude operator should be respected
+// Bug: Upstream's exclude operator should be respected
 // =============================================================================
 
-/// Test that source repository's `exclude` operator removes files from the exposed set.
+/// Test that upstream repository's `exclude` operator removes files from the exposed set.
 ///
-/// When a source repo has `exclude: [secret.txt]`, that file should not be
+/// When an upstream repo has `exclude: [secret.txt]`, that file should not be
 /// exposed to consumers even if it would otherwise be included.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_source_exclude_operator_respected() {
-    // Create source repository with exclude filter
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_upstream_exclude_operator_respected() {
+    // Create upstream repository with exclude filter
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
-            // Source excludes internal files
+            // Upstream excludes internal files
             (
                 ".common-repo.yaml",
-                r#"# Source excludes internal files
+                r#"# Upstream excludes internal files
 - exclude:
     - "internal/**"
     - "secret.txt"
@@ -271,7 +271,7 @@ fn test_source_exclude_operator_respected() {
 
     // Create consumer repository
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -280,7 +280,7 @@ fn test_source_exclude_operator_respected() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -310,25 +310,25 @@ fn test_source_exclude_operator_respected() {
 }
 
 // =============================================================================
-// Operation order: Source ops then consumer with: ops
+// Operation order: Upstream ops then consumer with: ops
 // =============================================================================
 
-/// Test that operation order is: source ops first, then consumer's with: clause.
+/// Test that operation order is: upstream ops first, then consumer's with: clause.
 ///
-/// Consumer's `with:` clause should further filter files from the source's exposed set.
-/// This test verifies that even when consumer uses a broad include, only source's
+/// Consumer's `with:` clause should further filter files from the upstream's exposed set.
+/// This test verifies that even when consumer uses a broad include, only upstream's
 /// exposed files are available.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_operation_order_source_then_consumer() {
-    // Create source repository that only exposes public/ directory
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_operation_order_upstream_then_consumer() {
+    // Create upstream repository that only exposes public/ directory
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             (
                 ".common-repo.yaml",
-                r#"# Source only exposes public/ directory
+                r#"# Upstream only exposes public/ directory
 - include:
     - "public/**"
 "#,
@@ -347,9 +347,9 @@ fn test_operation_order_source_then_consumer() {
     )
     .unwrap();
 
-    // Consumer uses broad include - but should only get source's exposed files
+    // Consumer uses broad include - but should only get upstream's exposed files
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -358,10 +358,10 @@ fn test_operation_order_source_then_consumer() {
     url: "{}"
     ref: main
     with:
-      # Consumer asks for ALL files - but should only get source's exposed set
+      # Consumer asks for ALL files - but should only get upstream's exposed set
       - include: ["**/*"]
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -373,7 +373,7 @@ fn test_operation_order_source_then_consumer() {
         .assert()
         .success();
 
-    // Files in source's include SHOULD be copied
+    // Files in upstream's include SHOULD be copied
     consumer
         .child("public/readme.txt")
         .assert(predicate::path::exists());
@@ -381,7 +381,7 @@ fn test_operation_order_source_then_consumer() {
         .child("public/data.json")
         .assert(predicate::path::exists());
 
-    // Files NOT in source's include should NOT be available to consumer
+    // Files NOT in upstream's include should NOT be available to consumer
     // even though consumer's with: would match them
     consumer
         .child("private/secret.txt")
@@ -392,23 +392,23 @@ fn test_operation_order_source_then_consumer() {
 }
 
 // =============================================================================
-// Source's rename operator should be respected
+// Upstream's rename operator should be respected
 // =============================================================================
 
-/// Test that source repository's `rename` operator transforms file paths.
+/// Test that upstream repository's `rename` operator transforms file paths.
 ///
-/// When a source repo renames files, consumers should see the renamed paths.
+/// When an upstream repo renames files, consumers should see the renamed paths.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_source_rename_operator_respected() {
-    // Create source repository with rename
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_upstream_rename_operator_respected() {
+    // Create upstream repository with rename
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             (
                 ".common-repo.yaml",
-                r#"# Source renames template files
+                r#"# Upstream renames template files
 - rename:
     - from: "templates/(.*)\\.template"
       to: "$1"
@@ -425,7 +425,7 @@ fn test_source_rename_operator_respected() {
 
     // Create consumer repository
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -434,7 +434,7 @@ fn test_source_rename_operator_respected() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -446,7 +446,7 @@ fn test_source_rename_operator_respected() {
         .assert()
         .success();
 
-    // Files should be renamed according to source's rename operation
+    // Files should be renamed according to upstream's rename operation
     // templates/config.yaml.template -> config.yaml
     consumer
         .child("config.yaml")
@@ -466,21 +466,21 @@ fn test_source_rename_operator_respected() {
 }
 
 // =============================================================================
-// Combined operations: include + exclude + rename
+// Combined upstream operations: include + exclude + rename
 // =============================================================================
 
-/// Test that multiple source operations work together correctly.
+/// Test that multiple upstream operations work together correctly.
 ///
-/// Tests include + exclude pipeline in source repo.
-/// Note: Rename is tested separately in test_source_rename_operator_respected
+/// Tests include + exclude pipeline in upstream repo.
+/// Note: Rename is tested separately in test_upstream_rename_operator_respected
 /// due to a config parser issue when combining all three operations.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_source_combined_operations() {
-    // Create source repository with combined include + exclude
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_upstream_combined_operations() {
+    // Create upstream repository with combined include + exclude
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             (
                 ".common-repo.yaml",
@@ -502,7 +502,7 @@ fn test_source_combined_operations() {
 
     // Create consumer repository
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -511,7 +511,7 @@ fn test_source_combined_operations() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -548,59 +548,59 @@ fn test_source_combined_operations() {
 // Alternate config filename: .commonrepo.yaml
 // =============================================================================
 
-/// Test that .commonrepo.yaml (alternate filename) is also auto-excluded from source.
+/// Test that .commonrepo.yaml (alternate filename) is also auto-excluded from upstream.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_alternate_config_filename_not_copied() {
-    // Create source repository with alternate config filename
-    let source_repo = assert_fs::TempDir::new().unwrap();
+    // Create upstream repository with alternate config filename
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
 
     // Initialize git repo manually since we're using alternate config name
     Command::new("git")
         .args(["init", "-b", "main"])
-        .current_dir(source_repo.path())
+        .current_dir(upstream_repo.path())
         .output()
         .unwrap();
     Command::new("git")
         .args(["config", "user.email", "test@example.com"])
-        .current_dir(source_repo.path())
+        .current_dir(upstream_repo.path())
         .output()
         .unwrap();
     Command::new("git")
         .args(["config", "user.name", "Test User"])
-        .current_dir(source_repo.path())
+        .current_dir(upstream_repo.path())
         .output()
         .unwrap();
     Command::new("git")
         .args(["config", "commit.gpgsign", "false"])
-        .current_dir(source_repo.path())
+        .current_dir(upstream_repo.path())
         .output()
         .unwrap();
 
     // Use alternate config filename
-    source_repo
+    upstream_repo
         .child(".commonrepo.yaml")
         .write_str("# Alternate config\n- include: [\"**/*\"]\n")
         .unwrap();
-    source_repo
+    upstream_repo
         .child("data.txt")
         .write_str("Some data\n")
         .unwrap();
 
     Command::new("git")
         .args(["add", "."])
-        .current_dir(source_repo.path())
+        .current_dir(upstream_repo.path())
         .output()
         .unwrap();
     Command::new("git")
         .args(["commit", "-m", "Initial commit"])
-        .current_dir(source_repo.path())
+        .current_dir(upstream_repo.path())
         .output()
         .unwrap();
 
     // Create consumer repository
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -610,7 +610,7 @@ fn test_alternate_config_filename_not_copied() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -622,7 +622,7 @@ fn test_alternate_config_filename_not_copied() {
         .assert()
         .success();
 
-    // .commonrepo.yaml should NOT be copied from source
+    // .commonrepo.yaml should NOT be copied from upstream
     consumer
         .child(".commonrepo.yaml")
         .assert(predicate::path::missing());
@@ -645,7 +645,7 @@ fn test_alternate_config_filename_not_copied() {
 /// This repo has an include filter that only exposes CLAUDE.md and .mcp.json.
 /// This test verifies that:
 /// 1. Only included files are copied (CLAUDE.md, .mcp.json)
-/// 2. The source's .common-repo.yaml is NOT copied to consumer
+/// 2. The upstream's .common-repo.yaml is NOT copied to consumer
 /// 3. Files not in the include list are not copied (LICENSE, README.md, etc.)
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
@@ -676,7 +676,7 @@ fn test_real_world_shakefu_vibes_repo() {
 
     assert.success();
 
-    // Files in source's include SHOULD be copied
+    // Files in upstream's include SHOULD be copied
     consumer
         .child("CLAUDE.md")
         .assert(predicate::path::exists());
@@ -684,7 +684,7 @@ fn test_real_world_shakefu_vibes_repo() {
         .child(".mcp.json")
         .assert(predicate::path::exists());
 
-    // Source's .common-repo.yaml should NOT be copied
+    // Upstream's .common-repo.yaml should NOT be copied
     // Consumer's config should still contain "Consumer config"
     let config_content = std::fs::read_to_string(consumer.child(".common-repo.yaml").path())
         .expect("Config file should exist");
@@ -694,7 +694,7 @@ fn test_real_world_shakefu_vibes_repo() {
         config_content
     );
 
-    // Files NOT in source's include should NOT be copied
+    // Files NOT in upstream's include should NOT be copied
     consumer.child("LICENSE").assert(predicate::path::missing());
     consumer
         .child("README.md")
@@ -708,16 +708,16 @@ fn test_real_world_shakefu_vibes_repo() {
 // Bug #226: ls should respect exclude filters
 // =============================================================================
 
-/// Test that `ls` respects source-declared exclude filters.
+/// Test that `ls` respects upstream-declared exclude filters.
 ///
-/// When a source repo excludes files in its .common-repo.yaml, those files
+/// When an upstream repo excludes files in its .common-repo.yaml, those files
 /// should not appear in the `ls` output.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_ls_respects_source_declared_excludes() {
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_ls_respects_upstream_declared_excludes() {
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             (
                 ".common-repo.yaml",
@@ -737,7 +737,7 @@ fn test_ls_respects_source_declared_excludes() {
     .unwrap();
 
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -746,7 +746,7 @@ fn test_ls_respects_source_declared_excludes() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -775,15 +775,15 @@ fn test_ls_respects_source_declared_excludes() {
     // Excluded files should NOT appear
     assert!(
         !output.contains("go.mod"),
-        "ls should not show source-excluded go.mod, got:\n{output}"
+        "ls should not show upstream-excluded go.mod, got:\n{output}"
     );
     assert!(
         !output.contains("go.sum"),
-        "ls should not show source-excluded go.sum, got:\n{output}"
+        "ls should not show upstream-excluded go.sum, got:\n{output}"
     );
     assert!(
         !output.contains("cmd/app/main.go"),
-        "ls should not show source-excluded cmd/app/main.go, got:\n{output}"
+        "ls should not show upstream-excluded cmd/app/main.go, got:\n{output}"
     );
 }
 
@@ -794,9 +794,9 @@ fn test_ls_respects_source_declared_excludes() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_consumer_top_level_excludes() {
-    let source_repo = assert_fs::TempDir::new().unwrap();
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             ("lib/utils.go", "package lib\n"),
             ("README.md", "# Test\n"),
@@ -806,7 +806,7 @@ fn test_ls_respects_consumer_top_level_excludes() {
     .unwrap();
 
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     // Consumer excludes Makefile at top level
     consumer
@@ -818,7 +818,7 @@ fn test_ls_respects_consumer_top_level_excludes() {
 - exclude:
     - "Makefile"
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -850,14 +850,14 @@ fn test_ls_respects_consumer_top_level_excludes() {
 
 /// Test that `ls` respects consumer with-clause exclude filters.
 ///
-/// When the consumer uses `with:` to exclude files from a source, those files
+/// When the consumer uses `with:` to exclude files from an upstream, those files
 /// should not appear in the `ls` output.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_consumer_with_clause_excludes() {
-    let source_repo = assert_fs::TempDir::new().unwrap();
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             ("lib/utils.go", "package lib\n"),
             ("README.md", "# Test\n"),
@@ -867,7 +867,7 @@ fn test_ls_respects_consumer_with_clause_excludes() {
     .unwrap();
 
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     // Consumer uses with: clause to exclude LICENSE
     consumer
@@ -880,7 +880,7 @@ fn test_ls_respects_consumer_with_clause_excludes() {
       - exclude:
           - "LICENSE"
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -911,21 +911,21 @@ fn test_ls_respects_consumer_with_clause_excludes() {
 }
 
 // =============================================================================
-// Bug #249: Source-declared template vars baked into cache — consumer overrides ignored
+// Bug #249: Upstream-declared template vars baked into cache — consumer overrides ignored
 // =============================================================================
 
-/// Test that consumer's `with:` template-vars override source's default template-vars.
+/// Test that consumer's `with:` template-vars override upstream's default template-vars.
 ///
-/// When a source repo declares `template:` and `template-vars:`, and a consumer
+/// When an upstream repo declares `template:` and `template-vars:`, and a consumer
 /// overrides some vars via `with: template-vars:`, the consumer's values should
-/// take precedence over the source's defaults.
+/// take precedence over the upstream's defaults.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_consumer_with_template_vars_override_source_defaults() {
-    // Create source repository with template + template-vars
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_consumer_with_template_vars_override_upstream_defaults() {
+    // Create upstream repository with template + template-vars
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             (
                 ".common-repo.yaml",
@@ -953,7 +953,7 @@ fn test_consumer_with_template_vars_override_source_defaults() {
 
     // Create consumer that overrides GH_APP_OWNER via with: clause
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -965,7 +965,7 @@ fn test_consumer_with_template_vars_override_source_defaults() {
       - template-vars:
           GH_APP_OWNER: my-cool-org
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -991,26 +991,26 @@ fn test_consumer_with_template_vars_override_source_defaults() {
         content
     );
 
-    // Source defaults should be preserved for non-overridden vars
+    // Upstream defaults should be preserved for non-overridden vars
     assert!(
         content.contains("app_id: CHRISTMAS_ISLAND_APP_ID"),
-        "Source's non-overridden template-vars should be preserved.\n\
+        "Upstream's non-overridden template-vars should be preserved.\n\
          Expected 'app_id: CHRISTMAS_ISLAND_APP_ID' but got:\n{}",
         content
     );
 }
 
-/// Test that consumer's top-level template-vars override source's defaults.
+/// Test that consumer's top-level template-vars override upstream's defaults.
 ///
 /// When a consumer has top-level `template-vars:` (not in `with:`), these should
-/// override the source's default values during Phase 4 composite construction.
+/// override the upstream's default values during Phase 4 composite construction.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_consumer_top_level_template_vars_override_source_defaults() {
-    // Create source repository with template + template-vars
-    let source_repo = assert_fs::TempDir::new().unwrap();
+fn test_consumer_top_level_template_vars_override_upstream_defaults() {
+    // Create upstream repository with template + template-vars
+    let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_git_repo(
-        &source_repo,
+        &upstream_repo,
         &[
             (
                 ".common-repo.yaml",
@@ -1030,7 +1030,7 @@ fn test_consumer_top_level_template_vars_override_source_defaults() {
 
     // Create consumer with top-level template-vars override
     let consumer = assert_fs::TempDir::new().unwrap();
-    let source_url = format!("file://{}", source_repo.path().display());
+    let upstream_url = format!("file://{}", upstream_repo.path().display());
 
     consumer
         .child(".common-repo.yaml")
@@ -1041,7 +1041,7 @@ fn test_consumer_top_level_template_vars_override_source_defaults() {
     url: "{}"
     ref: main
 "#,
-            source_url
+            upstream_url
         ))
         .unwrap();
 
@@ -1067,10 +1067,10 @@ fn test_consumer_top_level_template_vars_override_source_defaults() {
         content
     );
 
-    // Source defaults should be preserved for non-overridden vars
+    // Upstream defaults should be preserved for non-overridden vars
     assert!(
         content.contains("port: 8080"),
-        "Source's non-overridden template-vars should be preserved.\n\
+        "Upstream's non-overridden template-vars should be preserved.\n\
          Expected 'port: 8080' but got:\n{}",
         content
     );
