@@ -530,7 +530,7 @@ fn test_update_filter_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains("--filter <GLOB>"))
-        .stdout(predicate::str::contains("Filter sources by glob pattern"));
+        .stdout(predicate::str::contains("Filter upstreams by glob pattern"));
 }
 
 /// Test that --filter with matching pattern shows only matching repos
@@ -564,7 +564,7 @@ fn test_update_filter_matching_pattern() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Filtering sources matching"))
+        .stdout(predicate::str::contains("Filtering upstreams matching"))
         .stdout(predicate::str::contains("filtered out"));
 }
 
@@ -595,7 +595,7 @@ fn test_update_filter_non_matching_pattern() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Filtering sources matching"))
+        .stdout(predicate::str::contains("Filtering upstreams matching"))
         .stdout(predicate::str::contains(
             "No repositories found that match the filter",
         ))
@@ -632,7 +632,7 @@ fn test_update_filter_multiple_patterns() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "Filtering sources matching: gitlab.com/*, github.com/common-repo/*",
+            "Filtering upstreams matching: gitlab.com/*, github.com/common-repo/*",
         ))
         .stdout(predicate::str::contains("Checking for repository updates"));
 }
@@ -666,7 +666,7 @@ fn test_update_filter_with_dry_run() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Filtering sources matching"))
+        .stdout(predicate::str::contains("Filtering upstreams matching"))
         .stdout(predicate::str::contains("Dry run mode"));
 
     // Verify config was not modified
