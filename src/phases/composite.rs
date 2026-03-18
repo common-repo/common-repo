@@ -829,7 +829,7 @@ port = 8080
 
     #[test]
     fn test_phase4_source_template_vars_overridden_by_consumer() {
-        // Simulates: source repo declares template + template-vars defaults,
+        // Simulates: upstream repo declares template + template-vars defaults,
         // consumer overrides some vars via with: clause
         let mut fs1 = MemoryFS::new();
         fs1.add_file_string(
@@ -838,13 +838,13 @@ port = 8080
         )
         .unwrap();
 
-        // Mark as template (source repo declared template:)
+        // Mark as template (upstream repo declared template:)
         let template_op = crate::config::TemplateOp {
             patterns: vec!["workflow.yaml".to_string()],
         };
         crate::operators::template::mark(&template_op, &mut fs1).unwrap();
 
-        // Source repo's default template-vars
+        // Upstream repo's default template-vars
         let mut source_vars = HashMap::new();
         source_vars.insert(
             "GH_APP_ID_VAR".to_string(),
