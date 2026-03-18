@@ -13,10 +13,10 @@
 //!     repositories at a given depth are discovered before moving to the next
 //!     level.
 //!
-//! 2.  **Deferred Operations**: When fetching a source repository's config,
+//! 2.  **Deferred Operations**: When fetching an upstream repository's config,
 //!     deferred operations (marked with `defer: true` or `auto-merge`) are
 //!     extracted and prepended to the consumer's `with:` operations. This allows
-//!     source repos to declare how their files should be merged rather than copied.
+//!     upstream repos to declare how their files should be merged rather than copied.
 //!
 //! 3.  **Cycle Detection**: During discovery, the process keeps track of the
 //!     inheritance path and will abort if a circular dependency is detected
@@ -200,7 +200,7 @@ fn fetch_and_parse_config(
     crate::config::parse(&yaml_str)
 }
 
-/// Extract deferred operations from a source repository's config
+/// Extract deferred operations from an upstream repository's config
 ///
 /// Deferred operations have `defer: true` or `auto-merge` set.
 /// These will be applied before the consumer's `with:` operations.
