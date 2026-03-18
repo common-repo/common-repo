@@ -72,7 +72,7 @@ pub struct UpdateArgs {
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Filter sources by glob pattern (matches against url/path, scheme stripped).
+    /// Filter upstreams by glob pattern (matches against url/path, scheme stripped).
     ///
     /// The pattern is matched against a normalized string combining the repository
     /// URL (without scheme) and optional path. Multiple filters use OR logic.
@@ -112,7 +112,7 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
     // Show filter status if filters are active
     if !args.filter.is_empty() {
         let patterns = args.filter.join(", ");
-        println!("Filtering sources matching: {}", patterns);
+        println!("Filtering upstreams matching: {}", patterns);
     }
 
     // Check for updates (with optional filtering)
