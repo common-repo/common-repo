@@ -1,7 +1,7 @@
 //! E2E tests for deferred operations (defer flag and auto-merge).
 //!
 //! These tests validate the defer and auto-merge configuration options
-//! that allow source repositories to declare merge operations to be
+//! that allow upstream repositories to declare merge operations to be
 //! applied by consumers.
 
 use assert_cmd::cargo::cargo_bin_cmd;
