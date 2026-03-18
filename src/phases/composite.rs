@@ -861,12 +861,12 @@ port = 8080
         consumer_vars.insert("GH_APP_OWNER".to_string(), "my-org".to_string());
 
         let mut intermediate_fss = HashMap::new();
-        // Source repo provides the filesystem + default vars
+        // Upstream repo provides the filesystem + default vars
         intermediate_fss.insert(
-            "https://github.com/source-repo.git@main".to_string(),
+            "https://github.com/upstream-repo.git@main".to_string(),
             IntermediateFS::new_with_vars(
                 fs1,
-                "https://github.com/source-repo.git".to_string(),
+                "https://github.com/upstream-repo.git".to_string(),
                 "main".to_string(),
                 source_vars,
             ),
@@ -882,9 +882,9 @@ port = 8080
             ),
         );
 
-        // Source first, then consumer (consumer overrides)
+        // Upstream first, then consumer (consumer overrides)
         let order = OperationOrder::new(vec![
-            "https://github.com/source-repo.git@main".to_string(),
+            "https://github.com/upstream-repo.git@main".to_string(),
             "local@local".to_string(),
         ]);
 
@@ -893,7 +893,7 @@ port = 8080
         let file = composite.get_file("workflow.yaml").unwrap();
         let content = String::from_utf8(file.content.clone()).unwrap();
 
-        // Source defaults preserved for non-overridden vars
+        // Upstream defaults preserved for non-overridden vars
         assert!(content.contains("CHRISTMAS_ISLAND_APP_ID"));
         assert!(content.contains("CHRISTMAS_ISLAND_PRIVATE_KEY"));
         // Consumer override applied
