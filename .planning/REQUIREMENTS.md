@@ -15,7 +15,7 @@ Requirements for the complete rename. Each maps to roadmap phases.
 - [x] **CODE-04**: Rename "source filtering" to "upstream filtering" in code
 - [x] **CODE-05**: Rename "source authors" to "upstream authors" in code
 - [x] **CODE-06**: Rename "source_ops" / "source ops" references to "upstream_ops" / "upstream ops"
-- [ ] **CODE-07**: Preserve `source:` field in merge operators (yaml, json, toml, ini, markdown) — this refers to fragment file path, not the repository
+- [x] **CODE-07**: Preserve `source:` field in merge operators (yaml, json, toml, ini, markdown) — this refers to fragment file path, not the repository
 
 ### CLI Output
 
@@ -63,7 +63,7 @@ Requirements for the complete rename. Each maps to roadmap phases.
 | CODE-04 | Phase 3 | Complete |
 | CODE-05 | Phase 3 | Complete |
 | CODE-06 | Phase 3 | Complete |
-| CODE-07 | Phase 4 | Pending |
+| CODE-07 | Phase 4 | Complete |
 | CODE-02 | Phase 5 | Pending |
 | CLI-01 | Phase 6 | Pending |
 | CLI-02 | Phase 6 | Pending |
