@@ -31,7 +31,7 @@ Requirements for the complete rename. Each maps to roadmap phases.
 ### Tests
 
 - [ ] **TEST-01**: Update test file names that reference "source" (e.g., `cli_e2e_source_ops.rs`)
-- [ ] **TEST-02**: Update test assertions and string literals to match new terminology
+- [x] **TEST-02**: Update test assertions and string literals to match new terminology
 - [ ] **TEST-03**: All existing tests pass after rename
 - [ ] **TEST-04**: CI checks pass (fmt, clippy, pre-commit, prose)
 
@@ -69,7 +69,7 @@ Requirements for the complete rename. Each maps to roadmap phases.
 | CLI-02 | Phase 6 | Complete |
 | CLI-03 | Phase 6 | Complete |
 | TEST-01 | Phase 7 | Pending |
-| TEST-02 | Phase 7 | Pending |
+| TEST-02 | Phase 7 | Complete |
 | TEST-03 | Phase 8 | Pending |
 | TEST-04 | Phase 8 | Pending |
 
