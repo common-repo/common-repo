@@ -137,4 +137,4 @@ After the action is published, update these to use it:
 - **No caching**: Binary download is fast; install.sh may gain additional setup responsibilities later, so running it each time is preferred.
 - **No Node.js**: Composite (shell-based) action keeps it simple and dependency-free.
 - **Transparent GITHUB_TOKEN**: Passed from the runner environment to install.sh to avoid GitHub API rate limits when resolving `latest`. No explicit input needed.
-- **Self-contained repo**: No `.common-repo.yaml` consumption for now. When upstream sources like cr-semantic-release are ready, adding a config will seamlessly merge.
+- **Self-contained repo**: No `.common-repo.yaml` consumption for now. When upstream sources like cr-semantic-release are ready, adding a config will merge smoothly.
