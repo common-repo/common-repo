@@ -112,10 +112,11 @@ Plans:
   1. Test file `cli_e2e_source_ops.rs` is renamed to reflect "upstream" terminology
   2. All test string literals and assertions match the new "upstream" output and identifiers
   3. Test intent and coverage remain identical -- no tests removed or weakened
-**Plans:** 1 plan
+**Plans:** 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md -- Rename test file and update all source-to-upstream terminology
+- [ ] 07-01-PLAN.md -- Rename test file and update all source-to-upstream terminology in cli_e2e_source_ops.rs
+- [ ] 07-02-PLAN.md -- Update CLI output assertions in cli_e2e_update.rs and doc comment in cli_e2e_defer.rs
 
 ### Phase 8: Final Validation
 **Goal**: The complete rename is verified: all tests pass and CI checks are green
@@ -144,5 +145,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 4. Operators Preservation | 0/1 | Not started | - |
 | 5. Code Comments | 0/2 | Not started | - |
 | 6. CLI and Error Output | 0/1 | Not started | - |
-| 7. Test Updates | 0/1 | Not started | - |
+| 7. Test Updates | 0/2 | Not started | - |
 | 8. Final Validation | 0/2 | Not started | - |
