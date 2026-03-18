@@ -19,9 +19,9 @@ Requirements for the complete rename. Each maps to roadmap phases.
 
 ### CLI Output
 
-- [ ] **CLI-01**: Update CLI help text to use "upstream" instead of "source repo"
-- [ ] **CLI-02**: Update user-facing output messages to use "upstream" terminology
-- [ ] **CLI-03**: Update error messages to use "upstream" terminology
+- [x] **CLI-01**: Update CLI help text to use "upstream" instead of "source repo"
+- [x] **CLI-02**: Update user-facing output messages to use "upstream" terminology
+- [x] **CLI-03**: Update error messages to use "upstream" terminology
 
 ### Config
 
@@ -65,9 +65,9 @@ Requirements for the complete rename. Each maps to roadmap phases.
 | CODE-06 | Phase 3 | Complete |
 | CODE-07 | Phase 4 | Complete |
 | CODE-02 | Phase 5 | Complete |
-| CLI-01 | Phase 6 | Pending |
-| CLI-02 | Phase 6 | Pending |
-| CLI-03 | Phase 6 | Pending |
+| CLI-01 | Phase 6 | Complete |
+| CLI-02 | Phase 6 | Complete |
+| CLI-03 | Phase 6 | Complete |
 | TEST-01 | Phase 7 | Pending |
 | TEST-02 | Phase 7 | Pending |
 | TEST-03 | Phase 8 | Pending |
