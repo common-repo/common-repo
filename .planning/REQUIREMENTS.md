@@ -10,7 +10,7 @@ Requirements for the complete rename. Each maps to roadmap phases.
 ### Code Rename
 
 - [x] **CODE-01**: Rename struct fields, variable names, and function names that use "source_repo" or similar to "upstream_repo"
-- [ ] **CODE-02**: Update all code comments referencing "source repo" to use "upstream repo"
+- [x] **CODE-02**: Update all code comments referencing "source repo" to use "upstream repo"
 - [x] **CODE-03**: Rename "source-declared" operations terminology to "upstream-declared" in code
 - [x] **CODE-04**: Rename "source filtering" to "upstream filtering" in code
 - [x] **CODE-05**: Rename "source authors" to "upstream authors" in code
@@ -64,7 +64,7 @@ Requirements for the complete rename. Each maps to roadmap phases.
 | CODE-05 | Phase 3 | Complete |
 | CODE-06 | Phase 3 | Complete |
 | CODE-07 | Phase 4 | Complete |
-| CODE-02 | Phase 5 | Pending |
+| CODE-02 | Phase 5 | Complete |
 | CLI-01 | Phase 6 | Pending |
 | CLI-02 | Phase 6 | Pending |
 | CLI-03 | Phase 6 | Pending |
