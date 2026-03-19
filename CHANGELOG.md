@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.29.0](https://github.com/common-repo/common-repo/compare/v0.28.5...v0.29.0) (2026-03-19)
+
+
+### Features
+
+* **06-01:** update CLI help and output to use upstream terminology ([0f78454](https://github.com/common-repo/common-repo/commit/0f78454c4b2db36b3413b33cd2fe137d9cbaec72))
+
+
+### Bug Fixes
+
+* **06:** revise plan based on checker feedback ([cdefcd1](https://github.com/common-repo/common-repo/commit/cdefcd16fcb8fa5d9a9242b10b05a42d4856f4bf))
+* **07-02:** update test assertions from source to upstream terminology ([d4ac3ed](https://github.com/common-repo/common-repo/commit/d4ac3ed417ef4f6cb17226249a0dcb8daa438122))
+* **08-01:** fix prose lint violation in action design spec ([fc5d7b3](https://github.com/common-repo/common-repo/commit/fc5d7b38cd69505d50f3476cdbe03c6830ec4c02))
+* **08-02:** rename remaining source repo references to upstream ([a1058cd](https://github.com/common-repo/common-repo/commit/a1058cd8a730ff51737f52f162e92f3efdbad8aa))
+
 ## [0.28.5](https://github.com/common-repo/common-repo/compare/v0.28.4...v0.28.5) (2026-03-15)
 
 
