@@ -20,3 +20,6 @@ docs/book/
 # Coverage artifacts
 cobertura.xml
 tarpaulin-report.html
+
+# GSD
+.planning
