@@ -203,11 +203,13 @@ pub fn merge_toml_values(
     target: &mut TomlValue,
     source: &TomlValue,
     mode: crate::config::ArrayMergeMode,
+    position: crate::config::InsertPosition,
     path: &str,
     src_file: &str,
     dst_file: &str,
 ) {
     use crate::config::ArrayMergeMode;
+    use crate::config::InsertPosition;
 
     match target {
         TomlValue::Table(target_table) => {
@@ -223,13 +225,22 @@ pub fn merge_toml_values(
                         if matches!(existing, TomlValue::Table(_))
                             && matches!(value, TomlValue::Table(_))
                         {
-                            merge_toml_values(existing, value, mode, &new_path, src_file, dst_file);
+                            merge_toml_values(
+                                existing, value, mode, position, &new_path, src_file, dst_file,
+                            );
                         } else if let Some(source_array) = value.as_array() {
                             if let Some(target_array) = existing.as_array_mut() {
                                 match mode {
-                                    ArrayMergeMode::Append => {
-                                        target_array.extend(source_array.iter().cloned());
-                                    }
+                                    ArrayMergeMode::Append => match position {
+                                        InsertPosition::Start => {
+                                            let mut new_arr = source_array.clone();
+                                            new_arr.append(target_array);
+                                            *target_array = new_arr;
+                                        }
+                                        InsertPosition::End => {
+                                            target_array.extend(source_array.iter().cloned());
+                                        }
+                                    },
                                     ArrayMergeMode::Replace => {
                                         warn!(
                                             "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
@@ -238,9 +249,19 @@ pub fn merge_toml_values(
                                         *existing = TomlValue::Array(source_array.clone());
                                     }
                                     ArrayMergeMode::AppendUnique => {
-                                        for item in source_array {
-                                            if !target_array.contains(item) {
-                                                target_array.push(item.clone());
+                                        let unique_items: Vec<_> = source_array
+                                            .iter()
+                                            .filter(|item| !target_array.contains(item))
+                                            .cloned()
+                                            .collect();
+                                        match position {
+                                            InsertPosition::Start => {
+                                                let mut new_arr = unique_items;
+                                                new_arr.append(target_array);
+                                                *target_array = new_arr;
+                                            }
+                                            InsertPosition::End => {
+                                                target_array.extend(unique_items);
                                             }
                                         }
                                     }
@@ -281,9 +302,16 @@ pub fn merge_toml_values(
         TomlValue::Array(target_array) => {
             if let TomlValue::Array(source_array) = source {
                 match mode {
-                    ArrayMergeMode::Append => {
-                        target_array.extend(source_array.clone());
-                    }
+                    ArrayMergeMode::Append => match position {
+                        InsertPosition::Start => {
+                            let mut new_arr = source_array.clone();
+                            new_arr.append(target_array);
+                            *target_array = new_arr;
+                        }
+                        InsertPosition::End => {
+                            target_array.extend(source_array.clone());
+                        }
+                    },
                     ArrayMergeMode::Replace => {
                         eprintln!(
                             "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
@@ -292,9 +320,19 @@ pub fn merge_toml_values(
                         *target = TomlValue::Array(source_array.clone());
                     }
                     ArrayMergeMode::AppendUnique => {
-                        for item in source_array {
-                            if !target_array.contains(item) {
-                                target_array.push(item.clone());
+                        let unique_items: Vec<_> = source_array
+                            .iter()
+                            .filter(|item| !target_array.contains(item))
+                            .cloned()
+                            .collect();
+                        match position {
+                            InsertPosition::Start => {
+                                let mut new_arr = unique_items;
+                                new_arr.append(target_array);
+                                *target_array = new_arr;
+                            }
+                            InsertPosition::End => {
+                                target_array.extend(unique_items);
                             }
                         }
                     }
@@ -383,6 +421,7 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
         target,
         &source_value,
         mode,
+        op.position,
         path_str,
         source_path,
         dest_path,
@@ -1224,7 +1263,7 @@ items = [{name = "a"}, {name = "c"}]
 
     mod type_overwrite_tests {
         use super::*;
-        use crate::config::ArrayMergeMode;
+        use crate::config::{ArrayMergeMode, InsertPosition};
 
         #[test]
         fn test_overwrite_scalar_with_table() {
@@ -1239,6 +1278,7 @@ items = [{name = "a"}, {name = "c"}]
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "test",
                 "src",
                 "dst",
@@ -1261,6 +1301,7 @@ items = [{name = "a"}, {name = "c"}]
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "test",
                 "src",
                 "dst",
@@ -1282,6 +1323,7 @@ items = [{name = "a"}, {name = "c"}]
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "test",
                 "src",
                 "dst",
@@ -1300,6 +1342,7 @@ items = [{name = "a"}, {name = "c"}]
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "test",
                 "src",
                 "dst",
@@ -1520,7 +1563,7 @@ items = 42
 
     mod merge_values_direct_tests {
         use super::*;
-        use crate::config::ArrayMergeMode;
+        use crate::config::{ArrayMergeMode, InsertPosition};
 
         #[test]
         fn test_merge_with_empty_path() {
@@ -1539,6 +1582,7 @@ items = 42
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "",
                 "src",
                 "dst",
@@ -1569,6 +1613,7 @@ items = 42
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "root",
                 "src",
                 "dst",
@@ -1587,6 +1632,7 @@ items = 42
                 &mut target,
                 &source,
                 ArrayMergeMode::Append,
+                InsertPosition::End,
                 "arr",
                 "src",
                 "dst",
@@ -1605,6 +1651,7 @@ items = 42
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "arr",
                 "src",
                 "dst",
@@ -1632,6 +1679,7 @@ items = 42
                 &mut target,
                 &source,
                 ArrayMergeMode::AppendUnique,
+                InsertPosition::End,
                 "arr",
                 "src",
                 "dst",
@@ -1651,6 +1699,7 @@ items = 42
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "path",
                 "src",
                 "dst",
@@ -1668,12 +1717,156 @@ items = 42
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "path",
                 "src",
                 "dst",
             );
 
             assert_eq!(target.as_integer(), Some(42));
+        }
+
+        #[test]
+        fn test_top_level_array_append_position_start() {
+            let mut target = TomlValue::Array(vec![TomlValue::Integer(1), TomlValue::Integer(2)]);
+            let source = TomlValue::Array(vec![TomlValue::Integer(3), TomlValue::Integer(4)]);
+
+            merge_toml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::Start,
+                "arr",
+                "src",
+                "dst",
+            );
+
+            let arr = target.as_array().unwrap();
+            assert_eq!(arr.len(), 4);
+            // Source items [3, 4] should be at the start, followed by target [1, 2]
+            assert_eq!(arr[0].as_integer(), Some(3));
+            assert_eq!(arr[1].as_integer(), Some(4));
+            assert_eq!(arr[2].as_integer(), Some(1));
+            assert_eq!(arr[3].as_integer(), Some(2));
+        }
+
+        #[test]
+        fn test_top_level_array_append_unique_position_start() {
+            let mut target = TomlValue::Array(vec![
+                TomlValue::Integer(1),
+                TomlValue::Integer(2),
+                TomlValue::Integer(3),
+            ]);
+            let source = TomlValue::Array(vec![
+                TomlValue::Integer(2),
+                TomlValue::Integer(4),
+                TomlValue::Integer(1),
+            ]);
+
+            merge_toml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::AppendUnique,
+                InsertPosition::Start,
+                "arr",
+                "src",
+                "dst",
+            );
+
+            let arr = target.as_array().unwrap();
+            // Unique from source: [4]. Prepended to [1, 2, 3] => [4, 1, 2, 3]
+            assert_eq!(arr.len(), 4);
+            assert_eq!(arr[0].as_integer(), Some(4));
+            assert_eq!(arr[1].as_integer(), Some(1));
+            assert_eq!(arr[2].as_integer(), Some(2));
+            assert_eq!(arr[3].as_integer(), Some(3));
+        }
+
+        #[test]
+        fn test_nested_array_append_position_start() {
+            let mut target = TomlValue::Table({
+                let mut map = toml::map::Map::new();
+                map.insert(
+                    "items".to_string(),
+                    TomlValue::Array(vec![
+                        TomlValue::String("a".to_string()),
+                        TomlValue::String("b".to_string()),
+                    ]),
+                );
+                map
+            });
+            let source = TomlValue::Table({
+                let mut map = toml::map::Map::new();
+                map.insert(
+                    "items".to_string(),
+                    TomlValue::Array(vec![
+                        TomlValue::String("x".to_string()),
+                        TomlValue::String("y".to_string()),
+                    ]),
+                );
+                map
+            });
+
+            merge_toml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::Start,
+                "",
+                "src",
+                "dst",
+            );
+
+            let arr = target["items"].as_array().unwrap();
+            assert_eq!(arr.len(), 4);
+            // Source ["x", "y"] prepended to ["a", "b"] => ["x", "y", "a", "b"]
+            assert_eq!(arr[0].as_str(), Some("x"));
+            assert_eq!(arr[1].as_str(), Some("y"));
+            assert_eq!(arr[2].as_str(), Some("a"));
+            assert_eq!(arr[3].as_str(), Some("b"));
+        }
+
+        #[test]
+        fn test_nested_array_append_unique_position_start() {
+            let mut target = TomlValue::Table({
+                let mut map = toml::map::Map::new();
+                map.insert(
+                    "items".to_string(),
+                    TomlValue::Array(vec![
+                        TomlValue::String("a".to_string()),
+                        TomlValue::String("b".to_string()),
+                    ]),
+                );
+                map
+            });
+            let source = TomlValue::Table({
+                let mut map = toml::map::Map::new();
+                map.insert(
+                    "items".to_string(),
+                    TomlValue::Array(vec![
+                        TomlValue::String("b".to_string()),
+                        TomlValue::String("c".to_string()),
+                    ]),
+                );
+                map
+            });
+
+            merge_toml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::AppendUnique,
+                InsertPosition::Start,
+                "",
+                "src",
+                "dst",
+            );
+
+            let arr = target["items"].as_array().unwrap();
+            // Unique from source: ["c"]. Prepended to ["a", "b"] => ["c", "a", "b"]
+            assert_eq!(arr.len(), 3);
+            assert_eq!(arr[0].as_str(), Some("c"));
+            assert_eq!(arr[1].as_str(), Some("a"));
+            assert_eq!(arr[2].as_str(), Some("b"));
         }
     }
 

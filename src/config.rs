@@ -366,6 +366,9 @@ pub struct TomlMergeOp {
     pub preserve_comments: bool,
     #[serde(default, rename = "array_mode")]
     pub array_mode: Option<ArrayMergeMode>,
+    /// Position for array insertion (start or end)
+    #[serde(default)]
+    pub position: InsertPosition,
     /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
@@ -466,6 +469,12 @@ impl TomlMergeOp {
     /// Set whether to preserve comments in the output
     pub fn preserve_comments(mut self, preserve: bool) -> Self {
         self.preserve_comments = preserve;
+        self
+    }
+
+    /// Set the position for array insertion
+    pub fn position(mut self, position: InsertPosition) -> Self {
+        self.position = position;
         self
     }
 
@@ -2034,6 +2043,7 @@ mod tests {
                 append: false,
                 preserve_comments: false,
                 array_mode: None,
+                position: InsertPosition::End,
                 defer: None,
                 auto_merge: None,
             };
@@ -2049,6 +2059,7 @@ mod tests {
                 append: true,
                 preserve_comments: false,
                 array_mode: None,
+                position: InsertPosition::End,
                 defer: None,
                 auto_merge: None,
             };
@@ -2064,6 +2075,7 @@ mod tests {
                 append: false,
                 preserve_comments: false,
                 array_mode: Some(ArrayMergeMode::AppendUnique),
+                position: InsertPosition::End,
                 defer: None,
                 auto_merge: None,
             };
