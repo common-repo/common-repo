@@ -164,6 +164,14 @@ pub enum ArrayMergeMode {
     AppendUnique,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum InsertPosition {
+    Start,
+    #[default]
+    End,
+}
+
 impl ArrayMergeMode {
     /// Convert from legacy append boolean to ArrayMergeMode
     pub fn from_append_bool(append: bool) -> Self {
@@ -3050,5 +3058,19 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("at least one operation"), "Error was: {}", err);
+    }
+
+    #[test]
+    fn test_insert_position_deserialize() {
+        let start: InsertPosition = serde_json::from_str("\"start\"").unwrap();
+        assert_eq!(start, InsertPosition::Start);
+        let end: InsertPosition = serde_json::from_str("\"end\"").unwrap();
+        assert_eq!(end, InsertPosition::End);
+    }
+
+    #[test]
+    fn test_insert_position_default() {
+        let pos = InsertPosition::default();
+        assert_eq!(pos, InsertPosition::End);
     }
 }
