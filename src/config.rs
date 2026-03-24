@@ -937,13 +937,42 @@ pub type Schema = Vec<Operation>;
 /// to the original format parser.
 pub fn parse(yaml_content: &str) -> Result<Schema> {
     // First try parsing as the current format
-    match serde_yaml::from_str::<Schema>(yaml_content) {
-        Ok(schema) => Ok(schema),
+    let schema = match serde_yaml::from_str::<Schema>(yaml_content) {
+        Ok(schema) => schema,
         Err(_) => {
             // If that fails, try parsing as the original user-friendly format
-            parse_original_format(yaml_content)
+            parse_original_format(yaml_content)?
+        }
+    };
+    validate_self_operations(&schema)?;
+    Ok(schema)
+}
+
+/// Validate self: operations in a schema.
+///
+/// Rules:
+/// - self: blocks must not be empty
+/// - self: blocks must not contain nested self: blocks
+pub fn validate_self_operations(schema: &Schema) -> Result<()> {
+    for op in schema {
+        if let Operation::Self_ { self_ } = op {
+            if self_.operations.is_empty() {
+                return Err(Error::ConfigParse {
+                    message: "Self operator must contain at least one operation".to_string(),
+                    hint: Some("Add operations inside the self: block".to_string()),
+                });
+            }
+            for inner in &self_.operations {
+                if matches!(inner, Operation::Self_ { .. }) {
+                    return Err(Error::ConfigParse {
+                        message: "Self operator cannot be nested".to_string(),
+                        hint: Some("Move inner self: operations to the top level".to_string()),
+                    });
+                }
+            }
         }
     }
+    Ok(())
 }
 
 /// Parse a YAML string using only the original user-friendly format
@@ -2996,5 +3025,30 @@ mod tests {
             }
             other => panic!("expected Self_, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_validate_rejects_nested_self() {
+        let yaml = r#"
+- self:
+    - self:
+        - include:
+            - "**/*"
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("cannot be nested"), "Error was: {}", err);
+    }
+
+    #[test]
+    fn test_validate_rejects_empty_self() {
+        let yaml = r#"
+- self: []
+"#;
+        let result = parse(yaml);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("at least one operation"), "Error was: {}", err);
     }
 }
