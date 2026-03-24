@@ -1171,6 +1171,34 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             let markdown: MarkdownMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Markdown { markdown })
         }
+        "self" => {
+            // Self operations contain a sub-list of operations
+            match value {
+                serde_yaml::Value::Sequence(seq) => {
+                    let mut operations = Vec::new();
+                    for item in seq {
+                        if let serde_yaml::Value::Mapping(map) = item {
+                            let op = convert_yaml_mapping_to_operation(map)?;
+                            operations.push(op);
+                        } else {
+                            return Err(Error::ConfigParse {
+                                message: "Self clause items must be mappings".to_string(),
+                                hint: None,
+                            });
+                        }
+                    }
+                    Ok(Operation::Self_ {
+                        self_: SelfOp { operations },
+                    })
+                }
+                _ => Err(Error::ConfigParse {
+                    message: "Self operator must be a sequence of operations".to_string(),
+                    hint: Some(
+                        "Use 'self: [{ include: [...] }, ...]' format".to_string(),
+                    ),
+                }),
+            }
+        }
         _ => Err(Error::ConfigParse {
             message: format!("Unknown operation type: {}", op_type),
             hint: Some("Valid operations: repo, include, exclude, template, template-vars, rename, tools, yaml, json, toml, ini, markdown, self".to_string()),
@@ -2949,5 +2977,24 @@ mod tests {
 "#;
         let schema = parse(yaml).unwrap();
         assert!(!schema[0].is_deferred());
+    }
+
+    #[test]
+    fn test_parse_self_original_format() {
+        let yaml = r#"
+- self:
+    - include:
+        - "src/**"
+    - exclude:
+        - "*.tmp"
+"#;
+        let schema = parse_original_format(yaml).expect("should parse self in original format");
+        assert_eq!(schema.len(), 1);
+        match &schema[0] {
+            Operation::Self_ { self_ } => {
+                assert_eq!(self_.operations.len(), 2);
+            }
+            other => panic!("expected Self_, got {:?}", other),
+        }
     }
 }
