@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Approach: Test-Driven Development
+
+**All feature work, bug fixes, and refactoring MUST follow TDD.** Read and follow @TDD.md before writing any implementation code. TDD is the default approach — not optional, not secondary to any other workflow.
+
+The TDD workflow: write one failing test → make it pass → refactor → repeat. Do not write implementation code without a failing test first.
+
 ## Project Overview
 
 This is a Rust project with automated tooling for code quality, conventional commits, and semantic versioning. The project is configured for modern development practices with full CI/CD automation.
