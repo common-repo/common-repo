@@ -534,7 +534,8 @@ port = 8080
     mod execute_merge_operation_tests {
         use super::*;
         use crate::config::{
-            ExcludeOp, IncludeOp, MarkdownMergeOp, Operation, TomlMergeOp, YamlMergeOp,
+            ExcludeOp, IncludeOp, InsertPosition, MarkdownMergeOp, Operation, TomlMergeOp,
+            YamlMergeOp,
         };
         use crate::phases::composite::execute_merge_operation;
 
@@ -611,7 +612,7 @@ port = 8080
                     section: "Features".to_string(),
                     append: true,
                     level: 2,
-                    position: "end".to_string(),
+                    position: InsertPosition::End,
                     ..Default::default()
                 },
             };
