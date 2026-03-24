@@ -26,3 +26,6 @@ tarpaulin-report.html
 
 # Superpowers
 docs/superpowers
+
+# Worktrees
+.worktrees/
