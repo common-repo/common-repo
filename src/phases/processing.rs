@@ -1322,7 +1322,8 @@ mod tests {
     mod merge_operations_tests {
         use super::*;
         use crate::config::{
-            ExcludeOp, IniMergeOp, JsonMergeOp, MarkdownMergeOp, TomlMergeOp, YamlMergeOp,
+            ExcludeOp, IniMergeOp, InsertPosition, JsonMergeOp, MarkdownMergeOp, TomlMergeOp,
+            YamlMergeOp,
         };
 
         #[test]
@@ -1413,7 +1414,7 @@ mod tests {
                     section: "## Section".to_string(),
                     append: true,
                     level: 2,
-                    position: "end".to_string(),
+                    position: InsertPosition::End,
                     ..Default::default()
                 },
             }];
@@ -1498,8 +1499,9 @@ mod tests {
     mod apply_operation_tests {
         use super::*;
         use crate::config::{
-            ExcludeOp, IncludeOp, IniMergeOp, JsonMergeOp, MarkdownMergeOp, RenameMapping,
-            RenameOp, TemplateOp, TemplateVars, TomlMergeOp, Tool, ToolsOp, YamlMergeOp,
+            ExcludeOp, IncludeOp, IniMergeOp, InsertPosition, JsonMergeOp, MarkdownMergeOp,
+            RenameMapping, RenameOp, TemplateOp, TemplateVars, TomlMergeOp, Tool, ToolsOp,
+            YamlMergeOp,
         };
         use crate::filesystem::MemoryFS;
 
@@ -1675,7 +1677,7 @@ mod tests {
                     dest: Some("dest.md".to_string()),
                     section: "## Section".to_string(),
                     level: 2,
-                    position: "end".to_string(),
+                    position: InsertPosition::End,
                     ..Default::default()
                 },
             };

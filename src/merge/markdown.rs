@@ -24,7 +24,7 @@
 //! apply_markdown_merge_operation(&mut fs, &op)?;
 //! ```
 
-use crate::config::MarkdownMergeOp;
+use crate::config::{InsertPosition, MarkdownMergeOp};
 use crate::error::{Error, Result};
 use crate::filesystem::{File, MemoryFS};
 
@@ -110,25 +110,6 @@ fn find_section_bounds(lines: &[String], level: u8, section: &str) -> Option<(us
     Some((start, end))
 }
 
-/// Normalize position string to a canonical form
-///
-/// Accepts "start" (case-insensitive) to insert at the beginning,
-/// any other value defaults to "end".
-///
-/// # Arguments
-///
-/// * `position` - The position string to normalize
-///
-/// # Returns
-///
-/// Either "start" or "end"
-fn normalize_position(position: &str) -> &str {
-    match position.to_lowercase().as_str() {
-        "start" => "start",
-        _ => "end",
-    }
-}
-
 /// Apply a markdown merge operation to the filesystem
 ///
 /// Reads the source content and merges it into the destination markdown file
@@ -160,8 +141,6 @@ pub fn apply_markdown_merge_operation(fs: &mut MemoryFS, op: &MarkdownMergeOp) -
 
     let mut dest_lines = split_lines_preserve(&dest_content);
     let source_lines = split_lines_preserve(&source_content);
-    let position = normalize_position(&op.position);
-
     if let Some((start, end)) = find_section_bounds(&dest_lines, op.level, &op.section) {
         let insert_index = if op.append { end } else { start + 1 };
 
@@ -200,14 +179,14 @@ pub fn apply_markdown_merge_operation(fs: &mut MemoryFS, op: &MarkdownMergeOp) -
             block.push(String::new());
         }
 
-        match position {
-            "start" => {
+        match op.position {
+            InsertPosition::Start => {
                 while !dest_lines.is_empty() && dest_lines[0].trim().is_empty() {
                     dest_lines.remove(0);
                 }
                 dest_lines.splice(0..0, block);
             }
-            _ => {
+            InsertPosition::End => {
                 if !dest_lines.is_empty() && !dest_lines.last().unwrap().trim().is_empty() {
                     dest_lines.push(String::new());
                 }
@@ -335,13 +314,11 @@ mod tests {
         }
 
         #[test]
-        fn test_normalize_position() {
-            assert_eq!(normalize_position("start"), "start");
-            assert_eq!(normalize_position("START"), "start");
-            assert_eq!(normalize_position("Start"), "start");
-            assert_eq!(normalize_position("end"), "end");
-            assert_eq!(normalize_position("anything"), "end");
-            assert_eq!(normalize_position(""), "end");
+        fn test_insert_position_deserialize() {
+            let start: InsertPosition = serde_yaml::from_str("start").unwrap();
+            assert_eq!(start, InsertPosition::Start);
+            let end: InsertPosition = serde_yaml::from_str("end").unwrap();
+            assert_eq!(end, InsertPosition::End);
         }
     }
 
@@ -437,7 +414,7 @@ mod tests {
                 source: Some("source.md".to_string()),
                 dest: Some("dest.md".to_string()),
                 section: "First Section".to_string(),
-                position: "start".to_string(),
+                position: InsertPosition::Start,
                 create_section: true,
                 ..Default::default()
             };
@@ -891,7 +868,7 @@ mod tests {
                 source: Some("source.md".to_string()),
                 dest: Some("dest.md".to_string()),
                 section: "New First".to_string(),
-                position: "start".to_string(),
+                position: InsertPosition::Start,
                 create_section: true,
                 ..Default::default()
             };
@@ -984,7 +961,7 @@ mod tests {
                 source: Some("source.md".to_string()),
                 dest: Some("dest.md".to_string()),
                 section: "New".to_string(),
-                position: "START".to_string(),
+                position: InsertPosition::Start,
                 create_section: true,
                 ..Default::default()
             };

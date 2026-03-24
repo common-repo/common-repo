@@ -1009,7 +1009,7 @@ mod tests {
                         dest: Some("d.md".to_string()),
                         section: "Section".to_string(),
                         level: 2,
-                        position: "end".to_string(),
+                        position: crate::config::InsertPosition::End,
                         ..Default::default()
                     },
                 },

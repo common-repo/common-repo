@@ -752,9 +752,9 @@ pub struct MarkdownMergeOp {
     /// Header level (1-6)
     #[serde(default = "default_header_level")]
     pub level: u8,
-    /// Position to insert ("end" or "start")
+    /// Position to insert (start or end)
     #[serde(default)]
-    pub position: String,
+    pub position: InsertPosition,
     /// Whether to create section if it doesn't exist
     #[serde(default, rename = "create-section")]
     pub create_section: bool,
@@ -824,14 +824,14 @@ impl MarkdownMergeOp {
     /// # Examples
     ///
     /// ```
-    /// use common_repo::config::MarkdownMergeOp;
+    /// use common_repo::config::{MarkdownMergeOp, InsertPosition};
     ///
     /// let op = MarkdownMergeOp::new()
     ///     .source("fragment.md")
     ///     .dest("README.md")
     ///     .section("Installation")
     ///     .level(2)
-    ///     .position("end")
+    ///     .position(InsertPosition::End)
     ///     .create_section(true);
     /// ```
     pub fn new() -> Self {
@@ -868,9 +868,9 @@ impl MarkdownMergeOp {
         self
     }
 
-    /// Set the position to insert ("end" or "start")
-    pub fn position(mut self, position: impl Into<String>) -> Self {
-        self.position = position.into();
+    /// Set the position to insert (start or end)
+    pub fn position(mut self, position: InsertPosition) -> Self {
+        self.position = position;
         self
     }
 
@@ -901,7 +901,7 @@ impl Default for MarkdownMergeOp {
             section: String::new(),
             append: false,
             level: default_header_level(),
-            position: String::new(),
+            position: InsertPosition::default(),
             create_section: false,
             defer: None,
             auto_merge: None,
@@ -1770,7 +1770,7 @@ mod tests {
                 assert_eq!(markdown.section, "Installation");
                 assert!(markdown.append);
                 assert_eq!(markdown.level, 2);
-                assert_eq!(markdown.position, "end".to_string());
+                assert_eq!(markdown.position, InsertPosition::End);
                 assert!(markdown.create_section);
             }
             _ => panic!("Expected Markdown operation"),
@@ -2306,7 +2306,7 @@ mod tests {
                     assert_eq!(markdown.section, "## Installation");
                     assert!(markdown.append);
                     assert_eq!(markdown.level, 3);
-                    assert_eq!(markdown.position, "start");
+                    assert_eq!(markdown.position, InsertPosition::Start);
                     assert!(markdown.create_section);
                 }
                 _ => panic!("Expected Markdown operation"),
@@ -2326,7 +2326,7 @@ mod tests {
                 Operation::Markdown { markdown } => {
                     assert!(!markdown.append);
                     assert_eq!(markdown.level, 2); // default_header_level()
-                    assert_eq!(markdown.position, "");
+                    assert_eq!(markdown.position, InsertPosition::End);
                     assert!(!markdown.create_section);
                 }
                 _ => panic!("Expected Markdown operation"),
@@ -2916,7 +2916,7 @@ mod tests {
                 .dest("README.md")
                 .section("Installation")
                 .level(3)
-                .position("end")
+                .position(InsertPosition::End)
                 .append(true)
                 .create_section(true);
 
@@ -2924,7 +2924,7 @@ mod tests {
             assert_eq!(op.dest.as_deref(), Some("README.md"));
             assert_eq!(op.section, "Installation");
             assert_eq!(op.level, 3);
-            assert_eq!(op.position, "end");
+            assert_eq!(op.position, InsertPosition::End);
             assert!(op.append);
             assert!(op.create_section);
             assert!(op.validate().is_ok());
