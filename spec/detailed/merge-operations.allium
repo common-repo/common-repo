@@ -1,0 +1,374 @@
+-- allium: 2
+-- detailed/merge-operations.allium
+--
+-- Scope: Merge operation semantics for structured and text file formats
+-- Includes: YAML, JSON, TOML, INI, and Markdown merge behavior,
+--           path navigation, array handling, conflict resolution
+-- Excludes:
+--   - Config parsing and validation (see common-repo.allium)
+--   - Pipeline orchestration and merge timing (see common-repo.allium)
+--   - File I/O and encoding (treated as infrastructure)
+
+-- ==========================================================================
+-- Value Types
+-- ==========================================================================
+
+value MergePath {
+    -- Dot-separated keys with optional bracket notation.
+    -- Examples: "foo.bar.baz", "foo[\"special.key\"]", "items[0]"
+    raw: String
+    segments: List<PathSegment>
+}
+
+value PathSegment {
+    kind: key | index
+    value: String
+}
+
+-- ==========================================================================
+-- Enumerations
+-- ==========================================================================
+
+-- ArrayMergeMode and InsertPosition enums are declared in common-repo.allium
+
+-- ==========================================================================
+-- Cross-Cutting Rules
+-- ==========================================================================
+
+-- --------------------------------------------------------------------------
+-- Destination Auto-Creation
+-- --------------------------------------------------------------------------
+
+rule AutoCreateDestination {
+    when: ApplyMerge(op, filesystem)
+    requires: not filesystem.contains(op.effective_dest)
+
+    -- When the destination file does not exist, create it with a
+    -- format-appropriate empty stub so the merge can proceed.
+    ensures: filesystem.contains(op.effective_dest)
+
+    @guidance
+        -- YAML: created with "---\n" (document marker)
+        -- JSON: created with "{}" (empty object)
+        -- TOML: created with empty table
+        -- INI: created as empty file
+        -- Markdown: created as empty file
+}
+
+-- --------------------------------------------------------------------------
+-- Missing Source Handling
+-- --------------------------------------------------------------------------
+
+rule MissingSourceExplicit {
+    when: ApplyMerge(op, filesystem)
+    requires: op.source != null
+    requires: op.auto_merge = null
+    requires: not filesystem.contains(op.effective_source)
+
+    -- Explicit source/dest: missing source is an error.
+    ensures: Error(message: "File not found in filesystem")
+}
+
+rule MissingSourceAutoMerge {
+    when: ApplyMerge(op, filesystem)
+    requires: op.auto_merge != null
+    requires: not filesystem.contains(op.effective_source)
+    requires: not filesystem.contains(op.effective_dest)
+
+    -- Auto-merge where neither side has the file: warn and skip.
+    ensures: Warning(message: "Auto-merge skipped, file not found on either side")
+
+    @guidance
+        -- Auto-merge expresses intent to "merge if present." When neither
+        -- the source nor destination exists, there is nothing to merge.
+        -- This is a warning, not an error, because auto-merge is a
+        -- best-effort directive.
+}
+
+-- --------------------------------------------------------------------------
+-- Path Navigation
+-- --------------------------------------------------------------------------
+
+rule NavigatePath {
+    when: ApplyStructuredMerge(op, dest_value, path)
+    requires: path.segments.count > 0
+
+    -- Navigate into the destination structure following path segments.
+    -- Auto-create intermediate containers (objects/tables/mappings) for
+    -- missing keys. Auto-extend arrays for out-of-bounds indices.
+    ensures: PathResolved(dest_value, path)
+}
+
+rule PathThroughScalar {
+    when: NavigatePath(dest_value, path, current_segment)
+    requires: current_segment.kind = key
+    requires: is_scalar(current_value)
+
+    -- Cannot traverse through a scalar value. Navigating path "foo.bar"
+    -- when "foo" is an integer or string is an error — replacing it
+    -- silently would destroy data.
+    ensures: Error(message: "Cannot navigate through scalar value")
+}
+
+-- --------------------------------------------------------------------------
+-- Array Merge Semantics (Unified Model)
+-- --------------------------------------------------------------------------
+
+rule ArrayReplace {
+    when: MergeArrays(source, dest, mode, position)
+    requires: mode = replace
+
+    -- Replace destination array entirely with source array.
+    ensures: result = source
+}
+
+rule ArrayAppend {
+    when: MergeArrays(source, dest, mode, position)
+    requires: mode = append
+
+    ensures:
+        if position = start:
+            result = source + dest
+        else:
+            result = dest + source
+}
+
+rule ArrayAppendUnique {
+    when: MergeArrays(source, dest, mode, position)
+    requires: mode = append_unique
+
+    -- Add only source items not already present in destination.
+    let unique_items = source where item not in dest
+    ensures:
+        if position = start:
+            result = unique_items + dest
+        else:
+            result = dest + unique_items
+}
+
+-- --------------------------------------------------------------------------
+-- Type Mismatch Resolution
+-- --------------------------------------------------------------------------
+
+rule TypeMismatchReplace {
+    when: MergeValues(source, dest)
+    requires: type_of(source) != type_of(dest)
+
+    -- Type mismatches always replace with a warning, regardless of
+    -- merge mode. The user wrote a merge directive, so the source
+    -- content should take effect. Silent skipping would mean the
+    -- directive did nothing.
+    ensures: result = source
+    ensures: Warning(message: "Type mismatch, replacing destination value")
+}
+
+-- --------------------------------------------------------------------------
+-- Scalar Conflict Resolution
+-- --------------------------------------------------------------------------
+
+rule ScalarOverwrite {
+    when: MergeValues(source, dest)
+    requires: is_scalar(source)
+    requires: is_scalar(dest)
+
+    -- Scalars are last-write-wins: source overrides destination.
+    ensures: result = source
+}
+
+-- ==========================================================================
+-- YAML Merge Semantics
+-- ==========================================================================
+
+rule YamlDeepMerge {
+    when: ApplyYamlMerge(op, filesystem)
+
+    -- Mappings merge recursively: source keys override destination keys,
+    -- destination-only keys are preserved.
+    -- Sequences use the unified array merge model (array_mode + position).
+    -- Scalars use last-write-wins.
+    ensures: YamlMerged(op, filesystem)
+}
+
+-- ==========================================================================
+-- JSON Merge Semantics
+-- ==========================================================================
+
+rule JsonDeepMerge {
+    when: ApplyJsonMerge(op, filesystem)
+
+    -- Objects merge recursively: source keys override destination keys,
+    -- destination-only keys are preserved.
+    -- Arrays use the unified array merge model (array_mode + position).
+    -- Scalars use last-write-wins.
+    ensures: JsonMerged(op, filesystem)
+
+    @guidance
+        -- JSON now uses array_mode enum + InsertPosition enum, matching
+        -- YAML and TOML. Legacy boolean append field is preserved for
+        -- backward-compatible deserialization.
+}
+
+-- ==========================================================================
+-- TOML Merge Semantics
+-- ==========================================================================
+
+rule TomlDeepMerge {
+    when: ApplyTomlMerge(op, filesystem)
+
+    -- Tables merge recursively: source keys override destination keys,
+    -- destination-only keys are preserved.
+    -- Arrays use the unified array merge model (array_mode + position).
+    -- Scalars use last-write-wins.
+    ensures: TomlMerged(op, filesystem)
+}
+
+rule TomlCommentPreservation {
+    when: ApplyTomlMerge(op, filesystem)
+    requires: op.preserve_comments = true
+
+    -- When preserve_comments is enabled, the output retains formatting
+    -- and comments from the destination file where possible.
+    ensures: CommentsPreserved(op, filesystem)
+
+    @guidance
+        -- Comment preservation is best-effort. Structural changes
+        -- (new keys, removed sections) may displace comments.
+}
+
+-- ==========================================================================
+-- INI Merge Semantics
+-- ==========================================================================
+
+rule IniSectionMerge {
+    when: ApplyIniMerge(op, filesystem)
+
+    ensures:
+        if op.section != null:
+            -- Merge source entries into the specified section only.
+            IniSectionMerged(op, filesystem, op.section)
+        else:
+            -- Merge all sections from source into destination.
+            IniAllSectionsMerged(op, filesystem)
+}
+
+rule IniKeyMatching {
+    when: IniCheckDuplicate(key, existing_keys)
+
+    -- Key matching is case-insensitive. INI files originate from
+    -- Windows where keys are traditionally case-insensitive. This
+    -- default ensures cross-platform interoperability.
+    ensures: match = existing_keys.any(k => lowercase(k) = lowercase(key))
+}
+
+rule IniAppendMode {
+    when: IniMergeEntries(source_entries, dest_entries, op)
+    requires: op.append = true
+
+    ensures:
+        if op.allow_duplicates:
+            -- Add all source entries regardless of existing keys.
+            result = dest_entries + source_entries
+        else:
+            -- Only add source entries whose keys do not exist in destination.
+            let new_entries = source_entries where not IniCheckDuplicate(entry.key, dest_entries.keys)
+            result = dest_entries + new_entries
+}
+
+rule IniReplaceMode {
+    when: IniMergeEntries(source_entries, dest_entries, op)
+    requires: op.append = false
+
+    ensures:
+        if op.allow_duplicates:
+            -- Add all source entries without removing existing.
+            result = dest_entries + source_entries
+        else:
+            -- Remove existing keys that match source keys, then add source entries.
+            let filtered = dest_entries where not IniCheckDuplicate(entry.key, source_entries.keys)
+            result = filtered + source_entries
+}
+
+-- ==========================================================================
+-- Markdown Merge Semantics
+-- ==========================================================================
+
+rule MarkdownFindSection {
+    when: ApplyMarkdownMerge(op, filesystem)
+
+    -- Find section by first exact, case-sensitive heading match.
+    -- Section boundaries: from the heading line to the next heading
+    -- of equal or lesser level (or end of file).
+    ensures: SectionFound(op, filesystem) or SectionNotFound(op, filesystem)
+
+    @guidance
+        -- Matching is plain text, not rendered. A heading "## **Bold**"
+        -- does not match section name "Bold". The match compares the
+        -- full heading text after the "#" markers and whitespace trim.
+        -- When multiple sections share the same heading, the first
+        -- match is used.
+}
+
+rule MarkdownSectionNotFoundError {
+    when: SectionNotFound(op, filesystem)
+    requires: op.create_section = false
+
+    ensures: Error(message: "Section not found")
+}
+
+rule MarkdownCreateSection {
+    when: SectionNotFound(op, filesystem)
+    requires: op.create_section = true
+
+    -- Create the section heading at the specified position in the document.
+    ensures: SectionCreated(op, filesystem)
+
+    ensures:
+        if op.position = start:
+            SectionInsertedAtStart(op, filesystem)
+        else:
+            SectionAppendedAtEnd(op, filesystem)
+}
+
+rule MarkdownReplaceContent {
+    when: SectionFound(op, filesystem)
+    requires: op.append = false
+
+    -- Replace all content between the section heading and the next
+    -- heading of equal or lesser level.
+    ensures: SectionContentReplaced(op, filesystem)
+}
+
+rule MarkdownAppendContent {
+    when: SectionFound(op, filesystem)
+    requires: op.append = true
+
+    -- Insert source content at the end of the section, before the
+    -- next heading.
+    ensures: SectionContentAppended(op, filesystem)
+}
+
+-- ==========================================================================
+-- Invariants
+-- ==========================================================================
+
+invariant SourceAlwaysWins {
+    -- When source and destination conflict at the same path, the source
+    -- value is always used. No merge mode silently discards source data.
+}
+
+invariant MergeNeverCorrupts {
+    -- A merge operation never produces output that is invalid for the
+    -- target format. YAML output is valid YAML, JSON is valid JSON, etc.
+}
+
+invariant TrailingNewline {
+    -- All merge output ends with a trailing newline.
+}
+
+-- ==========================================================================
+-- Open Questions
+-- ==========================================================================
+
+open question "Should INI merge support a case-sensitive key matching option for Linux-native INI files?"
+
+open question "Should Markdown merge support regex or fuzzy heading matching as an opt-in?"
