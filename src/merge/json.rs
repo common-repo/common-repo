@@ -25,7 +25,7 @@
 use serde_json::Value as JsonValue;
 
 use super::PathSegment;
-use crate::config::JsonMergeOp;
+use crate::config::{ArrayMergeMode, InsertPosition, JsonMergeOp};
 use crate::error::{Error, Result};
 use crate::filesystem::{File, MemoryFS};
 
@@ -101,48 +101,68 @@ pub fn navigate_json_value<'a>(
 ///
 /// Handles different JSON types appropriately:
 /// - Objects: Recursively merge keys, with source values taking precedence for conflicts
-/// - Arrays: Either append/prepend source items to target or replace entirely based on flags
-/// - Scalars: Replace target with source
+/// - Arrays: Append, replace, or append-unique based on `ArrayMergeMode`, with position control
+/// - Scalars: Source always wins (ScalarOverwrite rule)
 ///
 /// # Arguments
 ///
 /// * `target` - The target value to merge into (modified in place)
 /// * `source` - The source value to merge from
-/// * `append` - If true, append/prepend array items; if false, replace arrays entirely
-/// * `position` - Position for array insertion: "start" prepends, anything else appends
+/// * `mode` - How to handle array merging (Append, Replace, or AppendUnique)
+/// * `position` - Where to insert array items (Start or End)
 pub fn merge_json_values(
     target: &mut JsonValue,
     source: &JsonValue,
-    append: bool,
-    position: Option<&str>,
+    mode: ArrayMergeMode,
+    position: InsertPosition,
 ) {
-    let prepend = position.map(|p| p == "start").unwrap_or(false);
-
     match target {
         JsonValue::Object(target_map) => {
             if let JsonValue::Object(source_map) = source {
                 for (key, value) in source_map {
                     if let Some(existing) = target_map.get_mut(key) {
                         if existing.is_object() && value.is_object() {
-                            merge_json_values(existing, value, append, position);
+                            merge_json_values(existing, value, mode, position);
                         } else if let Some(source_array) = value.as_array() {
                             if let Some(target_array) = existing.as_array_mut() {
-                                if append {
-                                    if prepend {
-                                        // Insert source items at the beginning
-                                        let mut new_array = source_array.clone();
-                                        new_array.append(target_array);
-                                        *target_array = new_array;
-                                    } else {
-                                        target_array.extend(source_array.iter().cloned());
+                                match mode {
+                                    ArrayMergeMode::Append => match position {
+                                        InsertPosition::Start => {
+                                            let mut new_array = source_array.clone();
+                                            new_array.append(target_array);
+                                            *target_array = new_array;
+                                        }
+                                        InsertPosition::End => {
+                                            target_array.extend(source_array.iter().cloned());
+                                        }
+                                    },
+                                    ArrayMergeMode::Replace => {
+                                        *existing = JsonValue::Array(source_array.clone());
                                     }
-                                } else {
-                                    *existing = JsonValue::Array(source_array.clone());
+                                    ArrayMergeMode::AppendUnique => {
+                                        let unique_items: Vec<_> = source_array
+                                            .iter()
+                                            .filter(|item| !target_array.contains(item))
+                                            .cloned()
+                                            .collect();
+                                        match position {
+                                            InsertPosition::Start => {
+                                                let mut new_array = unique_items;
+                                                new_array.append(target_array);
+                                                *target_array = new_array;
+                                            }
+                                            InsertPosition::End => {
+                                                target_array.extend(unique_items);
+                                            }
+                                        }
+                                    }
                                 }
-                            } else if !append {
+                            } else {
+                                // Type mismatch -- source wins
                                 *existing = JsonValue::Array(source_array.clone());
                             }
-                        } else if !append {
+                        } else {
+                            // Scalars: source always wins
                             *existing = value.clone();
                         }
                     } else {
@@ -155,17 +175,37 @@ pub fn merge_json_values(
         }
         JsonValue::Array(target_array) => {
             if let JsonValue::Array(source_array) = source {
-                if append {
-                    if prepend {
-                        // Insert source items at the beginning
-                        let mut new_array = source_array.clone();
-                        new_array.append(target_array);
-                        *target_array = new_array;
-                    } else {
-                        target_array.extend(source_array.clone());
+                match mode {
+                    ArrayMergeMode::Append => match position {
+                        InsertPosition::Start => {
+                            let mut new_array = source_array.clone();
+                            new_array.append(target_array);
+                            *target_array = new_array;
+                        }
+                        InsertPosition::End => {
+                            target_array.extend(source_array.clone());
+                        }
+                    },
+                    ArrayMergeMode::Replace => {
+                        *target = JsonValue::Array(source_array.clone());
                     }
-                } else {
-                    *target = JsonValue::Array(source_array.clone());
+                    ArrayMergeMode::AppendUnique => {
+                        let unique_items: Vec<_> = source_array
+                            .iter()
+                            .filter(|item| !target_array.contains(item))
+                            .cloned()
+                            .collect();
+                        match position {
+                            InsertPosition::Start => {
+                                let mut new_array = unique_items;
+                                new_array.append(target_array);
+                                *target_array = new_array;
+                            }
+                            InsertPosition::End => {
+                                target_array.extend(unique_items);
+                            }
+                        }
+                    }
                 }
             } else {
                 *target = source.clone();
@@ -215,7 +255,8 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
 
     let path = super::parse_path(op.path.as_deref().unwrap_or(""));
     let target = navigate_json_value(&mut dest_value, &path)?;
-    merge_json_values(target, &source_value, op.append, op.position.as_deref());
+    let mode = op.get_array_mode();
+    merge_json_values(target, &source_value, mode, op.position);
 
     let serialized = serde_json::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
         operation: "json merge".to_string(),
@@ -501,7 +542,12 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"a": {"b": {"c": {"f": 3}}, "g": 4}}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             // Original value preserved
             assert_eq!(target["a"]["b"]["c"]["d"], JsonValue::Number(1.into()));
@@ -520,7 +566,12 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"level1": {"modify": {"new": "data"}}}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(
                 target["level1"]["keep"],
@@ -544,7 +595,12 @@ mod tests {
                 serde_json::from_str(r#"{"config": {"items": [4, 5]}}"#).unwrap();
 
             // With append=true
-            merge_json_values(&mut target, &source, true, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::End,
+            );
 
             let items = target["config"]["items"].as_array().unwrap();
             assert_eq!(items.len(), 5);
@@ -557,7 +613,12 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"a": {"b": {}}}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"a": {"b": {"c": 1}}}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(target["a"]["b"]["c"], JsonValue::Number(1.into()));
         }
@@ -569,7 +630,12 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"a": {"nested": "value"}, "b": null}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             // Source overrides target with non-object values
             assert_eq!(
@@ -589,7 +655,12 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"key": {"nested": "object"}}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert!(target["key"].is_object());
             assert_eq!(
@@ -604,7 +675,12 @@ mod tests {
                 serde_json::from_str(r#"{"key": {"nested": "object"}}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"key": "new_string"}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(target["key"], JsonValue::String("new_string".to_string()));
         }
@@ -614,22 +690,32 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"items": "not_array"}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert!(target["items"].is_array());
             assert_eq!(target["items"].as_array().unwrap().len(), 3);
         }
 
         #[test]
-        fn test_type_conflict_array_vs_scalar_with_append_preserves_target() {
+        fn test_type_conflict_array_vs_scalar_source_wins() {
             let mut target: JsonValue = serde_json::from_str(r#"{"items": "not_array"}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
 
-            // With append=true, non-array target is preserved (line 142-144 in the source)
-            merge_json_values(&mut target, &source, true, None);
+            // Type mismatch: source array wins regardless of mode
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::End,
+            );
 
-            // Target remains unchanged because we can't append to a non-array
-            assert_eq!(target["items"], JsonValue::String("not_array".to_string()));
+            assert!(target["items"].is_array());
+            assert_eq!(target["items"].as_array().unwrap().len(), 3);
         }
 
         #[test]
@@ -637,7 +723,12 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"items": "now_a_string"}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(
                 target["items"],
@@ -646,20 +737,22 @@ mod tests {
         }
 
         #[test]
-        fn test_type_conflict_scalar_on_append_preserves_target_array() {
+        fn test_type_conflict_scalar_overwrites_array() {
             let mut target: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"items": "now_a_string"}"#).unwrap();
 
-            // With append=true, scalar source is NOT appended to array
-            // Looking at the code: the source is NOT an array (line 128), so it falls through
-            // to the else block (line 145-147), which checks !append and overwrites
-            merge_json_values(&mut target, &source, true, None);
+            // Scalars: source always wins regardless of mode
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::End,
+            );
 
-            // With append=true and scalar source on array target, target is preserved
-            // Actually looking at the code more closely: line 145-147 handles this
-            // It only updates if !append, so with append=true, target is preserved
-            let items = target["items"].as_array().unwrap();
-            assert_eq!(items.len(), 3);
+            assert_eq!(
+                target["items"],
+                JsonValue::String("now_a_string".to_string())
+            );
         }
 
         #[test]
@@ -668,7 +761,12 @@ mod tests {
             let source: JsonValue = serde_json::from_str(r#"{"new": "object"}"#).unwrap();
 
             // Top-level replacement: array target, object source
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert!(target.is_object());
             assert_eq!(target["new"], JsonValue::String("object".to_string()));
@@ -680,7 +778,12 @@ mod tests {
             let source: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
 
             // Top-level: object target, array source -> line 152-154 in Object arm
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert!(target.is_array());
             assert_eq!(target.as_array().unwrap().len(), 3);
@@ -854,7 +957,7 @@ mod tests {
                 source: Some("source.json".to_string()),
                 dest: Some("dest.json".to_string()),
                 append: true,
-                position: Some("start".to_string()),
+                position: InsertPosition::Start,
                 ..Default::default()
             };
 
@@ -884,7 +987,7 @@ mod tests {
                 source: Some("source.json".to_string()),
                 dest: Some("dest.json".to_string()),
                 append: true,
-                position: Some("end".to_string()),
+                position: InsertPosition::End,
                 ..Default::default()
             };
 
@@ -907,7 +1010,12 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"[4, 5]"#).unwrap();
 
-            merge_json_values(&mut target, &source, true, Some("start"));
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::Start,
+            );
 
             let arr = target.as_array().unwrap();
             assert_eq!(arr.len(), 5);
@@ -921,7 +1029,12 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"[4, 5]"#).unwrap();
 
-            merge_json_values(&mut target, &source, true, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::End,
+            );
 
             let arr = target.as_array().unwrap();
             assert_eq!(arr.len(), 5);
@@ -940,7 +1053,7 @@ mod tests {
             let op = JsonMergeOp {
                 source: Some("source.json".to_string()),
                 dest: Some("dest.json".to_string()),
-                position: Some("start".to_string()), // Should be ignored
+                position: InsertPosition::Start, // Should be ignored
                 ..Default::default()
             };
 
@@ -1057,7 +1170,12 @@ mod tests {
             let mut target = JsonValue::String("old".to_string());
             let source = JsonValue::String("new".to_string());
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(target, JsonValue::String("new".to_string()));
         }
@@ -1067,7 +1185,12 @@ mod tests {
             let mut target = JsonValue::Number(42.into());
             let source = JsonValue::Number(serde_json::Number::from_f64(2.5).unwrap());
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(target.as_f64().unwrap(), 2.5);
         }
@@ -1077,7 +1200,12 @@ mod tests {
             let mut target = JsonValue::Bool(true);
             let source = JsonValue::Bool(false);
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(target, JsonValue::Bool(false));
         }
@@ -1087,7 +1215,12 @@ mod tests {
             let mut target = JsonValue::String("value".to_string());
             let source = JsonValue::Null;
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert!(target.is_null());
         }
@@ -1097,7 +1230,12 @@ mod tests {
             let mut target = JsonValue::Null;
             let source: JsonValue = serde_json::from_str(r#"{"key": "value"}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert!(target.is_object());
             assert_eq!(target["key"], JsonValue::String("value".to_string()));
@@ -1108,7 +1246,12 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"a": 1}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"b": 2, "c": 3}"#).unwrap();
 
-            merge_json_values(&mut target, &source, false, None);
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+            );
 
             assert_eq!(target["a"], JsonValue::Number(1.into()));
             assert_eq!(target["b"], JsonValue::Number(2.into()));
