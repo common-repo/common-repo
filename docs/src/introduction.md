@@ -18,6 +18,7 @@ Configuration files become:
 - **Automatically updateable** - Detect outdated configs and upgrade deterministically
 - **Composable** - Pull from multiple upstream repos and merge intelligently
 - **Inheritable** - Build upon standards that themselves extend other standards
+- **Self-consuming** - Upstream repos can use `self:` to pull their own tooling without leaking it to consumers
 
 ## Quick Start
 

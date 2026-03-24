@@ -115,6 +115,42 @@ TypeScript project with ESLint, Prettier, and GitHub Actions.
     - npm: ">=10"
 ```
 
+## Upstream Repo Patterns
+
+### Upstream Repo That Consumes Its Own Tooling
+
+An upstream repo that provides shared configuration to consumers, while also pulling CI and release tooling for its own use. The `self:` block keeps local consumption separate from the source API.
+
+```yaml
+# .common-repo.yaml in an upstream repo
+
+# Pull tooling for this repo only — consumers never see this
+- self:
+    - repo:
+        url: https://github.com/org/release-tooling
+        ref: v3.0.0
+    - repo:
+        url: https://github.com/org/ci-base
+        ref: v1.2.0
+    - exclude:
+        - ".releaserc.yaml"
+        - "commitlint.config.cjs"
+
+# Source API — what consumers inherit
+- include:
+    - "configs/**"
+    - ".github/**"
+- template:
+    - ".github/workflows/ci.yml"
+- template-vars:
+    GH_APP_ID_VAR: ORG_APP_ID
+- rename:
+    - from: "^configs/(.*)$"
+      to: "$1"
+```
+
+Without `self:`, the release tooling and CI base files would leak into every consumer that inherits from this repo. See [Authoring Upstream Repositories](authoring-upstream-repos.md#using-self-for-local-consumption) for more details.
+
 ## CI/CD Patterns
 
 ### GitHub Actions Workflow Inheritance

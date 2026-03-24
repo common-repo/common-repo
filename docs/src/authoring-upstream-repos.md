@@ -14,6 +14,7 @@ An **upstream repository** contains configuration files, templates, and standard
 | Audience | Maintainers of shared standards | Individual projects |
 | Config file | Optional `.common-repo.yaml` | Required `.common-repo.yaml` |
 | Versioning | Semantic versioning with Git tags | References upstream repo versions |
+| Can also consume | Yes, via `self:` blocks (local-only) | Yes, directly via `repo:` |
 
 **Common use cases for upstream repositories:**
 
@@ -56,6 +57,45 @@ org-base/          # Base standards
   └── rust-base/   # Rust-specific (inherits org-base)
       └── my-app/  # Consumer (inherits rust-base)
 ```
+
+### Using `self:` for Local Consumption
+
+An upstream repo often needs to consume tooling from *its own* upstreams — CI config, pre-commit hooks, release automation — without leaking those files to the repos that consume it. The `self:` operator solves this.
+
+Operations inside a `self:` block run in an isolated pipeline. Their output is written to the local working directory but never enters the composite filesystem that consumers see. This lets a single `.common-repo.yaml` define both what the repo provides (its source API) and what it consumes locally.
+
+```yaml
+# .common-repo.yaml for an upstream repo
+
+# Local consumption — pull tooling for this repo's own use.
+# Consumers never see these operations.
+- self:
+    - repo:
+        url: https://github.com/org/ci-tooling
+        ref: v2.0.0
+    - exclude:
+        - ".releaserc.yaml"
+
+# Source API — what consumers inherit
+- include:
+    - "src/**"
+    - "src/.*"
+- rename:
+    - from: "^src/(.*)$"
+      to: "$1"
+```
+
+Without `self:`, this repo would need a separate mechanism to pull its own tooling, or its consumers would inherit the CI tooling files unintentionally.
+
+**Key points:**
+
+- `self:` blocks are stripped when a consumer inherits from this repo — consumers never see them
+- Any operator can appear inside `self:` (repo, include, exclude, rename, merge operators, etc.)
+- Multiple `self:` blocks are allowed; each runs as an independent pipeline
+- `self:` blocks cannot be nested
+- The source pipeline runs first, then each `self:` block runs afterward — so self-consumed files can overwrite source pipeline files on disk when needed
+
+See the [Configuration Reference](configuration.md#self---local-only-operations) for the full operator specification.
 
 ## Upstream-Declared File Filtering
 

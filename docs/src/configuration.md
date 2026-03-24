@@ -326,6 +326,8 @@ This is useful when a repository is both a source (providing shared configuratio
 
 In this example, the repo pulls CI tooling for its own use via `self:`, while consumers only see the files exposed by `include`, `template`, `template-vars`, and `rename`.
 
+For a detailed guide on using `self:` when authoring upstream repositories, see [Authoring Upstream Repositories](authoring-upstream-repos.md#using-self-for-local-consumption).
+
 ## Merge Operators
 
 Merge operators intelligently combine configuration fragments into destination files.
