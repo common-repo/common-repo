@@ -1,0 +1,622 @@
+-- allium: 2
+-- common-repo.allium
+--
+-- Scope: Core configuration inheritance pipeline
+-- Includes: Configuration schema, repository inheritance, file operations,
+--           merge operations, version management, pipeline orchestration
+-- Excludes:
+--   - CLI/TUI layer (clap commands, interactive prompts, output formatting)
+--   - Disk caching mechanics (hash computation, cache directory layout)
+--   - Git transport (shallow clone, ls-remote — treated as external)
+--   - Template variable substitution engine internals
+--   - File permission handling
+--   - Original format parser (backward-compatible YAML parsing)
+
+-- ==========================================================================
+-- Value Types
+-- ==========================================================================
+
+value GlobPattern {
+    pattern: String
+}
+
+value RenameMapping {
+    -- from is a regular expression matched against file paths
+    from: String
+    -- to is a replacement pattern supporting capture groups ($1, $2, etc.)
+    to: String
+}
+
+value VersionConstraint {
+    constraint: String
+}
+
+-- Common fields shared by all merge operations. Each merge variant
+-- embeds these directly rather than referencing a shared entity,
+-- because variant-specific fields (path, array_mode, section, etc.)
+-- differ across merge types.
+value MergeBase {
+    source: String?
+    dest: String?
+    defer: Boolean
+    auto_merge: String?
+
+    -- Derived
+    effective_source: auto_merge ?? source
+    effective_dest: auto_merge ?? dest
+    is_deferred: auto_merge != null or defer
+}
+
+-- ==========================================================================
+-- Enumerations
+-- ==========================================================================
+
+enum ArrayMergeMode { replace | append | append_unique }
+
+enum InsertPosition { start | end }
+
+-- ==========================================================================
+-- External Entities
+-- ==========================================================================
+
+external entity GitRemote {
+    url: String
+    tags: List<String>
+}
+
+-- ==========================================================================
+-- Entities
+-- ==========================================================================
+
+entity Configuration {
+    operations: List<Operation>
+
+    -- Projections
+    self_operations: operations where kind = Self
+    source_operations: operations where kind != Self
+    repo_operations: operations where kind = Repo
+}
+
+entity Repository {
+    url: String
+    ref: String
+    path: String?
+    -- Config key: "with:" — renamed here to avoid Allium reserved keyword
+    inline_operations: List<Operation>
+
+    -- Conceptual key (not materialized in code; see RepoNode.node_key)
+    -- key: url + "@" + ref
+}
+
+entity RepoTree {
+    root: RepoNode
+    all_repos: Set<Repository>
+}
+
+entity RepoNode {
+    url: String
+    ref: String
+    children: List<RepoNode>
+    operations: List<Operation>
+
+    -- Derived: simplified form shown; when inline_operations are present,
+    -- includes an operations fingerprint: url + "#ops-" + hash + "@" + ref
+    node_key: url + "@" + ref
+}
+
+entity Operation {
+    kind: Repo | Include | Exclude | Template | Rename
+        | Tools | TemplateVars
+        | YamlMerge | JsonMerge | TomlMerge | IniMerge | MarkdownMerge
+        | Self
+
+    is_deferred: Boolean
+}
+
+variant Repo : Operation {
+    target: Repository
+}
+
+variant Include : Operation {
+    patterns: List<GlobPattern>
+}
+
+variant Exclude : Operation {
+    patterns: List<GlobPattern>
+}
+
+variant Template : Operation {
+    patterns: List<GlobPattern>
+}
+
+variant Rename : Operation {
+    mappings: List<RenameMapping>
+}
+
+variant Tools : Operation {
+    tools: List<ToolRequirement>
+}
+
+variant TemplateVars : Operation {
+    vars: Map<String, String>
+}
+
+variant Self : Operation {
+    -- Contains a full sub-configuration that runs in an isolated pipeline.
+    -- Output is written locally, never enters the composite filesystem.
+    -- Ignored entirely when this repo is consumed by another repo.
+    operations: List<Operation>
+}
+
+-- --------------------------------------------------------------------------
+-- Merge Variants
+--
+-- Each merge variant carries its own fields rather than sharing a single
+-- MergeOperation entity. The common fields (source, dest, defer, auto_merge)
+-- appear on every variant; variant-specific fields differ.
+--
+-- Structured formats (YAML, JSON, TOML) share a unified array merge model:
+-- array_mode (replace | append | append_unique) + position (start | end).
+-- All three now use array_mode + position enums consistently.
+--
+-- See detailed/merge-operations.allium for full merge semantics.
+-- --------------------------------------------------------------------------
+
+variant YamlMerge : Operation {
+    source: String?
+    dest: String?
+    path: String?
+    array_mode: ArrayMergeMode
+    position: InsertPosition
+    defer: Boolean
+    auto_merge: String?
+
+    -- Derived
+    effective_source: auto_merge ?? source
+    effective_dest: auto_merge ?? dest
+    is_deferred: auto_merge != null or defer
+}
+
+variant JsonMerge : Operation {
+    source: String?
+    dest: String?
+    path: String?
+    array_mode: ArrayMergeMode
+    position: InsertPosition
+    defer: Boolean
+    auto_merge: String?
+
+    -- Derived
+    effective_source: auto_merge ?? source
+    effective_dest: auto_merge ?? dest
+    is_deferred: auto_merge != null or defer
+}
+
+-- Guidance (JsonMerge): JSON merge now uses array_mode enum +
+-- InsertPosition enum, matching YAML and TOML. Legacy boolean append
+-- field is preserved for backward-compatible deserialization.
+
+variant TomlMerge : Operation {
+    source: String?
+    dest: String?
+    path: String?
+    array_mode: ArrayMergeMode
+    position: InsertPosition
+    preserve_comments: Boolean
+    defer: Boolean
+    auto_merge: String?
+
+    -- Derived
+    effective_source: auto_merge ?? source
+    effective_dest: auto_merge ?? dest
+    is_deferred: auto_merge != null or defer
+}
+
+variant IniMerge : Operation {
+    source: String?
+    dest: String?
+    section: String?
+    append: Boolean
+    allow_duplicates: Boolean
+    defer: Boolean
+    auto_merge: String?
+
+    -- Derived
+    effective_source: auto_merge ?? source
+    effective_dest: auto_merge ?? dest
+    is_deferred: auto_merge != null or defer
+}
+
+-- Guidance (IniMerge): INI has no hierarchical path or array concept.
+-- Key matching for duplicates is case-insensitive.
+
+variant MarkdownMerge : Operation {
+    source: String?
+    dest: String?
+    section: String
+    append: Boolean
+    level: Integer
+    position: InsertPosition
+    create_section: Boolean
+    defer: Boolean
+    auto_merge: String?
+
+    -- Derived
+    effective_source: auto_merge ?? source
+    effective_dest: auto_merge ?? dest
+    is_deferred: auto_merge != null or defer
+}
+
+-- Guidance (MarkdownMerge): Section matching is first exact match,
+-- case-sensitive. position only affects where new sections are created.
+
+entity ToolRequirement {
+    name: String
+    version: VersionConstraint
+}
+
+entity FilesystemEntry {
+    path: String
+    content: String
+    is_template: Boolean
+}
+
+entity Filesystem {
+    entries: List<FilesystemEntry>
+}
+
+entity IntermediateFS {
+    url: String
+    ref: String
+    filesystem: Filesystem
+    template_vars: Map<String, String>
+    merge_operations: List<Operation>
+}
+
+entity OperationOrder {
+    order: List<String>
+}
+
+entity UpdateInfo {
+    repository: Repository
+    latest_version: String?
+    breaking_changes: Boolean
+    compatible_updates: Boolean
+    available_versions: List<String>
+}
+
+-- ==========================================================================
+-- Defaults
+-- ==========================================================================
+
+-- Default values for merge variant fields
+-- YamlMerge: array_mode defaults to replace
+-- JsonMerge: append defaults to false
+-- TomlMerge: array_mode defaults to replace, preserve_comments defaults to false
+-- IniMerge: append defaults to false, allow_duplicates defaults to false
+-- MarkdownMerge: level defaults to 2, section defaults to "", position defaults to ""
+--                create_section defaults to false, append defaults to false
+
+-- ==========================================================================
+-- Configuration Validation Rules
+-- ==========================================================================
+
+rule ValidateMergeOperation {
+    when: ValidateConfig(config)
+    for op in config.operations:
+        if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge}:
+            requires: not (op.auto_merge != null and (op.source != null or op.dest != null))
+            requires: op.auto_merge != null or (op.source != null and op.dest != null)
+}
+
+rule SelfOperatorValidation {
+    when: ValidateConfig(config)
+    for op in config.operations:
+        if op.kind = Self:
+            requires: op.operations.none(inner => inner.kind = Self)
+            requires: op.operations.count > 0
+}
+
+-- ==========================================================================
+-- Self Operator: Isolated Local Pipeline
+-- ==========================================================================
+
+rule SelfOperatorPartition {
+    when: ExecutePull(config)
+
+    -- Before the main pipeline runs, partition the config into two sets:
+    --   1. self_config: operations nested inside self: blocks
+    --   2. source_config: all other operations (the source API)
+    -- These run as independent pipelines with no shared state.
+    let self_ops = config.self_operations
+    let source_ops = config.source_operations
+
+    ensures: SourcePipelineReady(source_ops)
+    ensures: SelfPipelineReady(self_ops)
+}
+
+rule ExecuteSelfPipeline {
+    when: SelfPipelineReady(self_ops)
+    requires: self_ops.count > 0
+
+    -- Each self: block's inner operations run through the full 6-phase
+    -- pipeline independently. Output is written to the working directory.
+    for self_op in self_ops:
+        ensures: SelfPipelineExecuted(self_op)
+
+    @guidance
+        -- The self pipeline reuses the same phase logic (discovery, processing,
+        -- ordering, composition, local merge, write). It is not a new pipeline
+        -- implementation — it is a second invocation with different input.
+}
+
+rule SelfIgnoredWhenConsumed {
+    when: ParseUpstreamConfig(node, upstream_config)
+    requires: node.url != "local"
+
+    -- When parsing an upstream repo's .common-repo.yaml, self: blocks
+    -- are stripped. They are local-only directives.
+    let filtered = upstream_config.operations where kind != Self
+    ensures: node.operations = filtered
+}
+
+-- ==========================================================================
+-- Phase 1: Discovery and Cloning
+-- ==========================================================================
+
+rule DiscoverRepositories {
+    when: SourcePipelineReady(source_ops)
+
+    ensures: RepoTree.created(
+        root: RepoNode(
+            url: "local",
+            ref: "HEAD",
+            operations: source_ops
+        )
+    )
+}
+
+rule DiscoverInheritedConfigs {
+    when: node: RepoNode.created
+    requires: node.url != "local"
+
+    ensures: UpstreamConfigDiscovered(node)
+}
+
+rule StripConfigFiles {
+    when: UpstreamConfigDiscovered(node)
+    requires: node.url != "local"
+
+    -- The .common-repo.yaml and .commonrepo.yaml files are always
+    -- removed from upstream repositories before processing.
+    ensures: ConfigFilesRemoved(node)
+}
+
+rule CombineUpstreamOperations {
+    when: UpstreamConfigDiscovered(node)
+
+    -- When a consumer references an upstream repo, operations are combined
+    -- in a specific order:
+    --   1. Upstream's filtering operations (include, exclude, rename, template,
+    --      template_vars) — define the public API of exposed files
+    --   2. Upstream's deferred merge operations (defer: true or auto-merge)
+    --   3. Consumer's inline operations (the with: clause on the repo operation)
+    ensures: OperationsCombined(node)
+
+    @guidance
+        -- This ordering means upstreams control what they expose (filtering),
+        -- upstreams declare how their files merge (deferred merges), and
+        -- consumers can further filter or transform the result (with: clause).
+}
+
+rule DetectCycles {
+    when: UpstreamConfigDiscovered(node)
+
+    requires: not node in ancestor_path(node)
+
+    @guidance
+        -- A repository may appear in multiple branches of the tree without
+        -- creating a cycle. Only same-path repetition is a cycle.
+}
+
+-- ==========================================================================
+-- Phase 2: Processing Individual Repos
+-- ==========================================================================
+
+rule ProcessRepository {
+    when: UpstreamConfigDiscovered(node)
+    requires: node.url != "local"
+
+    ensures: IntermediateFS.created(
+        url: node.url,
+        ref: node.ref,
+        template_vars: collected_vars(node.operations),
+        merge_operations: node.operations where is_deferred
+    )
+}
+
+deferred ApplyInclude.apply
+    -- see: detailed/operators.allium
+
+deferred ApplyExclude.apply
+    -- see: detailed/operators.allium
+
+deferred ApplyRename.apply
+    -- see: detailed/operators.allium
+
+deferred ApplyTemplate.mark
+    -- see: detailed/operators.allium
+
+deferred ValidateTools.check
+    -- see: detailed/operators.allium
+
+-- ==========================================================================
+-- Phase 3: Determining Operation Order
+-- ==========================================================================
+
+rule DetermineOperationOrder {
+    when: AllRepositoriesProcessed(tree)
+
+    -- Depth-first post-order: children before parents
+    ensures: OperationOrder.created(
+        order: post_order_keys(tree.root)
+    )
+
+    @guidance
+        -- The order is deterministic: same config always produces same order.
+        -- Each repository appears exactly once in the order.
+        -- The node key includes an operations fingerprint when the same
+        -- repo+ref is referenced with different operations.
+}
+
+-- ==========================================================================
+-- Phase 4: Composite Filesystem Construction
+-- ==========================================================================
+
+rule BuildComposite {
+    when: CompositeReady(order, intermediate_fss)
+
+    -- 1. Consolidate template vars (last-write-wins in operation order)
+    -- 2. Process templates with unified vars
+    -- 3. Merge filesystems in order (last-write-wins)
+    -- 4. Apply deferred merge operations after each repo's files are merged
+    ensures: CompositeBuilt(order, intermediate_fss)
+
+    @guidance
+        -- Template variable consolidation: iterate repos in operation order,
+        -- later values override earlier for the same key.
+        -- Filesystem merge: for each repo in order, copy all files into composite.
+        -- Files with the same path are overwritten (last-write-wins).
+        -- After merging each repo's files, execute its deferred merge operations
+        -- (yaml, json, toml, ini, markdown merges) against the composite.
+}
+
+-- ==========================================================================
+-- Phase 5: Local File Merging
+-- ==========================================================================
+
+rule MergeLocalFiles {
+    when: CompositeBuilt(composite_fs, local_config)
+
+    -- 1. Load local files (skip hidden files, build artifacts, config files)
+    -- 2. Apply local operations to local filesystem (template marking, vars)
+    -- 3. Merge local files into composite (local always overrides inherited)
+    -- 4. Apply local merge operations to the final result
+    ensures: FinalFSReady(composite_fs, local_config)
+
+    @guidance
+        -- Certain directories are always skipped when loading local files:
+        -- .git, .svn, .hg, node_modules, target, build, dist, __pycache__, etc.
+        -- The .common-repo.yaml and .commonrepo.yaml config files are also skipped.
+        -- Local merge operations are applied after the local merge to avoid
+        -- duplication — they operate on the final combined filesystem.
+}
+
+-- ==========================================================================
+-- Phase 6: Writing to Disk
+-- ==========================================================================
+
+rule WriteToDisk {
+    when: FinalFSReady(final_fs, config)
+
+    -- Iterate all files in the final filesystem.
+    -- Create parent directories and write file content.
+    ensures: FilesWritten(final_fs)
+}
+
+-- ==========================================================================
+-- Version Management
+-- ==========================================================================
+
+rule CheckUpdates {
+    when: CheckForUpdates(config, filters)
+
+    -- Check repos in both source and self: blocks
+    let all_repos = config.repo_operations
+    for repo in all_repos:
+        ensures: UpdateInfo.created(
+            repository: repo,
+            latest_version: latest_semver(repo),
+            breaking_changes: major_bump(repo),
+            compatible_updates: minor_or_patch_bump(repo),
+            available_versions: semver_tags(repo)
+        )
+}
+
+rule CheckSelfUpdates {
+    when: CheckForUpdates(config, filters)
+
+    -- Also check repos referenced inside self: blocks
+    for self_op in config.self_operations:
+        for inner in self_op.operations:
+            if inner.kind = Repo:
+                ensures: UpdateInfo.created(
+                    repository: inner.target,
+                    latest_version: latest_semver(inner.target),
+                    breaking_changes: major_bump(inner.target),
+                    compatible_updates: minor_or_patch_bump(inner.target),
+                    available_versions: semver_tags(inner.target)
+                )
+}
+
+-- ==========================================================================
+-- Merge Operation Semantics (deferred to detailed specs)
+-- ==========================================================================
+
+deferred YamlMergeSemantics.merge
+    -- see: detailed/merge-operations.allium
+
+deferred JsonMergeSemantics.merge
+    -- see: detailed/merge-operations.allium
+
+deferred TomlMergeSemantics.merge
+    -- see: detailed/merge-operations.allium
+
+deferred IniMergeSemantics.merge
+    -- see: detailed/merge-operations.allium
+
+deferred MarkdownMergeSemantics.merge
+    -- see: detailed/merge-operations.allium
+
+-- ==========================================================================
+-- Invariants
+-- ==========================================================================
+
+invariant NoCyclesInRepoTree {
+    for tree in RepoTrees:
+        for node in tree.all_repos:
+            not node in ancestor_path(node)
+}
+
+invariant SelfIsolation {
+    -- Self pipelines never share filesystem state with the source pipeline.
+    -- Each self: block executes an independent pipeline invocation.
+}
+
+invariant LocalPrecedence {
+    -- When local files and inherited files share a path,
+    -- the local file content always wins (last-write-wins).
+    for entry in FinalFilesystemEntries:
+        if exists_locally(entry.path):
+            entry.content = local_content(entry.path)
+}
+
+invariant ConfigFileExclusion {
+    -- .common-repo.yaml and .commonrepo.yaml are never included in
+    -- upstream filesystem output or local filesystem loading.
+}
+
+invariant DeterministicOrder {
+    -- The same configuration always produces the same operation order
+    -- and the same final filesystem output.
+}
+
+-- ==========================================================================
+-- Open Questions
+-- ==========================================================================
+
+open question "Should merge operations support conditional application (e.g., only merge if dest file exists)?"
+
+open question "Should there be a conflict resolution strategy beyond last-write-wins for file merging?"
+
+open question "Should deferred operations support ordering hints when multiple upstreams defer operations on the same file?"
