@@ -287,12 +287,16 @@ fn collect_inherited_repos(config: &Schema) -> Vec<RepoOp> {
 
 fn collect_repos_from_operations(operations: &[crate::config::Operation], repos: &mut Vec<RepoOp>) {
     for op in operations {
-        if let crate::config::Operation::Repo { repo } = op {
-            repos.push(repo.clone());
-            // Also collect from with clause
-            collect_repos_from_operations(&repo.with, repos);
+        match op {
+            crate::config::Operation::Repo { repo } => {
+                repos.push(repo.clone());
+                collect_repos_from_operations(&repo.with, repos);
+            }
+            crate::config::Operation::Self_ { self_ } => {
+                collect_repos_from_operations(&self_.operations, repos);
+            }
+            _ => {}
         }
-        // Other operations might contain nested repos, but for now we only handle direct repo ops
     }
 }
 
@@ -300,6 +304,39 @@ fn collect_repos_from_operations(operations: &[crate::config::Operation], repos:
 mod tests {
     use super::*;
     use crate::config::RepoOp;
+
+    #[test]
+    fn test_collect_repos_includes_self_block_repos() {
+        use crate::config::{Operation, SelfOp};
+
+        let config = vec![
+            Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/example/source".to_string(),
+                    r#ref: "v1.0.0".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            },
+            Operation::Self_ {
+                self_: SelfOp {
+                    operations: vec![Operation::Repo {
+                        repo: RepoOp {
+                            url: "https://github.com/example/tooling".to_string(),
+                            r#ref: "v2.0.0".to_string(),
+                            path: None,
+                            with: vec![],
+                        },
+                    }],
+                },
+            },
+        ];
+
+        let repos = collect_inherited_repos(&config);
+        assert_eq!(repos.len(), 2);
+        assert_eq!(repos[0].url, "https://github.com/example/source");
+        assert_eq!(repos[1].url, "https://github.com/example/tooling");
+    }
 
     #[test]
     fn test_extract_semver_from_ref() {

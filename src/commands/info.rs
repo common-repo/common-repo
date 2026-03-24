@@ -98,7 +98,7 @@ fn count_operations(schema: &config::Schema) -> OperationCounts {
             config::Operation::Toml { .. } => counts.toml += 1,
             config::Operation::Ini { .. } => counts.ini += 1,
             config::Operation::Markdown { .. } => counts.markdown += 1,
-            config::Operation::Self_ { .. } => { /* counted when executed */ }
+            config::Operation::Self_ { .. } => counts.self_ += 1,
         }
     }
 
@@ -159,7 +159,8 @@ fn display_info(
         + operation_counts.json
         + operation_counts.toml
         + operation_counts.ini
-        + operation_counts.markdown;
+        + operation_counts.markdown
+        + operation_counts.self_;
 
     println!("\nOperations: {}", total_operations);
 
@@ -205,6 +206,9 @@ fn display_info(
             operation_counts.markdown
         );
     }
+    if operation_counts.self_ > 0 {
+        println!("  • {} self operations", operation_counts.self_);
+    }
 }
 
 /// Structure to hold operation counts by type.
@@ -222,6 +226,7 @@ struct OperationCounts {
     toml: usize,
     ini: usize,
     markdown: usize,
+    self_: usize,
 }
 
 #[cfg(test)]
