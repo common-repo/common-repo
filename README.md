@@ -4,7 +4,35 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE.md)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://common-repo.github.io/common-repo/)
 
-Manage repository configuration files as dependencies. Define inheritance in `.common-repo.yaml`, pull files from multiple Git repositories, and merge them with version pinning.
+Every repository accumulates the same files: CI pipelines, linter configs, pre-commit hooks, editor settings, Dockerfiles. These get copied between projects by hand. When something needs to change — a security fix, a new lint rule, a CI image update — there is no way to propagate it. Every copy must be found and patched individually.
+
+common-repo fixes this by treating configuration files as dependencies. You declare which upstream repositories to inherit from, pin versions, and define how files merge. common-repo fetches everything, applies your operations, and writes the result. When upstreams publish updates, you get a diff and a pull request.
+
+## Why common-repo
+
+Tools like cookiecutter and copier generate project scaffolding once. After that, you're on your own — there's no mechanism to push a security fix or a new lint rule to every project that was generated. common-repo works differently: it tracks upstream changes continuously, so when a dependency updates you see the diff and decide whether to pull it in. Configuration stays current instead of fossilizing on day one.
+
+You can pull from multiple focused repositories — Rust tooling from one, semantic versioning config from another, Python linting from a third — and the results merge without conflicts. common-repo merges at the structural level (YAML keys, JSON objects, TOML tables, INI sections, Markdown headings), not just file paths. Add a CI job to an existing workflow or a dependency to `Cargo.toml` without replacing the whole file.
+
+Upstreams can themselves inherit from other upstreams, forming chains. A team-level Rust config extends a company-wide base, which extends a community standard. A change at any level propagates down the chain. The `tree` command shows you exactly how a given repository's inheritance is structured.
+
+Every upstream is pinned to a git ref. `common-repo check --updates` reports what's newer. `common-repo update` bumps compatible versions. `--latest` includes breaking changes when you're ready.
+
+common-repo is not a code generator or a template engine. It operates on files — copying, filtering, renaming, and merging them. If you need conditional logic or code scaffolding, this is the wrong tool.
+
+## How it works
+
+Add a `.common-repo.yaml` to your repository listing upstreams and operations:
+
+```yaml
+- repo:
+    url: https://github.com/your-org/shared-configs
+    ref: v1.0.0
+    with:
+      - include: [".github/**", ".pre-commit-config.yaml"]
+```
+
+Run `common-repo apply`. The tool clones the upstream (or loads it from cache), filters files through `include`/`exclude` rules, applies merge operations, and writes the result into the working tree. Upstreams can reference their own upstreams, forming inheritance chains. The resolution order is deterministic — the same config always produces the same output. Repositories are cached after first fetch, so repeated runs skip the network entirely.
 
 ## Install
 
@@ -14,7 +42,7 @@ Manage repository configuration files as dependencies. Define inheritance in `.c
 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
 ```
 
-The installer creates both `common-repo` and a short alias `cr`. To skip the alias: `SKIP_ALIAS=1 sh -s < install.sh`
+The installer creates both `common-repo` and the alias `cr`. To skip the alias: `SKIP_ALIAS=1 sh -s < install.sh`
 
 ### cargo-binstall (pre-built binary)
 
@@ -42,23 +70,10 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 This project supports Rust 1.85.0 and later. MSRV updates are considered non-breaking changes.
 
-## Documentation
-
-Full documentation is available at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/).
-
-| Guide | Description |
-|-------|-------------|
-| [Getting Started](docs/src/getting-started.md) | Installation and first steps |
-| [Configuration](docs/src/configuration.md) | All operators and options |
-| [CLI Reference](docs/src/cli.md) | Command documentation |
-| [Recipes](docs/src/recipes.md) | Common patterns |
-| [Troubleshooting](docs/src/troubleshooting.md) | Common issues and solutions |
-| [Authoring Upstream Repos](docs/src/authoring-upstream-repos.md) | Create your own upstream repos |
-
-## Quick Start
+## Quick start
 
 ```bash
-# Initialize interactively - add repos, auto-detect versions
+# Initialize interactively — add repos, auto-detect versions
 common-repo init
 
 # Or initialize from an existing repo
@@ -67,66 +82,18 @@ common-repo init your-org/shared-configs  # GitHub shorthand
 
 # Add more repos to an existing config
 common-repo add your-org/another-repo
+
+# Preview what would change, then apply
+common-repo diff
+common-repo apply
 ```
 
-## Key Features
+## Configuration
 
-**Preview changes before applying.** See what would change with `diff` and `apply --dry-run`:
-
-```bash
-common-repo diff              # Show file differences
-common-repo apply --dry-run   # Preview all changes without writing
-```
-
-**Check for updates across inherited repos.** Track newer versions with semantic versioning awareness:
-
-```bash
-common-repo check --updates   # See available updates
-common-repo update            # Update to compatible versions (minor/patch)
-common-repo update --latest   # Include breaking changes (major versions)
-```
-
-**Validate configuration before applying.** Catch errors early:
-
-```bash
-common-repo validate                  # Check syntax
-common-repo validate --check-repos    # Also verify repos are accessible
-common-repo validate --strict         # Fail on warnings
-```
-
-**Filter files with glob patterns.** Use `include` and `exclude` in the `with` clause:
+A `.common-repo.yaml` is a list of operations applied in order. Two upstreams with filtering, renaming, and merging:
 
 ```yaml
-- repo:
-    url: https://github.com/your-org/configs
-    ref: v1.0.0
-    with:
-      - include: [".github/**", "*.yml"]
-      - exclude: [".github/CODEOWNERS"]
-```
-
-**Upstream repos can consume their own tooling.** Use `self:` to pull files locally without exposing them to consumers:
-
-```yaml
-- self:
-    - repo:
-        url: https://github.com/org/ci-tooling
-        ref: v2.0.0
-- include: ["src/**"]  # only this is visible to consumers
-```
-
-**Merge configuration fragments.** Add sections to existing files without replacing them:
-
-```bash
-# List managed files, filter by pattern
-common-repo ls --pattern "*.yml"
-```
-
-## Usage
-
-Create `.common-repo.yaml` in your repository:
-
-```yaml
+# Pull CI and pre-commit configs from shared-configs
 - repo:
     url: https://github.com/your-org/shared-configs
     ref: v1.0.0
@@ -134,6 +101,7 @@ Create `.common-repo.yaml` in your repository:
       - include: [".github/**", ".pre-commit-config.yaml"]
       - exclude: [".git/**"]
 
+# Pull CI workflows from ci-templates, renaming one
 - repo:
     url: https://github.com/your-org/ci-templates
     ref: main
@@ -143,19 +111,13 @@ Create `.common-repo.yaml` in your repository:
           ".github/workflows/ci.yml": ".github/workflows/build.yml"
 ```
 
-Then run:
+Operations within `with:` apply only to that upstream's files before merging.
 
-```bash
-common-repo ls      # List files that would be created
-common-repo diff    # Preview changes
-common-repo apply   # Apply configuration
-```
+### Merging structured files
 
-### Merging files
+common-repo can deep-merge into existing files rather than replacing them. Supported formats: YAML, JSON, TOML, INI, and Markdown ([full docs](docs/src/configuration.md)).
 
-Merge fragments into existing files (YAML, JSON, TOML, INI, Markdown):
-
-**YAML** - Add jobs to CI workflows ([docs](docs/src/configuration.md#yaml---merge-yaml-files)):
+Add jobs to a CI workflow:
 ```yaml
 - yaml:
     source: ci-jobs.yml
@@ -164,7 +126,7 @@ Merge fragments into existing files (YAML, JSON, TOML, INI, Markdown):
     append: true
 ```
 
-**JSON** - Add scripts to package.json ([docs](docs/src/configuration.md#json---merge-json-files)):
+Add scripts to package.json:
 ```yaml
 - json:
     source: scripts.json
@@ -172,7 +134,7 @@ Merge fragments into existing files (YAML, JSON, TOML, INI, Markdown):
     path: scripts
 ```
 
-**TOML** - Add dependencies to Cargo.toml ([docs](docs/src/configuration.md#toml---merge-toml-files)):
+Add dependencies to Cargo.toml:
 ```yaml
 - toml:
     source: common-deps.toml
@@ -180,16 +142,13 @@ Merge fragments into existing files (YAML, JSON, TOML, INI, Markdown):
     path: dependencies
 ```
 
-**INI** - Add editor settings ([docs](docs/src/configuration.md#ini---merge-ini-files)):
+INI and Markdown merges work similarly — INI targets sections, Markdown targets headings:
 ```yaml
 - ini:
     source: editor-rules.ini
     dest: .editorconfig
     section: "*"
-```
 
-**Markdown** - Add sections to README ([docs](docs/src/configuration.md#markdown---merge-markdown-files)):
-```yaml
 - markdown:
     source: contributing-section.md
     dest: README.md
@@ -197,16 +156,35 @@ Merge fragments into existing files (YAML, JSON, TOML, INI, Markdown):
     create-section: true
 ```
 
+Merge operations support `auto-merge:` when source and destination share the same filename, and `defer:` when upstream repos want consumers to inherit their merge rules.
+
+### The `self:` operator
+
+An upstream repo may have its own tooling — CI scripts, test fixtures — that consumers should not inherit. `self:` runs an isolated pipeline whose output stays local:
+
+```yaml
+- self:
+    - repo:
+        url: https://github.com/org/ci-tooling
+        ref: v2.0.0
+- include: ["src/**"]  # only this is visible to consumers
+```
+
+When another repository inherits from this one, common-repo skips the `self:` block.
+
+## Updates and automation
+
 ### Checking for updates
 
 ```bash
-common-repo check --updates   # Check for newer versions
-common-repo update            # Update refs
+common-repo check --updates   # See available updates
+common-repo update            # Update to compatible versions (minor/patch)
+common-repo update --latest   # Include breaking changes (major versions)
 ```
 
 ### Automated updates with GitHub Actions
 
-Use the common-repo GitHub Action to automatically create PRs when upstream configurations change:
+The common-repo GitHub Action creates PRs when upstream configurations change:
 
 ```yaml
 # .github/workflows/upstream-sync.yml
@@ -233,20 +211,33 @@ See [GitHub Action documentation](docs/src/github-action.md) for all options.
 
 ## Commands
 
-```
-init         Create a new .common-repo.yaml
-add          Add a repository to existing config
-apply        Apply configuration (runs 6-phase pipeline)
-diff         Preview changes
-ls           List files that would be created
-tree         Show inheritance tree
-check        Validate configuration, check for updates
-update       Update refs to newer versions
-validate     Validate configuration syntax
-info         Show configuration overview
-cache        Manage repository cache
-completions  Generate shell completion scripts
-```
+| Command | Description |
+|---------|-------------|
+| `init` | Create a new `.common-repo.yaml` |
+| `add` | Add a repository to existing config |
+| `apply` | Apply configuration (fetch, merge, write) |
+| `diff` | Preview changes before applying |
+| `ls` | List files that would be created |
+| `tree` | Show the inheritance tree |
+| `check` | Validate configuration, check for updates |
+| `update` | Update refs to newer versions |
+| `validate` | Validate configuration syntax |
+| `info` | Show configuration overview |
+| `cache` | Manage the local repository cache |
+| `completions` | Generate shell completion scripts |
+
+## Documentation
+
+Full documentation is available at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/).
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](docs/src/getting-started.md) | Installation and first steps |
+| [Configuration](docs/src/configuration.md) | All operators and options |
+| [CLI Reference](docs/src/cli.md) | Command documentation |
+| [Recipes](docs/src/recipes.md) | Configuration examples |
+| [Troubleshooting](docs/src/troubleshooting.md) | Common issues and solutions |
+| [Authoring Upstream Repos](docs/src/authoring-upstream-repos.md) | Create your own upstream repos |
 
 ## Contributing
 
