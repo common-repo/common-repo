@@ -1607,4 +1607,60 @@ mod tests {
             assert!(matches!(&result[4], Operation::Rename { .. }));
         }
     }
+
+    #[test]
+    fn test_extract_upstream_operations_excludes_self() {
+        use crate::config::{IncludeOp, Operation, SelfOp};
+
+        let config = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["src/**".to_string()],
+                },
+            },
+            Operation::Self_ {
+                self_: SelfOp {
+                    operations: vec![Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["**/*".to_string()],
+                        },
+                    }],
+                },
+            },
+        ];
+
+        let upstream_ops = extract_upstream_operations(&config);
+        assert_eq!(upstream_ops.len(), 1);
+        assert!(matches!(upstream_ops[0], Operation::Include { .. }));
+    }
+
+    #[test]
+    fn test_process_config_to_node_keeps_self_in_operations() {
+        use crate::config::{IncludeOp, Operation, RepoOp, SelfOp};
+
+        let config = vec![
+            Operation::Repo {
+                repo: RepoOp {
+                    url: "https://github.com/example/repo".to_string(),
+                    r#ref: "main".to_string(),
+                    path: None,
+                    with: vec![],
+                },
+            },
+            Operation::Self_ {
+                self_: SelfOp {
+                    operations: vec![Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["**/*".to_string()],
+                        },
+                    }],
+                },
+            },
+        ];
+
+        let node = process_config_to_node(&config).unwrap();
+        assert_eq!(node.children.len(), 1); // one repo child
+        assert_eq!(node.operations.len(), 1); // self goes to operations
+        assert!(matches!(node.operations[0], Operation::Self_ { .. }));
+    }
 }
