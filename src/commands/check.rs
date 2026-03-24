@@ -54,6 +54,19 @@ pub struct CheckArgs {
 /// This function handles the logic for the `check` subcommand. It either
 /// performs a basic configuration validation or, if the `--updates` flag is
 /// present, checks for newer versions of the repositories defined in the config.
+/// Count repositories in a schema, including those nested inside Self_ blocks
+fn count_repos(schema: &config::Schema) -> usize {
+    let mut count = 0;
+    for op in schema {
+        match op {
+            config::Operation::Repo { .. } => count += 1,
+            config::Operation::Self_ { self_ } => count += count_repos(&self_.operations),
+            _ => {}
+        }
+    }
+    count
+}
+
 pub fn execute(args: CheckArgs) -> Result<()> {
     // Load configuration
     let config_path = &args.config;
@@ -144,10 +157,7 @@ pub fn execute(args: CheckArgs) -> Result<()> {
         println!("   Operations: {}", schema.len());
 
         // Count repositories
-        let repo_count = schema
-            .iter()
-            .filter(|op| matches!(op, config::Operation::Repo { .. }))
-            .count();
+        let repo_count = count_repos(&schema);
         println!("   Repositories: {}", repo_count);
 
         // Count other operations

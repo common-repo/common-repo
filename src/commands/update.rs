@@ -251,11 +251,19 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
 /// Update the ref for a specific repository URL in the schema
 fn update_repo_ref(schema: &mut config::Schema, url: &str, new_ref: &str) -> Result<bool> {
     for operation in schema {
-        if let config::Operation::Repo { repo } = operation {
-            if repo.url == url {
-                repo.r#ref = new_ref.to_string();
-                return Ok(true);
+        match operation {
+            config::Operation::Repo { repo } => {
+                if repo.url == url {
+                    repo.r#ref = new_ref.to_string();
+                    return Ok(true);
+                }
             }
+            config::Operation::Self_ { self_ } => {
+                if update_repo_ref(&mut self_.operations, url, new_ref)? {
+                    return Ok(true);
+                }
+            }
+            _ => {}
         }
     }
     Ok(false)
