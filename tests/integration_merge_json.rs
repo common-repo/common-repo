@@ -23,6 +23,9 @@
 
 mod integration_merge_common;
 
+use common_repo::config::{ArrayMergeMode, InsertPosition, JsonMergeOp};
+use common_repo::filesystem::{File, MemoryFS};
+use common_repo::merge::apply_json_merge_operation;
 use integration_merge_common::{
     assert_json_contains, assert_json_nested, fixtures, parse_json, run_apply_expect_success,
     setup_fixture_dir,
@@ -282,4 +285,104 @@ fn test_json_nested_object_replace() {
         "app_name",
         "my-application",
     );
+}
+
+/// Test: append_unique mode deduplicates array items
+///
+/// Verifies that ArrayMergeMode::AppendUnique only adds items not already
+/// present in the target array.
+#[test]
+fn test_json_merge_append_unique() {
+    let mut fs = MemoryFS::new();
+    fs.add_file(
+        "source.json",
+        File::from_string(r#"{"items": ["a", "b", "c"]}"#),
+    )
+    .unwrap();
+    fs.add_file("dest.json", File::from_string(r#"{"items": ["b", "d"]}"#))
+        .unwrap();
+
+    let op = JsonMergeOp::new()
+        .source("source.json")
+        .dest("dest.json")
+        .array_mode(ArrayMergeMode::AppendUnique);
+
+    apply_json_merge_operation(&mut fs, &op).unwrap();
+
+    let result = String::from_utf8(fs.get_file("dest.json").unwrap().content.clone()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let items = parsed["items"].as_array().unwrap();
+
+    // "b" already exists, so only "a" and "c" should be appended
+    assert_eq!(items.len(), 4);
+    assert_eq!(items[0], serde_json::Value::String("b".to_string()));
+    assert_eq!(items[1], serde_json::Value::String("d".to_string()));
+    assert_eq!(items[2], serde_json::Value::String("a".to_string()));
+    assert_eq!(items[3], serde_json::Value::String("c".to_string()));
+}
+
+/// Test: append mode with position=Start prepends array items
+///
+/// Verifies that source items are inserted before existing target items
+/// when using Append mode with InsertPosition::Start.
+#[test]
+fn test_json_merge_append_position_start() {
+    let mut fs = MemoryFS::new();
+    fs.add_file("source.json", File::from_string(r#"{"items": ["x", "y"]}"#))
+        .unwrap();
+    fs.add_file("dest.json", File::from_string(r#"{"items": ["a", "b"]}"#))
+        .unwrap();
+
+    let op = JsonMergeOp::new()
+        .source("source.json")
+        .dest("dest.json")
+        .array_mode(ArrayMergeMode::Append)
+        .position(InsertPosition::Start);
+
+    apply_json_merge_operation(&mut fs, &op).unwrap();
+
+    let result = String::from_utf8(fs.get_file("dest.json").unwrap().content.clone()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let items = parsed["items"].as_array().unwrap();
+
+    assert_eq!(items.len(), 4);
+    assert_eq!(items[0], serde_json::Value::String("x".to_string()));
+    assert_eq!(items[1], serde_json::Value::String("y".to_string()));
+    assert_eq!(items[2], serde_json::Value::String("a".to_string()));
+    assert_eq!(items[3], serde_json::Value::String("b".to_string()));
+}
+
+/// Test: append_unique mode with position=Start prepends only unique items
+///
+/// Verifies that AppendUnique with InsertPosition::Start inserts only
+/// non-duplicate items at the beginning of the target array.
+#[test]
+fn test_json_merge_append_unique_position_start() {
+    let mut fs = MemoryFS::new();
+    fs.add_file(
+        "source.json",
+        File::from_string(r#"{"items": ["a", "b", "c"]}"#),
+    )
+    .unwrap();
+    fs.add_file("dest.json", File::from_string(r#"{"items": ["b", "d"]}"#))
+        .unwrap();
+
+    let op = JsonMergeOp::new()
+        .source("source.json")
+        .dest("dest.json")
+        .array_mode(ArrayMergeMode::AppendUnique)
+        .position(InsertPosition::Start);
+
+    apply_json_merge_operation(&mut fs, &op).unwrap();
+
+    let result = String::from_utf8(fs.get_file("dest.json").unwrap().content.clone()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let items = parsed["items"].as_array().unwrap();
+
+    // "b" already exists, so only "a" and "c" should be prepended
+    assert_eq!(items.len(), 4);
+    assert_eq!(items[0], serde_json::Value::String("a".to_string()));
+    assert_eq!(items[1], serde_json::Value::String("c".to_string()));
+    assert_eq!(items[2], serde_json::Value::String("b".to_string()));
+    assert_eq!(items[3], serde_json::Value::String("d".to_string()));
 }

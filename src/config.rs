@@ -332,12 +332,14 @@ pub struct JsonMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Whether to append (true) or replace (false)
+    /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
     #[serde(default)]
     pub append: bool,
-    /// Position for appending ("end" or "start")
+    #[serde(default, rename = "array_mode")]
+    pub array_mode: Option<ArrayMergeMode>,
+    /// Position for array insertion (start or end)
     #[serde(default)]
-    pub position: Option<String>,
+    pub position: InsertPosition,
     /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
@@ -492,6 +494,12 @@ impl TomlMergeOp {
 }
 
 impl JsonMergeOp {
+    /// Get the effective array merge mode, considering both array_mode and append fields
+    pub fn get_array_mode(&self) -> ArrayMergeMode {
+        self.array_mode
+            .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
+    }
+
     /// Validate the merge operation configuration
     pub fn validate(&self) -> Result<()> {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
@@ -537,13 +545,14 @@ impl JsonMergeOp {
     /// # Examples
     ///
     /// ```
-    /// use common_repo::config::JsonMergeOp;
+    /// use common_repo::config::{JsonMergeOp, ArrayMergeMode, InsertPosition};
     ///
     /// let op = JsonMergeOp::new()
     ///     .source("fragment.json")
     ///     .dest("package.json")
     ///     .path("dependencies")
-    ///     .position("end");
+    ///     .array_mode(ArrayMergeMode::Append)
+    ///     .position(InsertPosition::End);
     /// ```
     pub fn new() -> Self {
         Self::default()
@@ -567,9 +576,15 @@ impl JsonMergeOp {
         self
     }
 
-    /// Set the position for appending ("end" or "start")
-    pub fn position(mut self, position: impl Into<String>) -> Self {
-        self.position = Some(position.into());
+    /// Set the position for array insertion
+    pub fn position(mut self, position: InsertPosition) -> Self {
+        self.position = position;
+        self
+    }
+
+    /// Set the array merge mode
+    pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
+        self.array_mode = Some(mode);
         self
     }
 
@@ -1685,7 +1700,7 @@ mod tests {
                 assert_eq!(json.dest.as_deref(), Some("package.json"));
                 assert_eq!(json.path, Some("dependencies".to_string()));
                 assert!(json.append);
-                assert_eq!(json.position, Some("end".to_string()));
+                assert_eq!(json.position, InsertPosition::End);
             }
             _ => panic!("Expected Json operation"),
         }
@@ -2182,7 +2197,7 @@ mod tests {
                     assert_eq!(json.source.as_deref(), Some("fragment.json"));
                     assert_eq!(json.dest.as_deref(), Some("package.json"));
                     assert_eq!(json.path, Some("dependencies".to_string()));
-                    assert_eq!(json.position, Some("start".to_string()));
+                    assert_eq!(json.position, InsertPosition::Start);
                     assert!(json.append);
                 }
                 _ => panic!("Expected Json operation"),
@@ -2200,7 +2215,7 @@ mod tests {
             match &schema[0] {
                 Operation::Json { json } => {
                     assert_eq!(json.path, None);
-                    assert_eq!(json.position, None);
+                    assert_eq!(json.position, InsertPosition::End);
                     assert!(!json.append);
                 }
                 _ => panic!("Expected Json operation"),
@@ -2849,14 +2864,14 @@ mod tests {
                 .source("fragment.json")
                 .dest("package.json")
                 .path("dependencies")
-                .position("end")
-                .append(true);
+                .array_mode(ArrayMergeMode::Append)
+                .position(InsertPosition::End);
 
             assert_eq!(op.source.as_deref(), Some("fragment.json"));
             assert_eq!(op.dest.as_deref(), Some("package.json"));
             assert_eq!(op.path.as_deref(), Some("dependencies"));
-            assert_eq!(op.position.as_deref(), Some("end"));
-            assert!(op.append);
+            assert_eq!(op.array_mode, Some(ArrayMergeMode::Append));
+            assert_eq!(op.position, InsertPosition::End);
             assert!(op.validate().is_ok());
         }
 
