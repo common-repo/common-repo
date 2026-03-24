@@ -200,6 +200,9 @@ pub struct YamlMergeOp {
     pub append: bool,
     #[serde(default, rename = "array_mode")]
     pub array_mode: Option<ArrayMergeMode>,
+    /// Position for array insertion (start or end)
+    #[serde(default)]
+    pub position: InsertPosition,
     /// Mark this operation as deferred (applies when repo is used as an upstream)
     #[serde(default)]
     pub defer: Option<bool>,
@@ -295,6 +298,12 @@ impl YamlMergeOp {
     /// Set the array merge mode
     pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
         self.array_mode = Some(mode);
+        self
+    }
+
+    /// Set the position for array insertion
+    pub fn position(mut self, position: InsertPosition) -> Self {
+        self.position = position;
         self
     }
 
@@ -1983,8 +1992,7 @@ mod tests {
                 path: None,
                 append: false,
                 array_mode: None,
-                defer: None,
-                auto_merge: None,
+                ..Default::default()
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::Replace);
         }
@@ -1998,8 +2006,7 @@ mod tests {
                 path: None,
                 append: true,
                 array_mode: None,
-                defer: None,
-                auto_merge: None,
+                ..Default::default()
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::Append);
         }
@@ -2013,8 +2020,7 @@ mod tests {
                 path: None,
                 append: true, // Would normally be Append
                 array_mode: Some(ArrayMergeMode::AppendUnique), // But explicit overrides
-                defer: None,
-                auto_merge: None,
+                ..Default::default()
             };
             assert_eq!(op.get_array_mode(), ArrayMergeMode::AppendUnique);
         }
@@ -3062,9 +3068,9 @@ mod tests {
 
     #[test]
     fn test_insert_position_deserialize() {
-        let start: InsertPosition = serde_json::from_str("\"start\"").unwrap();
+        let start: InsertPosition = serde_yaml::from_str("start").unwrap();
         assert_eq!(start, InsertPosition::Start);
-        let end: InsertPosition = serde_json::from_str("\"end\"").unwrap();
+        let end: InsertPosition = serde_yaml::from_str("end").unwrap();
         assert_eq!(end, InsertPosition::End);
     }
 
