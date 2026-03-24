@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.30.0](https://github.com/common-repo/common-repo/compare/v0.29.0...v0.30.0) (2026-03-24)
+
+
+### Features
+
+* add Rust TDD guide and make TDD the default development approach ([985f4c2](https://github.com/common-repo/common-repo/commit/985f4c21f433ca776d7cccf89fd978f64142d860))
+* **commands:** handle Self_ in update and check commands ([f769c44](https://github.com/common-repo/common-repo/commit/f769c44d0f9150962a77c6018b2cedcebcea7407))
+* **config:** add InsertPosition enum for typed position handling ([a3696a7](https://github.com/common-repo/common-repo/commit/a3696a7df5dae93a8d86ca8d91fa7ce2ed10d31d))
+* **config:** add Self_ variant and SelfOp struct for self: operator ([9e90974](https://github.com/common-repo/common-repo/commit/9e9097426938fd4f8cf38d0048c00f8197a78a9d))
+* **config:** add self: to original format parser ([075fc3b](https://github.com/common-repo/common-repo/commit/075fc3bc2cbea858a656721228e33a4c5605e5c1))
+* **config:** validate self: blocks — reject nesting and empty blocks ([0286121](https://github.com/common-repo/common-repo/commit/0286121a0d5e11fd3cd9ff5b7a7071d09181c259))
+* handle Self_ in version checking and info command ([b2fc462](https://github.com/common-repo/common-repo/commit/b2fc4620ae95491050f4a3df3e2c3e71d6afb69b))
+* **merge:** add position support to TOML merge operations ([7c61e1a](https://github.com/common-repo/common-repo/commit/7c61e1a0deb7e7c069928e9bf138168326986cae))
+* **merge:** add position support to YAML merge operations ([dbce41a](https://github.com/common-repo/common-repo/commit/dbce41a30b35525b75ba0d8f1145038f44d4933f))
+* **merge:** migrate JSON merge to ArrayMergeMode + InsertPosition ([c5088ed](https://github.com/common-repo/common-repo/commit/c5088ed18a9d7694128f8fabab17f724df330af6))
+* **orchestrator:** execute self: blocks as isolated pipelines ([9511a04](https://github.com/common-repo/common-repo/commit/9511a041775ae36a693ae15e708283d35ab205ef)), closes [#253](https://github.com/common-repo/common-repo/issues/253)
+
+
+### Bug Fixes
+
+* **spec:** resolve syntax errors and align spec with implementation ([b9e8e13](https://github.com/common-repo/common-repo/commit/b9e8e13f2ef2343c8f14d44ee1f4af09236d2fc9))
+
 ## [0.29.0](https://github.com/common-repo/common-repo/compare/v0.28.5...v0.29.0) (2026-03-19)
 
 
