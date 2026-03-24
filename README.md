@@ -8,17 +8,21 @@ Every repository accumulates the same files: CI pipelines, linter configs, pre-c
 
 common-repo fixes this by treating configuration files as dependencies. You declare which upstream repositories to inherit from, pin versions, and define how files merge. common-repo fetches everything, applies your operations, and writes the result. When upstreams publish updates, you get a diff and a pull request.
 
-## Why common-repo
+## What existing tools get wrong
 
-Tools like cookiecutter and copier generate project scaffolding once. After that, you're on your own — there's no mechanism to push a security fix or a new lint rule to every project that was generated. common-repo works differently: it tracks upstream changes continuously, so when a dependency updates you see the diff and decide whether to pull it in. Configuration stays current instead of fossilizing on day one.
+Cookiecutter and copier generate files once. After that, you're on your own — no mechanism exists to push a security fix or a new lint rule back to every project that was generated. Configuration fossilizes on day one.
 
-You can pull from multiple focused repositories — Rust tooling from one, semantic versioning config from another, Python linting from a third — and the results merge without conflicts. common-repo merges at the structural level (YAML keys, JSON objects, TOML tables, INI sections, Markdown headings), not just file paths. Add a CI job to an existing workflow or a dependency to `Cargo.toml` without replacing the whole file.
+common-repo keeps configuration current. It tracks upstream changes continuously. When a dependency updates, you see the diff and decide whether to pull it in.
 
-Upstreams can themselves inherit from other upstreams, forming chains. A team-level Rust config extends a company-wide base, which extends a community standard. A change at any level propagates down the chain. The `tree` command shows you exactly how a given repository's inheritance is structured.
+## Composability and inheritance
+
+You can pull from multiple focused repositories — Rust tooling from one, semantic versioning config from another, Python linting from a third — and the results merge without conflicts. common-repo merges at the structural level (YAML keys, JSON objects, TOML tables, INI sections, Markdown headings), not file paths. Add a CI job to an existing workflow or a dependency to `Cargo.toml` without replacing the whole file.
+
+Upstreams can themselves inherit from other upstreams, forming chains. A team-level Rust config extends a company-wide base, which extends a community standard. A change at any level propagates down the chain. `common-repo tree` shows you exactly how a repository's inheritance is structured.
 
 Every upstream is pinned to a git ref. `common-repo check --updates` reports what's newer. `common-repo update` bumps compatible versions. `--latest` includes breaking changes when you're ready.
 
-common-repo is not a code generator or a template engine. It operates on files — copying, filtering, renaming, and merging them. If you need conditional logic or code scaffolding, this is the wrong tool.
+common-repo is not a code generator or a template engine. It copies, filters, renames, and merges files. If you need conditional logic or code scaffolding, this is the wrong tool.
 
 ## How it works
 
