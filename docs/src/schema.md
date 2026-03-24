@@ -108,4 +108,6 @@ template-vars:
 
 ## v2 Schema (Current)
 
-For the current v2 schema with operators, see the [Configuration Reference](configuration.md).
+The v2 schema uses operators for flexible, composable configuration. All operators are documented in the [Configuration Reference](configuration.md).
+
+Available operators: `repo`, `include`, `exclude`, `rename`, `template`, `template-vars`, `tools`, `self`, `yaml`, `json`, `toml`, `ini`, `markdown`.

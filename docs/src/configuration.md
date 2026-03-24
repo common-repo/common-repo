@@ -14,6 +14,8 @@ This document covers all operators and options available in `.common-repo.yaml`.
   - [`template` - Mark Template Files](#template---mark-template-files)
   - [`template-vars` - Define Variables](#template-vars---define-variables)
   - [`tools` - Validate Required Tools](#tools---validate-required-tools)
+- [Structural Operators](#structural-operators)
+  - [`self` - Local-Only Operations](#self---local-only-operations)
 - [Merge Operators](#merge-operators)
   - [Path Syntax](#path-syntax)
   - [`yaml` - Merge YAML Files](#yaml---merge-yaml-files)
@@ -46,6 +48,7 @@ The `.common-repo.yaml` file is a list of operations executed in order. Each ope
 | [`toml`](#toml---merge-toml-files) | Merge TOML configuration fragments |
 | [`ini`](#ini---merge-ini-files) | Merge INI configuration fragments |
 | [`markdown`](#markdown---merge-markdown-files) | Merge markdown document fragments |
+| [`self`](#self---local-only-operations) | Run operations locally without exposing them to consumers |
 
 Example configuration:
 
@@ -63,6 +66,7 @@ Example configuration:
 - toml: { ... }
 - ini: { ... }
 - markdown: { ... }
+- self: [ ... ]
 ```
 
 ## Core Operators
@@ -261,6 +265,66 @@ Check that required tools are installed with correct versions.
 | `~1.70` | Approximately 1.70 (>=1.70.0, <1.71.0) |
 
 This operator validates but does not install tools. Warnings are issued for missing or incompatible versions.
+
+## Structural Operators
+
+### `self` - Local-Only Operations
+
+Run a sub-pipeline of operations that apply only to the local repository. Files produced by `self:` blocks are written to disk but never appear in the composite filesystem that downstream consumers see.
+
+This is useful when a repository is both a source (providing shared configuration to consumers) and wants to consume from its own upstream repos.
+
+```yaml
+- self:
+    - repo:
+        url: https://github.com/org/upstream-tooling
+        ref: v1.0.0
+    - exclude:
+        - ".releaserc.yaml"
+```
+
+#### How It Works
+
+1. The orchestrator partitions `self:` blocks from the rest of the config
+2. The source pipeline runs first (producing the composite filesystem for consumers)
+3. Each `self:` block runs as an independent pipeline afterward
+4. Output from `self:` blocks is written to the working directory but excluded from what consumers inherit
+
+#### Rules
+
+- `self:` blocks must contain at least one operation
+- `self:` blocks cannot be nested (no `self:` inside `self:`)
+- `self:` blocks are stripped when a repo is consumed as an upstream — consumers never see them
+- Any operation valid at the top level can appear inside `self:` (repo, include, exclude, rename, template, merge operators, etc.)
+
+#### Example: Source Repo That Consumes Upstream Tooling
+
+```yaml
+# .common-repo.yaml for a shared-config repo
+
+# Self operations — local only, consumers don't see these
+- self:
+    - repo:
+        url: https://github.com/org/ci-tooling
+        ref: v2.0.0
+    - exclude:
+        - ".releaserc.yaml"
+        - "commitlint.config.cjs"
+
+# Source API — what consumers get
+- include:
+    - "src/**"
+    - "src/.*"
+- template:
+    - "src/.github/workflows/release.yaml"
+- template-vars:
+    GH_APP_ID_VAR: CHRISTMAS_ISLAND_APP_ID
+- rename:
+    - from: "^src/(.*)$"
+      to: "$1"
+```
+
+In this example, the repo pulls CI tooling for its own use via `self:`, while consumers only see the files exposed by `include`, `template`, `template-vars`, and `rename`.
 
 ## Merge Operators
 
@@ -626,6 +690,8 @@ Operations execute in the order they appear in the configuration file. For inher
 
 This means later operations can override earlier ones, and child repos can customize what they inherit from ancestors.
 
+`self:` blocks execute after the source pipeline completes. Each `self:` block runs as an independent pipeline invocation. This means self-consumed files can overwrite source pipeline files on disk, which is the intended behavior — local tooling should take precedence.
+
 ### Example Order
 
 ```yaml
@@ -661,6 +727,12 @@ Here's a complete configuration showing multiple operators:
     ref: v1.5.0
     with:
       - include: [".pre-commit-config.yaml"]
+
+# Consume shared tooling for this repo only (not exposed to consumers)
+- self:
+    - repo:
+        url: https://github.com/common-repo/shared-tooling
+        ref: v1.0.0
 
 # Include local files
 - include:
