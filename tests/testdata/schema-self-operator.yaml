@@ -1,0 +1,26 @@
+######################
+# CommonRepo v2 schema - Self Operator
+#
+# Tests the self: operator for repos that are both source and consumer.
+# The self: block runs in an isolated pipeline.
+
+# Self operations — local-only, never distributed to consumers
+- self:
+    - repo:
+        url: https://github.com/common-repo/cr-upstream-repo
+        ref: v1
+    - exclude:
+        - ".releaserc.yaml"
+        - "commitlint.config.cjs"
+
+# Source API — what consumers get
+- include:
+    - "src/**"
+    - "src/.*"
+- template:
+    - "src/.github/workflows/release.yaml"
+- template-vars:
+    GH_APP_ID_VAR: CHRISTMAS_ISLAND_APP_ID
+- rename:
+    - from: "^src/(.*)$"
+      to: "$1"
