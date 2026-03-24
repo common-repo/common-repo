@@ -5,25 +5,35 @@
 
 use super::{phase1, phase2, phase3, phase4, phase5, phase6};
 use crate::cache::RepoCache;
-use crate::config::Schema;
+use crate::config::{Operation, Schema, SelfOp};
 use crate::error::Result;
 use crate::filesystem::MemoryFS;
 use crate::repository::RepositoryManager;
 use std::path::Path;
 
-/// Execute the complete pull operation (Phases 1-6)
+/// Partition a config into self operations and source operations.
 ///
-/// This orchestrates the complete inheritance pipeline:
-/// 1. Discover and clone repositories (with automatic caching)
-/// 2. Process each repository with its operations
-/// 3. Determine correct merge order
-/// 4. Merge into composite filesystem
-/// 5. Merge with local files and apply local operations
-/// 6. Write final filesystem to disk (if output_path is provided)
+/// Self operations run in an isolated pipeline. Source operations
+/// run in the main pipeline that produces the composite filesystem.
+pub fn partition_self_operations(config: &Schema) -> (Vec<SelfOp>, Schema) {
+    let mut self_ops = Vec::new();
+    let mut source_ops = Vec::new();
+
+    for op in config {
+        match op {
+            Operation::Self_ { self_ } => self_ops.push(self_.clone()),
+            other => source_ops.push(other.clone()),
+        }
+    }
+
+    (self_ops, source_ops)
+}
+
+/// Execute the source pipeline (Phases 1-6) for a given config.
 ///
-/// If `output_path` is `None`, returns the final MemoryFS without writing to disk.
-/// If `output_path` is `Some(path)`, writes to disk and returns the MemoryFS.
-pub fn execute_pull(
+/// This is the core pipeline logic, extracted so it can be called
+/// once for the main source config and again for each self: block.
+fn execute_source_pipeline(
     config: &Schema,
     repo_manager: &RepositoryManager,
     cache: &RepoCache,
@@ -51,4 +61,140 @@ pub fn execute_pull(
     }
 
     Ok(final_fs)
+}
+
+/// Execute the complete pull operation (Phases 1-6)
+///
+/// This orchestrates the complete inheritance pipeline:
+/// 1. Discover and clone repositories (with automatic caching)
+/// 2. Process each repository with its operations
+/// 3. Determine correct merge order
+/// 4. Merge into composite filesystem
+/// 5. Merge with local files and apply local operations
+/// 6. Write final filesystem to disk (if output_path is provided)
+///
+/// If the config contains `self:` blocks, they are partitioned out and
+/// run as independent pipeline invocations after the source pipeline
+/// completes. Self pipeline output is written to the working directory
+/// but never enters the composite filesystem that downstream consumers
+/// see.
+///
+/// If `output_path` is `None`, returns the final MemoryFS without writing to disk.
+/// If `output_path` is `Some(path)`, writes to disk and returns the MemoryFS.
+pub fn execute_pull(
+    config: &Schema,
+    repo_manager: &RepositoryManager,
+    cache: &RepoCache,
+    working_dir: &Path,
+    output_path: Option<&Path>,
+) -> Result<MemoryFS> {
+    // Partition self: operations from source operations
+    let (self_ops, source_config) = partition_self_operations(config);
+
+    // Run the source pipeline (main composite — what consumers see)
+    let final_fs = execute_source_pipeline(
+        &source_config,
+        repo_manager,
+        cache,
+        working_dir,
+        output_path,
+    )?;
+
+    // Run self: pipelines (isolated, local-only)
+    for self_op in &self_ops {
+        execute_source_pipeline(
+            &self_op.operations,
+            repo_manager,
+            cache,
+            working_dir,
+            output_path,
+        )?;
+    }
+
+    Ok(final_fs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{IncludeOp, Operation, SelfOp};
+
+    #[test]
+    fn test_partition_self_operations() {
+        let config = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["src/**".to_string()],
+                },
+            },
+            Operation::Self_ {
+                self_: SelfOp {
+                    operations: vec![Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["**/*".to_string()],
+                        },
+                    }],
+                },
+            },
+        ];
+
+        let (self_ops, source_ops) = partition_self_operations(&config);
+        assert_eq!(self_ops.len(), 1);
+        assert_eq!(source_ops.len(), 1);
+        assert!(matches!(source_ops[0], Operation::Include { .. }));
+    }
+
+    #[test]
+    fn test_partition_no_self_operations() {
+        let config = vec![Operation::Include {
+            include: IncludeOp {
+                patterns: vec!["**/*".to_string()],
+            },
+        }];
+
+        let (self_ops, source_ops) = partition_self_operations(&config);
+        assert_eq!(self_ops.len(), 0);
+        assert_eq!(source_ops.len(), 1);
+    }
+
+    #[test]
+    fn test_partition_empty_config() {
+        let config: Schema = vec![];
+        let (self_ops, source_ops) = partition_self_operations(&config);
+        assert_eq!(self_ops.len(), 0);
+        assert_eq!(source_ops.len(), 0);
+    }
+
+    #[test]
+    fn test_partition_multiple_self_operations() {
+        let config = vec![
+            Operation::Self_ {
+                self_: SelfOp {
+                    operations: vec![Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["a/**".to_string()],
+                        },
+                    }],
+                },
+            },
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["src/**".to_string()],
+                },
+            },
+            Operation::Self_ {
+                self_: SelfOp {
+                    operations: vec![Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["b/**".to_string()],
+                        },
+                    }],
+                },
+            },
+        ];
+
+        let (self_ops, source_ops) = partition_self_operations(&config);
+        assert_eq!(self_ops.len(), 2);
+        assert_eq!(source_ops.len(), 1);
+    }
 }
