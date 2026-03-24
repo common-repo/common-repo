@@ -105,6 +105,16 @@ common-repo validate --strict         # Fail on warnings
       - exclude: [".github/CODEOWNERS"]
 ```
 
+**Upstream repos can consume their own tooling.** Use `self:` to pull files locally without exposing them to consumers:
+
+```yaml
+- self:
+    - repo:
+        url: https://github.com/org/ci-tooling
+        ref: v2.0.0
+- include: ["src/**"]  # only this is visible to consumers
+```
+
 **Merge configuration fragments.** Add sections to existing files without replacing them:
 
 ```bash
