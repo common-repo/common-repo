@@ -27,7 +27,7 @@ use log::warn;
 use serde_yaml::Value as YamlValue;
 
 use super::PathSegment;
-use crate::config::{ArrayMergeMode, YamlMergeOp};
+use crate::config::{ArrayMergeMode, InsertPosition, YamlMergeOp};
 use crate::error::{Error, Result};
 use crate::filesystem::{File, MemoryFS};
 
@@ -111,6 +111,7 @@ pub fn navigate_yaml_value<'a>(
 /// * `target` - The target value to merge into (modified in place)
 /// * `source` - The source value to merge from
 /// * `mode` - How to handle array merging
+/// * `position` - Where to insert array items (start or end)
 /// * `path` - Current path for logging purposes
 /// * `src_file` - Source file path for logging
 /// * `dst_file` - Destination file path for logging
@@ -118,6 +119,7 @@ pub fn merge_yaml_values(
     target: &mut YamlValue,
     source: &YamlValue,
     mode: ArrayMergeMode,
+    position: InsertPosition,
     path: &str,
     src_file: &str,
     dst_file: &str,
@@ -138,13 +140,22 @@ pub fn merge_yaml_values(
 
                     if let Some(existing) = target_map.get_mut(key) {
                         if existing.as_mapping().is_some() && value.as_mapping().is_some() {
-                            merge_yaml_values(existing, value, mode, &new_path, src_file, dst_file);
+                            merge_yaml_values(
+                                existing, value, mode, position, &new_path, src_file, dst_file,
+                            );
                         } else if let Some(source_seq) = value.as_sequence() {
                             if let Some(target_seq) = existing.as_sequence_mut() {
                                 match mode {
-                                    ArrayMergeMode::Append => {
-                                        target_seq.extend(source_seq.iter().cloned());
-                                    }
+                                    ArrayMergeMode::Append => match position {
+                                        InsertPosition::Start => {
+                                            let mut new_seq = source_seq.clone();
+                                            new_seq.append(target_seq);
+                                            *target_seq = new_seq;
+                                        }
+                                        InsertPosition::End => {
+                                            target_seq.extend(source_seq.iter().cloned());
+                                        }
+                                    },
                                     ArrayMergeMode::Replace => {
                                         warn!(
                                             "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
@@ -153,9 +164,19 @@ pub fn merge_yaml_values(
                                         *existing = YamlValue::Sequence(source_seq.clone());
                                     }
                                     ArrayMergeMode::AppendUnique => {
-                                        for item in source_seq {
-                                            if !target_seq.contains(item) {
-                                                target_seq.push(item.clone());
+                                        let unique_items: Vec<_> = source_seq
+                                            .iter()
+                                            .filter(|item| !target_seq.contains(item))
+                                            .cloned()
+                                            .collect();
+                                        match position {
+                                            InsertPosition::Start => {
+                                                let mut new_seq = unique_items;
+                                                new_seq.append(target_seq);
+                                                *target_seq = new_seq;
+                                            }
+                                            InsertPosition::End => {
+                                                target_seq.extend(unique_items);
                                             }
                                         }
                                     }
@@ -196,9 +217,16 @@ pub fn merge_yaml_values(
         YamlValue::Sequence(target_seq) => {
             if let YamlValue::Sequence(source_seq) = source {
                 match mode {
-                    ArrayMergeMode::Append => {
-                        target_seq.extend(source_seq.clone());
-                    }
+                    ArrayMergeMode::Append => match position {
+                        InsertPosition::Start => {
+                            let mut new_seq = source_seq.clone();
+                            new_seq.append(target_seq);
+                            *target_seq = new_seq;
+                        }
+                        InsertPosition::End => {
+                            target_seq.extend(source_seq.clone());
+                        }
+                    },
                     ArrayMergeMode::Replace => {
                         warn!(
                             "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
@@ -211,9 +239,19 @@ pub fn merge_yaml_values(
                         *target = YamlValue::Sequence(source_seq.clone());
                     }
                     ArrayMergeMode::AppendUnique => {
-                        for item in source_seq {
-                            if !target_seq.contains(item) {
-                                target_seq.push(item.clone());
+                        let unique_items: Vec<_> = source_seq
+                            .iter()
+                            .filter(|item| !target_seq.contains(item))
+                            .cloned()
+                            .collect();
+                        match position {
+                            InsertPosition::Start => {
+                                let mut new_seq = unique_items;
+                                new_seq.append(target_seq);
+                                *target_seq = new_seq;
+                            }
+                            InsertPosition::End => {
+                                target_seq.extend(unique_items);
                             }
                         }
                     }
@@ -304,6 +342,7 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
         target,
         &source_value,
         mode,
+        op.position,
         path_str,
         source_path,
         dest_path,
@@ -1039,6 +1078,7 @@ mod tests {
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "",
                 "src",
                 "dst",
@@ -1601,6 +1641,7 @@ mod tests {
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "root",
                 "src.yaml",
                 "dst.yaml",
@@ -1620,6 +1661,7 @@ mod tests {
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "root",
                 "src.yaml",
                 "dst.yaml",
@@ -1639,6 +1681,7 @@ mod tests {
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "field",
                 "src.yaml",
                 "dst.yaml",
@@ -1656,6 +1699,7 @@ mod tests {
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "field",
                 "src.yaml",
                 "dst.yaml",
@@ -1673,6 +1717,7 @@ mod tests {
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "field",
                 "src.yaml",
                 "dst.yaml",
@@ -1691,6 +1736,7 @@ mod tests {
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
+                InsertPosition::End,
                 "",
                 "src.yaml",
                 "dst.yaml",
@@ -1698,6 +1744,56 @@ mod tests {
 
             let mapping = target.as_mapping().unwrap();
             assert_eq!(mapping.len(), 2);
+        }
+
+        #[test]
+        fn test_yaml_merge_append_position_start() {
+            // Source items should prepend when position=Start
+            let mut target: YamlValue = serde_yaml::from_str("- a\n- b").unwrap();
+            let source: YamlValue = serde_yaml::from_str("- x\n- y").unwrap();
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Append,
+                InsertPosition::Start,
+                "",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            let seq = target.as_sequence().unwrap();
+            assert_eq!(seq.len(), 4);
+            assert_eq!(seq[0], YamlValue::String("x".to_string()));
+            assert_eq!(seq[1], YamlValue::String("y".to_string()));
+            assert_eq!(seq[2], YamlValue::String("a".to_string()));
+            assert_eq!(seq[3], YamlValue::String("b".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_append_unique_position_start() {
+            // Unique items should prepend when position=Start, no duplication
+            let mut target: YamlValue = serde_yaml::from_str("- a\n- b\n- c").unwrap();
+            let source: YamlValue = serde_yaml::from_str("- x\n- b\n- y").unwrap();
+
+            merge_yaml_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::AppendUnique,
+                InsertPosition::Start,
+                "",
+                "src.yaml",
+                "dst.yaml",
+            );
+
+            let seq = target.as_sequence().unwrap();
+            // x and y are unique (b is duplicate), so prepended
+            assert_eq!(seq.len(), 5);
+            assert_eq!(seq[0], YamlValue::String("x".to_string()));
+            assert_eq!(seq[1], YamlValue::String("y".to_string()));
+            assert_eq!(seq[2], YamlValue::String("a".to_string()));
+            assert_eq!(seq[3], YamlValue::String("b".to_string()));
+            assert_eq!(seq[4], YamlValue::String("c".to_string()));
         }
     }
 }

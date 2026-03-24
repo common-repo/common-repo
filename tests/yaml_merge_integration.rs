@@ -22,6 +22,7 @@ fn test_yaml_merge_simple_keys() {
         array_mode: None,
         defer: None,
         auto_merge: None,
+        ..Default::default()
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -55,6 +56,7 @@ fn test_yaml_merge_nested_path() {
         array_mode: None,
         defer: None,
         auto_merge: None,
+        ..Default::default()
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -85,6 +87,7 @@ fn test_yaml_merge_array_append() {
         array_mode: None,
         defer: None,
         auto_merge: None,
+        ..Default::default()
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -116,6 +119,7 @@ fn test_yaml_merge_array_replace() {
         array_mode: None,
         defer: None,
         auto_merge: None,
+        ..Default::default()
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -147,6 +151,7 @@ fn test_yaml_merge_no_duplicates() {
         array_mode: Some(ArrayMergeMode::AppendUnique),
         defer: None,
         auto_merge: None,
+        ..Default::default()
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -180,6 +185,7 @@ fn test_yaml_merge_allow_duplicates() {
         array_mode: Some(ArrayMergeMode::Append),
         defer: None,
         auto_merge: None,
+        ..Default::default()
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
@@ -212,6 +218,7 @@ fn test_yaml_merge_create_dest() {
         array_mode: None,
         defer: None,
         auto_merge: None,
+        ..Default::default()
     };
 
     apply_yaml_merge_operation(&mut fs, &op).unwrap();
