@@ -98,6 +98,7 @@ fn count_operations(schema: &config::Schema) -> OperationCounts {
             config::Operation::Toml { .. } => counts.toml += 1,
             config::Operation::Ini { .. } => counts.ini += 1,
             config::Operation::Markdown { .. } => counts.markdown += 1,
+            config::Operation::Self_ { .. } => { /* counted when executed */ }
         }
     }
 

@@ -253,6 +253,12 @@ pub(crate) mod repo {
                                 .to_string(),
                     });
                 }
+                Operation::Self_ { .. } => {
+                    return Err(crate::error::Error::Operator {
+                        operator: "self".to_string(),
+                        message: "Self operations not supported in 'with:' clauses".to_string(),
+                    });
+                }
             }
         }
 

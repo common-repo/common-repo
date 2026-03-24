@@ -266,6 +266,10 @@ fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
             // Collected in collect_merge_operations() and executed in Phase 4
             Ok(())
         }
+        Operation::Self_ { self_: _ } => {
+            // Self operations run in an isolated pipeline, handled separately
+            Ok(())
+        }
     }
 }
 

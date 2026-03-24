@@ -52,6 +52,18 @@ pub struct TemplateVars {
     pub vars: HashMap<String, String>,
 }
 
+/// Self operator configuration
+///
+/// Contains a sub-list of operations that run in an isolated pipeline.
+/// Output is written locally but never enters the composite filesystem
+/// seen by downstream consumers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SelfOp {
+    /// The list of operations to execute in the isolated self pipeline.
+    pub operations: Vec<Operation>,
+}
+
 /// Repo operator configuration
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepoOp {
@@ -886,6 +898,12 @@ pub enum Operation {
     Ini { ini: IniMergeOp },
     /// Merge fragments of two Markdown files.
     Markdown { markdown: MarkdownMergeOp },
+    /// Operations for this repo itself (local-only, isolated pipeline).
+    /// Uses `Self_` because `Self` is a Rust keyword.
+    Self_ {
+        #[serde(rename = "self")]
+        self_: SelfOp,
+    },
 }
 
 impl Operation {
@@ -1155,7 +1173,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
         }
         _ => Err(Error::ConfigParse {
             message: format!("Unknown operation type: {}", op_type),
-            hint: Some("Valid operations: repo, include, exclude, template, template-vars, rename, tools, yaml, json, toml, ini, markdown".to_string()),
+            hint: Some("Valid operations: repo, include, exclude, template, template-vars, rename, tools, yaml, json, toml, ini, markdown, self".to_string()),
         }),
     }
 }
@@ -2898,5 +2916,38 @@ mod tests {
             }
             _ => panic!("Expected Repo operation"),
         }
+    }
+
+    #[test]
+    fn test_parse_self_operator() {
+        let yaml = r#"
+- self:
+    - repo:
+        url: https://github.com/example/upstream
+        ref: v1
+    - exclude:
+        - ".releaserc.yaml"
+- include:
+    - "src/**"
+"#;
+        let schema = parse(yaml).expect("should parse self operator");
+        assert_eq!(schema.len(), 2);
+        match &schema[0] {
+            Operation::Self_ { self_ } => {
+                assert_eq!(self_.operations.len(), 2);
+            }
+            other => panic!("expected Self_, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_self_operator_not_deferred() {
+        let yaml = r#"
+- self:
+    - include:
+        - "**/*"
+"#;
+        let schema = parse(yaml).unwrap();
+        assert!(!schema[0].is_deferred());
     }
 }
