@@ -4,39 +4,36 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE.md)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://common-repo.github.io/common-repo/)
 
-Every repository accumulates the same files: CI pipelines, linter configs, pre-commit hooks, editor settings, Dockerfiles. These get copied between projects by hand. When something needs to change — a security fix, a new lint rule, a CI image update — there is no way to propagate it. Every copy must be found and patched individually.
-
-common-repo fixes this by treating configuration files as dependencies. You declare which upstream repositories to inherit from, pin versions, and define how files merge. common-repo fetches everything, applies your operations, and writes the result. When upstreams publish updates, you get a diff and a pull request.
-
-## Beyond scaffolding
-
-Cookiecutter and copier generate files once. After that, you're on your own — no mechanism exists to push a security fix or a new lint rule back to every project that was generated. Configuration fossilizes on day one.
-
-common-repo keeps configuration current. It tracks upstream changes continuously. When a dependency updates, you see the diff and decide whether to pull it in.
-
-## Composing and inheriting configs
-
-You can pull from multiple focused repositories — Rust tooling from one, semantic versioning config from another, Python linting from a third — and the results merge without conflicts. common-repo merges at the structural level (YAML keys, JSON objects, TOML tables, INI sections, Markdown headings), not file paths. Add a CI job to an existing workflow or a dependency to `Cargo.toml` without replacing the whole file.
-
-Upstreams can themselves inherit from other upstreams, forming chains. A team-level Rust config extends a company-wide base, which extends a community standard. A change at any level propagates down the chain. `common-repo tree` shows you exactly how a repository's inheritance is structured.
-
-Every upstream is pinned to a git ref. `common-repo check --updates` reports what's newer. `common-repo update` bumps compatible versions. `--latest` includes breaking changes when you're ready.
-
-common-repo is not a code generator or a template engine. It copies, filters, renames, and merges files. If you need conditional logic or code scaffolding, this is the wrong tool.
-
-## How it works
-
-Add a `.common-repo.yaml` to your repository listing upstreams and operations:
+Declare configuration files as versioned dependencies. Pull from multiple Git repositories, merge structured files at the key level, and track upstream updates with semver.
 
 ```yaml
+# .common-repo.yaml
 - repo:
-    url: https://github.com/your-org/shared-configs
-    ref: v1.0.0
+    url: https://github.com/acme-corp/platform-defaults
+    ref: v2.1.0
     with:
       - include: [".github/**", ".pre-commit-config.yaml"]
+
+- repo:
+    url: https://github.com/acme-corp/rust-tooling
+    ref: v1.4.0
+    with:
+      - include: ["rustfmt.toml", "clippy.toml", ".cargo/**"]
+
+# Merge CI jobs into an existing workflow instead of replacing it
+- yaml:
+    source: ci-jobs.yml
+    dest: .github/workflows/ci.yml
+    path: jobs
+    append: true
 ```
 
-Run `common-repo apply`. The tool clones the upstream (or loads it from cache), filters files through `include`/`exclude` rules, applies merge operations, and writes the result into the working tree. Upstreams can reference their own upstreams, forming inheritance chains. The resolution order is deterministic — the same config always produces the same output. Repositories are cached after first fetch, so repeated runs skip the network entirely.
+```bash
+common-repo diff    # preview changes
+common-repo apply   # write files
+```
+
+Upstreams are pinned to git refs and cached locally. The same `.common-repo.yaml` always produces the same output. Upstreams can reference their own upstreams — `common-repo tree` shows the full chain.
 
 ## Install
 
@@ -94,65 +91,52 @@ common-repo apply
 
 ## Configuration
 
-A `.common-repo.yaml` is a list of operations applied in order. Two upstreams with filtering, renaming, and merging:
+A `.common-repo.yaml` is a list of operations applied in order:
 
 ```yaml
-# Pull CI and pre-commit configs from shared-configs
 - repo:
-    url: https://github.com/your-org/shared-configs
-    ref: v1.0.0
+    url: https://github.com/acme-corp/platform-defaults
+    ref: v2.1.0
     with:
       - include: [".github/**", ".pre-commit-config.yaml"]
-      - exclude: [".git/**"]
-
-# Pull CI workflows from ci-templates, renaming one
-- repo:
-    url: https://github.com/your-org/ci-templates
-    ref: main
-    with:
-      - include: [".github/workflows/*.yml"]
+      - exclude: [".github/CODEOWNERS"]
       - rename:
           ".github/workflows/ci.yml": ".github/workflows/build.yml"
 ```
 
 Operations within `with:` apply only to that upstream's files before merging.
 
-### Merging structured files
+### File merging
 
-common-repo can deep-merge into existing files rather than replacing them. Supported formats: YAML, JSON, TOML, INI, and Markdown ([full docs](docs/src/configuration.md)).
+Merge operations write into existing files at a specific path instead of replacing them. Supported formats: YAML, JSON, TOML, INI, and Markdown ([full docs](docs/src/configuration.md)).
 
-Add jobs to a CI workflow:
 ```yaml
+# Merge into .jobs in an existing workflow
 - yaml:
     source: ci-jobs.yml
     dest: .github/workflows/ci.yml
     path: jobs
     append: true
-```
 
-Add scripts to package.json:
-```yaml
+# Merge into .scripts in package.json
 - json:
     source: scripts.json
     dest: package.json
     path: scripts
-```
 
-Add dependencies to Cargo.toml:
-```yaml
+# Merge into [dependencies] in Cargo.toml
 - toml:
     source: common-deps.toml
     dest: Cargo.toml
     path: dependencies
-```
 
-INI and Markdown merges work similarly — INI targets sections, Markdown targets headings:
-```yaml
+# Merge into a section in .editorconfig
 - ini:
     source: editor-rules.ini
     dest: .editorconfig
     section: "*"
 
+# Insert or replace a heading in README.md
 - markdown:
     source: contributing-section.md
     dest: README.md
@@ -160,11 +144,25 @@ INI and Markdown merges work similarly — INI targets sections, Markdown target
     create-section: true
 ```
 
-Merge operations support `auto-merge:` when source and destination share the same filename, and `defer:` when upstream repos want consumers to inherit their merge rules.
+`auto-merge:` merges files that share the same name on both sides. `defer:` marks merge operations for consumers to inherit.
+
+### Inheritance
+
+Upstreams can have their own `.common-repo.yaml` files referencing other upstreams:
+
+```
+your-project
+├── acme-corp/platform-defaults v2.1.0
+│   └── common-repo/ci-base v1.0.0
+└── acme-corp/rust-tooling v1.4.0
+    └── common-repo/rust-base v3.2.1
+```
+
+Resolution is depth-first post-order: ancestors are applied before their parents, parents before the local repo. Files with the same path are last-write-wins.
 
 ### The `self:` operator
 
-An upstream repo may have its own tooling — CI scripts, test fixtures — that consumers should not inherit. `self:` runs an isolated pipeline whose output stays local:
+`self:` runs an isolated pipeline whose output stays local — it is stripped when other repos inherit from this one:
 
 ```yaml
 - self:
@@ -174,21 +172,17 @@ An upstream repo may have its own tooling — CI scripts, test fixtures — that
 - include: ["src/**"]  # only this is visible to consumers
 ```
 
-When another repository inherits from this one, common-repo skips the `self:` block.
-
-## Updates and automation
-
-### Checking for updates
+## Updates
 
 ```bash
-common-repo check --updates   # See available updates
-common-repo update            # Update to compatible versions (minor/patch)
-common-repo update --latest   # Include breaking changes (major versions)
+common-repo check --updates   # list available updates
+common-repo update            # bump compatible versions (minor/patch)
+common-repo update --latest   # include breaking changes (major)
 ```
 
-### Automated updates with GitHub Actions
+### GitHub Actions
 
-The common-repo GitHub Action creates PRs when upstream configurations change:
+Automate upstream sync with the common-repo action:
 
 ```yaml
 # .github/workflows/upstream-sync.yml
@@ -232,7 +226,7 @@ See [GitHub Action documentation](docs/src/github-action.md) for all options.
 
 ## Documentation
 
-Full documentation is available at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/).
+Full documentation at [common-repo.github.io/common-repo](https://common-repo.github.io/common-repo/).
 
 | Guide | Description |
 |-------|-------------|
@@ -240,8 +234,8 @@ Full documentation is available at [common-repo.github.io/common-repo](https://c
 | [Configuration](docs/src/configuration.md) | All operators and options |
 | [CLI Reference](docs/src/cli.md) | Command documentation |
 | [Recipes](docs/src/recipes.md) | Configuration examples |
-| [Troubleshooting](docs/src/troubleshooting.md) | Common issues and solutions |
-| [Authoring Upstream Repos](docs/src/authoring-upstream-repos.md) | Create your own upstream repos |
+| [Troubleshooting](docs/src/troubleshooting.md) | Fixes for common issues |
+| [Authoring Upstream Repos](docs/src/authoring-upstream-repos.md) | Publishing repos for others to inherit |
 
 ## Contributing
 
