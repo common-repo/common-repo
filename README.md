@@ -8,13 +8,13 @@ Every repository accumulates the same files: CI pipelines, linter configs, pre-c
 
 common-repo fixes this by treating configuration files as dependencies. You declare which upstream repositories to inherit from, pin versions, and define how files merge. common-repo fetches everything, applies your operations, and writes the result. When upstreams publish updates, you get a diff and a pull request.
 
-## What existing tools get wrong
+## Beyond scaffolding
 
 Cookiecutter and copier generate files once. After that, you're on your own — no mechanism exists to push a security fix or a new lint rule back to every project that was generated. Configuration fossilizes on day one.
 
 common-repo keeps configuration current. It tracks upstream changes continuously. When a dependency updates, you see the diff and decide whether to pull it in.
 
-## Composability and inheritance
+## Composing and inheriting configs
 
 You can pull from multiple focused repositories — Rust tooling from one, semantic versioning config from another, Python linting from a third — and the results merge without conflicts. common-repo merges at the structural level (YAML keys, JSON objects, TOML tables, INI sections, Markdown headings), not file paths. Add a CI job to an existing workflow or a dependency to `Cargo.toml` without replacing the whole file.
 
