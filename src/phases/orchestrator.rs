@@ -166,6 +166,95 @@ mod tests {
     }
 
     #[test]
+    fn test_composite_precedence_with_deferred_merge_full_flow() {
+        use crate::config::{JsonMergeOp, Operation};
+        use crate::filesystem::MemoryFS;
+        use crate::phases::{IntermediateFS, OperationOrder};
+        use std::collections::HashMap;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Consumer has these local files:
+        // - package.json (full file, will be merge destination)
+        // - local_only.txt (not in any upstream)
+        // - config.yaml (also provided by upstream — upstream should win)
+        std::fs::write(
+            working_dir.join("package.json"),
+            r#"{"name": "my-app", "version": "1.0.0"}"#,
+        )
+        .unwrap();
+        std::fs::write(working_dir.join("local_only.txt"), b"my local file").unwrap();
+        std::fs::write(working_dir.join("config.yaml"), b"old: value").unwrap();
+
+        // Upstream provides:
+        // - config.yaml (whole file, should win over local)
+        // - fragment.json (merge fragment for package.json)
+        // - deferred merge: fragment.json -> package.json
+        let mut fs1 = MemoryFS::new();
+        fs1.add_file_string("config.yaml", "new: value").unwrap();
+        fs1.add_file_string("fragment.json", r#"{"scripts": {"test": "jest"}}"#)
+            .unwrap();
+
+        let merge_op = Operation::Json {
+            json: JsonMergeOp {
+                source: Some("fragment.json".to_string()),
+                dest: Some("package.json".to_string()),
+                ..Default::default()
+            },
+        };
+
+        let mut intermediate_fss = HashMap::new();
+        intermediate_fss.insert(
+            "https://github.com/upstream.git@main".to_string(),
+            IntermediateFS::new_with_vars_and_merges(
+                fs1,
+                "https://github.com/upstream.git".to_string(),
+                "main".to_string(),
+                HashMap::new(),
+                vec![merge_op],
+            ),
+        );
+
+        let order = OperationOrder::new(vec!["https://github.com/upstream.git@main".to_string()]);
+
+        // Phase 4: build composite, collect deferred ops
+        let (composite_fs, deferred_ops) =
+            crate::phases::phase4::execute(&order, &intermediate_fss).unwrap();
+
+        assert_eq!(deferred_ops.len(), 1);
+
+        // Phase 5: combine with local, execute deferred merges
+        let local_config = vec![];
+        let final_fs = crate::phases::phase5::execute(
+            &composite_fs,
+            &local_config,
+            working_dir,
+            &deferred_ops,
+        )
+        .unwrap();
+
+        // config.yaml: composite wins (upstream updated version)
+        let config = final_fs.get_file("config.yaml").unwrap();
+        assert_eq!(
+            String::from_utf8(config.content.clone()).unwrap(),
+            "new: value"
+        );
+
+        // local_only.txt: preserved (not in composite)
+        assert!(final_fs.exists("local_only.txt"));
+
+        // package.json: local base with fragment merged in
+        let pkg = final_fs.get_file("package.json").unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(&String::from_utf8(pkg.content.clone()).unwrap()).unwrap();
+        assert_eq!(json["name"], "my-app");
+        assert_eq!(json["version"], "1.0.0");
+        assert_eq!(json["scripts"]["test"], "jest");
+    }
+
+    #[test]
     fn test_partition_multiple_self_operations() {
         let config = vec![
             Operation::Self_ {
