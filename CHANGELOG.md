@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.31.0](https://github.com/common-repo/common-repo/compare/v0.30.0...v0.31.0) (2026-03-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **config:** YAML configs using `append: true/false` on yaml/json/toml merge operations must migrate to `array_mode: append` or `array_mode: replace`.
+
+### Features
+
+* **spec:** add CompositePrecedence invariant and MergeLocalFiles rule ([13cc685](https://github.com/common-repo/common-repo/commit/13cc6857584761ef6d0d6387948358e695e87ce1)), closes [#265](https://github.com/common-repo/common-repo/issues/265)
+
+
+### Bug Fixes
+
+* **local_merge:** composite wins, deferred merges, enforce operation ordering ([d826c0d](https://github.com/common-repo/common-repo/commit/d826c0d57a9af2c47d2843fc5eba360fa75599da))
+
+
+### Code Refactoring
+
+* **config:** remove deprecated append field from yaml/json/toml merge ops ([1b0759f](https://github.com/common-repo/common-repo/commit/1b0759f74956f5f3688d6b88f86c288db4925db0))
+
 ## [0.30.0](https://github.com/common-repo/common-repo/compare/v0.29.0...v0.30.0) (2026-03-24)
 
 
