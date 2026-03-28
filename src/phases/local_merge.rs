@@ -599,4 +599,107 @@ mod tests {
         assert!(!final_fs.exists("old_name.txt"));
         assert!(final_fs.exists("new_name.txt"));
     }
+
+    #[test]
+    fn test_phase5_deferred_merge_ordering_multiple_upstreams() {
+        use crate::config::{JsonMergeOp, Operation};
+
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Consumer has the destination file locally
+        std::fs::write(working_dir.join("config.json"), r#"{"base": true}"#).unwrap();
+
+        // Composite has two fragments from two different upstreams
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string(
+                "fragment-a.json",
+                r#"{"from_a": true, "shared": "a-value"}"#,
+            )
+            .unwrap();
+        composite_fs
+            .add_file_string(
+                "fragment-b.json",
+                r#"{"from_b": true, "shared": "b-value"}"#,
+            )
+            .unwrap();
+
+        let local_config = vec![];
+
+        // Deferred ops in order: repo A first, then repo B
+        let deferred_ops = vec![
+            Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment-a.json".to_string()),
+                    dest: Some("config.json".to_string()),
+                    ..Default::default()
+                },
+            },
+            Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment-b.json".to_string()),
+                    dest: Some("config.json".to_string()),
+                    ..Default::default()
+                },
+            },
+        ];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &deferred_ops).unwrap();
+
+        let file = final_fs.get_file("config.json").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+        // Base preserved
+        assert_eq!(json["base"], true);
+        // Both fragments merged
+        assert_eq!(json["from_a"], true);
+        assert_eq!(json["from_b"], true);
+        // Repo B wins for shared key (applied second)
+        assert_eq!(json["shared"], "b-value");
+    }
+
+    #[test]
+    fn test_phase5_deferred_merge_source_overwrites_conflicting_keys() {
+        use crate::config::{JsonMergeOp, Operation};
+
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Consumer has a config with existing keys
+        std::fs::write(
+            working_dir.join("settings.json"),
+            r#"{"timeout": 30, "retries": 3, "local_only": true}"#,
+        )
+        .unwrap();
+
+        // Upstream fragment overrides some keys
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("settings-override.json", r#"{"timeout": 60, "retries": 5}"#)
+            .unwrap();
+
+        let local_config = vec![];
+
+        let deferred_ops = vec![Operation::Json {
+            json: JsonMergeOp {
+                source: Some("settings-override.json".to_string()),
+                dest: Some("settings.json".to_string()),
+                ..Default::default()
+            },
+        }];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &deferred_ops).unwrap();
+
+        let file = final_fs.get_file("settings.json").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+        // Source wins for conflicting keys (SourceAlwaysWins invariant)
+        assert_eq!(json["timeout"], 60);
+        assert_eq!(json["retries"], 5);
+        // Destination-only keys preserved
+        assert_eq!(json["local_only"], true);
+    }
 }
