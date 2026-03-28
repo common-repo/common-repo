@@ -44,7 +44,7 @@ use crate::filesystem::MemoryFS;
 pub fn execute(
     order: &OperationOrder,
     intermediate_fss: &HashMap<String, IntermediateFS>,
-) -> Result<MemoryFS> {
+) -> Result<(MemoryFS, Vec<Operation>)> {
     // First, collect all template variables from all intermediate filesystems in operation order
     let mut all_template_vars = HashMap::new();
     for repo_key in &order.order {
@@ -67,15 +67,17 @@ pub fn execute(
     // Merge processed filesystems in the operation order
     // Later filesystems in the order take precedence (last-write-wins)
     let mut composite_fs = MemoryFS::new();
+    let mut deferred_ops = Vec::new();
+
     for repo_key in &order.order {
         if let Some(processed_fs) = processed_fss.get(repo_key) {
             merge_filesystem(&mut composite_fs, processed_fs)?;
 
-            // Execute merge operations for this repository after its filesystem is merged
+            // Collect merge operations instead of executing them inline.
+            // These will be executed later during Phase 5, after local files
+            // are available as merge destinations.
             if let Some(intermediate_fs) = intermediate_fss.get(repo_key) {
-                for merge_op in &intermediate_fs.merge_operations {
-                    execute_merge_operation(&mut composite_fs, merge_op)?;
-                }
+                deferred_ops.extend(intermediate_fs.merge_operations.clone());
             }
         } else {
             // This shouldn't happen if Phase 2 and Phase 3 are implemented correctly
@@ -88,7 +90,7 @@ pub fn execute(
         }
     }
 
-    Ok(composite_fs)
+    Ok((composite_fs, deferred_ops))
 }
 
 /// Merge a source filesystem into a target filesystem
@@ -107,7 +109,11 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 ///
 /// This function dispatches to the appropriate merge operation handler
 /// based on the operation type (YAML, JSON, TOML, INI, or Markdown).
-fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
+///
+/// Made `pub(crate)` so Phase 5 can execute deferred merge operations
+/// after local files are available.
+#[allow(dead_code)] // Used by Phase 5 (local_merge) — remove after Task 3
+pub(crate) fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
     match operation {
         Operation::Yaml { yaml } => crate::merge::yaml::apply_yaml_merge_operation(fs, yaml),
         Operation::Json { json } => crate::merge::json::apply_json_merge_operation(fs, json),
@@ -164,7 +170,7 @@ mod tests {
             "https://github.com/repo-b.git@main".to_string(),
         ]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, _deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
         assert_eq!(composite.len(), 2);
         assert!(composite.exists("file1.txt"));
@@ -202,7 +208,7 @@ mod tests {
             "https://github.com/repo-b.git@main".to_string(),
         ]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, _deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
         // Last filesystem should win
         assert_eq!(composite.len(), 1);
@@ -252,7 +258,7 @@ mod tests {
             "https://github.com/repo-c.git@main".to_string(),
         ]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, _deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
         assert_eq!(composite.len(), 3);
         assert!(composite.exists("file1.txt"));
@@ -325,7 +331,7 @@ mod tests {
             "https://github.com/repo-b.git@main".to_string(),
         ]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, _deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
         // Template should be processed with merged variables (later repos override)
         assert!(composite.exists("template.txt"));
@@ -391,7 +397,7 @@ mod tests {
             "https://github.com/repo-b.git@main".to_string(),
         ]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, _deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
         // Both templates should be processed
         let greeting_file = composite.get_file("greeting.txt").unwrap();
@@ -444,17 +450,19 @@ mod tests {
 
         let order = OperationOrder::new(vec!["https://github.com/repo-a.git@main".to_string()]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
-        // Verify that the merge operation was executed
+        // Merge ops should be collected, not executed
+        assert_eq!(deferred_ops.len(), 1);
+        assert!(matches!(deferred_ops[0], Operation::Json { .. }));
+
+        // package.json should still have original content (not merged)
         assert!(composite.exists("package.json"));
         let package_file = composite.get_file("package.json").unwrap();
         let content = String::from_utf8(package_file.content.clone()).unwrap();
-
-        // Parse the JSON to verify the merge
         let json: serde_json::Value = serde_json::from_str(&content).unwrap();
         assert_eq!(json["name"], "test-package");
-        assert_eq!(json["newKey"], "newValue");
+        assert!(json.get("newKey").is_none());
     }
 
     #[test]
@@ -510,21 +518,21 @@ port = 8080
 
         let order = OperationOrder::new(vec!["https://github.com/repo-a.git@main".to_string()]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
-        // Verify that the merge operation was executed
+        // Merge ops should be collected, not executed
+        assert_eq!(deferred_ops.len(), 1);
+        assert!(matches!(deferred_ops[0], Operation::Ini { .. }));
+
+        // config.ini should still have original content (not merged with fragment)
         assert!(composite.exists("config.ini"));
         let config_file = composite.get_file("config.ini").unwrap();
         let content = String::from_utf8(config_file.content.clone()).unwrap();
-
-        // Verify INI content has both sections
         assert!(content.contains("[database]"));
-        assert!(content.contains("host=localhost"));
-        assert!(content.contains("port=5432"));
-        assert!(content.contains("pool_size=10"));
-        assert!(content.contains("timeout=30"));
-        assert!(content.contains("[server]"));
-        assert!(content.contains("port=8080"));
+        assert!(content.contains("host = localhost"));
+        // Fragment values should NOT be merged yet
+        assert!(!content.contains("pool_size"));
+        assert!(!content.contains("timeout"));
     }
 
     // ========================================================================
@@ -829,6 +837,53 @@ port = 8080
     }
 
     #[test]
+    fn test_phase4_collects_deferred_merge_ops_without_executing() {
+        use crate::config::{JsonMergeOp, Operation};
+
+        let mut fs1 = MemoryFS::new();
+        fs1.add_file_string("fragment.json", r#"{"newKey": "newValue"}"#)
+            .unwrap();
+        fs1.add_file_string("package.json", r#"{"name": "test-package"}"#)
+            .unwrap();
+
+        let json_merge_op = JsonMergeOp {
+            source: Some("fragment.json".to_string()),
+            dest: Some("package.json".to_string()),
+            ..Default::default()
+        };
+        let merge_operations = vec![Operation::Json {
+            json: json_merge_op,
+        }];
+
+        let mut intermediate_fss = HashMap::new();
+        intermediate_fss.insert(
+            "https://github.com/repo-a.git@main".to_string(),
+            IntermediateFS::new_with_vars_and_merges(
+                fs1,
+                "https://github.com/repo-a.git".to_string(),
+                "main".to_string(),
+                HashMap::new(),
+                merge_operations,
+            ),
+        );
+
+        let order = OperationOrder::new(vec!["https://github.com/repo-a.git@main".to_string()]);
+
+        let (composite, deferred_ops) = execute(&order, &intermediate_fss).unwrap();
+
+        // Deferred ops should be collected, not executed
+        assert_eq!(deferred_ops.len(), 1);
+        assert!(matches!(deferred_ops[0], Operation::Json { .. }));
+
+        // package.json should NOT have been merged (still original content)
+        let package_file = composite.get_file("package.json").unwrap();
+        let content = String::from_utf8(package_file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(json["name"], "test-package");
+        assert!(json.get("newKey").is_none()); // NOT merged
+    }
+
+    #[test]
     fn test_phase4_source_template_vars_overridden_by_consumer() {
         // Simulates: upstream repo declares template + template-vars defaults,
         // consumer overrides some vars via with: clause
@@ -889,7 +944,7 @@ port = 8080
             "local@local".to_string(),
         ]);
 
-        let composite = execute(&order, &intermediate_fss).unwrap();
+        let (composite, _deferred_ops) = execute(&order, &intermediate_fss).unwrap();
 
         let file = composite.get_file("workflow.yaml").unwrap();
         let content = String::from_utf8(file.content.clone()).unwrap();
