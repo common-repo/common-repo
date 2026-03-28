@@ -50,10 +50,10 @@ fn execute_source_pipeline(
     let operation_order = phase3::execute(&repo_tree)?;
 
     // Phase 4: Composite Filesystem Construction
-    let (composite_fs, _deferred_ops) = phase4::execute(&operation_order, &intermediate_fss)?;
+    let (composite_fs, deferred_ops) = phase4::execute(&operation_order, &intermediate_fss)?;
 
-    // Phase 5: Local File Merging
-    let final_fs = phase5::execute(&composite_fs, config, working_dir)?;
+    // Phase 5: Local File Merging (receives deferred ops)
+    let final_fs = phase5::execute(&composite_fs, config, working_dir, &deferred_ops)?;
 
     // Phase 6: Write to Disk (if output path provided)
     if let Some(output) = output_path {

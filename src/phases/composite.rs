@@ -112,7 +112,6 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 ///
 /// Made `pub(crate)` so Phase 5 can execute deferred merge operations
 /// after local files are available.
-#[allow(dead_code)] // Used by Phase 5 (local_merge) — remove after Task 3
 pub(crate) fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
     match operation {
         Operation::Yaml { yaml } => crate::merge::yaml::apply_yaml_merge_operation(fs, yaml),

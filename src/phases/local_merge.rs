@@ -2,25 +2,28 @@
 //!
 //! This is the fifth phase of the `common-repo` execution pipeline. Its purpose
 //! is to merge the composite filesystem (created in Phase 4) with the files
-//! from the local project directory. It also handles any operations that are
-//! defined in the root `.common-repo.yaml` that are intended to be applied
-//! locally.
+//! from the local project directory. It also handles deferred merge operations
+//! and consumer-level operations from the root `.common-repo.yaml`.
 //!
 //! ## Process
 //!
-//! 1.  **Load Local Files**: The process begins by loading all the files from the
-//!     current working directory into a new `MemoryFS`. Certain files, like
-//!     those in the `.git` directory or the `.common-repo.yaml` file itself,
-//!     are automatically ignored.
+//! 1.  **Load Local Files**: Load all files from the working directory into a
+//!     `MemoryFS`, skipping `.git`, build artifacts, and config files.
 //!
-//! 2.  **Apply Local Operations**: Any operations defined in the root configuration
-//!     that are intended for local application (such as `template` and `merge`
-//!     operations) are applied to the local `MemoryFS`. This allows for local
-//!     files to be processed as templates or merged with other files.
+//! 2.  **Apply Local Template Operations**: Process template marking and variable
+//!     substitution on local files before combining.
 //!
-//! 3.  **Merge with Composite**: The processed local filesystem is then merged
-//!     on top of the composite filesystem. This ensures that local files always
-//!     take precedence, overwriting any inherited files with the same name.
+//! 3.  **Overlay Composite**: Composite files overwrite local files for shared
+//!     paths. Local-only files are preserved.
+//!
+//! 4.  **Execute Deferred Merges**: Merge operations deferred from Phase 4 run
+//!     against the combined filesystem, so fragments can target local files.
+//!
+//! 5.  **Consumer Merges**: Merge operations from the consumer config execute
+//!     next, combining local and inherited content.
+//!
+//! 6.  **Consumer Filters**: Filter operations (exclude, include, rename) run
+//!     last, after merges have consumed their source files.
 //!
 //! This phase produces the final, fully merged `MemoryFS`, which is an exact
 //! representation of what the output directory should look like.
@@ -35,26 +38,33 @@ use crate::filesystem::{File, MemoryFS};
 
 /// Executes Phase 5 of the pipeline.
 ///
-/// This function orchestrates the merging of the composite filesystem with
-/// the local files. It loads the local files, applies any local operations
-/// to them, and then merges the result into the composite filesystem.
+/// Combines local files with the composite filesystem (composite wins for
+/// shared paths), executes deferred merge operations, then runs consumer
+/// merges followed by consumer filters.
 pub fn execute(
     composite_fs: &MemoryFS,
     local_config: &Schema,
     working_dir: &Path,
+    deferred_ops: &[Operation],
 ) -> Result<MemoryFS> {
-    // Start with a copy of the composite filesystem
-    let mut final_fs = composite_fs.clone();
-
-    // Load local files and apply local operations to them
+    // Load local files and apply local template operations
     let mut local_fs = load_local_fs(working_dir)?;
     apply_local_operations_to_local_fs(&mut local_fs, local_config)?;
 
-    // Merge local files into final filesystem
-    merge_local_files(&mut final_fs, &local_fs)?;
+    // Combine: start with local, overlay composite on top (composite wins)
+    let mut final_fs = local_fs;
+    merge_composite_over_local(&mut final_fs, composite_fs)?;
 
-    // Apply any merge operations defined in the local configuration to the final filesystem
-    apply_local_operations(&mut final_fs, local_config)?;
+    // Execute deferred merge operations against the combined filesystem
+    for op in deferred_ops {
+        super::composite::execute_merge_operation(&mut final_fs, op)?;
+    }
+
+    // Consumer merge operations first
+    apply_consumer_merges(&mut final_fs, local_config)?;
+
+    // Consumer filter operations second (exclude, include, rename)
+    apply_consumer_filters(&mut final_fs, local_config)?;
 
     Ok(final_fs)
 }
@@ -147,10 +157,9 @@ fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
     Ok(local_fs)
 }
 
-/// Merge local files into the final filesystem
-fn merge_local_files(final_fs: &mut MemoryFS, local_fs: &MemoryFS) -> Result<()> {
-    for (path, file) in local_fs.files() {
-        // Local files override inherited files
+/// Merge composite files over local files (composite wins for shared paths)
+fn merge_composite_over_local(final_fs: &mut MemoryFS, composite_fs: &MemoryFS) -> Result<()> {
+    for (path, file) in composite_fs.files() {
         final_fs.add_file(path, file.clone())?;
     }
     Ok(())
@@ -190,31 +199,13 @@ fn apply_local_operations_to_local_fs(
     Ok(())
 }
 
-/// Apply local operations from the configuration
+/// Apply consumer merge operations from the local configuration
 ///
-/// These are operations that apply to the final merged filesystem.
-/// Operations are applied in declaration order as they appear in the
-/// configuration file.
-fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
-    use crate::operators;
-
+/// Merge operations (yaml, json, toml, ini, markdown) run before filter
+/// operations so that merge sources are available before filters can remove them.
+fn apply_consumer_merges(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
     for operation in local_config {
         match operation {
-            // Filtering operations: applied to final_fs to control which files
-            // appear in the output. This fixes #226 where consumer-level
-            // exclude/include/rename operations were silently ignored.
-            Operation::Exclude { exclude } => {
-                operators::exclude::apply(exclude, final_fs)?;
-            }
-            Operation::Include { include } => {
-                let mut filtered_fs = MemoryFS::new();
-                operators::include::apply(include, final_fs, &mut filtered_fs)?;
-                *final_fs = filtered_fs;
-            }
-            Operation::Rename { rename } => {
-                operators::rename::apply(rename, final_fs)?;
-            }
-            // Merge operations: combine local and inherited content
             Operation::Yaml { yaml } => {
                 crate::merge::yaml::apply_yaml_merge_operation(final_fs, yaml)?;
             }
@@ -230,8 +221,32 @@ fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Res
             Operation::Markdown { markdown } => {
                 crate::merge::markdown::apply_markdown_merge_operation(final_fs, markdown)?;
             }
-            // Template and template_vars are handled in apply_local_operations_to_local_fs.
-            // Repo operations are resolved in Phase 1. Tools are validated separately.
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// Apply consumer filter operations from the local configuration
+///
+/// Filter operations (exclude, include, rename) run after merge operations
+/// so that merge sources are still present when merges execute.
+fn apply_consumer_filters(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
+    use crate::operators;
+
+    for operation in local_config {
+        match operation {
+            Operation::Exclude { exclude } => {
+                operators::exclude::apply(exclude, final_fs)?;
+            }
+            Operation::Include { include } => {
+                let mut filtered_fs = MemoryFS::new();
+                operators::include::apply(include, final_fs, &mut filtered_fs)?;
+                *final_fs = filtered_fs;
+            }
+            Operation::Rename { rename } => {
+                operators::rename::apply(rename, final_fs)?;
+            }
             _ => {}
         }
     }
@@ -241,67 +256,205 @@ fn apply_local_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ExcludeOp, IncludeOp, RenameMapping, RenameOp};
+    use crate::config::{ExcludeOp, IncludeOp, JsonMergeOp, RenameMapping, RenameOp};
     use tempfile::TempDir;
 
     #[test]
     fn test_phase5_execute_merge_local_files() {
-        // Test merging composite filesystem with local files
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
-        // Create local files
         std::fs::create_dir_all(working_dir.join("subdir")).unwrap();
         std::fs::write(working_dir.join("local.txt"), b"local content").unwrap();
         std::fs::write(working_dir.join("subdir/nested.txt"), b"nested content").unwrap();
 
-        // Create composite filesystem
         let mut composite_fs = MemoryFS::new();
         composite_fs
             .add_file_string("composite.txt", "composite content")
             .unwrap();
 
-        // Create local config (empty for this test)
         let local_config = vec![];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
-        // Should contain both composite and local files
         assert!(final_fs.exists("composite.txt"));
         assert!(final_fs.exists("local.txt"));
         assert!(final_fs.exists("subdir/nested.txt"));
     }
 
     #[test]
-    fn test_phase5_execute_local_files_override_composite() {
-        // Test that local files override composite files (last-write-wins)
+    fn test_phase5_composite_wins_for_shared_paths() {
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
-        // Create local file with same name as composite
         std::fs::write(working_dir.join("common.txt"), b"local version").unwrap();
 
-        // Create composite filesystem with same file
         let mut composite_fs = MemoryFS::new();
         composite_fs
             .add_file_string("common.txt", "composite version")
             .unwrap();
 
         let local_config = vec![];
+        let deferred_ops = vec![];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &deferred_ops).unwrap();
 
-        // Local file should override composite
         let file = final_fs.get_file("common.txt").unwrap();
         assert_eq!(
             String::from_utf8(file.content.clone()).unwrap(),
-            "local version"
+            "composite version"
         );
     }
 
     #[test]
+    fn test_phase5_local_only_files_preserved() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join("local_only.txt"), b"my local file").unwrap();
+
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("upstream.txt", "upstream content")
+            .unwrap();
+
+        let local_config = vec![];
+        let deferred_ops = vec![];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &deferred_ops).unwrap();
+
+        assert!(final_fs.exists("upstream.txt"));
+        assert!(final_fs.exists("local_only.txt"));
+        let local_file = final_fs.get_file("local_only.txt").unwrap();
+        assert_eq!(
+            String::from_utf8(local_file.content.clone()).unwrap(),
+            "my local file"
+        );
+    }
+
+    #[test]
+    fn test_phase5_deferred_merges_execute_after_combination() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(
+            working_dir.join("package.json"),
+            r#"{"name": "my-app", "version": "1.0.0"}"#,
+        )
+        .unwrap();
+
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string("fragment.json", r#"{"scripts": {"test": "jest"}}"#)
+            .unwrap();
+
+        let local_config = vec![];
+
+        let deferred_ops = vec![Operation::Json {
+            json: JsonMergeOp {
+                source: Some("fragment.json".to_string()),
+                dest: Some("package.json".to_string()),
+                ..Default::default()
+            },
+        }];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &deferred_ops).unwrap();
+
+        let package_file = final_fs.get_file("package.json").unwrap();
+        let content = String::from_utf8(package_file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+        assert_eq!(json["name"], "my-app");
+        assert_eq!(json["version"], "1.0.0");
+        assert_eq!(json["scripts"]["test"], "jest");
+    }
+
+    #[test]
+    fn test_phase5_deferred_merge_into_shared_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(
+            working_dir.join("ci-config.json"),
+            r#"{"runner": "old-runner", "timeout": 30}"#,
+        )
+        .unwrap();
+
+        let mut composite_fs = MemoryFS::new();
+        composite_fs
+            .add_file_string(
+                "ci-config.json",
+                r#"{"runner": "new-runner", "timeout": 60}"#,
+            )
+            .unwrap();
+        composite_fs
+            .add_file_string("ci-fragment.json", r#"{"lint": true}"#)
+            .unwrap();
+
+        let local_config = vec![];
+
+        let deferred_ops = vec![Operation::Json {
+            json: JsonMergeOp {
+                source: Some("ci-fragment.json".to_string()),
+                dest: Some("ci-config.json".to_string()),
+                ..Default::default()
+            },
+        }];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &deferred_ops).unwrap();
+
+        let file = final_fs.get_file("ci-config.json").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+        // Composite version wins (new-runner, 60)
+        assert_eq!(json["runner"], "new-runner");
+        assert_eq!(json["timeout"], 60);
+        // Fragment merged in
+        assert_eq!(json["lint"], true);
+    }
+
+    #[test]
+    fn test_phase5_consumer_merges_before_filters() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join("output.json"), r#"{"base": true}"#).unwrap();
+        std::fs::write(working_dir.join("fragment.json"), r#"{"added": true}"#).unwrap();
+
+        let composite_fs = MemoryFS::new();
+
+        // Config has an exclude BEFORE a merge in declaration order.
+        // Per spec, merges should still run first regardless of declaration order.
+        let local_config = vec![
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["fragment.json".to_string()],
+                },
+            },
+            Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment.json".to_string()),
+                    dest: Some("output.json".to_string()),
+                    ..Default::default()
+                },
+            },
+        ];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
+
+        let file = final_fs.get_file("output.json").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(json["base"], true);
+        assert_eq!(json["added"], true);
+
+        // Fragment should be excluded after merge
+        assert!(!final_fs.exists("fragment.json"));
+    }
+
+    #[test]
     fn test_phase5_execute_skips_hidden_files() {
-        // Test that hidden files and .git directory are skipped
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
@@ -314,9 +467,8 @@ mod tests {
         let composite_fs = MemoryFS::new();
         let local_config = vec![];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
-        // Should only contain visible.txt
         assert!(final_fs.exists("visible.txt"));
         assert!(!final_fs.exists(".hidden"));
         assert!(!final_fs.exists(".common-repo.yaml"));
@@ -325,7 +477,6 @@ mod tests {
 
     #[test]
     fn test_phase5_execute_empty_composite() {
-        // Test with empty composite filesystem
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
@@ -334,7 +485,7 @@ mod tests {
         let composite_fs = MemoryFS::new();
         let local_config = vec![];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
         assert_eq!(final_fs.len(), 1);
         assert!(final_fs.exists("local.txt"));
@@ -345,24 +496,21 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
-        // Create local files
         std::fs::write(working_dir.join("keep.txt"), b"keep").unwrap();
         std::fs::write(working_dir.join("remove.txt"), b"remove").unwrap();
 
-        // Composite has inherited files
         let mut composite_fs = MemoryFS::new();
         composite_fs
             .add_file_string("inherited.txt", "inherited")
             .unwrap();
 
-        // Consumer config excludes "remove.txt"
         let local_config = vec![Operation::Exclude {
             exclude: ExcludeOp {
                 patterns: vec!["remove.txt".to_string()],
             },
         }];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
         assert!(final_fs.exists("keep.txt"));
         assert!(final_fs.exists("inherited.txt"));
@@ -383,14 +531,13 @@ mod tests {
             .add_file_string("inherited.txt", "data")
             .unwrap();
 
-        // Exclude cmd/** glob
         let local_config = vec![Operation::Exclude {
             exclude: ExcludeOp {
                 patterns: vec!["cmd/**".to_string()],
             },
         }];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
         assert!(final_fs.exists("main.go"));
         assert!(final_fs.exists("inherited.txt"));
@@ -410,14 +557,13 @@ mod tests {
             .add_file_string("inherited.txt", "data")
             .unwrap();
 
-        // Include only *.txt files
         let local_config = vec![Operation::Include {
             include: IncludeOp {
                 patterns: vec!["*.txt".to_string()],
             },
         }];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
         assert!(final_fs.exists("wanted.txt"));
         assert!(final_fs.exists("inherited.txt"));
@@ -443,7 +589,7 @@ mod tests {
             },
         }];
 
-        let final_fs = execute(&composite_fs, &local_config, working_dir).unwrap();
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
         assert!(!final_fs.exists("old_name.txt"));
         assert!(final_fs.exists("new_name.txt"));
