@@ -205,7 +205,7 @@ items = ["old1", "old2"]
     source: source.toml
     dest: dest.toml
     path: ""
-    append: true
+    array_mode: append
 "#,
         )
         .unwrap();
@@ -322,7 +322,7 @@ items = ["old1"]
     source: source.toml
     dest: dest.toml
     path: ""
-    append: true
+    array_mode: append
 "#,
         )
         .unwrap();

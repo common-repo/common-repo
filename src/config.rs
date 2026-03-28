@@ -172,17 +172,6 @@ pub enum InsertPosition {
     End,
 }
 
-impl ArrayMergeMode {
-    /// Convert from legacy append boolean to ArrayMergeMode
-    pub fn from_append_bool(append: bool) -> Self {
-        if append {
-            ArrayMergeMode::Append
-        } else {
-            ArrayMergeMode::Replace
-        }
-    }
-}
-
 /// YAML merge operator configuration
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct YamlMergeOp {
@@ -195,11 +184,9 @@ pub struct YamlMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
-    #[serde(default)]
-    pub append: bool,
+    /// Array merge mode: replace, append, or append_unique
     #[serde(default, rename = "array_mode")]
-    pub array_mode: Option<ArrayMergeMode>,
+    pub array_mode: ArrayMergeMode,
     /// Position for array insertion (start or end)
     #[serde(default)]
     pub position: InsertPosition,
@@ -212,12 +199,6 @@ pub struct YamlMergeOp {
 }
 
 impl YamlMergeOp {
-    /// Get the effective array merge mode, considering both array_mode and append fields
-    pub fn get_array_mode(&self) -> ArrayMergeMode {
-        self.array_mode
-            .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
-    }
-
     /// Validate the merge operation configuration
     pub fn validate(&self) -> Result<()> {
         // If auto_merge is set, source/dest must not be set
@@ -297,7 +278,7 @@ impl YamlMergeOp {
 
     /// Set the array merge mode
     pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
-        self.array_mode = Some(mode);
+        self.array_mode = mode;
         self
     }
 
@@ -332,11 +313,9 @@ pub struct JsonMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
-    #[serde(default)]
-    pub append: bool,
+    /// Array merge mode: replace, append, or append_unique
     #[serde(default, rename = "array_mode")]
-    pub array_mode: Option<ArrayMergeMode>,
+    pub array_mode: ArrayMergeMode,
     /// Position for array insertion (start or end)
     #[serde(default)]
     pub position: InsertPosition,
@@ -360,14 +339,12 @@ pub struct TomlMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Whether to append (true) or replace (false) - deprecated, use array_mode instead
-    #[serde(default)]
-    pub append: bool,
     /// Whether to preserve comments
     #[serde(default, rename = "preserve-comments")]
     pub preserve_comments: bool,
+    /// Array merge mode: replace, append, or append_unique
     #[serde(default, rename = "array_mode")]
-    pub array_mode: Option<ArrayMergeMode>,
+    pub array_mode: ArrayMergeMode,
     /// Position for array insertion (start or end)
     #[serde(default)]
     pub position: InsertPosition,
@@ -380,12 +357,6 @@ pub struct TomlMergeOp {
 }
 
 impl TomlMergeOp {
-    /// Get the effective array merge mode, considering both array_mode and append fields
-    pub fn get_array_mode(&self) -> ArrayMergeMode {
-        self.array_mode
-            .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
-    }
-
     /// Validate the merge operation configuration
     pub fn validate(&self) -> Result<()> {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
@@ -464,7 +435,7 @@ impl TomlMergeOp {
 
     /// Set the array merge mode
     pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
-        self.array_mode = Some(mode);
+        self.array_mode = mode;
         self
     }
 
@@ -494,12 +465,6 @@ impl TomlMergeOp {
 }
 
 impl JsonMergeOp {
-    /// Get the effective array merge mode, considering both array_mode and append fields
-    pub fn get_array_mode(&self) -> ArrayMergeMode {
-        self.array_mode
-            .unwrap_or_else(|| ArrayMergeMode::from_append_bool(self.append))
-    }
-
     /// Validate the merge operation configuration
     pub fn validate(&self) -> Result<()> {
         if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
@@ -584,13 +549,7 @@ impl JsonMergeOp {
 
     /// Set the array merge mode
     pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
-        self.array_mode = Some(mode);
-        self
-    }
-
-    /// Set whether to append (true) or replace (false)
-    pub fn append(mut self, append: bool) -> Self {
-        self.append = append;
+        self.array_mode = mode;
         self
     }
 
@@ -1425,17 +1384,15 @@ mod tests {
     source: "config.yaml"
     dest: "merged.yaml"
     path: "$.config"
-    append: true
+    array_mode: append
 - json:
     source: "data.json"
     dest: "config.json"
     path: "$.data"
-    append: false
 - toml:
     source: "settings.toml"
     dest: "config.toml"
     path: "package"
-    append: false
 - ini:
     source: "config.ini"
     dest: "merged.ini"
@@ -1669,7 +1626,7 @@ mod tests {
     source: fragment.yml
     dest: config.yml
     path: metadata.labels
-    append: true
+    array_mode: append
 "#;
         let schema = parse(yaml_yaml).expect("Failed to parse yaml merge example from schema.yaml");
         assert_eq!(schema.len(), 1);
@@ -1678,7 +1635,7 @@ mod tests {
                 assert_eq!(yaml.source.as_deref(), Some("fragment.yml"));
                 assert_eq!(yaml.dest.as_deref(), Some("config.yml"));
                 assert_eq!(yaml.path.as_deref(), Some("metadata.labels"));
-                assert!(yaml.append);
+                assert_eq!(yaml.array_mode, ArrayMergeMode::Append);
             }
             _ => panic!("Expected Yaml operation"),
         }
@@ -1689,7 +1646,7 @@ mod tests {
     source: fragment.json
     dest: package.json
     path: dependencies
-    append: true
+    array_mode: append
     position: end
 "#;
         let schema = parse(json_yaml).expect("Failed to parse json merge example from schema.yaml");
@@ -1699,7 +1656,7 @@ mod tests {
                 assert_eq!(json.source.as_deref(), Some("fragment.json"));
                 assert_eq!(json.dest.as_deref(), Some("package.json"));
                 assert_eq!(json.path, Some("dependencies".to_string()));
-                assert!(json.append);
+                assert_eq!(json.array_mode, ArrayMergeMode::Append);
                 assert_eq!(json.position, InsertPosition::End);
             }
             _ => panic!("Expected Json operation"),
@@ -1711,7 +1668,7 @@ mod tests {
     source: fragment.toml
     dest: Cargo.toml
     path: dependencies
-    append: true
+    array_mode: append
     preserve-comments: true
 "#;
         let schema = parse(toml_yaml).expect("Failed to parse toml merge example from schema.yaml");
@@ -1721,7 +1678,7 @@ mod tests {
                 assert_eq!(toml.source.as_deref(), Some("fragment.toml"));
                 assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
                 assert_eq!(toml.path.as_deref(), Some("dependencies"));
-                assert!(toml.append);
+                assert_eq!(toml.array_mode, ArrayMergeMode::Append);
                 assert!(toml.preserve_comments);
             }
             _ => panic!("Expected Toml operation"),
@@ -1996,105 +1953,81 @@ mod tests {
         }
 
         #[test]
-        fn test_array_merge_mode_from_append_bool_true() {
-            let mode = ArrayMergeMode::from_append_bool(true);
-            assert_eq!(mode, ArrayMergeMode::Append);
-        }
-
-        #[test]
-        fn test_array_merge_mode_from_append_bool_false() {
-            let mode = ArrayMergeMode::from_append_bool(false);
-            assert_eq!(mode, ArrayMergeMode::Replace);
-        }
-
-        #[test]
-        fn test_yaml_merge_op_get_array_mode_default() {
-            // When both array_mode and append are default, should return Replace
+        fn test_yaml_merge_op_array_mode_default() {
+            // Default array_mode should be Replace
             let op = YamlMergeOp {
                 source: Some("s.yaml".to_string()),
                 dest: Some("d.yaml".to_string()),
-                path: None,
-                append: false,
-                array_mode: None,
                 ..Default::default()
             };
-            assert_eq!(op.get_array_mode(), ArrayMergeMode::Replace);
+            assert_eq!(op.array_mode, ArrayMergeMode::Replace);
         }
 
         #[test]
-        fn test_yaml_merge_op_get_array_mode_with_append_true() {
-            // Legacy append=true should return Append
+        fn test_yaml_merge_op_array_mode_append() {
             let op = YamlMergeOp {
                 source: Some("s.yaml".to_string()),
                 dest: Some("d.yaml".to_string()),
-                path: None,
-                append: true,
-                array_mode: None,
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
-            assert_eq!(op.get_array_mode(), ArrayMergeMode::Append);
+            assert_eq!(op.array_mode, ArrayMergeMode::Append);
         }
 
         #[test]
-        fn test_yaml_merge_op_get_array_mode_explicit() {
-            // Explicit array_mode should override append
+        fn test_yaml_merge_op_array_mode_append_unique() {
             let op = YamlMergeOp {
                 source: Some("s.yaml".to_string()),
                 dest: Some("d.yaml".to_string()),
-                path: None,
-                append: true, // Would normally be Append
-                array_mode: Some(ArrayMergeMode::AppendUnique), // But explicit overrides
+                array_mode: ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
-            assert_eq!(op.get_array_mode(), ArrayMergeMode::AppendUnique);
+            assert_eq!(op.array_mode, ArrayMergeMode::AppendUnique);
         }
 
         #[test]
-        fn test_toml_merge_op_get_array_mode_default() {
+        fn test_toml_merge_op_array_mode_default() {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
                 dest: Some("d.toml".to_string()),
                 path: Some("section".to_string()),
-                append: false,
                 preserve_comments: false,
-                array_mode: None,
+                array_mode: ArrayMergeMode::Replace,
                 position: InsertPosition::End,
                 defer: None,
                 auto_merge: None,
             };
-            assert_eq!(op.get_array_mode(), ArrayMergeMode::Replace);
+            assert_eq!(op.array_mode, ArrayMergeMode::Replace);
         }
 
         #[test]
-        fn test_toml_merge_op_get_array_mode_with_append() {
+        fn test_toml_merge_op_array_mode_append() {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
                 dest: Some("d.toml".to_string()),
                 path: Some("section".to_string()),
-                append: true,
                 preserve_comments: false,
-                array_mode: None,
+                array_mode: ArrayMergeMode::Append,
                 position: InsertPosition::End,
                 defer: None,
                 auto_merge: None,
             };
-            assert_eq!(op.get_array_mode(), ArrayMergeMode::Append);
+            assert_eq!(op.array_mode, ArrayMergeMode::Append);
         }
 
         #[test]
-        fn test_toml_merge_op_get_array_mode_explicit() {
+        fn test_toml_merge_op_array_mode_append_unique() {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
                 dest: Some("d.toml".to_string()),
                 path: Some("section".to_string()),
-                append: false,
                 preserve_comments: false,
-                array_mode: Some(ArrayMergeMode::AppendUnique),
+                array_mode: ArrayMergeMode::AppendUnique,
                 position: InsertPosition::End,
                 defer: None,
                 auto_merge: None,
             };
-            assert_eq!(op.get_array_mode(), ArrayMergeMode::AppendUnique);
+            assert_eq!(op.array_mode, ArrayMergeMode::AppendUnique);
         }
     }
 
@@ -2121,7 +2054,7 @@ mod tests {
                     assert_eq!(yaml.source.as_deref(), Some("fragment.yaml"));
                     assert_eq!(yaml.dest.as_deref(), Some("config.yaml"));
                     assert_eq!(yaml.path, Some("data.items".to_string()));
-                    assert_eq!(yaml.array_mode, Some(ArrayMergeMode::AppendUnique));
+                    assert_eq!(yaml.array_mode, ArrayMergeMode::AppendUnique);
                 }
                 _ => panic!("Expected Yaml operation"),
             }
@@ -2138,7 +2071,7 @@ mod tests {
             let schema = parse(yaml).expect("Should parse YAML merge");
             match &schema[0] {
                 Operation::Yaml { yaml } => {
-                    assert_eq!(yaml.array_mode, Some(ArrayMergeMode::Replace));
+                    assert_eq!(yaml.array_mode, ArrayMergeMode::Replace);
                 }
                 _ => panic!("Expected Yaml operation"),
             }
@@ -2155,7 +2088,7 @@ mod tests {
             let schema = parse(yaml).expect("Should parse YAML merge");
             match &schema[0] {
                 Operation::Yaml { yaml } => {
-                    assert_eq!(yaml.array_mode, Some(ArrayMergeMode::Append));
+                    assert_eq!(yaml.array_mode, ArrayMergeMode::Append);
                 }
                 _ => panic!("Expected Yaml operation"),
             }
@@ -2174,8 +2107,7 @@ mod tests {
                     assert_eq!(yaml.source.as_deref(), Some("fragment.yaml"));
                     assert_eq!(yaml.dest.as_deref(), Some("config.yaml"));
                     assert_eq!(yaml.path, None);
-                    assert!(!yaml.append);
-                    assert_eq!(yaml.array_mode, None);
+                    assert_eq!(yaml.array_mode, ArrayMergeMode::Replace);
                 }
                 _ => panic!("Expected Yaml operation"),
             }
@@ -2189,7 +2121,7 @@ mod tests {
     dest: package.json
     path: dependencies
     position: start
-    append: true
+    array_mode: append
 "#;
             let schema = parse(yaml).expect("Should parse JSON merge");
             match &schema[0] {
@@ -2198,7 +2130,7 @@ mod tests {
                     assert_eq!(json.dest.as_deref(), Some("package.json"));
                     assert_eq!(json.path, Some("dependencies".to_string()));
                     assert_eq!(json.position, InsertPosition::Start);
-                    assert!(json.append);
+                    assert_eq!(json.array_mode, ArrayMergeMode::Append);
                 }
                 _ => panic!("Expected Json operation"),
             }
@@ -2216,7 +2148,7 @@ mod tests {
                 Operation::Json { json } => {
                     assert_eq!(json.path, None);
                     assert_eq!(json.position, InsertPosition::End);
-                    assert!(!json.append);
+                    assert_eq!(json.array_mode, ArrayMergeMode::Replace);
                 }
                 _ => panic!("Expected Json operation"),
             }
@@ -2239,7 +2171,7 @@ mod tests {
                     assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
                     assert_eq!(toml.path.as_deref(), Some("dependencies"));
                     assert!(toml.preserve_comments);
-                    assert_eq!(toml.array_mode, Some(ArrayMergeMode::Append));
+                    assert_eq!(toml.array_mode, ArrayMergeMode::Append);
                 }
                 _ => panic!("Expected Toml operation"),
             }
@@ -2841,7 +2773,7 @@ mod tests {
             assert_eq!(op.source.as_deref(), Some("fragment.yaml"));
             assert_eq!(op.dest.as_deref(), Some("config.yaml"));
             assert_eq!(op.path.as_deref(), Some("metadata.labels"));
-            assert_eq!(op.array_mode, Some(ArrayMergeMode::AppendUnique));
+            assert_eq!(op.array_mode, ArrayMergeMode::AppendUnique);
             assert_eq!(op.defer, Some(true));
             assert!(op.validate().is_ok());
         }
@@ -2870,7 +2802,7 @@ mod tests {
             assert_eq!(op.source.as_deref(), Some("fragment.json"));
             assert_eq!(op.dest.as_deref(), Some("package.json"));
             assert_eq!(op.path.as_deref(), Some("dependencies"));
-            assert_eq!(op.array_mode, Some(ArrayMergeMode::Append));
+            assert_eq!(op.array_mode, ArrayMergeMode::Append);
             assert_eq!(op.position, InsertPosition::End);
             assert!(op.validate().is_ok());
         }
@@ -2887,7 +2819,7 @@ mod tests {
             assert_eq!(op.source.as_deref(), Some("fragment.toml"));
             assert_eq!(op.dest.as_deref(), Some("Cargo.toml"));
             assert_eq!(op.path.as_deref(), Some("dependencies"));
-            assert_eq!(op.array_mode, Some(ArrayMergeMode::Append));
+            assert_eq!(op.array_mode, ArrayMergeMode::Append);
             assert!(op.preserve_comments);
             assert!(op.validate().is_ok());
         }

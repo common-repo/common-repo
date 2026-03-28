@@ -20,7 +20,7 @@
     source: fragment-scripts-start.json
     dest: destination-scripts.json
     path: scripts
-    append: true
+    array_mode: append
     position: start
 
 # Test 4: Append to array at end
@@ -28,7 +28,7 @@
     source: fragment-scripts-end.json
     dest: destination-scripts.json
     path: scripts
-    append: true
+    array_mode: append
     position: end
 
 # Test 5: Replace nested object

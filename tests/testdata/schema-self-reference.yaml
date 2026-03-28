@@ -56,14 +56,14 @@
     source: fragment.yml
     dest: config.yml
     path: metadata.labels
-    append: true
+    array_mode: append
 
 # json: Merge JSON fragments
 - json:
     source: fragment.json
     dest: package.json
     path: dependencies
-    append: true
+    array_mode: append
     position: end
 
 # toml: Merge TOML fragments
@@ -71,7 +71,7 @@
     source: fragment.toml
     dest: Cargo.toml
     path: dependencies
-    append: true
+    array_mode: append
     preserve-comments: true
 
 # ini: Merge INI fragments
