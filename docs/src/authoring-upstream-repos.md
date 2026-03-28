@@ -93,7 +93,7 @@ Without `self:`, this repo would need a separate mechanism to pull its own tooli
 - Any operator can appear inside `self:` (repo, include, exclude, rename, merge operators, etc.)
 - Multiple `self:` blocks are allowed; each runs as an independent pipeline
 - `self:` blocks cannot be nested
-- The source pipeline runs first, then each `self:` block runs afterward — so self-consumed files can overwrite source pipeline files on disk when needed
+- The source pipeline runs first, then each `self:` block runs afterward as an independent pipeline invocation
 
 See the [Configuration Reference](configuration.md#self---local-only-operations) for the full operator specification.
 
@@ -255,7 +255,7 @@ Consumers can always override upstream-declared behavior using the `with:` claus
       # This replaces the upstream-declared merge with a simple copy
 ```
 
-When a consumer specifies operations for the same destination file, the consumer's operations take precedence.
+When a consumer specifies merge operations for the same destination file, the consumer's merge operations run after deferred (upstream-declared) merge operations, so consumer parameters take effect last.
 
 ### Supported Merge Operators
 

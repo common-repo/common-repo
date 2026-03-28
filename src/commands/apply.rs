@@ -15,9 +15,9 @@
 //! 3.  **Determining Operation Order**: Calculates a deterministic merge order to
 //!     ensure consistent results.
 //! 4.  **Composite Filesystem Construction**: Merges all intermediate filesystems
-//!     into a single composite view.
-//! 5.  **Local File Merging**: Merges the composite filesystem with any local files,
-//!     with local files taking precedence.
+//!     into a single composite view, collecting deferred merge operations.
+//! 5.  **Local File Merging**: Combines the composite filesystem with local files
+//!     (composite wins for shared paths), then executes deferred and consumer merges.
 //! 6.  **Writing to Disk**: Writes the final, merged filesystem to the target
 //!     output directory.
 //!

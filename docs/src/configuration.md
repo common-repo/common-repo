@@ -692,7 +692,7 @@ Operations execute in the order they appear in the configuration file. For inher
 
 This means later operations can override earlier ones, and child repos can customize what they inherit from ancestors.
 
-`self:` blocks execute after the source pipeline completes. Each `self:` block runs as an independent pipeline invocation. This means self-consumed files can overwrite source pipeline files on disk, which is the intended behavior — local tooling should take precedence.
+`self:` blocks execute after the source pipeline completes. Each `self:` block runs as an independent pipeline invocation with its own composite filesystem. Like the source pipeline, composite (upstream-derived) files take precedence over local files for shared paths.
 
 ### Example Order
 

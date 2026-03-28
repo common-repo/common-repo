@@ -25,9 +25,13 @@
 //!     behavior, where files from more specific repositories overwrite those
 //!     from their ancestors.
 //!
-//! This phase produces a single `MemoryFS` that represents the complete,
-//! inherited configuration, with all templates processed and all files merged,
-//! ready for the final local merge in the next phase.
+//! 4.  **Collect Deferred Merge Operations**: Merge operations from each
+//!     repository are collected in operation order but not executed. They are
+//!     returned alongside the composite filesystem for execution during Phase 5,
+//!     after local files are available as merge destinations.
+//!
+//! This phase produces a `MemoryFS` and a `Vec<Operation>` of deferred merge
+//! operations, ready for the final local merge in the next phase.
 
 use std::collections::HashMap;
 

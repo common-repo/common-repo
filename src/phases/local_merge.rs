@@ -1,29 +1,34 @@
 //! # Phase 5: Local File Merging
 //!
 //! This is the fifth phase of the `common-repo` execution pipeline. Its purpose
-//! is to merge the composite filesystem (created in Phase 4) with the files
-//! from the local project directory. It also handles deferred merge operations
-//! and consumer-level operations from the root `.common-repo.yaml`.
+//! is to combine the composite filesystem (created in Phase 4) with the files
+//! from the local project directory, execute deferred merge operations, and
+//! apply any consumer-level operations.
 //!
 //! ## Process
 //!
 //! 1.  **Load Local Files**: Load all files from the working directory into a
-//!     `MemoryFS`, skipping `.git`, build artifacts, and config files.
+//!     new `MemoryFS`. Hidden files, build artifacts, and config files are
+//!     skipped.
 //!
-//! 2.  **Apply Local Template Operations**: Process template marking and variable
-//!     substitution on local files before combining.
+//! 2.  **Apply Local Template Operations**: Template marking and variable
+//!     substitution are applied to local files.
 //!
-//! 3.  **Overlay Composite**: Composite files overwrite local files for shared
-//!     paths. Local-only files are preserved.
+//! 3.  **Combine with Composite**: The composite filesystem is overlaid on top
+//!     of local files. Composite files win for shared paths (ensuring upstream
+//!     updates propagate). Local-only files are preserved.
 //!
-//! 4.  **Execute Deferred Merges**: Merge operations deferred from Phase 4 run
-//!     against the combined filesystem, so fragments can target local files.
+//! 4.  **Execute Deferred Merges**: Merge operations collected during Phase 4
+//!     are executed against the combined filesystem. This allows fragments to
+//!     merge into the actual destination file, whether it came from another
+//!     upstream or from the consumer's working directory.
 //!
-//! 5.  **Consumer Merges**: Merge operations from the consumer config execute
-//!     next, combining local and inherited content.
+//! 5.  **Apply Consumer Merges**: Consumer-level merge operations (YAML, JSON,
+//!     TOML, INI, Markdown) are applied to the combined filesystem. These run
+//!     before filters so merge sources are still available.
 //!
-//! 6.  **Consumer Filters**: Filter operations (exclude, include, rename) run
-//!     last, after merges have consumed their source files.
+//! 6.  **Apply Consumer Filters**: Consumer-level filter operations (exclude,
+//!     include, rename) are applied to control which files appear in the output.
 //!
 //! This phase produces the final, fully merged `MemoryFS`, which is an exact
 //! representation of what the output directory should look like.
