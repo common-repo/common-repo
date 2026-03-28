@@ -1322,8 +1322,8 @@ mod tests {
     mod merge_operations_tests {
         use super::*;
         use crate::config::{
-            ExcludeOp, IniMergeOp, InsertPosition, JsonMergeOp, MarkdownMergeOp, TomlMergeOp,
-            YamlMergeOp,
+            ArrayMergeMode, ExcludeOp, IniMergeOp, InsertPosition, JsonMergeOp, MarkdownMergeOp,
+            TomlMergeOp, YamlMergeOp,
         };
 
         #[test]
@@ -1365,7 +1365,7 @@ mod tests {
                     source: Some("source.json".to_string()),
                     dest: Some("dest.json".to_string()),
                     path: Some("$.key".to_string()),
-                    append: true,
+                    array_mode: ArrayMergeMode::Append,
                     ..Default::default()
                 },
             }];

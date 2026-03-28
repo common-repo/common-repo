@@ -255,7 +255,7 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
 
     let path = super::parse_path(op.path.as_deref().unwrap_or(""));
     let target = navigate_json_value(&mut dest_value, &path)?;
-    let mode = op.get_array_mode();
+    let mode = op.array_mode;
     merge_json_values(target, &source_value, mode, op.position);
 
     let serialized = serde_json::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
@@ -458,7 +458,7 @@ mod tests {
             let op = JsonMergeOp {
                 source: Some("source.json".to_string()),
                 dest: Some("dest.json".to_string()),
-                append: true,
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -956,7 +956,7 @@ mod tests {
             let op = JsonMergeOp {
                 source: Some("source.json".to_string()),
                 dest: Some("dest.json".to_string()),
-                append: true,
+                array_mode: ArrayMergeMode::Append,
                 position: InsertPosition::Start,
                 ..Default::default()
             };
@@ -986,7 +986,7 @@ mod tests {
             let op = JsonMergeOp {
                 source: Some("source.json".to_string()),
                 dest: Some("dest.json".to_string()),
-                append: true,
+                array_mode: ArrayMergeMode::Append,
                 position: InsertPosition::End,
                 ..Default::default()
             };

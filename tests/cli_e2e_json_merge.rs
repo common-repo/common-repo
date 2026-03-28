@@ -145,7 +145,7 @@ fn test_cli_json_merge_array_append() {
     source: source.json
     dest: dest.json
     path: items
-    append: true
+    array_mode: append
 "#,
         )
         .unwrap();
@@ -197,7 +197,7 @@ fn test_cli_json_merge_array_with_position() {
     source: source.json
     dest: dest.json
     path: items
-    append: true
+    array_mode: append
     position: end
 "#,
         )

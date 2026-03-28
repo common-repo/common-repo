@@ -416,7 +416,7 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
     let path_str = op.path.as_deref().unwrap_or("");
     let path = parse_toml_path(path_str);
     let target = navigate_toml_value(&mut dest_value, &path)?;
-    let mode = op.get_array_mode();
+    let mode = op.array_mode;
     merge_toml_values(
         target,
         &source_value,
@@ -704,7 +704,7 @@ items = ["old1", "old2"]
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(crate::config::ArrayMergeMode::Replace),
+                array_mode: crate::config::ArrayMergeMode::Replace,
                 ..Default::default()
             };
 
@@ -738,7 +738,7 @@ items = ["old1", "old2"]
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(crate::config::ArrayMergeMode::Append),
+                array_mode: crate::config::ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -774,7 +774,7 @@ items = ["item1", "item4"]
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(crate::config::ArrayMergeMode::AppendUnique),
+                array_mode: crate::config::ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
 
@@ -792,7 +792,7 @@ items = ["item1", "item4"]
         }
 
         #[test]
-        fn test_toml_merge_backward_compatibility_append_bool() {
+        fn test_toml_merge_array_mode_append_direct() {
             let mut fs = MemoryFS::new();
             let source_toml = r#"
 [package]
@@ -810,7 +810,7 @@ items = ["old1"]
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                append: true,
+                array_mode: crate::config::ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1078,7 +1078,7 @@ items = ["a", "b", "c"]
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1111,7 +1111,7 @@ items = []
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1150,7 +1150,7 @@ version = "4.0"
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1182,7 +1182,7 @@ items = [false, 42]
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1216,7 +1216,7 @@ host = "localhost"
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1247,7 +1247,7 @@ items = [{name = "a"}, {name = "c"}]
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(ArrayMergeMode::AppendUnique),
+                array_mode: ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
 
@@ -1372,7 +1372,7 @@ items = 42
                 source: Some("source.toml".to_string()),
                 dest: Some("dest.toml".to_string()),
                 path: None,
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 

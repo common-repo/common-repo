@@ -18,10 +18,7 @@ fn test_yaml_merge_simple_keys() {
         source: Some("source.yaml".to_string()),
         dest: Some("dest.yaml".to_string()),
         path: None,
-        append: false,
-        array_mode: None,
-        defer: None,
-        auto_merge: None,
+        array_mode: ArrayMergeMode::Replace,
         ..Default::default()
     };
 
@@ -52,10 +49,7 @@ fn test_yaml_merge_nested_path() {
         source: Some("source.yaml".to_string()),
         dest: Some("dest.yaml".to_string()),
         path: Some("root.nested.array".to_string()),
-        append: true,
-        array_mode: None,
-        defer: None,
-        auto_merge: None,
+        array_mode: ArrayMergeMode::Append,
         ..Default::default()
     };
 
@@ -83,10 +77,7 @@ fn test_yaml_merge_array_append() {
         source: Some("source.yaml".to_string()),
         dest: Some("dest.yaml".to_string()),
         path: None,
-        append: true,
-        array_mode: None,
-        defer: None,
-        auto_merge: None,
+        array_mode: ArrayMergeMode::Append,
         ..Default::default()
     };
 
@@ -115,10 +106,7 @@ fn test_yaml_merge_array_replace() {
         source: Some("source.yaml".to_string()),
         dest: Some("dest.yaml".to_string()),
         path: None,
-        append: false,
-        array_mode: None,
-        defer: None,
-        auto_merge: None,
+        array_mode: ArrayMergeMode::Replace,
         ..Default::default()
     };
 
@@ -147,10 +135,7 @@ fn test_yaml_merge_no_duplicates() {
         source: Some("source.yaml".to_string()),
         dest: Some("dest.yaml".to_string()),
         path: None,
-        append: true,
-        array_mode: Some(ArrayMergeMode::AppendUnique),
-        defer: None,
-        auto_merge: None,
+        array_mode: ArrayMergeMode::AppendUnique,
         ..Default::default()
     };
 
@@ -181,10 +166,7 @@ fn test_yaml_merge_allow_duplicates() {
         source: Some("source.yaml".to_string()),
         dest: Some("dest.yaml".to_string()),
         path: None,
-        append: true,
-        array_mode: Some(ArrayMergeMode::Append),
-        defer: None,
-        auto_merge: None,
+        array_mode: ArrayMergeMode::Append,
         ..Default::default()
     };
 
@@ -214,10 +196,7 @@ fn test_yaml_merge_create_dest() {
         source: Some("source.yaml".to_string()),
         dest: Some("new_dest.yaml".to_string()),
         path: None,
-        append: false,
-        array_mode: None,
-        defer: None,
-        auto_merge: None,
+        array_mode: ArrayMergeMode::Replace,
         ..Default::default()
     };
 

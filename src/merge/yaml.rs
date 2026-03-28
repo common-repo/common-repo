@@ -337,7 +337,7 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
     let path_str = op.path.as_deref().unwrap_or("");
     let path = super::parse_path(path_str);
     let target = navigate_yaml_value(&mut dest_value, &path)?;
-    let mode = op.get_array_mode();
+    let mode = op.array_mode;
     merge_yaml_values(
         target,
         &source_value,
@@ -609,7 +609,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Replace),
+                array_mode: ArrayMergeMode::Replace,
                 ..Default::default()
             };
 
@@ -632,7 +632,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -655,7 +655,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::AppendUnique),
+                array_mode: ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
 
@@ -669,18 +669,17 @@ mod tests {
         }
 
         #[test]
-        fn test_yaml_merge_backward_compatibility_append_bool() {
+        fn test_yaml_merge_array_mode_append_direct() {
             let mut fs = MemoryFS::new();
             fs.add_file("source.yaml", File::from_string("items:\n  - x"))
                 .unwrap();
             fs.add_file("dest.yaml", File::from_string("items:\n  - a"))
                 .unwrap();
 
-            // Using old append: true style
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                append: true,
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -707,7 +706,7 @@ mod tests {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
                 path: Some("config.list".to_string()),
-                append: true,
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -730,7 +729,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -749,7 +748,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::AppendUnique),
+                array_mode: ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
 
@@ -774,7 +773,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -797,7 +796,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Replace),
+                array_mode: ArrayMergeMode::Replace,
                 ..Default::default()
             };
 
@@ -820,7 +819,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::AppendUnique),
+                array_mode: ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
 
@@ -983,7 +982,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1104,7 +1103,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1128,7 +1127,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1157,7 +1156,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::AppendUnique),
+                array_mode: ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
 
@@ -1187,7 +1186,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::AppendUnique),
+                array_mode: ArrayMergeMode::AppendUnique,
                 ..Default::default()
             };
 
@@ -1214,7 +1213,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 
@@ -1240,7 +1239,7 @@ mod tests {
             let op = YamlMergeOp {
                 source: Some("source.yaml".to_string()),
                 dest: Some("dest.yaml".to_string()),
-                array_mode: Some(ArrayMergeMode::Append),
+                array_mode: ArrayMergeMode::Append,
                 ..Default::default()
             };
 

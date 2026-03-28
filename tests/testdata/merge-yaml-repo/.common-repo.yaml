@@ -21,7 +21,7 @@
     source: fragment-list.yml
     dest: destination-list.yml
     path: items
-    append: true
+    array_mode: append
 
 # Test 4: Replace in list (default behavior)
 - yaml:

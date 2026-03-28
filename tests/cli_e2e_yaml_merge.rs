@@ -65,7 +65,7 @@ fn test_cli_yaml_merge_nested_path() {
     source: source.yaml
     dest: dest.yaml
     path: root.nested.array
-    append: true
+    array_mode: append
 "#,
         )
         .unwrap();
@@ -105,7 +105,7 @@ fn test_cli_yaml_merge_array_append() {
 - yaml:
     source: source.yaml
     dest: dest.yaml
-    append: true
+    array_mode: append
 "#,
         )
         .unwrap();

@@ -23,7 +23,7 @@
     source: fragment-members.toml
     dest: workspace.toml
     path: workspace
-    append: true
+    array_mode: append
 
 # Test 4: Merge with comment preservation
 - toml:

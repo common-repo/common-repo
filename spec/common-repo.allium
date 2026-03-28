@@ -192,10 +192,6 @@ variant JsonMerge : Operation {
     is_deferred: auto_merge != null or defer
 }
 
--- Guidance (JsonMerge): JSON merge now uses array_mode enum +
--- InsertPosition enum, matching YAML and TOML. Legacy boolean append
--- field is preserved for backward-compatible deserialization.
-
 variant TomlMerge : Operation {
     source: String?
     dest: String?
@@ -291,10 +287,10 @@ entity UpdateInfo {
 
 -- Default values for merge variant fields
 -- YamlMerge: array_mode defaults to replace
--- JsonMerge: append defaults to false
+-- JsonMerge: array_mode defaults to replace
 -- TomlMerge: array_mode defaults to replace, preserve_comments defaults to false
 -- IniMerge: append defaults to false, allow_duplicates defaults to false
--- MarkdownMerge: level defaults to 2, section defaults to "", position defaults to ""
+-- MarkdownMerge: level defaults to 2, section defaults to "", position defaults to end
 --                create_section defaults to false, append defaults to false
 
 -- ==========================================================================
