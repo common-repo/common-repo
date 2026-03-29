@@ -103,7 +103,7 @@ upstream:
 
 # Template context for all upstreams...
 template-vars:
-  project: ${PROJECT_NAME:-myprojectname}  # Steal bash syntax env vars from docker-compose?
+  project: myprojectname
 ```
 
 ## v2 Schema (Current)

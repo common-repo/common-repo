@@ -193,7 +193,7 @@ Result: `config.yaml.template` becomes `config.yaml`
 
 ### `template` - Mark Template Files
 
-Mark files for variable substitution. Templates are processed after all files are collected.
+Mark files for variable substitution. Files matching these glob patterns are scanned for the `__COMMON_REPO__` prefix — if found, the file is flagged as a template for processing during composite construction.
 
 ```yaml
 - template:
@@ -202,11 +202,19 @@ Mark files for variable substitution. Templates are processed after all files ar
     - "Cargo.toml"
 ```
 
-Template files can contain `${VARIABLE}` placeholders that get replaced with values from `template-vars` or environment variables.
+Template files use the `__COMMON_REPO__VARNAME__` sentinel pattern for variable placeholders:
+
+```yaml
+# In a template file (e.g., Cargo.toml)
+name = "__COMMON_REPO__PROJECT_NAME__"
+version = "__COMMON_REPO__VERSION__"
+```
+
+Variable names must be valid identifiers (`[A-Za-z_][A-Za-z0-9_]*`) and must not contain double underscores (`__`).
 
 ### `template-vars` - Define Variables
 
-Define variables for template substitution.
+Define variables for template substitution. Values are literal strings.
 
 ```yaml
 - template-vars:
@@ -214,19 +222,6 @@ Define variables for template substitution.
     author: Jane Doe
     rust_version: "1.75"
 ```
-
-#### Environment Variable Defaults
-
-Use shell-like syntax for environment variable defaults:
-
-```yaml
-- template-vars:
-    project: ${PROJECT_NAME:-default-project}
-    ci_enabled: ${CI:-false}
-```
-
-- `${VAR}` - Use environment variable VAR
-- `${VAR:-default}` - Use VAR if set, otherwise use "default"
 
 #### Variable Cascading
 
@@ -752,8 +747,8 @@ Here's a complete configuration showing multiple operators:
 
 # Define template variables
 - template-vars:
-    project_name: ${PROJECT_NAME:-my-project}
-    author: ${AUTHOR:-Your Name}
+    project_name: my-project
+    author: Your Name
     rust_edition: "2021"
 
 # Mark files as templates
