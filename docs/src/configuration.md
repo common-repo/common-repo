@@ -291,6 +291,7 @@ This is useful when a repository is both a source (providing shared configuratio
 - `self:` blocks cannot be nested (no `self:` inside `self:`)
 - `self:` blocks are stripped when a repo is consumed as an upstream — consumers never see them
 - Any operation valid at the top level can appear inside `self:` (repo, include, exclude, rename, template, merge operators, etc.)
+- A `self:` block needs at least one `repo:` to populate its composite filesystem. Without a `repo:`, the composite is empty and filtering operators like `include`/`exclude`/`rename` have nothing to operate on.
 
 #### Example: Source Repo That Consumes Upstream Tooling
 
@@ -687,7 +688,7 @@ Operations execute in the order they appear in the configuration file. For inher
 
 This means later operations can override earlier ones, and child repos can customize what they inherit from ancestors.
 
-`self:` blocks execute after the source pipeline completes. Each `self:` block runs as an independent pipeline invocation with its own composite filesystem. Like the source pipeline, composite (upstream-derived) files take precedence over local files for shared paths.
+`self:` blocks execute after the source pipeline completes. Each `self:` block runs as an independent pipeline invocation with its own composite filesystem. Like the source pipeline, composite (upstream-derived) files take precedence over local files for shared paths. Because each `self:` block starts with an empty composite, it needs a `repo:` operator to pull in upstream content — otherwise filtering operators have nothing to work with.
 
 ### Example Order
 
