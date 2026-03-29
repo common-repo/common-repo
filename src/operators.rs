@@ -1420,6 +1420,15 @@ pub(crate) mod template {
                 // Process variable substitution
                 let processed_content = substitute_variables(&content, vars)?;
 
+                // Emit migration warning if file still contains legacy ${VAR} syntax
+                if processed_content.contains("${") {
+                    eprintln!(
+                        "warning: file \"{}\" contains ${{VAR}} syntax which is no longer \
+                         interpreted as a template variable. Use __COMMON_REPO__VAR__ instead.",
+                        path.display()
+                    );
+                }
+
                 // Update the file content
                 file.content = processed_content.into_bytes();
                 file.is_template = false; // Mark as processed
@@ -1648,6 +1657,31 @@ mod template_tests {
         let file = fs.get_file("script.sh").unwrap();
         let content = String::from_utf8(file.content.clone()).unwrap();
         assert_eq!(content, "echo ${PATH}\nproject: myproject\n");
+    }
+
+    #[test]
+    fn test_template_process_emits_migration_warning_for_legacy_syntax() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string(
+            "mixed.txt",
+            "new: __COMMON_REPO__NAME__\nold: ${LEGACY_VAR}\n",
+        )
+        .unwrap();
+
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.txt".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        let mut vars = HashMap::new();
+        vars.insert("NAME".to_string(), "World".to_string());
+
+        // Should succeed (warning goes to stderr, not an error)
+        template::process(&mut fs, &vars).unwrap();
+
+        let file = fs.get_file("mixed.txt").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(content, "new: World\nold: ${LEGACY_VAR}\n");
     }
 
     #[test]
