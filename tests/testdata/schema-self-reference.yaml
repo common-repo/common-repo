@@ -46,7 +46,7 @@
 
 # template-vars: Template variables for file processing
 - template-vars:
-    project: ${PROJECT_NAME:-common-repo}
+    project: common-repo
 
 #########
 # Fragment Merge Operators

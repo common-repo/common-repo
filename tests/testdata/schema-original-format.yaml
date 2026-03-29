@@ -25,6 +25,6 @@
     - python: "^3.9"
     - node: "~18.0"
 - template-vars:
-    project: ${PROJECT_NAME:-myproject}
+    project: myproject
     version: 1.0.0
     author: test-author
