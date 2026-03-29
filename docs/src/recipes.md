@@ -28,8 +28,8 @@ A complete Rust CLI project with CI, pre-commit hooks, and conventional commits.
 
 # Project-specific variables
 - template-vars:
-    project_name: ${PROJECT_NAME:-my-cli}
-    author: ${AUTHOR:-Your Name}
+    project_name: my-cli
+    author: Your Name
     description: A command-line tool
 
 # Mark config files as templates
@@ -69,9 +69,9 @@ Modern Python project using UV for dependency management.
 
 # Variables
 - template-vars:
-    project_name: ${PROJECT_NAME:-my-python-project}
+    project_name: my-python-project
     python_version: "3.11"
-    author: ${AUTHOR:-Your Name}
+    author: Your Name
 
 - template:
     - pyproject.toml
@@ -107,7 +107,7 @@ TypeScript project with ESLint, Prettier, and GitHub Actions.
     path: devDependencies
 
 - template-vars:
-    project_name: ${npm_package_name:-my-project}
+    project_name: my-project
     node_version: "20"
 
 - tools:
@@ -214,9 +214,9 @@ Different configurations for different environments.
     path: spec.template.spec
 
 - template-vars:
-    environment: ${DEPLOY_ENV:-staging}
-    replicas: ${REPLICAS:-3}
-    image_tag: ${IMAGE_TAG:-latest}
+    environment: staging
+    replicas: "3"
+    image_tag: latest
 
 - template:
     - "kubernetes/*.yml"
@@ -458,11 +458,11 @@ Use environment variables for conditional behavior.
 
 - template-vars:
     # Default to development settings
-    log_level: ${LOG_LEVEL:-debug}
-    enable_metrics: ${ENABLE_METRICS:-false}
+    log_level: debug
+    enable_metrics: "false"
 
     # CI-specific overrides
-    ci_mode: ${CI:-false}
+    ci_mode: "false"
 
 - template:
     - config/*.yml

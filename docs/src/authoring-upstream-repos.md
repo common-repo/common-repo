@@ -409,15 +409,15 @@ Include a README section or separate file listing available variables:
 | `enable_coverage` | No | false | Enable code coverage |
 ```
 
-### Environment Variable Defaults
+### Variable Overrides
 
-Variables can reference environment variables as defaults:
+Child repos can override variables defined by their parents:
 
 ```yaml
 # Consumer's .common-repo.yaml
 - template-vars:
-    project_name: ${PROJECT_NAME:-my-project}
-    ci_timeout: ${CI_TIMEOUT:-30}
+    project_name: my-project
+    ci_timeout: "30"
 ```
 
 ## Versioning and Releases
