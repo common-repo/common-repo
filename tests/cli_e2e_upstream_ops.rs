@@ -945,7 +945,7 @@ fn test_consumer_with_template_vars_override_upstream_defaults() {
             ),
             (
                 "src/.github/workflows/release.yaml",
-                "owner: ${GH_APP_OWNER:-christmas-island}\napp_id: ${GH_APP_ID_VAR}\n",
+                "owner: __COMMON_REPO__GH_APP_OWNER__\napp_id: __COMMON_REPO__GH_APP_ID_VAR__\n",
             ),
         ],
     )
@@ -1023,7 +1023,10 @@ fn test_consumer_top_level_template_vars_override_upstream_defaults() {
     APP_PORT: "8080"
 "#,
             ),
-            ("configs/app.yaml", "name: ${APP_NAME}\nport: ${APP_PORT}\n"),
+            (
+                "configs/app.yaml",
+                "name: __COMMON_REPO__APP_NAME__\nport: __COMMON_REPO__APP_PORT__\n",
+            ),
         ],
     )
     .unwrap();
