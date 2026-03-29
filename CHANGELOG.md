@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.31.0](https://github.com/common-repo/common-repo/compare/v0.30.0...v0.31.0) (2026-03-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Template variables now use __COMMON_REPO__VAR__ syntax. ${VAR} and ${VAR:-default} are no longer interpreted. Environment variable fallback removed — all variables must be declared in template-vars.
+* **config:** YAML configs using `append: true/false` on yaml/json/toml merge operations must migrate to `array_mode: append` or `array_mode: replace`.
+
+### Features
+
+* add migration warning for legacy ${VAR} template syntax ([7c72d32](https://github.com/common-repo/common-repo/commit/7c72d32a2f3610cbec6c27a445563d8e73d3976f))
+* migrate template syntax to __COMMON_REPO__VAR__ ([5a4e6e6](https://github.com/common-repo/common-repo/commit/5a4e6e652afe877108b3bcf289c9d33df5a1ba33))
+* **spec:** add CompositePrecedence invariant and MergeLocalFiles rule ([13cc685](https://github.com/common-repo/common-repo/commit/13cc6857584761ef6d0d6387948358e695e87ce1)), closes [#265](https://github.com/common-repo/common-repo/issues/265)
+* validate template-vars names against identifier pattern ([71d4a91](https://github.com/common-repo/common-repo/commit/71d4a91963482d77af352feb6e3ff9a36ee40ab0))
+
+
+### Bug Fixes
+
+* **local_merge:** composite wins, deferred merges, enforce operation ordering ([d826c0d](https://github.com/common-repo/common-repo/commit/d826c0d57a9af2c47d2843fc5eba360fa75599da))
+* replace legacy ${VAR} literals in template-vars values and benchmarks ([4c6d096](https://github.com/common-repo/common-repo/commit/4c6d096f814f1193eb017ca9943ced587ae0ddcf))
+* update repo_tests template strings to new __COMMON_REPO__ syntax ([87d05f4](https://github.com/common-repo/common-repo/commit/87d05f468cb3ac110119f74182e0aec16ef5dab3))
+
+
+### Code Refactoring
+
+* **config:** remove deprecated append field from yaml/json/toml merge ops ([1b0759f](https://github.com/common-repo/common-repo/commit/1b0759f74956f5f3688d6b88f86c288db4925db0))
+
 ## [0.30.0](https://github.com/common-repo/common-repo/compare/v0.29.0...v0.30.0) (2026-03-24)
 
 
