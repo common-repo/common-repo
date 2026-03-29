@@ -17,7 +17,7 @@
 //! 2.  **Template Processing**: Once the variables are consolidated, each
 //!     `IntermediateFS`'s underlying `MemoryFS` is processed for templates
 //!     using the consolidated set of variables. This step substitutes all the
-//!     `${VAR}` placeholders with their final values.
+//!     `__COMMON_REPO__VAR__` placeholders with their final values.
 //!
 //! 3.  **Filesystem Merging**: After template processing, the `MemoryFS` from
 //!     each `IntermediateFS` is merged into the composite filesystem. The merge
@@ -288,8 +288,11 @@ mod tests {
     fn test_phase4_execute_template_processing() {
         // Test that templates are processed with collected variables during Phase 4
         let mut fs1 = MemoryFS::new();
-        fs1.add_file_string("template.txt", "Hello ${NAME} from ${REPO}!")
-            .unwrap();
+        fs1.add_file_string(
+            "template.txt",
+            "Hello __COMMON_REPO__NAME__ from __COMMON_REPO__REPO__!",
+        )
+        .unwrap();
 
         // Mark template.txt as a template
         let template_op = crate::config::TemplateOp {
@@ -354,11 +357,11 @@ mod tests {
     fn test_phase4_execute_template_processing_multiple_templates() {
         // Test processing multiple template files from different repositories
         let mut fs1 = MemoryFS::new();
-        fs1.add_file_string("greeting.txt", "Hello ${USER}!")
+        fs1.add_file_string("greeting.txt", "Hello __COMMON_REPO__USER__!")
             .unwrap();
 
         let mut fs2 = MemoryFS::new();
-        fs2.add_file_string("version.txt", "Version: ${VERSION}")
+        fs2.add_file_string("version.txt", "Version: __COMMON_REPO__VERSION__")
             .unwrap();
 
         // Mark templates
@@ -893,7 +896,7 @@ port = 8080
         let mut fs1 = MemoryFS::new();
         fs1.add_file_string(
             "workflow.yaml",
-            "app_id: ${GH_APP_ID_VAR}\napp_key: ${GH_APP_KEY_SECRET}\nowner: ${GH_APP_OWNER}",
+            "app_id: __COMMON_REPO__GH_APP_ID_VAR__\napp_key: __COMMON_REPO__GH_APP_KEY_SECRET__\nowner: __COMMON_REPO__GH_APP_OWNER__",
         )
         .unwrap();
 
