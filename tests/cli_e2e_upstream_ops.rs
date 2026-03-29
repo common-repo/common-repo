@@ -554,49 +554,17 @@ fn test_upstream_combined_operations() {
 fn test_alternate_config_filename_not_copied() {
     // Create upstream repository with alternate config filename
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-
-    // Initialize git repo manually since we're using alternate config name
-    Command::new("git")
-        .args(["init", "-b", "main"])
-        .current_dir(upstream_repo.path())
-        .output()
-        .unwrap();
-    Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(upstream_repo.path())
-        .output()
-        .unwrap();
-    Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(upstream_repo.path())
-        .output()
-        .unwrap();
-    Command::new("git")
-        .args(["config", "commit.gpgsign", "false"])
-        .current_dir(upstream_repo.path())
-        .output()
-        .unwrap();
-
-    // Use alternate config filename
-    upstream_repo
-        .child(".commonrepo.yaml")
-        .write_str("# Alternate config\n- include: [\"**/*\"]\n")
-        .unwrap();
-    upstream_repo
-        .child("data.txt")
-        .write_str("Some data\n")
-        .unwrap();
-
-    Command::new("git")
-        .args(["add", "."])
-        .current_dir(upstream_repo.path())
-        .output()
-        .unwrap();
-    Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(upstream_repo.path())
-        .output()
-        .unwrap();
+    init_git_repo(
+        &upstream_repo,
+        &[
+            (
+                ".commonrepo.yaml",
+                "# Alternate config\n- include: [\"**/*\"]\n",
+            ),
+            ("data.txt", "Some data\n"),
+        ],
+    )
+    .unwrap();
 
     // Create consumer repository
     let consumer = assert_fs::TempDir::new().unwrap();
