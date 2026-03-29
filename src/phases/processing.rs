@@ -156,23 +156,14 @@ fn collect_template_vars(operations: &[Operation]) -> Result<HashMap<String, Str
     Ok(vars)
 }
 
-/// Collect merge operations from a list of operations
+/// Collect deferred merge operations from a list of operations
 ///
-/// Merge operations (yaml, json, toml, ini, markdown) are collected
-/// during Phase 2 but executed later in Phase 4 during composition.
+/// Only merge operations with `defer: true` or `auto-merge` set are collected
+/// during Phase 2 for later execution in Phase 4 during composition.
 fn collect_merge_operations(operations: &[Operation]) -> Vec<Operation> {
     operations
         .iter()
-        .filter(|op| {
-            matches!(
-                op,
-                Operation::Yaml { .. }
-                    | Operation::Json { .. }
-                    | Operation::Toml { .. }
-                    | Operation::Ini { .. }
-                    | Operation::Markdown { .. }
-            )
-        })
+        .filter(|op| op.is_deferred())
         .cloned()
         .collect()
 }
@@ -1345,11 +1336,12 @@ mod tests {
         }
 
         #[test]
-        fn test_collect_merge_operations_yaml() {
+        fn test_collect_merge_operations_yaml_deferred() {
             let operations = vec![Operation::Yaml {
                 yaml: YamlMergeOp {
                     source: Some("source.yaml".to_string()),
                     dest: Some("dest.yaml".to_string()),
+                    defer: Some(true),
                     ..Default::default()
                 },
             }];
@@ -1359,13 +1351,14 @@ mod tests {
         }
 
         #[test]
-        fn test_collect_merge_operations_json() {
+        fn test_collect_merge_operations_json_deferred() {
             let operations = vec![Operation::Json {
                 json: JsonMergeOp {
                     source: Some("source.json".to_string()),
                     dest: Some("dest.json".to_string()),
                     path: Some("$.key".to_string()),
                     array_mode: ArrayMergeMode::Append,
+                    defer: Some(true),
                     ..Default::default()
                 },
             }];
@@ -1375,13 +1368,14 @@ mod tests {
         }
 
         #[test]
-        fn test_collect_merge_operations_toml() {
+        fn test_collect_merge_operations_toml_deferred() {
             let operations = vec![Operation::Toml {
                 toml: TomlMergeOp {
                     source: Some("source.toml".to_string()),
                     dest: Some("dest.toml".to_string()),
                     path: Some("section.key".to_string()),
                     preserve_comments: true,
+                    defer: Some(true),
                     ..Default::default()
                 },
             }];
@@ -1391,12 +1385,13 @@ mod tests {
         }
 
         #[test]
-        fn test_collect_merge_operations_ini() {
+        fn test_collect_merge_operations_ini_deferred() {
             let operations = vec![Operation::Ini {
                 ini: IniMergeOp {
                     source: Some("source.ini".to_string()),
                     dest: Some("dest.ini".to_string()),
                     section: Some("settings".to_string()),
+                    defer: Some(true),
                     ..Default::default()
                 },
             }];
@@ -1406,7 +1401,7 @@ mod tests {
         }
 
         #[test]
-        fn test_collect_merge_operations_markdown() {
+        fn test_collect_merge_operations_markdown_deferred() {
             let operations = vec![Operation::Markdown {
                 markdown: MarkdownMergeOp {
                     source: Some("source.md".to_string()),
@@ -1415,6 +1410,7 @@ mod tests {
                     append: true,
                     level: 2,
                     position: InsertPosition::End,
+                    defer: Some(true),
                     ..Default::default()
                 },
             }];
@@ -1424,12 +1420,27 @@ mod tests {
         }
 
         #[test]
-        fn test_collect_merge_operations_all_types() {
+        fn test_collect_merge_operations_auto_merge_is_deferred() {
+            let operations = vec![Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: Some("s.yaml".to_string()),
+                    auto_merge: Some("merged.yaml".to_string()),
+                    ..Default::default()
+                },
+            }];
+            let result = collect_merge_operations(&operations);
+            assert_eq!(result.len(), 1);
+            assert!(matches!(result[0], Operation::Yaml { .. }));
+        }
+
+        #[test]
+        fn test_collect_merge_operations_all_deferred_types() {
             let operations = vec![
                 Operation::Yaml {
                     yaml: YamlMergeOp {
                         source: Some("s.yaml".to_string()),
                         dest: Some("d.yaml".to_string()),
+                        defer: Some(true),
                         ..Default::default()
                     },
                 },
@@ -1437,6 +1448,7 @@ mod tests {
                     json: JsonMergeOp {
                         source: Some("s.json".to_string()),
                         dest: Some("d.json".to_string()),
+                        defer: Some(true),
                         ..Default::default()
                     },
                 },
@@ -1445,6 +1457,7 @@ mod tests {
                         source: Some("s.toml".to_string()),
                         dest: Some("d.toml".to_string()),
                         path: Some("key".to_string()),
+                        defer: Some(true),
                         ..Default::default()
                     },
                 },
@@ -1452,6 +1465,7 @@ mod tests {
                     ini: IniMergeOp {
                         source: Some("s.ini".to_string()),
                         dest: Some("d.ini".to_string()),
+                        defer: Some(true),
                         ..Default::default()
                     },
                 },
@@ -1461,6 +1475,7 @@ mod tests {
                         dest: Some("d.md".to_string()),
                         section: "## Section".to_string(),
                         level: 2,
+                        defer: Some(true),
                         ..Default::default()
                     },
                 },
@@ -1470,7 +1485,7 @@ mod tests {
         }
 
         #[test]
-        fn test_collect_merge_operations_filters_non_merge_ops() {
+        fn test_collect_merge_operations_skips_non_deferred_merge_ops() {
             let operations = vec![
                 Operation::Exclude {
                     exclude: ExcludeOp {
@@ -1484,15 +1499,54 @@ mod tests {
                         ..Default::default()
                     },
                 },
-                Operation::Exclude {
-                    exclude: ExcludeOp {
-                        patterns: vec!["*.log".to_string()],
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        source: Some("deferred.yaml".to_string()),
+                        dest: Some("d2.yaml".to_string()),
+                        defer: Some(true),
+                        ..Default::default()
                     },
                 },
             ];
             let result = collect_merge_operations(&operations);
             assert_eq!(result.len(), 1);
-            assert!(matches!(result[0], Operation::Yaml { .. }));
+            assert!(
+                matches!(&result[0], Operation::Yaml { yaml } if yaml.source.as_deref() == Some("deferred.yaml"))
+            );
+        }
+
+        #[test]
+        fn test_collect_merge_operations_excludes_non_deferred() {
+            let operations = vec![
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        source: Some("not-deferred.yaml".to_string()),
+                        dest: Some("d.yaml".to_string()),
+                        ..Default::default()
+                    },
+                },
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        source: Some("deferred.yaml".to_string()),
+                        dest: Some("d2.yaml".to_string()),
+                        defer: Some(true),
+                        ..Default::default()
+                    },
+                },
+                Operation::Json {
+                    json: JsonMergeOp {
+                        source: Some("auto.json".to_string()),
+                        auto_merge: Some("merged.json".to_string()),
+                        ..Default::default()
+                    },
+                },
+            ];
+            let result = collect_merge_operations(&operations);
+            assert_eq!(result.len(), 2);
+            assert!(
+                matches!(&result[0], Operation::Yaml { yaml } if yaml.source.as_deref() == Some("deferred.yaml"))
+            );
+            assert!(matches!(&result[1], Operation::Json { .. }));
         }
     }
 
@@ -1812,6 +1866,14 @@ mod tests {
                     yaml: crate::config::YamlMergeOp {
                         source: Some("s.yaml".to_string()),
                         dest: Some("d.yaml".to_string()),
+                        defer: Some(true),
+                        ..Default::default()
+                    },
+                },
+                Operation::Yaml {
+                    yaml: crate::config::YamlMergeOp {
+                        source: Some("not-deferred.yaml".to_string()),
+                        dest: Some("nd.yaml".to_string()),
                         ..Default::default()
                     },
                 },
@@ -1830,7 +1892,7 @@ mod tests {
             let result = process_single_repo(&node, &repo_manager, &cache);
             assert!(result.is_ok());
             let intermediate = result.unwrap();
-            // Merge operations should be collected
+            // Only deferred merge operations should be collected
             assert_eq!(intermediate.merge_operations.len(), 1);
             assert!(matches!(
                 intermediate.merge_operations[0],
