@@ -91,6 +91,7 @@ Without `self:`, this repo would need a separate mechanism to pull its own tooli
 
 - `self:` blocks are stripped when a consumer inherits from this repo — consumers never see them
 - Any operator can appear inside `self:` (repo, include, exclude, rename, merge operators, etc.)
+- A `self:` block needs at least one `repo:` to populate its composite filesystem — without one, filtering operators like `include`/`exclude`/`rename` have nothing to operate on
 - Multiple `self:` blocks are allowed; each runs as an independent pipeline
 - `self:` blocks cannot be nested
 - The source pipeline runs first, then each `self:` block runs afterward as an independent pipeline invocation
