@@ -41,8 +41,11 @@ fn create_project_fs() -> MemoryFS {
 
     // Template files
     for i in 0..10 {
-        fs.add_file_string(format!("templates/config{}.template", i), "config=${VAR}")
-            .unwrap();
+        fs.add_file_string(
+            format!("templates/config{}.template", i),
+            "config=__COMMON_REPO__VAR__",
+        )
+        .unwrap();
     }
 
     // Temporary/excluded files

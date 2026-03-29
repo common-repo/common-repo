@@ -1605,7 +1605,7 @@ mod tests {
         // Test template-vars operation
         let template_vars_yaml = r#"
 - template-vars:
-    project: ${PROJECT_NAME:-myprojectname}
+    project: myprojectname
 "#;
         let schema = parse(template_vars_yaml)
             .expect("Failed to parse template-vars example from schema.yaml");
@@ -1614,7 +1614,7 @@ mod tests {
             Operation::TemplateVars { template_vars } => {
                 assert_eq!(
                     template_vars.vars.get("project"),
-                    Some(&"${PROJECT_NAME:-myprojectname}".to_string())
+                    Some(&"myprojectname".to_string())
                 );
             }
             _ => panic!("Expected TemplateVars operation"),
