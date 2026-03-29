@@ -938,7 +938,7 @@ mod tests {
         #[test]
         fn test_apply_with_clause_template_operation() {
             let mut fs = MemoryFS::new();
-            fs.add_file_string("template.txt", "Hello ${NAME}!")
+            fs.add_file_string("template.txt", "Hello __COMMON_REPO__NAME__!")
                 .unwrap();
             fs.add_file_string("regular.txt", "Not a template").unwrap();
 
@@ -1072,7 +1072,7 @@ mod tests {
             fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
             fs.add_file_string("src/lib.rs", "pub fn lib() {}").unwrap();
             fs.add_file_string("README.md", "# Project").unwrap();
-            fs.add_file_string("template.txt", "Hello ${NAME}!")
+            fs.add_file_string("template.txt", "Hello __COMMON_REPO__NAME__!")
                 .unwrap();
 
             // Combine include, exclude, rename, and template operations
