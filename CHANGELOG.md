@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.1](https://github.com/common-repo/common-repo/compare/v0.31.0...v0.31.1) (2026-03-29)
+
+
+### Bug Fixes
+
+* use init_git_repo helper in alternate config test ([384b6d9](https://github.com/common-repo/common-repo/commit/384b6d9e75dd2838a255ca653a26eba0f230a469)), closes [#257](https://github.com/common-repo/common-repo/issues/257)
+
 ## [0.31.0](https://github.com/common-repo/common-repo/compare/v0.30.0...v0.31.0) (2026-03-29)
 
 
