@@ -8,7 +8,7 @@
 --   - CLI/TUI layer (clap commands, interactive prompts, output formatting)
 --   - Disk caching mechanics (hash computation, cache directory layout)
 --   - Git transport (shallow clone, ls-remote — treated as external)
---   - Template variable substitution engine internals
+--   - Template variable substitution regex engine internals
 --   - File permission handling
 --   - Original format parser (backward-compatible YAML parsing)
 
@@ -313,6 +313,25 @@ rule SelfOperatorValidation {
             requires: op.operations.count > 0
 }
 
+rule ValidateTemplateVarNames {
+    when: ValidateConfig(config)
+    for op in config.operations:
+        if op.kind = TemplateVars:
+            for name in op.vars.keys:
+                -- Names must be valid identifiers: [A-Za-z_][A-Za-z0-9_]*
+                -- Names must not contain double underscore (__), which would
+                -- be unmatchable by the template sentinel regex.
+                requires: is_identifier(name)
+                requires: not contains(name, "__")
+
+    @guidance
+        -- Validation happens at config parse time so invalid names
+        -- are rejected before any pipeline processing begins.
+        -- Names with hyphens or other non-identifier characters are
+        -- also rejected since they cannot appear in the sentinel
+        -- pattern __COMMON_REPO__VARNAME__.
+}
+
 -- ==========================================================================
 -- Merge Operation Provenance
 -- ==========================================================================
@@ -321,19 +340,13 @@ rule MergeOperationProvenance {
     when: ValidateConfig(config)
 
     -- Merge operations are initiated by the upstream that provides the
-    -- fragment file. The upstream knows its file is a fragment and declares
-    -- how and where it should be merged into a destination file.
-    --
-    -- Consumers downstream may override merge parameters (dest, merge mode,
-    -- path, section, etc.) on upstream-defined merge operations, but should
-    -- not create new merge operations against files that were not declared
-    -- as merge sources by any upstream in the composite.
+    -- fragment file. Consumer-level merge operations whose source has no
+    -- corresponding upstream merge operation produce a warning.
     for op in config.operations:
         if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge}:
             if not op.is_deferred:
-                -- A consumer-level merge operation whose source has no
-                -- corresponding upstream merge operation is likely a mistake.
-                ensures: Warning if no upstream merge targets op.effective_source
+                if not has_upstream_merge_for(op.effective_source):
+                    ensures: WarningEmitted(op)
 
     @guidance
         -- Upstreams provide fragments and declare merge intent (source, dest,
@@ -479,10 +492,52 @@ deferred ApplyRename.apply
     -- see: detailed/operators.allium
 
 deferred ApplyTemplate.mark
+    -- Template content detection: within glob-matched files, checks for the
+    -- __COMMON_REPO__ prefix to set is_template. Files containing only the
+    -- legacy ${VAR} syntax are not marked as templates.
     -- see: detailed/operators.allium
 
 deferred ValidateTools.check
     -- see: detailed/operators.allium
+
+rule ResolveTemplateVariables {
+    when: ProcessTemplates(filesystem, template_vars)
+
+    -- Template variables use the sentinel pattern __COMMON_REPO__VARNAME__
+    -- in file content. Resolution looks up each variable name in the
+    -- consolidated template-vars context. Undefined variables produce an
+    -- error — there is no environment variable fallback.
+    for entry in filesystem.entries:
+        if entry.is_template:
+            for var_name in template_references(entry.content):
+                requires: var_name in template_vars.keys
+
+    @guidance
+        -- The error message for an undefined variable should name the
+        -- variable and suggest declaring it in a template-vars operator.
+        -- Environment variable fallback was removed to eliminate implicit
+        -- dependencies on the execution environment.
+}
+
+rule LegacySyntaxMigrationWarning {
+    when: ProcessTemplates(filesystem, template_vars)
+
+    -- When a template-marked file contains ${IDENTIFIER} patterns
+    -- (suggesting old-style template syntax), a warning is emitted.
+    -- This aids migration from the legacy syntax. The legacy pattern
+    -- is not interpreted as a template variable — it passes through
+    -- unchanged in the output.
+    for entry in filesystem.entries:
+        if entry.is_template:
+            if contains_legacy_syntax(entry.content):
+                ensures: MigrationWarningEmitted(entry.path)
+
+    @guidance
+        -- The warning is non-fatal. Old ${VAR} content remains in the
+        -- output file as literal text. This is intentional: files that
+        -- use ${} for other purposes (shell scripts, Docker Compose,
+        -- CI/CD configs) should not be altered.
+}
 
 -- ==========================================================================
 -- Phase 3: Determining Operation Order
@@ -511,7 +566,7 @@ rule BuildComposite {
     when: CompositeReady(order, intermediate_fss)
 
     -- 1. Consolidate template vars (last-write-wins in operation order)
-    -- 2. Process templates with unified vars
+    -- 2. Substitute __COMMON_REPO__VARNAME__ references with resolved values
     -- 3. Merge filesystems in order (last-write-wins)
     -- 4. Collect deferred merge operations (do not execute them yet)
     ensures: CompositeBuilt(order, intermediate_fss)
@@ -519,6 +574,9 @@ rule BuildComposite {
     @guidance
         -- Template variable consolidation: iterate repos in operation order,
         -- later values override earlier for the same key.
+        -- Template substitution replaces __COMMON_REPO__VARNAME__ sentinel
+        -- patterns with the corresponding value from the consolidated vars.
+        -- Undefined variables produce an error (no environment fallback).
         -- Filesystem merge: for each repo in order, copy all files into composite.
         -- Files with the same path are overwritten (last-write-wins).
         --
@@ -537,7 +595,8 @@ rule MergeLocalFiles {
     when: CompositeBuilt(composite_fs, local_config, deferred_merge_ops)
 
     -- 1. Load local files (skip hidden files, build artifacts, config files)
-    -- 2. Apply local template operations to local filesystem (template marking, vars)
+    -- 2. Apply local template operations to local filesystem (mark files containing
+    --    __COMMON_REPO__ prefix, substitute template vars)
     -- 3. Combine composite with local files:
     --    a. Start with local files as base
     --    b. Overlay composite files on top (composite wins for shared paths)
@@ -701,6 +760,27 @@ invariant ConfigFileExclusion {
 invariant DeterministicOrder {
     -- The same configuration always produces the same operation order
     -- and the same final filesystem output.
+}
+
+invariant NoEnvironmentVariableFallback {
+    -- Template variable resolution never reads from the process
+    -- environment. All variables must be explicitly declared in
+    -- template-vars operators. Undefined variables produce an error.
+}
+
+invariant TemplateSyntaxIsolation {
+    -- The template sentinel pattern __COMMON_REPO__VARNAME__ does not
+    -- conflict with shell variable expansion (${VAR}), Docker Compose
+    -- interpolation, GitHub Actions expressions (${{ }}), or any other
+    -- ${}-family syntax. Files using those syntaxes in template-marked
+    -- files are passed through without modification.
+}
+
+invariant ValidTemplateVarNames {
+    for op in Operations:
+        if op.kind = TemplateVars:
+            for name in op.vars.keys:
+                is_identifier(name) and not contains(name, "__")
 }
 
 -- ==========================================================================
