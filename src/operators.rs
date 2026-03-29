@@ -1348,8 +1348,8 @@ pub(crate) mod template {
     /// Applies the `template` operation to mark files as templates.
     ///
     /// This function iterates through the files in the `MemoryFS` that match the
-    /// provided glob patterns. If a file's content contains a template variable
-    /// pattern (e.g., `${VAR}`), it is marked as a template for later processing.
+    /// provided glob patterns. If a file's content contains the `__COMMON_REPO__`
+    /// sentinel prefix, it is marked as a template for later processing.
     ///
     /// # Arguments
     ///
@@ -1366,8 +1366,8 @@ pub(crate) mod template {
                 if let Some(file) = fs.get_file_mut(&path) {
                     // Check if the file contains template variables
                     if let Ok(content) = String::from_utf8(file.content.clone()) {
-                        // Simple check for ${VAR} patterns
-                        if content.contains("${") {
+                        // Check for __COMMON_REPO__ sentinel prefix
+                        if content.contains("__COMMON_REPO__") {
                             file.is_template = true;
                         }
                     }
@@ -1381,9 +1381,9 @@ pub(crate) mod template {
     /// Process templates with variable substitution
     ///
     /// This function finds all files that have been marked as templates and
-    /// performs variable substitution on their content. It supports `${VAR}`
-    /// syntax, default values with `${VAR:-default}`, and resolution from
-    /// environment variables.
+    /// performs variable substitution on their content. It replaces
+    /// `__COMMON_REPO__VAR__` sentinel patterns with values from the
+    /// template-vars context. All variables must be declared.
     ///
     /// # Arguments
     ///
@@ -1431,8 +1431,9 @@ pub(crate) mod template {
 
     /// Substitute variables in template content
     ///
-    /// Replaces ${VAR} and ${VAR:-default} patterns with values from the context.
-    /// Environment variables are resolved at runtime.
+    /// Replaces `__COMMON_REPO__VAR__` sentinel patterns with values from the
+    /// template-vars context. All variables must be declared; undefined
+    /// variables produce an error.
     ///
     /// # Arguments
     /// * `content` - Template content to process
@@ -1443,34 +1444,28 @@ pub(crate) mod template {
     fn substitute_variables(content: &str, vars: &HashMap<String, String>) -> Result<String> {
         use regex::Regex;
 
-        // Regex to match ${VAR} and ${VAR:-default} patterns
-        // [^:{}] excludes { from var names, so ${{ (GitHub Actions expressions) pass through
-        let re = Regex::new(r"\$\{([^:{}]+)(?::-(.+?))?\}").map_err(|e| Error::Template {
-            message: format!("Invalid regex pattern: {}", e),
-            variable: None,
+        let re = Regex::new(r"__COMMON_REPO__([A-Za-z_][A-Za-z0-9_]*?)__").map_err(|e| {
+            Error::Template {
+                message: format!("Invalid regex pattern: {}", e),
+                variable: None,
+            }
         })?;
 
         let mut result = content.to_string();
 
         for capture in re.captures_iter(content) {
             let var_name = capture.get(1).unwrap().as_str();
-            let default_value = capture.get(2).map(|m| m.as_str());
 
-            // First check template vars, then environment variables
             let replacement = if let Some(value) = vars.get(var_name) {
                 value.clone()
-            } else if let Ok(env_value) = std::env::var(var_name) {
-                env_value
-            } else if let Some(default) = default_value {
-                default.to_string()
             } else {
                 return Err(Error::Template {
-                    message: "Undefined variable with no default value".to_string(),
+                    message: "Undefined template variable. Declare it in template-vars to use it"
+                        .to_string(),
                     variable: Some(var_name.to_string()),
                 });
             };
 
-            // Replace the match with the value
             let match_str = capture.get(0).unwrap().as_str();
             result = result.replace(match_str, &replacement);
         }
@@ -1519,9 +1514,11 @@ mod template_tests {
     #[test]
     fn test_template_mark() {
         let mut fs = MemoryFS::new();
-        fs.add_file_string("template.txt", "Hello ${NAME}!")
+        fs.add_file_string("template.txt", "Hello __COMMON_REPO__NAME__!")
             .unwrap();
         fs.add_file_string("regular.txt", "Not a template").unwrap();
+        fs.add_file_string("old_syntax.txt", "Hello ${NAME}!")
+            .unwrap();
 
         let op = crate::config::TemplateOp {
             patterns: vec!["*.txt".to_string()],
@@ -1529,114 +1526,58 @@ mod template_tests {
 
         template::mark(&op, &mut fs).unwrap();
 
-        // Check that template.txt is marked as template
         let template_file = fs.get_file("template.txt").unwrap();
         assert!(template_file.is_template);
 
-        // Check that regular.txt is not marked as template
         let regular_file = fs.get_file("regular.txt").unwrap();
         assert!(!regular_file.is_template);
+
+        // File with old ${} syntax is NOT marked (no longer recognized)
+        let old_syntax_file = fs.get_file("old_syntax.txt").unwrap();
+        assert!(!old_syntax_file.is_template);
     }
 
     #[test]
     fn test_template_process_simple() {
         let mut fs = MemoryFS::new();
-        fs.add_file_string("template.txt", "Hello ${NAME}!")
+        fs.add_file_string("template.txt", "Hello __COMMON_REPO__NAME__!")
             .unwrap();
 
-        // Mark as template
         let mark_op = crate::config::TemplateOp {
             patterns: vec!["*.txt".to_string()],
         };
         template::mark(&mark_op, &mut fs).unwrap();
 
-        // Process with variables
         let mut vars = HashMap::new();
         vars.insert("NAME".to_string(), "World".to_string());
 
         template::process(&mut fs, &vars).unwrap();
 
-        // Check result
         let file = fs.get_file("template.txt").unwrap();
         let content = String::from_utf8(file.content.clone()).unwrap();
         assert_eq!(content, "Hello World!");
-        assert!(!file.is_template); // Should be unmarked after processing
-    }
-
-    #[test]
-    fn test_template_process_with_default() {
-        let mut fs = MemoryFS::new();
-        fs.add_file_string("template.txt", "Hello ${NAME:-Anonymous}!")
-            .unwrap();
-
-        // Mark as template
-        let mark_op = crate::config::TemplateOp {
-            patterns: vec!["*.txt".to_string()],
-        };
-        template::mark(&mark_op, &mut fs).unwrap();
-
-        // Process without NAME variable (should use default)
-        let vars = HashMap::new();
-
-        template::process(&mut fs, &vars).unwrap();
-
-        // Check result
-        let file = fs.get_file("template.txt").unwrap();
-        let content = String::from_utf8(file.content.clone()).unwrap();
-        assert_eq!(content, "Hello Anonymous!");
-    }
-
-    #[test]
-    fn test_template_process_env_var() {
-        // Set an environment variable for testing
-        std::env::set_var("TEST_VAR", "from_env");
-
-        let mut fs = MemoryFS::new();
-        fs.add_file_string("template.txt", "Value: ${TEST_VAR}")
-            .unwrap();
-
-        // Mark as template
-        let mark_op = crate::config::TemplateOp {
-            patterns: vec!["*.txt".to_string()],
-        };
-        template::mark(&mark_op, &mut fs).unwrap();
-
-        // Process without TEST_VAR in vars (should use env var)
-        let vars = HashMap::new();
-
-        template::process(&mut fs, &vars).unwrap();
-
-        // Check result
-        let file = fs.get_file("template.txt").unwrap();
-        let content = String::from_utf8(file.content.clone()).unwrap();
-        assert_eq!(content, "Value: from_env");
-
-        // Clean up
-        std::env::remove_var("TEST_VAR");
+        assert!(!file.is_template);
     }
 
     #[test]
     fn test_template_process_undefined_var() {
         let mut fs = MemoryFS::new();
-        fs.add_file_string("template.txt", "Hello ${UNDEFINED_VAR}!")
+        fs.add_file_string("template.txt", "Hello __COMMON_REPO__UNDEFINED_VAR__!")
             .unwrap();
 
-        // Mark as template
         let mark_op = crate::config::TemplateOp {
             patterns: vec!["*.txt".to_string()],
         };
         template::mark(&mark_op, &mut fs).unwrap();
 
-        // Process without the variable
         let vars = HashMap::new();
 
-        // Should fail with undefined variable error
         let result = template::process(&mut fs, &vars);
         assert!(result.is_err());
 
         if let Err(Error::Template { message, variable }) = result {
-            assert!(message.contains("Undefined variable"));
-            assert!(variable.is_some());
+            assert!(message.contains("Undefined template variable"));
+            assert_eq!(variable, Some("UNDEFINED_VAR".to_string()));
         } else {
             panic!("Expected Template error");
         }
@@ -1686,120 +1627,48 @@ mod template_tests {
     }
 
     #[test]
-    fn test_template_variable_substitution() {
-        // Test normal template variable substitution to ensure regex works
-        // (the regex error path is hard to test since the pattern is hardcoded)
-        let content = "Hello ${NAME}!";
-        let mut vars = HashMap::new();
-        vars.insert("NAME".to_string(), "World".to_string());
-
-        // We can't call substitute_variables directly since it's private,
-        // so we'll test the full template processing flow
+    fn test_template_dollar_brace_passes_through() {
         let mut fs = MemoryFS::new();
-        fs.add_file_string("template.txt", content).unwrap();
+        fs.add_file_string(
+            "script.sh",
+            "echo ${PATH}\nproject: __COMMON_REPO__NAME__\n",
+        )
+        .unwrap();
 
-        // Mark as template
+        let mark_op = crate::config::TemplateOp {
+            patterns: vec!["*.sh".to_string()],
+        };
+        template::mark(&mark_op, &mut fs).unwrap();
+
+        let mut vars = HashMap::new();
+        vars.insert("NAME".to_string(), "myproject".to_string());
+
+        template::process(&mut fs, &vars).unwrap();
+
+        let file = fs.get_file("script.sh").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(content, "echo ${PATH}\nproject: myproject\n");
+    }
+
+    #[test]
+    fn test_template_double_underscore_in_content_parses_at_first_boundary() {
+        let mut fs = MemoryFS::new();
+        fs.add_file_string("template.txt", "value: __COMMON_REPO__FOO__BAR__")
+            .unwrap();
+
         let mark_op = crate::config::TemplateOp {
             patterns: vec!["*.txt".to_string()],
         };
         template::mark(&mark_op, &mut fs).unwrap();
 
+        let mut vars = HashMap::new();
+        vars.insert("FOO".to_string(), "replaced".to_string());
+
         template::process(&mut fs, &vars).unwrap();
 
         let file = fs.get_file("template.txt").unwrap();
-        let result_content = String::from_utf8(file.content.clone()).unwrap();
-        assert_eq!(result_content, "Hello World!");
-    }
-
-    #[test]
-    fn test_template_skips_gha_double_brace_expressions() {
-        // GitHub Actions ${{ }} expressions must pass through untouched
-        let content = "token: ${{ steps.app-token.outputs.token }}";
-        let vars = HashMap::new();
-
-        let mut fs = MemoryFS::new();
-        fs.add_file_string("workflow.yml", content).unwrap();
-
-        let mark_op = crate::config::TemplateOp {
-            patterns: vec!["*.yml".to_string()],
-        };
-        template::mark(&mark_op, &mut fs).unwrap();
-
-        template::process(&mut fs, &vars).unwrap();
-
-        let file = fs.get_file("workflow.yml").unwrap();
-        let result_content = String::from_utf8(file.content.clone()).unwrap();
-        assert_eq!(
-            result_content,
-            "token: ${{ steps.app-token.outputs.token }}"
-        );
-    }
-
-    #[test]
-    fn test_template_expands_var_inside_gha_expression() {
-        // ${VAR} inside ${{ }} should expand, but ${{ }} itself stays
-        let content = "${{ vars.${MY_VAR:-FALLBACK} }}";
-        let vars = HashMap::new();
-
-        let mut fs = MemoryFS::new();
-        fs.add_file_string("workflow.yml", content).unwrap();
-
-        let mark_op = crate::config::TemplateOp {
-            patterns: vec!["*.yml".to_string()],
-        };
-        template::mark(&mark_op, &mut fs).unwrap();
-
-        template::process(&mut fs, &vars).unwrap();
-
-        let file = fs.get_file("workflow.yml").unwrap();
-        let result_content = String::from_utf8(file.content.clone()).unwrap();
-        assert_eq!(result_content, "${{ vars.FALLBACK }}");
-    }
-
-    #[test]
-    fn test_template_expands_var_inside_gha_with_value() {
-        // ${VAR} inside ${{ }} with a provided value
-        let content = "${{ secrets.${MY_SECRET} }}";
-        let mut vars = HashMap::new();
-        vars.insert("MY_SECRET".to_string(), "prod-key".to_string());
-
-        let mut fs = MemoryFS::new();
-        fs.add_file_string("workflow.yml", content).unwrap();
-
-        let mark_op = crate::config::TemplateOp {
-            patterns: vec!["*.yml".to_string()],
-        };
-        template::mark(&mark_op, &mut fs).unwrap();
-
-        template::process(&mut fs, &vars).unwrap();
-
-        let file = fs.get_file("workflow.yml").unwrap();
-        let result_content = String::from_utf8(file.content.clone()).unwrap();
-        assert_eq!(result_content, "${{ secrets.prod-key }}");
-    }
-
-    #[test]
-    fn test_template_mixed_gha_and_template_vars() {
-        // Mix of GHA expressions and template vars in same file
-        let content = "owner: ${GH_APP_OWNER:-christmas-island}\napp-id: ${{ vars.${GH_APP_ID_VAR:-CHRISTMAS_ISLAND_APP_ID} }}";
-        let vars = HashMap::new();
-
-        let mut fs = MemoryFS::new();
-        fs.add_file_string("workflow.yml", content).unwrap();
-
-        let mark_op = crate::config::TemplateOp {
-            patterns: vec!["*.yml".to_string()],
-        };
-        template::mark(&mark_op, &mut fs).unwrap();
-
-        template::process(&mut fs, &vars).unwrap();
-
-        let file = fs.get_file("workflow.yml").unwrap();
-        let result_content = String::from_utf8(file.content.clone()).unwrap();
-        assert_eq!(
-            result_content,
-            "owner: christmas-island\napp-id: ${{ vars.CHRISTMAS_ISLAND_APP_ID }}"
-        );
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        assert_eq!(content, "value: replacedBAR__");
     }
 }
 
