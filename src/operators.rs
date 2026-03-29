@@ -1505,8 +1505,31 @@ pub(crate) mod template_vars {
         op: &crate::config::TemplateVars,
         context: &mut HashMap<String, String>,
     ) -> Result<()> {
-        // Add/override variables from this operation
+        use regex::Regex;
+
+        let valid_name = Regex::new(r"^[A-Za-z_][A-Za-z0-9_]*$").expect("valid regex");
+
         for (key, value) in &op.vars {
+            if !valid_name.is_match(key) {
+                return Err(crate::error::Error::Template {
+                    message: format!(
+                        "Invalid template variable name '{}'. \
+                         Names must match [A-Za-z_][A-Za-z0-9_]*",
+                        key
+                    ),
+                    variable: Some(key.clone()),
+                });
+            }
+            if key.contains("__") {
+                return Err(crate::error::Error::Template {
+                    message: format!(
+                        "Template variable name '{}' contains '__' (double underscore), \
+                         which would be unmatchable in __COMMON_REPO__VAR__ syntax",
+                        key
+                    ),
+                    variable: Some(key.clone()),
+                });
+            }
             context.insert(key.clone(), value.clone());
         }
 
@@ -1703,6 +1726,54 @@ mod template_tests {
         let file = fs.get_file("template.txt").unwrap();
         let content = String::from_utf8(file.content.clone()).unwrap();
         assert_eq!(content, "value: replacedBAR__");
+    }
+
+    #[test]
+    fn test_template_vars_collect_rejects_double_underscore_name() {
+        let mut context = HashMap::new();
+        let op = crate::config::TemplateVars {
+            vars: {
+                let mut vars = HashMap::new();
+                vars.insert("FOO__BAR".to_string(), "value".to_string());
+                vars
+            },
+        };
+
+        let result = template_vars::collect(&op, &mut context);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_template_vars_collect_rejects_hyphenated_name() {
+        let mut context = HashMap::new();
+        let op = crate::config::TemplateVars {
+            vars: {
+                let mut vars = HashMap::new();
+                vars.insert("my-var".to_string(), "value".to_string());
+                vars
+            },
+        };
+
+        let result = template_vars::collect(&op, &mut context);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_template_vars_collect_accepts_valid_names() {
+        let mut context = HashMap::new();
+        let op = crate::config::TemplateVars {
+            vars: {
+                let mut vars = HashMap::new();
+                vars.insert("SIMPLE".to_string(), "a".to_string());
+                vars.insert("with_underscores".to_string(), "b".to_string());
+                vars.insert("_leading".to_string(), "c".to_string());
+                vars.insert("Mixed_Case_123".to_string(), "d".to_string());
+                vars
+            },
+        };
+
+        template_vars::collect(&op, &mut context).unwrap();
+        assert_eq!(context.len(), 4);
     }
 }
 
