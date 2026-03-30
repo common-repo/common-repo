@@ -868,6 +868,119 @@ impl Default for MarkdownMergeOp {
     }
 }
 
+/// XML merge operator configuration
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct XmlMergeOp {
+    /// Source fragment file (required unless auto_merge is set)
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Destination file to merge into (required unless auto_merge is set)
+    #[serde(default)]
+    pub dest: Option<String>,
+    /// Path within the destination to merge at (optional - merges at root if omitted)
+    #[serde(default)]
+    pub path: Option<String>,
+    /// Array merge mode: replace, append, or append_unique
+    #[serde(default, rename = "array_mode")]
+    pub array_mode: ArrayMergeMode,
+    /// Position for array insertion (start or end)
+    #[serde(default)]
+    pub position: InsertPosition,
+    /// Mark this operation as deferred (applies when repo is used as an upstream)
+    #[serde(default)]
+    pub defer: Option<bool>,
+    /// Shorthand: sets source=dest to this value and implies defer=true
+    #[serde(default, rename = "auto-merge")]
+    pub auto_merge: Option<String>,
+}
+
+impl XmlMergeOp {
+    /// Validate the merge operation configuration
+    pub fn validate(&self) -> Result<()> {
+        if self.auto_merge.is_some() && (self.source.is_some() || self.dest.is_some()) {
+            return Err(Error::ConfigParse {
+                message: "Cannot use auto-merge with explicit source or dest".to_string(),
+                hint: Some(
+                    "Use either 'auto-merge: file.xml' OR 'source' and 'dest', not both"
+                        .to_string(),
+                ),
+            });
+        }
+        if self.auto_merge.is_none() && (self.source.is_none() || self.dest.is_none()) {
+            return Err(Error::ConfigParse {
+                message: "XML merge requires source and dest (or use auto-merge)".to_string(),
+                hint: Some(
+                    "Add 'source:' and 'dest:' fields, or use 'auto-merge:' for same-name files"
+                        .to_string(),
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    /// Get the effective source path (from auto_merge or source field)
+    pub fn get_source(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.source.as_deref())
+    }
+
+    /// Get the effective dest path (from auto_merge or dest field)
+    pub fn get_dest(&self) -> Option<&str> {
+        self.auto_merge.as_deref().or(self.dest.as_deref())
+    }
+
+    /// Check if this operation is deferred
+    pub fn is_deferred(&self) -> bool {
+        self.auto_merge.is_some() || self.defer.unwrap_or(false)
+    }
+
+    /// Create a new XML merge operation with default values
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the source file path
+    pub fn source(mut self, source: impl Into<String>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Set the destination file path
+    pub fn dest(mut self, dest: impl Into<String>) -> Self {
+        self.dest = Some(dest.into());
+        self
+    }
+
+    /// Set the path within the destination to merge at
+    pub fn path(mut self, path: impl Into<String>) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    /// Set the position for array insertion
+    pub fn position(mut self, position: InsertPosition) -> Self {
+        self.position = position;
+        self
+    }
+
+    /// Set the array merge mode
+    pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
+        self.array_mode = mode;
+        self
+    }
+
+    /// Set whether this operation is deferred
+    pub fn defer(mut self, defer: bool) -> Self {
+        self.defer = Some(defer);
+        self
+    }
+
+    /// Set auto-merge mode (source=dest, implies defer)
+    pub fn auto_merge(mut self, path: impl Into<String>) -> Self {
+        self.auto_merge = Some(path.into());
+        self
+    }
+}
+
 /// All possible operation types in the configuration
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -898,6 +1011,8 @@ pub enum Operation {
     Ini { ini: IniMergeOp },
     /// Merge fragments of two Markdown files.
     Markdown { markdown: MarkdownMergeOp },
+    /// Merge the content of two XML files.
+    Xml { xml: XmlMergeOp },
     /// Operations for this repo itself (local-only, isolated pipeline).
     /// Uses `Self_` because `Self` is a Rust keyword.
     Self_ {
@@ -910,7 +1025,7 @@ impl Operation {
     /// Check if this operation is deferred (applies when repo is used as an upstream)
     ///
     /// Deferred operations have `defer: true` or `auto-merge` set.
-    /// Only merge operators (yaml, json, toml, ini, markdown) can be deferred.
+    /// Only merge operators (yaml, json, toml, ini, markdown, xml) can be deferred.
     pub fn is_deferred(&self) -> bool {
         match self {
             Operation::Yaml { yaml } => yaml.is_deferred(),
@@ -918,10 +1033,86 @@ impl Operation {
             Operation::Toml { toml } => toml.is_deferred(),
             Operation::Ini { ini } => ini.is_deferred(),
             Operation::Markdown { markdown } => markdown.is_deferred(),
+            Operation::Xml { xml } => xml.is_deferred(),
             // Non-merge operators cannot be deferred
             _ => false,
         }
     }
+
+    /// Returns the effective source path for merge operations, or `None`
+    /// for non-merge operations.
+    ///
+    /// The effective source is derived from `auto_merge` (if set) or the
+    /// explicit `source` field.
+    pub fn merge_effective_source(&self) -> Option<&str> {
+        match self {
+            Operation::Yaml { yaml } => yaml.get_source(),
+            Operation::Json { json } => json.get_source(),
+            Operation::Toml { toml } => toml.get_source(),
+            Operation::Ini { ini } => ini.get_source(),
+            Operation::Markdown { markdown } => markdown.get_source(),
+            _ => None,
+        }
+    }
+
+    /// Returns true if this is a merge operation (yaml, json, toml, ini, markdown).
+    pub fn is_merge_operation(&self) -> bool {
+        matches!(
+            self,
+            Operation::Yaml { .. }
+                | Operation::Json { .. }
+                | Operation::Toml { .. }
+                | Operation::Ini { .. }
+                | Operation::Markdown { .. }
+        )
+    }
+}
+
+/// A warning about a consumer merge operation whose source was not declared
+/// by any upstream.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeProvenanceWarning {
+    /// Index of the operation in the consumer config
+    pub operation_index: usize,
+    /// The effective source path of the merge operation
+    pub source_path: String,
+}
+
+/// Check consumer merge operations for provenance warnings.
+///
+/// Returns a warning for each non-deferred merge operation in the consumer
+/// config whose effective source does not appear as an effective source in
+/// any of the upstream deferred operations. This catches merge operations
+/// that reference files not provided by any upstream.
+pub fn check_merge_provenance(
+    consumer_config: &Schema,
+    upstream_deferred_ops: &[Operation],
+) -> Vec<MergeProvenanceWarning> {
+    // Collect all effective source paths from upstream deferred operations
+    let upstream_sources: std::collections::HashSet<&str> = upstream_deferred_ops
+        .iter()
+        .filter_map(|op| op.merge_effective_source())
+        .collect();
+
+    let mut warnings = Vec::new();
+
+    for (idx, op) in consumer_config.iter().enumerate() {
+        // Only check merge operations that are not deferred
+        if !op.is_merge_operation() || op.is_deferred() {
+            continue;
+        }
+
+        if let Some(source) = op.merge_effective_source() {
+            if !upstream_sources.contains(source) {
+                warnings.push(MergeProvenanceWarning {
+                    operation_index: idx,
+                    source_path: source.to_string(),
+                });
+            }
+        }
+    }
+
+    warnings
 }
 
 /// The complete configuration schema, represented as a list of operations.
@@ -1200,6 +1391,10 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             let markdown: MarkdownMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Markdown { markdown })
         }
+        "xml" => {
+            let xml: XmlMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
+            Ok(Operation::Xml { xml })
+        }
         "self" => {
             // Self operations contain a sub-list of operations
             match value {
@@ -1230,7 +1425,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
         }
         _ => Err(Error::ConfigParse {
             message: format!("Unknown operation type: {}", op_type),
-            hint: Some("Valid operations: repo, include, exclude, template, template-vars, rename, tools, yaml, json, toml, ini, markdown, self".to_string()),
+            hint: Some("Valid operations: repo, include, exclude, template, template-vars, rename, tools, yaml, json, toml, ini, markdown, xml, self".to_string()),
         }),
     }
 }
@@ -3037,5 +3232,151 @@ mod tests {
     fn test_insert_position_default() {
         let pos = InsertPosition::default();
         assert_eq!(pos, InsertPosition::End);
+    }
+
+    mod merge_provenance_tests {
+        use super::*;
+
+        #[test]
+        fn test_consumer_merge_without_upstream_produces_warning() {
+            // Consumer has a JSON merge op with source "fragment.json"
+            // No upstream declares a deferred merge for that source
+            let consumer_config = vec![Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment.json".to_string()),
+                    dest: Some("package.json".to_string()),
+                    ..Default::default()
+                },
+            }];
+            let upstream_deferred_ops: Vec<Operation> = vec![];
+
+            let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
+
+            assert_eq!(warnings.len(), 1);
+            assert_eq!(warnings[0].operation_index, 0);
+            assert_eq!(warnings[0].source_path, "fragment.json");
+        }
+
+        #[test]
+        fn test_consumer_merge_with_matching_upstream_no_warning() {
+            // Consumer has a JSON merge op with source "fragment.json"
+            // Upstream also declares a deferred merge for "fragment.json"
+            let consumer_config = vec![Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment.json".to_string()),
+                    dest: Some("package.json".to_string()),
+                    ..Default::default()
+                },
+            }];
+            let upstream_deferred_ops = vec![Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment.json".to_string()),
+                    dest: Some("package.json".to_string()),
+                    defer: Some(true),
+                    ..Default::default()
+                },
+            }];
+
+            let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
+
+            assert_eq!(warnings.len(), 0);
+        }
+
+        #[test]
+        fn test_deferred_consumer_merge_is_not_warned() {
+            // Consumer has a deferred merge op -- this is an upstream declaration,
+            // not a consumer merge, so no provenance warning
+            let consumer_config = vec![Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: Some("fragment.yaml".to_string()),
+                    dest: Some("config.yaml".to_string()),
+                    defer: Some(true),
+                    ..Default::default()
+                },
+            }];
+            let upstream_deferred_ops: Vec<Operation> = vec![];
+
+            let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
+
+            assert_eq!(warnings.len(), 0);
+        }
+
+        #[test]
+        fn test_non_merge_operations_are_skipped() {
+            let consumer_config = vec![
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.tmp".to_string()],
+                    },
+                },
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["src/**".to_string()],
+                    },
+                },
+            ];
+            let upstream_deferred_ops: Vec<Operation> = vec![];
+
+            let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
+
+            assert_eq!(warnings.len(), 0);
+        }
+
+        #[test]
+        fn test_multiple_consumer_merges_mixed_provenance() {
+            // Two consumer merge ops: one has a matching upstream, one does not
+            let consumer_config = vec![
+                Operation::Json {
+                    json: JsonMergeOp {
+                        source: Some("known-fragment.json".to_string()),
+                        dest: Some("output.json".to_string()),
+                        ..Default::default()
+                    },
+                },
+                Operation::Toml {
+                    toml: TomlMergeOp {
+                        source: Some("unknown-fragment.toml".to_string()),
+                        dest: Some("config.toml".to_string()),
+                        ..Default::default()
+                    },
+                },
+            ];
+            let upstream_deferred_ops = vec![Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("known-fragment.json".to_string()),
+                    dest: Some("output.json".to_string()),
+                    defer: Some(true),
+                    ..Default::default()
+                },
+            }];
+
+            let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
+
+            assert_eq!(warnings.len(), 1);
+            assert_eq!(warnings[0].operation_index, 1);
+            assert_eq!(warnings[0].source_path, "unknown-fragment.toml");
+        }
+
+        #[test]
+        fn test_upstream_auto_merge_matches_consumer_source() {
+            // Upstream uses auto_merge shorthand, consumer uses explicit source
+            let consumer_config = vec![Operation::Yaml {
+                yaml: YamlMergeOp {
+                    source: Some("config.yaml".to_string()),
+                    dest: Some("config.yaml".to_string()),
+                    ..Default::default()
+                },
+            }];
+            let upstream_deferred_ops = vec![Operation::Yaml {
+                yaml: YamlMergeOp {
+                    auto_merge: Some("config.yaml".to_string()),
+                    ..Default::default()
+                },
+            }];
+
+            let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
+
+            assert_eq!(warnings.len(), 0);
+        }
     }
 }

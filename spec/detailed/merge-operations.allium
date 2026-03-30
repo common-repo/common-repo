@@ -2,7 +2,7 @@
 -- detailed/merge-operations.allium
 --
 -- Scope: Merge operation semantics for structured and text file formats
--- Includes: YAML, JSON, TOML, INI, and Markdown merge behavior,
+-- Includes: YAML, JSON, TOML, INI, Markdown, and XML merge behavior,
 --           path navigation, array handling, conflict resolution
 -- Excludes:
 --   - Config parsing and validation (see common-repo.allium)
@@ -53,6 +53,9 @@ rule AutoCreateDestination {
         -- TOML: created with empty table
         -- INI: created as empty file
         -- Markdown: created as empty file
+        -- XML: created with a minimal stub containing an XML declaration
+        --   and a root element whose local name and namespace match the
+        --   source document's root element
 }
 
 -- --------------------------------------------------------------------------
@@ -348,6 +351,93 @@ rule MarkdownAppendContent {
 }
 
 -- ==========================================================================
+-- XML Merge Semantics
+-- ==========================================================================
+
+rule XmlDeepMerge {
+    when: ApplyXmlMerge(op, filesystem)
+
+    -- Elements merge recursively: source child elements are merged into
+    -- the destination by matching on element local name AND namespace URI
+    -- (not prefix). Source attributes override destination attributes on
+    -- the same element. Destination-only elements and attributes are
+    -- preserved. Text content uses last-write-wins.
+    ensures: XmlMerged(op, filesystem)
+
+    @guidance
+        -- Element matching uses the pair (local name, namespace URI).
+        -- Two elements with the same local name but different namespace
+        -- URIs are distinct and do not merge into each other.
+        -- Namespace declarations are preserved through round-trip. When
+        -- merging elements from different namespace contexts, the
+        -- necessary namespace declarations are carried along so the
+        -- output remains well-formed.
+}
+
+rule XmlRepeatedElements {
+    when: XmlMergeChildren(source_children, dest_children, name, namespace, mode, position)
+
+    -- Repeated sibling elements with the same local name and namespace
+    -- act as XML's equivalent of arrays. The unified array merge model
+    -- (array_mode + position) applies to these groups.
+    ensures:
+        if mode = replace:
+            -- All destination siblings matching (name, namespace) are
+            -- replaced with the source siblings.
+            result = replace_siblings(dest_children, source_children, name, namespace)
+        if mode = append:
+            -- Source siblings are added to the destination group.
+            if position = start:
+                result = insert_siblings_before(dest_children, source_children, name, namespace)
+            else:
+                result = insert_siblings_after(dest_children, source_children, name, namespace)
+        if mode = append_unique:
+            -- Only add source siblings whose text content does not
+            -- already appear in any destination sibling of the same name.
+            let unique = source_children where text_content(item) not in dest_texts(dest_children, name, namespace)
+            if position = start:
+                result = insert_siblings_before(dest_children, unique, name, namespace)
+            else:
+                result = insert_siblings_after(dest_children, unique, name, namespace)
+}
+
+rule XmlNamespaceHandling {
+    when: ApplyXmlMerge(op, filesystem)
+
+    -- Elements are matched by local name AND namespace URI, never by
+    -- prefix alone. Namespace declarations (xmlns attributes) are
+    -- preserved through the parse-merge-serialize round-trip.
+    -- When source elements carry namespace declarations not present
+    -- in the destination, those declarations are added to the output.
+    ensures: NamespacesPreserved(op, filesystem)
+
+    @guidance
+        -- CDATA sections are normalized to text content during parse.
+        -- This is a known limitation: the Xot tree model follows the
+        -- XML Information Set, which does not distinguish CDATA from
+        -- text. Round-tripping a document with CDATA sections will
+        -- produce equivalent text nodes in the output.
+        --
+        -- Comments and processing instructions are preserved in their
+        -- original positions within the document.
+        --
+        -- The XML declaration (<?xml ...?>) may be normalized in
+        -- output (e.g., encoding attribute added or version quoted
+        -- differently). The semantic content is unchanged.
+        --
+        -- Path navigation uses dot-notation by element local name,
+        -- consistent with YAML, JSON, and TOML merge operators.
+        -- Example: "project.dependencies.dependency" navigates into
+        -- a <project> root, then <dependencies>, then <dependency>.
+        -- This is NOT XPath — it uses the same parse_path() function
+        -- as the other structured merge operators.
+        --
+        -- Empty destination files are created with a minimal XML stub:
+        -- an XML declaration and a root element matching the source
+        -- document's root element name and namespace.
+}
+
+-- ==========================================================================
 -- Invariants
 -- ==========================================================================
 
@@ -358,7 +448,8 @@ invariant SourceAlwaysWins {
 
 invariant MergeNeverCorrupts {
     -- A merge operation never produces output that is invalid for the
-    -- target format. YAML output is valid YAML, JSON is valid JSON, etc.
+    -- target format. YAML output is valid YAML, JSON is valid JSON,
+    -- TOML is valid TOML, XML is well-formed XML, etc.
 }
 
 invariant TrailingNewline {

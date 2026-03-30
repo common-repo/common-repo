@@ -24,7 +24,7 @@
 //!     upstream or from the consumer's working directory.
 //!
 //! 5.  **Apply Consumer Merges**: Consumer-level merge operations (YAML, JSON,
-//!     TOML, INI, Markdown) are applied to the combined filesystem. These run
+//!     TOML, INI, Markdown, XML) are applied to the combined filesystem. These run
 //!     before filters so merge sources are still available.
 //!
 //! 6.  **Apply Consumer Filters**: Consumer-level filter operations (exclude,
@@ -225,6 +225,9 @@ fn apply_consumer_merges(final_fs: &mut MemoryFS, local_config: &Schema) -> Resu
             }
             Operation::Markdown { markdown } => {
                 crate::merge::markdown::apply_markdown_merge_operation(final_fs, markdown)?;
+            }
+            Operation::Xml { xml } => {
+                crate::merge::xml::apply_xml_merge_operation(final_fs, xml)?;
             }
             _ => {}
         }

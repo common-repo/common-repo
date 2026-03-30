@@ -26,6 +26,8 @@
 
 use std::collections::HashSet;
 
+use log::warn;
+
 use crate::config::IniMergeOp;
 use crate::error::{Error, Result};
 use crate::filesystem::{File, MemoryFS};
@@ -195,6 +197,15 @@ pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<(
     op.validate()?;
     let source_path = op.get_source().expect("source validated");
     let dest_path = op.get_dest().expect("dest validated");
+
+    // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
+    if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
+        warn!(
+            "Auto-merge skipped, file not found on either side: {}",
+            source_path
+        );
+        return Ok(());
+    }
 
     let source_content = read_file_as_string(fs, source_path)?;
     let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
@@ -836,6 +847,23 @@ host = localhost
             let err = result.unwrap_err();
             let err_str = format!("{}", err);
             assert!(err_str.contains("not found") || err_str.contains("File not found"));
+        }
+
+        #[test]
+        fn test_ini_auto_merge_missing_source_and_dest_skips() {
+            let mut fs = MemoryFS::new();
+
+            let op = IniMergeOp {
+                auto_merge: Some("config.ini".to_string()),
+                ..Default::default()
+            };
+
+            let result = apply_ini_merge_operation(&mut fs, &op);
+            assert!(
+                result.is_ok(),
+                "auto-merge with missing files should skip, not error"
+            );
+            assert!(!fs.exists("config.ini"));
         }
 
         #[test]

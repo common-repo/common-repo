@@ -22,6 +22,7 @@
 //! apply_json_merge_operation(&mut fs, &op)?;
 //! ```
 
+use log::warn;
 use serde_json::Value as JsonValue;
 
 use super::PathSegment;
@@ -97,6 +98,59 @@ pub fn navigate_json_value<'a>(
     Ok(current)
 }
 
+/// Return a human-readable name for a JSON value type
+fn json_type_name(value: &JsonValue) -> &'static str {
+    match value {
+        JsonValue::Null => "Null",
+        JsonValue::Bool(_) => "Bool",
+        JsonValue::Number(_) => "Number",
+        JsonValue::String(_) => "String",
+        JsonValue::Array(_) => "Array",
+        JsonValue::Object(_) => "Object",
+    }
+}
+
+/// Context for a JSON merge operation, carrying diagnostic metadata
+/// and collecting warnings emitted during the merge.
+pub struct JsonMergeContext<'a> {
+    /// Current dot-separated path within the JSON structure
+    pub path: String,
+    /// Source file name for diagnostic messages
+    pub src_file: &'a str,
+    /// Destination file name for diagnostic messages
+    pub dst_file: &'a str,
+    /// Warnings collected during the merge (type mismatches, etc.)
+    pub warnings: Vec<String>,
+}
+
+impl<'a> JsonMergeContext<'a> {
+    /// Create a new context for a merge between the given files.
+    pub fn new(src_file: &'a str, dst_file: &'a str) -> Self {
+        Self {
+            path: String::new(),
+            src_file,
+            dst_file,
+            warnings: Vec::new(),
+        }
+    }
+
+    fn child_path(&self, key: &str) -> String {
+        if self.path.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}.{}", self.path, key)
+        }
+    }
+
+    fn display_path(&self) -> &str {
+        if self.path.is_empty() {
+            "<root>"
+        } else {
+            &self.path
+        }
+    }
+}
+
 /// Recursively merge source JSON value into target
 ///
 /// Handles different JSON types appropriately:
@@ -104,25 +158,35 @@ pub fn navigate_json_value<'a>(
 /// - Arrays: Append, replace, or append-unique based on `ArrayMergeMode`, with position control
 /// - Scalars: Source always wins (ScalarOverwrite rule)
 ///
+/// When a type mismatch occurs (e.g., merging an object into an array), the
+/// source value replaces the target and a warning is recorded per the
+/// `TypeMismatchReplace` rule in the merge spec.
+///
 /// # Arguments
 ///
 /// * `target` - The target value to merge into (modified in place)
 /// * `source` - The source value to merge from
 /// * `mode` - How to handle array merging (Append, Replace, or AppendUnique)
 /// * `position` - Where to insert array items (Start or End)
+/// * `ctx` - Merge context carrying path, file names, and warning collector
 pub fn merge_json_values(
     target: &mut JsonValue,
     source: &JsonValue,
     mode: ArrayMergeMode,
     position: InsertPosition,
+    ctx: &mut JsonMergeContext<'_>,
 ) {
     match target {
         JsonValue::Object(target_map) => {
             if let JsonValue::Object(source_map) = source {
                 for (key, value) in source_map {
+                    let new_path = ctx.child_path(key);
+
                     if let Some(existing) = target_map.get_mut(key) {
                         if existing.is_object() && value.is_object() {
-                            merge_json_values(existing, value, mode, position);
+                            let saved_path = std::mem::replace(&mut ctx.path, new_path);
+                            merge_json_values(existing, value, mode, position, ctx);
+                            ctx.path = saved_path;
                         } else if let Some(source_array) = value.as_array() {
                             if let Some(target_array) = existing.as_array_mut() {
                                 match mode {
@@ -158,10 +222,26 @@ pub fn merge_json_values(
                                     }
                                 }
                             } else {
-                                // Type mismatch -- source wins
+                                let msg =
+                                    format!(
+                                    "{} -> {}: Type mismatch at path '{}': replacing {} with Array",
+                                    ctx.src_file, ctx.dst_file, new_path, json_type_name(existing)
+                                );
+                                warn!("{}", msg);
+                                ctx.warnings.push(msg);
                                 *existing = JsonValue::Array(source_array.clone());
                             }
                         } else {
+                            // Check for type mismatch before scalar overwrite
+                            if existing.is_array() && !value.is_array() {
+                                let msg =
+                                    format!(
+                                    "{} -> {}: Type mismatch at path '{}': replacing Array with {}",
+                                    ctx.src_file, ctx.dst_file, new_path, json_type_name(value)
+                                );
+                                warn!("{}", msg);
+                                ctx.warnings.push(msg);
+                            }
                             // Scalars: source always wins
                             *existing = value.clone();
                         }
@@ -170,6 +250,15 @@ pub fn merge_json_values(
                     }
                 }
             } else {
+                let msg = format!(
+                    "{} -> {}: Type mismatch at path '{}': replacing Object with {}",
+                    ctx.src_file,
+                    ctx.dst_file,
+                    ctx.display_path(),
+                    json_type_name(source)
+                );
+                warn!("{}", msg);
+                ctx.warnings.push(msg);
                 *target = source.clone();
             }
         }
@@ -208,6 +297,15 @@ pub fn merge_json_values(
                     }
                 }
             } else {
+                let msg = format!(
+                    "{} -> {}: Type mismatch at path '{}': replacing Array with {}",
+                    ctx.src_file,
+                    ctx.dst_file,
+                    ctx.display_path(),
+                    json_type_name(source)
+                );
+                warn!("{}", msg);
+                ctx.warnings.push(msg);
                 *target = source.clone();
             }
         }
@@ -241,6 +339,15 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
     let source_path = op.get_source().expect("source validated");
     let dest_path = op.get_dest().expect("dest validated");
 
+    // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
+    if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
+        warn!(
+            "Auto-merge skipped, file not found on either side: {}",
+            source_path
+        );
+        return Ok(());
+    }
+
     let source_content = read_file_as_string(fs, source_path)?;
     let dest_content =
         read_file_as_string_optional(fs, dest_path)?.unwrap_or_else(|| "{}".to_string());
@@ -256,7 +363,8 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
     let path = super::parse_path(op.path.as_deref().unwrap_or(""));
     let target = navigate_json_value(&mut dest_value, &path)?;
     let mode = op.array_mode;
-    merge_json_values(target, &source_value, mode, op.position);
+    let mut ctx = JsonMergeContext::new(source_path, dest_path);
+    merge_json_values(target, &source_value, mode, op.position, &mut ctx);
 
     let serialized = serde_json::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
         operation: "json merge".to_string(),
@@ -309,6 +417,18 @@ fn write_string_to_file(fs: &mut MemoryFS, path: &str, content: String) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Helper to call merge_json_values with default file/path context for tests
+    /// that do not need to inspect warnings.
+    fn merge_json_values_simple(
+        target: &mut JsonValue,
+        source: &JsonValue,
+        mode: ArrayMergeMode,
+        position: InsertPosition,
+    ) {
+        let mut ctx = JsonMergeContext::new("source.json", "dest.json");
+        merge_json_values(target, source, mode, position, &mut ctx);
+    }
 
     mod navigate_json_value_tests {
         use super::*;
@@ -530,6 +650,23 @@ mod tests {
                 JsonValue::String("value".to_string())
             );
         }
+
+        #[test]
+        fn test_json_auto_merge_missing_source_and_dest_skips() {
+            let mut fs = MemoryFS::new();
+
+            let op = JsonMergeOp {
+                auto_merge: Some("package.json".to_string()),
+                ..Default::default()
+            };
+
+            let result = apply_json_merge_operation(&mut fs, &op);
+            assert!(
+                result.is_ok(),
+                "auto-merge with missing files should skip, not error"
+            );
+            assert!(!fs.exists("package.json"));
+        }
     }
 
     mod deep_merging_tests {
@@ -542,7 +679,7 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"a": {"b": {"c": {"f": 3}}, "g": 4}}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -566,7 +703,7 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"level1": {"modify": {"new": "data"}}}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -595,7 +732,7 @@ mod tests {
                 serde_json::from_str(r#"{"config": {"items": [4, 5]}}"#).unwrap();
 
             // With append=true
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Append,
@@ -613,7 +750,7 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"a": {"b": {}}}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"a": {"b": {"c": 1}}}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -630,7 +767,7 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"a": {"nested": "value"}, "b": null}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -655,7 +792,7 @@ mod tests {
             let source: JsonValue =
                 serde_json::from_str(r#"{"key": {"nested": "object"}}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -675,7 +812,7 @@ mod tests {
                 serde_json::from_str(r#"{"key": {"nested": "object"}}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"key": "new_string"}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -690,7 +827,7 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"items": "not_array"}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -707,7 +844,7 @@ mod tests {
             let source: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
 
             // Type mismatch: source array wins regardless of mode
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Append,
@@ -723,7 +860,7 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"items": "now_a_string"}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -742,7 +879,7 @@ mod tests {
             let source: JsonValue = serde_json::from_str(r#"{"items": "now_a_string"}"#).unwrap();
 
             // Scalars: source always wins regardless of mode
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Append,
@@ -761,7 +898,7 @@ mod tests {
             let source: JsonValue = serde_json::from_str(r#"{"new": "object"}"#).unwrap();
 
             // Top-level replacement: array target, object source
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -778,7 +915,7 @@ mod tests {
             let source: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
 
             // Top-level: object target, array source -> line 152-154 in Object arm
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -787,6 +924,100 @@ mod tests {
 
             assert!(target.is_array());
             assert_eq!(target.as_array().unwrap().len(), 3);
+        }
+    }
+
+    mod type_mismatch_warning_tests {
+        use super::*;
+
+        #[test]
+        fn test_type_mismatch_object_into_array_emits_warning() {
+            let mut target: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
+            let source: JsonValue = serde_json::from_str(r#"{"key": "value"}"#).unwrap();
+            let mut ctx = JsonMergeContext::new("source.json", "dest.json");
+
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+                &mut ctx,
+            );
+
+            // Source wins on type mismatch
+            assert!(target.is_object());
+            assert_eq!(target["key"], JsonValue::String("value".to_string()));
+
+            // A warning should have been emitted about the type mismatch
+            assert_eq!(ctx.warnings.len(), 1);
+            assert!(ctx.warnings[0].contains("Type mismatch"));
+            assert!(ctx.warnings[0].contains("Array"));
+            assert!(ctx.warnings[0].contains("Object"));
+        }
+
+        #[test]
+        fn test_type_mismatch_array_into_object_emits_warning() {
+            let mut target: JsonValue = serde_json::from_str(r#"{"key": "value"}"#).unwrap();
+            let source: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
+            let mut ctx = JsonMergeContext::new("source.json", "dest.json");
+
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+                &mut ctx,
+            );
+
+            // Source wins on type mismatch
+            assert!(target.is_array());
+
+            // A warning should have been emitted
+            assert_eq!(ctx.warnings.len(), 1);
+            assert!(ctx.warnings[0].contains("Type mismatch"));
+            assert!(ctx.warnings[0].contains("Object"));
+            assert!(ctx.warnings[0].contains("Array"));
+        }
+
+        #[test]
+        fn test_type_mismatch_nested_key_emits_warning_with_path() {
+            let mut target: JsonValue = serde_json::from_str(r#"{"items": [1, 2, 3]}"#).unwrap();
+            let source: JsonValue = serde_json::from_str(r#"{"items": "now_a_string"}"#).unwrap();
+            let mut ctx = JsonMergeContext::new("source.json", "dest.json");
+
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+                &mut ctx,
+            );
+
+            assert_eq!(
+                target["items"],
+                JsonValue::String("now_a_string".to_string())
+            );
+
+            assert_eq!(ctx.warnings.len(), 1);
+            assert!(ctx.warnings[0].contains("items"));
+            assert!(ctx.warnings[0].contains("Type mismatch"));
+        }
+
+        #[test]
+        fn test_no_warning_for_same_type_merge() {
+            let mut target: JsonValue = serde_json::from_str(r#"{"a": {"b": 1}}"#).unwrap();
+            let source: JsonValue = serde_json::from_str(r#"{"a": {"c": 2}}"#).unwrap();
+            let mut ctx = JsonMergeContext::new("source.json", "dest.json");
+
+            merge_json_values(
+                &mut target,
+                &source,
+                ArrayMergeMode::Replace,
+                InsertPosition::End,
+                &mut ctx,
+            );
+
+            assert!(ctx.warnings.is_empty());
         }
     }
 
@@ -1010,7 +1241,7 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"[4, 5]"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Append,
@@ -1029,7 +1260,7 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"[1, 2, 3]"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"[4, 5]"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Append,
@@ -1170,7 +1401,7 @@ mod tests {
             let mut target = JsonValue::String("old".to_string());
             let source = JsonValue::String("new".to_string());
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -1185,7 +1416,7 @@ mod tests {
             let mut target = JsonValue::Number(42.into());
             let source = JsonValue::Number(serde_json::Number::from_f64(2.5).unwrap());
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -1200,7 +1431,7 @@ mod tests {
             let mut target = JsonValue::Bool(true);
             let source = JsonValue::Bool(false);
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -1215,7 +1446,7 @@ mod tests {
             let mut target = JsonValue::String("value".to_string());
             let source = JsonValue::Null;
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -1230,7 +1461,7 @@ mod tests {
             let mut target = JsonValue::Null;
             let source: JsonValue = serde_json::from_str(r#"{"key": "value"}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,
@@ -1246,7 +1477,7 @@ mod tests {
             let mut target: JsonValue = serde_json::from_str(r#"{"a": 1}"#).unwrap();
             let source: JsonValue = serde_json::from_str(r#"{"b": 2, "c": 3}"#).unwrap();
 
-            merge_json_values(
+            merge_json_values_simple(
                 &mut target,
                 &source,
                 ArrayMergeMode::Replace,

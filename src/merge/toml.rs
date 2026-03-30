@@ -403,6 +403,15 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
     let source_path = op.get_source().expect("source validated");
     let dest_path = op.get_dest().expect("dest validated");
 
+    // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
+    if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
+        warn!(
+            "Auto-merge skipped, file not found on either side: {}",
+            source_path
+        );
+        return Ok(());
+    }
+
     let source_content = read_file_as_string(fs, source_path)?;
     let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
 
@@ -1429,6 +1438,23 @@ items = 42
             if let Error::Merge { message, .. } = err {
                 assert!(message.contains("not found"));
             }
+        }
+
+        #[test]
+        fn test_toml_auto_merge_missing_source_and_dest_skips() {
+            let mut fs = MemoryFS::new();
+
+            let op = TomlMergeOp {
+                auto_merge: Some("Cargo.toml".to_string()),
+                ..Default::default()
+            };
+
+            let result = apply_toml_merge_operation(&mut fs, &op);
+            assert!(
+                result.is_ok(),
+                "auto-merge with missing files should skip, not error"
+            );
+            assert!(!fs.exists("Cargo.toml"));
         }
 
         #[test]

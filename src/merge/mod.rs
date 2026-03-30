@@ -23,6 +23,7 @@ pub(crate) mod ini;
 pub(crate) mod json;
 pub(crate) mod markdown;
 pub(crate) mod toml;
+pub(crate) mod xml;
 pub(crate) mod yaml;
 
 // Public re-exports of merge functions for integration testing and external use
@@ -31,6 +32,7 @@ pub use json::apply_json_merge_operation;
 pub use markdown::apply_markdown_merge_operation;
 pub use toml::apply_toml_merge_operation;
 pub use toml::parse_toml_path;
+pub use xml::apply_xml_merge_operation;
 pub use yaml::apply_yaml_merge_operation;
 
 /// Represents a segment in a path expression for navigating nested structures

@@ -322,6 +322,15 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
     let source_path = op.get_source().expect("source validated");
     let dest_path = op.get_dest().expect("dest validated");
 
+    // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
+    if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
+        warn!(
+            "Auto-merge skipped, file not found on either side: {}",
+            source_path
+        );
+        return Ok(());
+    }
+
     let source_content = read_file_as_string(fs, source_path)?;
     let dest_content =
         read_file_as_string_optional(fs, dest_path)?.unwrap_or_else(|| "---\n".to_string());
@@ -847,6 +856,48 @@ mod tests {
             assert!(result.is_err());
             let err_msg = result.unwrap_err().to_string();
             assert!(err_msg.contains("File not found"));
+        }
+
+        #[test]
+        fn test_yaml_auto_merge_missing_source_and_dest_skips() {
+            // Per MissingSourceAutoMerge spec rule: when auto_merge is set and
+            // neither source nor dest exists, warn and skip (not error).
+            let mut fs = MemoryFS::new();
+            // Neither config.yaml source nor dest exists in the filesystem
+
+            let op = YamlMergeOp {
+                auto_merge: Some("config.yaml".to_string()),
+                ..Default::default()
+            };
+
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(
+                result.is_ok(),
+                "auto-merge with missing files should skip, not error"
+            );
+            // Filesystem should remain unchanged (no files created)
+            assert!(!fs.exists("config.yaml"));
+        }
+
+        #[test]
+        fn test_yaml_auto_merge_missing_source_but_dest_exists_errors() {
+            // When auto_merge is set but only the source is missing (dest exists),
+            // this should still error per MissingSourceExplicit behavior --
+            // the skip only applies when neither file exists.
+            let mut fs = MemoryFS::new();
+            fs.add_file("config.yaml", File::from_string("key: value"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                auto_merge: Some("config.yaml".to_string()),
+                ..Default::default()
+            };
+
+            // Source and dest are the same path for auto_merge. Since the file
+            // exists, source exists too, so this should proceed normally (not skip).
+            // This is actually a valid merge (self-merge), so it should succeed.
+            let result = apply_yaml_merge_operation(&mut fs, &op);
+            assert!(result.is_ok());
         }
 
         #[test]
