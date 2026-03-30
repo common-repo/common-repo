@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.32.0](https://github.com/common-repo/common-repo/compare/v0.31.1...v0.32.0) (2026-03-30)
+
+
+### Features
+
+* **merge:** add XML merge operator with spec compliance fixes ([0224858](https://github.com/common-repo/common-repo/commit/02248585ccff21bd838f3a7f906960f9bb21eddc))
+
+
+### Bug Fixes
+
+* collect only deferred merge operations per spec ([6325de7](https://github.com/common-repo/common-repo/commit/6325de71d613ddda968351c58ae43135d7b137c7)), closes [#268](https://github.com/common-repo/common-repo/issues/268)
+
 ## [0.31.1](https://github.com/common-repo/common-repo/compare/v0.31.0...v0.31.1) (2026-03-29)
 
 
