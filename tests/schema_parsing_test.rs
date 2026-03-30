@@ -166,6 +166,20 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
                     path.display()
                 );
             }
+            common_repo::config::Operation::Xml { xml } => {
+                assert!(
+                    xml.get_source().is_some_and(|s| !s.is_empty()),
+                    "Xml operation {} in {} has empty source",
+                    idx,
+                    path.display()
+                );
+                assert!(
+                    xml.get_dest().is_some_and(|s| !s.is_empty()),
+                    "Xml operation {} in {} has empty dest",
+                    idx,
+                    path.display()
+                );
+            }
             common_repo::config::Operation::Self_ { self_ } => {
                 assert!(
                     !self_.operations.is_empty(),

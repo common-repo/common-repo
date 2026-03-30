@@ -24,6 +24,8 @@
 //! apply_markdown_merge_operation(&mut fs, &op)?;
 //! ```
 
+use log::warn;
+
 use crate::config::{InsertPosition, MarkdownMergeOp};
 use crate::error::{Error, Result};
 use crate::filesystem::{File, MemoryFS};
@@ -135,6 +137,15 @@ pub fn apply_markdown_merge_operation(fs: &mut MemoryFS, op: &MarkdownMergeOp) -
     op.validate()?;
     let source_path = op.get_source().expect("source validated");
     let dest_path = op.get_dest().expect("dest validated");
+
+    // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
+    if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
+        warn!(
+            "Auto-merge skipped, file not found on either side: {}",
+            source_path
+        );
+        return Ok(());
+    }
 
     let source_content = read_file_as_string(fs, source_path)?;
     let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
@@ -996,6 +1007,24 @@ mod tests {
             assert!(result.is_err());
             let err = format!("{:?}", result.unwrap_err());
             assert!(err.contains("not found") || err.contains("File not found"));
+        }
+
+        #[test]
+        fn test_markdown_auto_merge_missing_source_and_dest_skips() {
+            let mut fs = MemoryFS::new();
+
+            let op = MarkdownMergeOp {
+                auto_merge: Some("CLAUDE.md".to_string()),
+                section: "Section".to_string(),
+                ..Default::default()
+            };
+
+            let result = apply_markdown_merge_operation(&mut fs, &op);
+            assert!(
+                result.is_ok(),
+                "auto-merge with missing files should skip, not error"
+            );
+            assert!(!fs.exists("CLAUDE.md"));
         }
 
         #[test]

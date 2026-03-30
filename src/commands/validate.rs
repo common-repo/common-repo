@@ -111,7 +111,9 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
         "\n{} Checking for circular dependencies...",
         emoji(&out, "🔄", "[CHECK]")
     );
-    match phases::discover_repos(&schema, &RepositoryManager::new(cache_root.clone())) {
+    let repo_tree_result =
+        phases::discover_repos(&schema, &RepositoryManager::new(cache_root.clone()));
+    match &repo_tree_result {
         Ok(repo_tree) => {
             println!(
                 "{} No circular dependencies detected",
@@ -135,6 +137,28 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
                     "{} Warning during dependency discovery: {}",
                     emoji(&out, "⚠️", "[WARN]"),
                     e
+                );
+                has_warnings = true;
+            }
+        }
+    }
+
+    // Merge operation provenance check
+    if let Ok(repo_tree) = &repo_tree_result {
+        let upstream_deferred = repo_tree.collect_upstream_deferred_ops();
+        let provenance_warnings = config::check_merge_provenance(&schema, &upstream_deferred);
+
+        if !provenance_warnings.is_empty() {
+            println!(
+                "\n{} Merge operation provenance:",
+                emoji(&out, "🔍", "[SCAN]")
+            );
+            for w in &provenance_warnings {
+                println!(
+                    "{} Merge operation {} uses source \"{}\" not declared by any upstream",
+                    emoji(&out, "⚠️", "[WARN]"),
+                    w.operation_index,
+                    w.source_path
                 );
                 has_warnings = true;
             }
@@ -251,6 +275,17 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
                 if let Err(e) = markdown.validate() {
                     println!(
                         "{} Invalid markdown merge operation {}: {}",
+                        emoji(&out, "❌", "[ERR]"),
+                        idx,
+                        e
+                    );
+                    has_errors = true;
+                }
+            }
+            config::Operation::Xml { xml } => {
+                if let Err(e) = xml.validate() {
+                    println!(
+                        "{} Invalid xml merge operation {}: {}",
                         emoji(&out, "❌", "[ERR]"),
                         idx,
                         e

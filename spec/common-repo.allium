@@ -107,7 +107,7 @@ entity RepoNode {
 entity Operation {
     kind: Repo | Include | Exclude | Template | Rename
         | Tools | TemplateVars
-        | YamlMerge | JsonMerge | TomlMerge | IniMerge | MarkdownMerge
+        | YamlMerge | JsonMerge | TomlMerge | IniMerge | MarkdownMerge | XmlMerge
         | Self
 
     is_deferred: Boolean
@@ -246,6 +246,27 @@ variant MarkdownMerge : Operation {
 -- Guidance (MarkdownMerge): Section matching is first exact match,
 -- case-sensitive. position only affects where new sections are created.
 
+variant XmlMerge : Operation {
+    source: String?
+    dest: String?
+    path: String?
+    array_mode: ArrayMergeMode
+    position: InsertPosition
+    defer: Boolean
+    auto_merge: String?
+
+    -- Derived
+    effective_source: auto_merge ?? source
+    effective_dest: auto_merge ?? dest
+    is_deferred: auto_merge != null or defer
+}
+
+-- Guidance (XmlMerge): Elements merge recursively by local name and
+-- namespace URI. Repeated sibling elements with the same name are
+-- treated as arrays and use the unified array merge model. Path uses
+-- dot-notation navigating by element local name, consistent with
+-- other structured merge operators.
+
 entity ToolRequirement {
     name: String
     version: VersionConstraint
@@ -292,6 +313,7 @@ entity UpdateInfo {
 -- IniMerge: append defaults to false, allow_duplicates defaults to false
 -- MarkdownMerge: level defaults to 2, section defaults to "", position defaults to end
 --                create_section defaults to false, append defaults to false
+-- XmlMerge: array_mode defaults to replace
 
 -- ==========================================================================
 -- Configuration Validation Rules
@@ -300,7 +322,7 @@ entity UpdateInfo {
 rule ValidateMergeOperation {
     when: ValidateConfig(config)
     for op in config.operations:
-        if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge}:
+        if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge, XmlMerge}:
             requires: not (op.auto_merge != null and (op.source != null or op.dest != null))
             requires: op.auto_merge != null or (op.source != null and op.dest != null)
 }
@@ -343,7 +365,7 @@ rule MergeOperationProvenance {
     -- fragment file. Consumer-level merge operations whose source has no
     -- corresponding upstream merge operation produce a warning.
     for op in config.operations:
-        if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge}:
+        if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge, XmlMerge}:
             if not op.is_deferred:
                 if not has_upstream_merge_for(op.effective_source):
                     ensures: WarningEmitted(op)
@@ -712,6 +734,9 @@ deferred IniMergeSemantics.merge
     -- see: detailed/merge-operations.allium
 
 deferred MarkdownMergeSemantics.merge
+    -- see: detailed/merge-operations.allium
+
+deferred XmlMergeSemantics.merge
     -- see: detailed/merge-operations.allium
 
 -- ==========================================================================

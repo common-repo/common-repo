@@ -135,6 +135,30 @@ impl RepoTree {
         self.all_repos
             .contains(&(url.to_string(), ref_.to_string()))
     }
+
+    /// Collect all deferred merge operations from upstream nodes in the tree.
+    ///
+    /// Walks all non-root nodes and returns their deferred operations. These
+    /// represent merge operations declared by upstream repositories, used by
+    /// the provenance check to determine which merge sources are "known."
+    pub fn collect_upstream_deferred_ops(&self) -> Vec<Operation> {
+        let mut ops = Vec::new();
+        for child in &self.root.children {
+            Self::collect_deferred_ops_recursive(child, &mut ops);
+        }
+        ops
+    }
+
+    fn collect_deferred_ops_recursive(node: &RepoNode, ops: &mut Vec<Operation>) {
+        for op in &node.operations {
+            if op.is_deferred() {
+                ops.push(op.clone());
+            }
+        }
+        for child in &node.children {
+            Self::collect_deferred_ops_recursive(child, ops);
+        }
+    }
 }
 
 // Placeholder modules for remaining phases
@@ -313,6 +337,72 @@ mod phase_tests {
             // Check if repo exists
             assert!(tree.would_create_cycle("https://github.com/repo.git", "main"));
             assert!(!tree.would_create_cycle("https://github.com/other.git", "main"));
+        }
+
+        #[test]
+        fn test_collect_upstream_deferred_ops_empty_tree() {
+            let root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let tree = RepoTree::new(root);
+
+            let deferred = tree.collect_upstream_deferred_ops();
+            assert!(deferred.is_empty());
+        }
+
+        #[test]
+        fn test_collect_upstream_deferred_ops_with_deferred_child() {
+            use crate::config::{JsonMergeOp, Operation};
+
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let child = RepoNode::new(
+                "https://github.com/upstream.git".to_string(),
+                "main".to_string(),
+                vec![Operation::Json {
+                    json: JsonMergeOp {
+                        source: Some("fragment.json".to_string()),
+                        dest: Some("package.json".to_string()),
+                        defer: Some(true),
+                        ..Default::default()
+                    },
+                }],
+            );
+            root.add_child(child);
+            let tree = RepoTree::new(root);
+
+            let deferred = tree.collect_upstream_deferred_ops();
+            assert_eq!(deferred.len(), 1);
+            assert!(matches!(&deferred[0], Operation::Json { .. }));
+        }
+
+        #[test]
+        fn test_collect_upstream_deferred_ops_skips_non_deferred() {
+            use crate::config::{ExcludeOp, JsonMergeOp, Operation};
+
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            let child = RepoNode::new(
+                "https://github.com/upstream.git".to_string(),
+                "main".to_string(),
+                vec![
+                    // Non-deferred merge op
+                    Operation::Json {
+                        json: JsonMergeOp {
+                            source: Some("local.json".to_string()),
+                            dest: Some("output.json".to_string()),
+                            ..Default::default()
+                        },
+                    },
+                    // Non-merge op
+                    Operation::Exclude {
+                        exclude: ExcludeOp {
+                            patterns: vec!["*.tmp".to_string()],
+                        },
+                    },
+                ],
+            );
+            root.add_child(child);
+            let tree = RepoTree::new(root);
+
+            let deferred = tree.collect_upstream_deferred_ops();
+            assert!(deferred.is_empty());
         }
     }
 }

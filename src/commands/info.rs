@@ -98,6 +98,7 @@ fn count_operations(schema: &config::Schema) -> OperationCounts {
             config::Operation::Toml { .. } => counts.toml += 1,
             config::Operation::Ini { .. } => counts.ini += 1,
             config::Operation::Markdown { .. } => counts.markdown += 1,
+            config::Operation::Xml { .. } => counts.xml += 1,
             config::Operation::Self_ { .. } => counts.self_ += 1,
         }
     }
@@ -226,6 +227,7 @@ struct OperationCounts {
     toml: usize,
     ini: usize,
     markdown: usize,
+    xml: usize,
     self_: usize,
 }
 

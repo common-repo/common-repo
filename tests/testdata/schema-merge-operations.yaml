@@ -1,0 +1,107 @@
+######################
+# CommonRepo v2 schema - Merge Operations
+#
+# Exercises schema parsing for all merge operation types:
+# YAML, JSON, TOML, INI, and Markdown merges with various
+# field combinations including defer, auto-merge, path,
+# array_mode, position, and format-specific options.
+
+- repo:
+    url: https://github.com/common-repo/common-repo.git
+    ref: main
+
+# YAML merge with explicit source and dest
+- yaml:
+    source: ci.job.yaml
+    dest: ci.yaml
+    path: jobs.build
+    array_mode: append
+    position: end
+
+# YAML merge with auto-merge (implies defer)
+- yaml:
+    auto-merge: config.yaml
+
+# YAML merge with defer and append_unique array mode
+- yaml:
+    source: labels-fragment.yaml
+    dest: metadata.yaml
+    path: metadata.labels
+    array_mode: append_unique
+    position: start
+    defer: true
+
+# JSON merge with explicit source and dest
+- json:
+    source: package-fragment.json
+    dest: package.json
+    path: scripts
+
+# JSON merge with auto-merge
+- json:
+    auto-merge: tsconfig.json
+
+# JSON merge with array_mode and position
+- json:
+    source: deps-fragment.json
+    dest: package.json
+    path: dependencies
+    array_mode: replace
+    position: end
+    defer: true
+
+# TOML merge with explicit source and dest
+- toml:
+    source: cargo-fragment.toml
+    dest: Cargo.toml
+    path: dependencies
+
+# TOML merge with preserve-comments
+- toml:
+    source: settings-fragment.toml
+    dest: pyproject.toml
+    preserve-comments: true
+    array_mode: append
+    position: end
+
+# TOML merge with auto-merge
+- toml:
+    auto-merge: Cargo.toml
+
+# INI merge with explicit source and dest
+- ini:
+    source: db-config.ini
+    dest: config.ini
+    section: database
+
+# INI merge with append and allow-duplicates
+- ini:
+    source: extra-settings.ini
+    dest: config.ini
+    append: true
+    allow-duplicates: true
+
+# INI merge with auto-merge
+- ini:
+    auto-merge: settings.ini
+
+# Markdown merge with explicit source and dest
+- markdown:
+    source: changelog-fragment.md
+    dest: CHANGELOG.md
+    section: "Unreleased"
+    level: 2
+    append: true
+
+# Markdown merge with create-section and position
+- markdown:
+    source: api-docs-fragment.md
+    dest: README.md
+    section: "API Reference"
+    level: 2
+    position: end
+    create-section: true
+
+# Markdown merge with auto-merge
+- markdown:
+    auto-merge: CONTRIBUTING.md

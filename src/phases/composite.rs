@@ -112,7 +112,7 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 /// Execute a single merge operation on the composite filesystem
 ///
 /// This function dispatches to the appropriate merge operation handler
-/// based on the operation type (YAML, JSON, TOML, INI, or Markdown).
+/// based on the operation type (YAML, JSON, TOML, INI, Markdown, or XML).
 ///
 /// Made `pub(crate)` so Phase 5 can execute deferred merge operations
 /// after local files are available.
@@ -125,6 +125,7 @@ pub(crate) fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) 
         Operation::Markdown { markdown } => {
             crate::merge::markdown::apply_markdown_merge_operation(fs, markdown)
         }
+        Operation::Xml { xml } => crate::merge::xml::apply_xml_merge_operation(fs, xml),
         _ => {
             // Non-merge operations should not be passed to this function
             Err(Error::Filesystem {

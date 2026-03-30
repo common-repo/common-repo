@@ -245,7 +245,8 @@ pub(crate) mod repo {
                 | Operation::Json { .. }
                 | Operation::Toml { .. }
                 | Operation::Ini { .. }
-                | Operation::Markdown { .. } => {
+                | Operation::Markdown { .. }
+                | Operation::Xml { .. } => {
                     return Err(crate::error::Error::Operator {
                         operator: "merge/template_vars".to_string(),
                         message:
