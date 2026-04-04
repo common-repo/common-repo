@@ -504,9 +504,7 @@ fn test_source_rename_plus_exclude_interaction() {
     consumer
         .child("config.yaml")
         .assert(predicate::path::exists());
-    consumer
-        .child("setup.sh")
-        .assert(predicate::path::exists());
+    consumer.child("setup.sh").assert(predicate::path::exists());
     consumer
         .child("README.md")
         .assert(predicate::path::exists());
@@ -595,15 +593,9 @@ fn test_layered_source_and_consumer_excludes() {
     consumer
         .child("README.md")
         .assert(predicate::path::exists());
-    consumer
-        .child("main.go")
-        .assert(predicate::path::exists());
-    consumer
-        .child("go.mod")
-        .assert(predicate::path::missing());
-    consumer
-        .child("LICENSE")
-        .assert(predicate::path::missing());
+    consumer.child("main.go").assert(predicate::path::exists());
+    consumer.child("go.mod").assert(predicate::path::missing());
+    consumer.child("LICENSE").assert(predicate::path::missing());
 
     // --- Test diff: neither should appear ---
     let mut cmd = cargo_bin_cmd!("common-repo");
@@ -861,7 +853,7 @@ fn test_ls_output_matches_apply_result() {
                 let path = entry.path();
                 if path.is_dir() {
                     // Skip .git if present
-                    if path.file_name().map_or(false, |n| n == ".git") {
+                    if path.file_name().is_some_and(|n| n == ".git") {
                         continue;
                     }
                     collect_files(&path, base, files);
@@ -878,7 +870,11 @@ fn test_ls_output_matches_apply_result() {
             }
         }
     }
-    collect_files(consumer_apply.path(), consumer_apply.path(), &mut applied_files);
+    collect_files(
+        consumer_apply.path(),
+        consumer_apply.path(),
+        &mut applied_files,
+    );
     applied_files.sort();
 
     // Every file created by apply should appear in ls output
