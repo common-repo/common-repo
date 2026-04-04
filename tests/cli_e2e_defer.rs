@@ -8,6 +8,54 @@ use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
 
+/// Helper to initialize a local git repository for use as a test upstream.
+fn init_test_git_repo(
+    dir: &assert_fs::TempDir,
+    files: &[(&str, &str)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::process::Command::new("git")
+        .args(["init", "-b", "main"])
+        .current_dir(dir.path())
+        .output()?;
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(dir.path())
+        .output()?;
+    std::process::Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(dir.path())
+        .output()?;
+    std::process::Command::new("git")
+        .args(["config", "commit.gpgsign", "false"])
+        .current_dir(dir.path())
+        .output()?;
+    std::process::Command::new("git")
+        .args(["config", "core.hooksPath", "/dev/null"])
+        .current_dir(dir.path())
+        .output()?;
+    for (path, content) in files {
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(dir.path().join(parent))?;
+            }
+        }
+        dir.child(path).write_str(content)?;
+    }
+    std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()?;
+    std::process::Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(dir.path())
+        .output()?;
+    std::process::Command::new("git")
+        .args(["tag", "v1.0.0"])
+        .current_dir(dir.path())
+        .output()?;
+    Ok(())
+}
+
 // =============================================================================
 // Validation tests (no network required)
 // =============================================================================
@@ -720,19 +768,49 @@ fn test_info_shows_deferred_operations() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_auto_merge_chained_repos_merge_fires() {
-    let consumer = assert_fs::TempDir::new().unwrap();
+    // upstream-a: exposes .pre-commit-config.yaml with builtin hook via auto-merge
+    let upstream_a = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &upstream_a,
+        &[
+            (
+                ".pre-commit-config.yaml",
+                "repos:\n  - repo: builtin\n    hooks:\n      - id: trailing-whitespace\n",
+            ),
+            (
+                ".common-repo.yaml",
+                "- include: [\"**\"]\n- yaml:\n    auto-merge: .pre-commit-config.yaml\n",
+            ),
+        ],
+    )
+    .unwrap();
 
-    // Consumer config inherits from conventional-commits, which itself
-    // chains to pre-commit. Both repos declare auto-merge for
-    // .pre-commit-config.yaml.
+    // upstream-b: inherits upstream-a and adds its own hook via auto-merge
+    let upstream_b = assert_fs::TempDir::new().unwrap();
+    let upstream_a_url = format!("file://{}", upstream_a.path().display());
+    let upstream_b_config = format!(
+        "- repo:\n    url: {}\n    ref: v1.0.0\n- include: [\"**\"]\n- yaml:\n    auto-merge: .pre-commit-config.yaml\n",
+        upstream_a_url
+    );
+    init_test_git_repo(
+        &upstream_b,
+        &[
+            (
+                ".pre-commit-config.yaml",
+                "repos:\n  - repo: https://github.com/compilerla/conventional-pre-commit\n    rev: v3.6.0\n    hooks:\n      - id: conventional-pre-commit\n",
+            ),
+            (".common-repo.yaml", &upstream_b_config),
+        ],
+    )
+    .unwrap();
+
+    // consumer: inherits upstream-b only
+    let consumer = assert_fs::TempDir::new().unwrap();
+    let upstream_b_url = format!("file://{}", upstream_b.path().display());
+    let consumer_config = format!("- repo:\n    url: {}\n    ref: v1.0.0\n", upstream_b_url);
     consumer
         .child(".common-repo.yaml")
-        .write_str(
-            r#"- repo:
-    url: https://github.com/common-repo/conventional-commits
-    ref: v1.0.1
-"#,
-        )
+        .write_str(&consumer_config)
         .unwrap();
 
     let mut cmd = cargo_bin_cmd!("common-repo");
@@ -744,7 +822,7 @@ fn test_auto_merge_chained_repos_merge_fires() {
         .assert()
         .success();
 
-    // The .pre-commit-config.yaml should exist
+    // The .pre-commit-config.yaml should exist and contain content from both upstreams
     let pre_commit_config = consumer.child(".pre-commit-config.yaml");
     assert!(
         pre_commit_config.exists(),
@@ -753,12 +831,15 @@ fn test_auto_merge_chained_repos_merge_fires() {
 
     let content = std::fs::read_to_string(pre_commit_config.path()).unwrap();
 
-    // With default array_mode (replace), conventional-commits' repos: replaces
-    // pre-commit's repos:. The file should at minimum contain the conventional
-    // hook (proving the merge mechanism ran, not just raw overwrite).
+    // Both upstreams' hooks should be present (inter-repo auto-merge accumulates)
+    assert!(
+        content.contains("trailing-whitespace"),
+        "Should contain upstream-a's trailing-whitespace hook.\nActual content:\n{}",
+        content
+    );
     assert!(
         content.contains("conventional-pre-commit"),
-        "Should contain conventional-pre-commit hook.\nActual content:\n{}",
+        "Should contain upstream-b's conventional-pre-commit hook.\nActual content:\n{}",
         content
     );
 }
@@ -773,22 +854,52 @@ fn test_auto_merge_chained_repos_merge_fires() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_auto_merge_chained_repos_combine_with_append() {
-    let consumer = assert_fs::TempDir::new().unwrap();
+    // Same chain as test_auto_merge_chained_repos_merge_fires but the consumer
+    // explicitly overrides array_mode: append via inline with: clause.
+    // This verifies the consumer can further control merge behavior.
+    let upstream_a = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &upstream_a,
+        &[
+            (
+                ".pre-commit-config.yaml",
+                "repos:\n  - repo: builtin\n    hooks:\n      - id: trailing-whitespace\n",
+            ),
+            (
+                ".common-repo.yaml",
+                "- include: [\"**\"]\n- yaml:\n    auto-merge: .pre-commit-config.yaml\n",
+            ),
+        ],
+    )
+    .unwrap();
 
-    // Consumer inherits from conventional-commits but overrides the
-    // auto-merge to use append mode so both repos' hooks combine.
+    let upstream_b = assert_fs::TempDir::new().unwrap();
+    let upstream_a_url = format!("file://{}", upstream_a.path().display());
+    let upstream_b_config = format!(
+        "- repo:\n    url: {}\n    ref: v1.0.0\n- include: [\"**\"]\n- yaml:\n    auto-merge: .pre-commit-config.yaml\n",
+        upstream_a_url
+    );
+    init_test_git_repo(
+        &upstream_b,
+        &[
+            (
+                ".pre-commit-config.yaml",
+                "repos:\n  - repo: https://github.com/compilerla/conventional-pre-commit\n    rev: v3.6.0\n    hooks:\n      - id: conventional-pre-commit\n",
+            ),
+            (".common-repo.yaml", &upstream_b_config),
+        ],
+    )
+    .unwrap();
+
+    let consumer = assert_fs::TempDir::new().unwrap();
+    let upstream_b_url = format!("file://{}", upstream_b.path().display());
+    let consumer_config = format!(
+        "- repo:\n    url: {}\n    ref: v1.0.0\n    with:\n      - yaml:\n          auto-merge: .pre-commit-config.yaml\n          array_mode: append\n",
+        upstream_b_url
+    );
     consumer
         .child(".common-repo.yaml")
-        .write_str(
-            r#"- repo:
-    url: https://github.com/common-repo/conventional-commits
-    ref: v1.0.1
-    with:
-      - yaml:
-          auto-merge: .pre-commit-config.yaml
-          array_mode: append
-"#,
-        )
+        .write_str(&consumer_config)
         .unwrap();
 
     let mut cmd = cargo_bin_cmd!("common-repo");
@@ -811,12 +922,12 @@ fn test_auto_merge_chained_repos_combine_with_append() {
     // With append mode, BOTH repos' hooks should be present
     assert!(
         content.contains("trailing-whitespace"),
-        "Should contain trailing-whitespace hook from pre-commit repo.\nActual content:\n{}",
+        "Should contain trailing-whitespace hook from upstream-a.\nActual content:\n{}",
         content
     );
     assert!(
         content.contains("conventional-pre-commit"),
-        "Should contain conventional-pre-commit hook from conventional-commits repo.\nActual content:\n{}",
+        "Should contain conventional-pre-commit hook from upstream-b.\nActual content:\n{}",
         content
     );
 }
