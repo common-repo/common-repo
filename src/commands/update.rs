@@ -222,12 +222,20 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
 
     for update in relevant_updates {
         if let Some(latest_version) = update.latest_version {
-            let replacements =
-                update_ref_in_text(&yaml_content, &update.url, &update.current_ref, &latest_version);
+            let replacements = update_ref_in_text(
+                &yaml_content,
+                &update.url,
+                &update.current_ref,
+                &latest_version,
+            );
             if replacements > 0 {
                 // Apply the text replacement
-                yaml_content =
-                    apply_ref_update(&yaml_content, &update.url, &update.current_ref, &latest_version);
+                yaml_content = apply_ref_update(
+                    &yaml_content,
+                    &update.url,
+                    &update.current_ref,
+                    &latest_version,
+                );
                 println!(
                     "✅ Updated {} ({} occurrence{}): {} → {}",
                     update.url,
@@ -273,8 +281,10 @@ fn update_ref_in_text(content: &str, url: &str, current_ref: &str, _new_ref: &st
         // Match a url: line containing this repo URL
         if trimmed.starts_with("url:") && trimmed.contains(url) {
             // Search nearby lines (within 5 lines) for the ref: field
-            for j in (i.saturating_sub(5))..=(i + 5).min(lines.len() - 1) {
-                let ref_trimmed = lines[j].trim();
+            let start = i.saturating_sub(5);
+            let end = (i + 5).min(lines.len() - 1);
+            for ref_line in &lines[start..=end] {
+                let ref_trimmed = ref_line.trim();
                 if ref_trimmed.starts_with("ref:") && ref_trimmed.contains(current_ref) {
                     count += 1;
                     break;
