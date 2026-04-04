@@ -94,7 +94,7 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
     let config_path = &args.config;
     println!("Loading configuration from: {}", config_path.display());
 
-    let mut schema = config::from_file(config_path).map_err(|e| {
+    let schema = config::from_file(config_path).map_err(|e| {
         anyhow::anyhow!(
             "Failed to load config from {}: {}",
             config_path.display(),
@@ -205,17 +205,36 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
         }
     }
 
-    // Perform updates
+    // Perform updates via surgical text replacement to preserve YAML structure,
+    // ordering, comments, and formatting. This avoids the serde round-trip which
+    // normalizes shorthand syntax, adds null keys, and reorders fields.
+    // Also fixes updating all occurrences (e.g. repo used in both self: and top-level).
+    let mut yaml_content = fs::read_to_string(config_path).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to read config from {}: {}",
+            config_path.display(),
+            e
+        )
+    })?;
+
     println!("\n🔄 Updating repositories...");
     let mut updated_count = 0;
 
     for update in relevant_updates {
         if let Some(latest_version) = update.latest_version {
-            // Find and update the repository in the schema
-            if update_repo_ref(&mut schema, &update.url, &latest_version)? {
+            let replacements =
+                update_ref_in_text(&yaml_content, &update.url, &update.current_ref, &latest_version);
+            if replacements > 0 {
+                // Apply the text replacement
+                yaml_content =
+                    apply_ref_update(&yaml_content, &update.url, &update.current_ref, &latest_version);
                 println!(
-                    "✅ Updated {}: {} → {}",
-                    update.url, update.current_ref, latest_version
+                    "✅ Updated {} ({} occurrence{}): {} → {}",
+                    update.url,
+                    replacements,
+                    if replacements == 1 { "" } else { "s" },
+                    update.current_ref,
+                    latest_version
                 );
                 updated_count += 1;
             }
@@ -223,11 +242,7 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
     }
 
     if updated_count > 0 {
-        // Write back the updated configuration
-        let yaml_content = serde_yaml::to_string(&schema)
-            .map_err(|e| anyhow::anyhow!("Failed to serialize updated config: {}", e))?;
-
-        fs::write(config_path, yaml_content).map_err(|e| {
+        fs::write(config_path, &yaml_content).map_err(|e| {
             anyhow::anyhow!(
                 "Failed to write updated config to {}: {}",
                 config_path.display(),
@@ -248,23 +263,60 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
     Ok(())
 }
 
-/// Update the ref for a specific repository URL in the schema
-fn update_repo_ref(schema: &mut config::Schema, url: &str, new_ref: &str) -> Result<bool> {
-    for operation in schema {
-        match operation {
-            config::Operation::Repo { repo } => {
-                if repo.url == url {
-                    repo.r#ref = new_ref.to_string();
-                    return Ok(true);
+/// Count how many ref occurrences would be updated for a given repo URL.
+fn update_ref_in_text(content: &str, url: &str, current_ref: &str, _new_ref: &str) -> usize {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut count = 0;
+
+    for i in 0..lines.len() {
+        let trimmed = lines[i].trim();
+        // Match a url: line containing this repo URL
+        if trimmed.starts_with("url:") && trimmed.contains(url) {
+            // Search nearby lines (within 5 lines) for the ref: field
+            for j in (i.saturating_sub(5))..=(i + 5).min(lines.len() - 1) {
+                let ref_trimmed = lines[j].trim();
+                if ref_trimmed.starts_with("ref:") && ref_trimmed.contains(current_ref) {
+                    count += 1;
+                    break;
                 }
             }
-            config::Operation::Self_ { self_ } => {
-                if update_repo_ref(&mut self_.operations, url, new_ref)? {
-                    return Ok(true);
-                }
-            }
-            _ => {}
         }
     }
-    Ok(false)
+    count
+}
+
+/// Surgically replace ref values in YAML text for a given repo URL.
+/// Finds all `url:` lines matching the repo, then locates the adjacent `ref:` line
+/// and replaces only the version value, preserving all formatting and structure.
+fn apply_ref_update(content: &str, url: &str, current_ref: &str, new_ref: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut result_lines: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    // Track which ref lines we've already updated to avoid double-counting
+    let mut updated_ref_lines: Vec<usize> = Vec::new();
+
+    for i in 0..lines.len() {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with("url:") && trimmed.contains(url) {
+            // Search nearby lines for the ref: field
+            for j in (i.saturating_sub(5))..=(i + 5).min(lines.len() - 1) {
+                if updated_ref_lines.contains(&j) {
+                    continue;
+                }
+                let ref_trimmed = lines[j].trim();
+                if ref_trimmed.starts_with("ref:") && ref_trimmed.contains(current_ref) {
+                    // Replace only the ref value, preserving indentation and quoting
+                    result_lines[j] = lines[j].replacen(current_ref, new_ref, 1);
+                    updated_ref_lines.push(j);
+                    break;
+                }
+            }
+        }
+    }
+
+    let mut result = result_lines.join("\n");
+    // Preserve trailing newline if the original content had one
+    if content.ends_with('\n') && !result.ends_with('\n') {
+        result.push('\n');
+    }
+    result
 }
