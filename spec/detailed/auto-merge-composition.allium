@@ -1,0 +1,140 @@
+-- allium: 3
+-- detailed/auto-merge-composition.allium
+--
+-- Scope: Auto-merge behaviour during Phase 4 composite construction
+-- Includes: Cross-repo auto-merge file merging, deferred merge collection
+-- Excludes: Individual merge format semantics (see merge-operations.allium)
+--
+-- Context: When chained upstream repos both declare auto-merge for the same
+-- file, the composite must contain the merged combination of all upstream
+-- contributions — not just the last repo's version.
+--
+-- Example chain:
+--   consumer -> conventional-commits -> pre-commit
+--   Both declare: yaml: { auto-merge: .pre-commit-config.yaml }
+--   Both provide src/.pre-commit-config.yaml (renamed to .pre-commit-config.yaml)
+--   Consumer expects combined repos: entries from both upstreams.
+
+-- ==========================================================================
+-- Entities
+-- ==========================================================================
+
+-- Tracks which files have pending auto-merge declarations during composition
+value AutoMergeTarget {
+    path: String
+    format: YamlMerge | JsonMerge | TomlMerge | IniMerge | MarkdownMerge | XmlMerge
+    array_mode: ArrayMergeMode
+    position: InsertPosition
+}
+
+-- ==========================================================================
+-- Rules
+-- ==========================================================================
+
+rule AutoMergeInComposite {
+    when: CompositeFileConflict(composite_fs, incoming_file, repo_key)
+    requires: has_auto_merge_for(repo_key, incoming_file.path)
+
+    -- When a file already exists in the composite AND the incoming repo
+    -- declares an auto-merge operation targeting that file, perform a
+    -- format-aware merge instead of overwriting.
+    --
+    -- The existing composite content is the "dest" (accumulated result).
+    -- The incoming file content is the "source" (new contribution).
+    -- The merge uses the parameters from the auto-merge declaration
+    -- (array_mode, position, etc.).
+    let existing = composite_fs.entry(incoming_file.path)
+    let merge_op = auto_merge_operation_for(repo_key, incoming_file.path)
+    ensures: MergeApplied(merge_op, existing, incoming_file)
+
+    @guidance
+        -- This happens inline during Phase 4 composite construction,
+        -- inside the per-repo filesystem merge loop. The check is:
+        --   1. Does the composite already have a file at this path?
+        --   2. Does the current repo's collected merge_operations include
+        --      an auto-merge targeting this path?
+        -- If both yes: merge instead of overwrite.
+        -- If no auto-merge declared: last-write-wins (existing behaviour).
+}
+
+rule NoAutoMergeFallsThrough {
+    when: CompositeFileConflict(composite_fs, incoming_file, repo_key)
+    requires: not has_auto_merge_for(repo_key, incoming_file.path)
+
+    -- Without an auto-merge declaration, the existing last-write-wins
+    -- behaviour is preserved. The incoming file overwrites.
+    ensures: composite_fs.entry(incoming_file.path).content = incoming_file.content
+}
+
+rule AutoMergeChainsAccumulate {
+    when: CompositeReady(order, intermediate_fss)
+
+    -- When three or more repos in the chain all declare auto-merge for
+    -- the same file, merges accumulate left-to-right in operation order.
+    --
+    -- Example with repos A -> B -> C (post-order: A, B, C):
+    --   1. A's file enters composite (no conflict, first occurrence)
+    --   2. B's file arrives — auto-merge declared — merge B into A's content
+    --   3. C's file arrives — auto-merge declared — merge C into (A+B) content
+    --
+    -- The final composite contains the combination of all three.
+    -- Each merge step uses the declaring repo's merge parameters.
+
+    @guidance
+        -- The implementation does not need a separate accumulator.
+        -- The composite FS itself serves as the running accumulation.
+        -- Each repo's merge operation merges into whatever is already
+        -- in the composite at that path.
+}
+
+rule DeferredMergeStillApplies {
+    when: FilesystemsCombined(combined_fs, deferred_merge_ops)
+
+    -- Auto-merge operations that were resolved during composition
+    -- (cross-upstream merging) should NOT re-execute during Phase 5
+    -- deferred merge application — the cross-upstream merge is already
+    -- done.
+    --
+    -- However, the deferred merge into the CONSUMER's local file
+    -- still applies: if the consumer has a local .pre-commit-config.yaml,
+    -- the composite's accumulated version merges into it during Phase 5.
+    --
+    -- The auto-merge operation serves dual purpose:
+    --   1. Phase 4: merge across upstream repos in the composite
+    --   2. Phase 5: merge composite result into consumer's local file
+    --
+    -- Both phases use the same merge parameters (array_mode, position).
+
+    @guidance
+        -- Implementation note: deferred ops collected in Phase 4 should
+        -- still include auto-merge operations. Phase 5 execution of these
+        -- ops targets the combined filesystem (composite + local). If the
+        -- consumer has no local copy of the file, the deferred merge is
+        -- effectively a no-op (source and dest are the same composite file).
+        -- If the consumer has a local copy, the composite version merges
+        -- into it — which is exactly what deferred merge was designed for.
+}
+
+-- ==========================================================================
+-- Invariants
+-- ==========================================================================
+
+invariant AutoMergePreservesAllContributions {
+    -- When N upstream repos in a chain all declare auto-merge for the
+    -- same file and all provide content for that file, the composite
+    -- contains merged content from all N repos.
+    --
+    -- No upstream's contribution is silently dropped by last-write-wins.
+}
+
+invariant AutoMergeOrderDeterministic {
+    -- Auto-merge composition follows the same operation order as
+    -- regular composition (depth-first post-order). The merge result
+    -- is deterministic for a given configuration.
+}
+
+invariant NonAutoMergeUnchanged {
+    -- Files without auto-merge declarations continue to use
+    -- last-write-wins. This change does not affect files that
+    -- are not targets of auto-merge operations.
+}

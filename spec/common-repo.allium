@@ -589,8 +589,12 @@ rule BuildComposite {
 
     -- 1. Consolidate template vars (last-write-wins in operation order)
     -- 2. Substitute __COMMON_REPO__VARNAME__ references with resolved values
-    -- 3. Merge filesystems in order (last-write-wins)
-    -- 4. Collect deferred merge operations (do not execute them yet)
+    -- 3. Merge filesystems in order:
+    --    a. For files with no conflict: add to composite
+    --    b. For files with conflict AND an auto-merge declaration on the
+    --       incoming repo: perform format-aware merge (accumulate content)
+    --    c. For files with conflict but no auto-merge: last-write-wins
+    -- 4. Collect deferred merge operations for Phase 5 execution
     ensures: CompositeBuilt(order, intermediate_fss)
 
     @guidance
@@ -599,14 +603,17 @@ rule BuildComposite {
         -- Template substitution replaces __COMMON_REPO__VARNAME__ sentinel
         -- patterns with the corresponding value from the consolidated vars.
         -- Undefined variables produce an error (no environment fallback).
-        -- Filesystem merge: for each repo in order, copy all files into composite.
-        -- Files with the same path are overwritten (last-write-wins).
         --
-        -- Deferred merge operations are collected in operation order but NOT
-        -- executed here. They must wait until local files are combined with
-        -- the composite, so they can target the actual destination file
-        -- regardless of whether it came from another upstream or the
-        -- consumer's working directory. See ApplyDeferredMerges.
+        -- Filesystem merge: for each repo in order, copy files into composite.
+        -- When a file already exists in the composite and the incoming repo
+        -- declares an auto-merge operation targeting that path, perform a
+        -- format-aware merge instead of overwriting. This enables chained
+        -- upstreams to contribute content to the same file (e.g. multiple
+        -- repos adding hooks to .pre-commit-config.yaml).
+        -- See detailed/auto-merge-composition.allium for full semantics.
+        --
+        -- Deferred merge operations are still collected for Phase 5, where
+        -- they merge the composite result into the consumer's local files.
 }
 
 -- ==========================================================================
@@ -814,7 +821,10 @@ invariant ValidTemplateVarNames {
 
 open question "Should merge operations support conditional application (e.g., only merge if dest file exists)?"
 
-open question "Should deferred operations support ordering hints when multiple upstreams defer operations on the same file?"
+-- Resolved: When multiple upstreams declare auto-merge for the same file,
+-- merges accumulate in operation order during Phase 4 composition.
+-- No ordering hints needed — depth-first post-order is deterministic.
+-- See detailed/auto-merge-composition.allium.
 
 open question "Divergence detection: when composite wins for a whole file, should common-repo detect and warn about files where the local version has significantly diverged from upstream? Candidate approaches: (1) git blob SHA history check — did the local file ever share content with the upstream version, (2) line-level similarity threshold, (3) sentinel comment string."
 
