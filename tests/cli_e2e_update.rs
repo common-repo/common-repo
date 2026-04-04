@@ -750,10 +750,10 @@ fn test_update_preserves_yaml_structure() {
         updated
     );
 
-    // No extra vars: nesting under template-vars
+    // No extra vars: nesting under template-vars (template-vars: is fine; standalone vars: is not)
     assert!(
-        !updated.contains("vars:"),
-        "No extra vars: key should be added under template-vars:, got:\n{}",
+        !updated.contains("        vars:"),
+        "No standalone vars: key should be injected under template-vars:, got:\n{}",
         updated
     );
 
