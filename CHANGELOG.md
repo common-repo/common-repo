@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.32.1](https://github.com/common-repo/common-repo/compare/v0.32.0...v0.32.1) (2026-04-04)
+
+
+### Bug Fixes
+
+* **#284:** use AppendUnique for inter-repo collision and filter deferred ops ([dbf4a26](https://github.com/common-repo/common-repo/commit/dbf4a26681f1af72b73d5e6f97545d6ebe4080c2))
+* merge auto-merge files across chained repos instead of overwriting ([#284](https://github.com/common-repo/common-repo/issues/284)) ([5958869](https://github.com/common-repo/common-repo/commit/59588690b64abb071a336d8429235cf289b7300a))
+* remove duplicate test functions ([12e3892](https://github.com/common-repo/common-repo/commit/12e38929f8656ac49e630857da9faea400b15970))
+* **test:** fix config parse error and remove hardcoded version ([c57b7db](https://github.com/common-repo/common-repo/commit/c57b7dbdb919603ef3c16cc8b26439823a2ddc55))
+* **test:** fix false-positive vars: assertion (template-vars: contains vars:) ([91a4253](https://github.com/common-repo/common-repo/commit/91a42534d9137646c7e96f382fa39f013ce98601))
+* **update:** preserve YAML structure and update all ref occurrences ([62ad17b](https://github.com/common-repo/common-repo/commit/62ad17b37a1ec8385755e218f817503ec157d22d))
+
 ## [0.32.0](https://github.com/common-repo/common-repo/compare/v0.31.1...v0.32.0) (2026-03-30)
 
 
