@@ -675,7 +675,7 @@ fn test_update_filter_with_dry_run() {
 }
 
 /// Test that update only changes ref: values and preserves all YAML structure.
-/// Uses common-repo/upstream v2.0.0 -> v2.0.1 as the real update target.
+/// Uses common-repo/upstream v2.0.0 as the real update target.
 /// Regression test for https://github.com/common-repo/common-repo/issues/280
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
@@ -686,8 +686,10 @@ fn test_update_preserves_yaml_structure() {
     // Config with features that serde round-tripping would destroy:
     // - template-vars: (hyphenated key, not template_vars)
     // - no path: key (serde would add path: null)
-    // - rename shorthand (serde would expand to mappings:/from:/to:)
-    let original_config = r#"- repo:
+    // - rename shorthand list (serde would expand to mappings:/from:/to:)
+    // - comments (serde would drop them)
+    let original_config = r#"# upstream config
+- repo:
     url: https://github.com/common-repo/upstream.git
     ref: v2.0.0
     with:
@@ -695,7 +697,7 @@ fn test_update_preserves_yaml_structure() {
           FOO: bar
           BAZ: qux
       - rename:
-          old-name.sh: new-name.sh
+          - "old-name.sh": "new-name.sh"
       - include:
           - "*.md"
           - "*.sh"
@@ -715,17 +717,24 @@ fn test_update_preserves_yaml_structure() {
 
     let updated = std::fs::read_to_string(config_file.path()).unwrap();
 
-    // ref: should be updated
+    // ref: should be updated from v2.0.0 to something newer
     assert!(
         !updated.contains("ref: v2.0.0"),
         "Old ref v2.0.0 should be replaced, got:\n{}",
         updated
     );
     assert!(
-        updated.contains("ref: v2.0.1"),
-        "ref should be updated to v2.0.1, got:\n{}",
+        updated.contains("ref: v2.0."),
+        "ref should be updated to a v2.0.x version, got:\n{}",
         updated
     );
+
+    // Extract the new version for byte-identical check
+    let new_ref = updated
+        .lines()
+        .find(|l| l.contains("ref: v2.0."))
+        .and_then(|l| l.trim().strip_prefix("ref: "))
+        .expect("should find updated ref");
 
     // Hyphenated key must be preserved (not renamed to template_vars)
     assert!(
@@ -755,13 +764,20 @@ fn test_update_preserves_yaml_structure() {
         updated
     );
     assert!(
-        updated.contains("rename:\n          old-name.sh: new-name.sh"),
+        updated.contains("rename:\n          - \"old-name.sh\": \"new-name.sh\""),
         "rename shorthand syntax must be preserved, got:\n{}",
         updated
     );
 
+    // Comment must be preserved
+    assert!(
+        updated.contains("# upstream config"),
+        "comments must be preserved, got:\n{}",
+        updated
+    );
+
     // Overall structure should be byte-identical except for the ref line
-    let expected = original_config.replace("ref: v2.0.0", "ref: v2.0.1");
+    let expected = original_config.replace("ref: v2.0.0", &format!("ref: {}", new_ref));
     assert_eq!(
         updated, expected,
         "Only the ref: value should change; all other content must be identical"
@@ -808,16 +824,23 @@ fn test_update_all_occurrences_including_self() {
         updated
     );
 
-    // Both should be updated to v2.0.1
-    let ref_count = updated.matches("ref: v2.0.1").count();
+    // Extract the new version
+    let new_ref = updated
+        .lines()
+        .find(|l| l.contains("ref: v2.0."))
+        .and_then(|l| l.trim().strip_prefix("ref: "))
+        .expect("should find updated ref");
+
+    // Both should be updated to the same new version
+    let ref_count = updated.matches(&format!("ref: {}", new_ref)).count();
     assert_eq!(
         ref_count, 2,
-        "Both occurrences should be updated to v2.0.1, found {} occurrence(s) in:\n{}",
-        ref_count, updated
+        "Both occurrences should be updated to {}, found {} occurrence(s) in:\n{}",
+        new_ref, ref_count, updated
     );
 
     // Structure should be byte-identical except for the two ref lines
-    let expected = original_config.replace("ref: v2.0.0", "ref: v2.0.1");
+    let expected = original_config.replace("ref: v2.0.0", &format!("ref: {}", new_ref));
     assert_eq!(
         updated, expected,
         "Only ref: values should change; all other content must be identical"
