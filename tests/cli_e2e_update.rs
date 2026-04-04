@@ -840,3 +840,153 @@ fn test_update_filter_with_dry_run() {
     let final_content = std::fs::read_to_string(config_file.path()).unwrap();
     assert_eq!(original_content, final_content);
 }
+
+/// Test that update only changes ref: values and preserves all YAML structure.
+/// Uses common-repo/upstream v2.0.0 -> v2.0.1 as the real update target.
+/// Regression test for https://github.com/common-repo/common-repo/issues/280
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_preserves_yaml_structure() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Config with features that serde round-tripping would destroy:
+    // - template-vars: (hyphenated key, not template_vars)
+    // - no path: key (serde would add path: null)
+    // - rename shorthand (serde would expand to mappings:/from:/to:)
+    let original_config = r#"- repo:
+    url: https://github.com/common-repo/upstream.git
+    ref: v2.0.0
+    with:
+      - template-vars:
+          FOO: bar
+          BAZ: qux
+      - rename:
+          old-name.sh: new-name.sh
+      - include:
+          - "*.md"
+          - "*.sh"
+"#;
+
+    config_file.write_str(original_config).unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--yes")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Successfully updated"));
+
+    let updated = std::fs::read_to_string(config_file.path()).unwrap();
+
+    // ref: should be updated
+    assert!(
+        !updated.contains("ref: v2.0.0"),
+        "Old ref v2.0.0 should be replaced, got:\n{}",
+        updated
+    );
+    assert!(
+        updated.contains("ref: v2.0.1"),
+        "ref should be updated to v2.0.1, got:\n{}",
+        updated
+    );
+
+    // Hyphenated key must be preserved (not renamed to template_vars)
+    assert!(
+        updated.contains("template-vars:"),
+        "template-vars: key must be preserved (not renamed to template_vars:), got:\n{}",
+        updated
+    );
+
+    // No path: null should be added
+    assert!(
+        !updated.contains("path:"),
+        "No path: key should be added, got:\n{}",
+        updated
+    );
+
+    // No extra vars: nesting under template-vars
+    assert!(
+        !updated.contains("vars:"),
+        "No extra vars: key should be added under template-vars:, got:\n{}",
+        updated
+    );
+
+    // Rename shorthand must be preserved (not expanded to mappings:/from:/to:)
+    assert!(
+        !updated.contains("mappings:"),
+        "rename shorthand should not be expanded to mappings:, got:\n{}",
+        updated
+    );
+    assert!(
+        updated.contains("rename:\n          old-name.sh: new-name.sh"),
+        "rename shorthand syntax must be preserved, got:\n{}",
+        updated
+    );
+
+    // Overall structure should be byte-identical except for the ref line
+    let expected = original_config.replace("ref: v2.0.0", "ref: v2.0.1");
+    assert_eq!(
+        updated, expected,
+        "Only the ref: value should change; all other content must be identical"
+    );
+}
+
+/// Test that update modifies ALL occurrences of a repo URL, including inside self: sections.
+/// Uses common-repo/upstream which appears both at top level and inside self:.
+/// Regression test for https://github.com/common-repo/common-repo/issues/282
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_update_all_occurrences_including_self() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // Same repo URL appears at top level AND inside self:
+    let original_config = r#"- repo:
+    url: https://github.com/common-repo/upstream.git
+    ref: v2.0.0
+- self:
+    - repo:
+        url: https://github.com/common-repo/upstream.git
+        ref: v2.0.0
+"#;
+
+    config_file.write_str(original_config).unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.arg("update")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--yes")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Successfully updated"));
+
+    let updated = std::fs::read_to_string(config_file.path()).unwrap();
+
+    // Neither occurrence should still have the old ref
+    assert!(
+        !updated.contains("ref: v2.0.0"),
+        "ALL occurrences of old ref should be updated, but found v2.0.0 in:\n{}",
+        updated
+    );
+
+    // Both should be updated to v2.0.1
+    let ref_count = updated.matches("ref: v2.0.1").count();
+    assert_eq!(
+        ref_count, 2,
+        "Both occurrences should be updated to v2.0.1, found {} occurrence(s) in:\n{}",
+        ref_count, updated
+    );
+
+    // Structure should be byte-identical except for the two ref lines
+    let expected = original_config.replace("ref: v2.0.0", "ref: v2.0.1");
+    assert_eq!(
+        updated, expected,
+        "Only ref: values should change; all other content must be identical"
+    );
+}
