@@ -129,11 +129,29 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 fn collect_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
     let mut targets = HashMap::new();
     for op in ops {
-        if let Some(path) = get_auto_merge_path(op) {
-            targets.insert(path.to_string(), op.clone());
+        // Only collect non-explicitly-deferred auto-merge ops for Phase 4 inter-repo merging.
+        // Ops with explicit `defer: true` are reserved for Phase 5 (consumer local file merge).
+        if !is_explicitly_deferred(op) {
+            if let Some(path) = get_auto_merge_path(op) {
+                targets.insert(path.to_string(), op.clone());
+            }
         }
     }
     targets
+}
+
+/// Returns true if the operation has `defer: true` set explicitly.
+/// A plain `auto_merge` op without `defer: true` is an inter-repo merge (Phase 4).
+fn is_explicitly_deferred(op: &Operation) -> bool {
+    match op {
+        Operation::Yaml { yaml } => yaml.defer.unwrap_or(false),
+        Operation::Json { json } => json.defer.unwrap_or(false),
+        Operation::Toml { toml } => toml.defer.unwrap_or(false),
+        Operation::Ini { ini } => ini.defer.unwrap_or(false),
+        Operation::Markdown { markdown } => markdown.defer.unwrap_or(false),
+        Operation::Xml { xml } => xml.defer.unwrap_or(false),
+        _ => false,
+    }
 }
 
 /// Extract the auto-merge target path from an operation, if it has one.
@@ -158,7 +176,13 @@ fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation
                 source: Some(source.to_string()),
                 dest: Some(dest.to_string()),
                 path: yaml.path.clone(),
-                array_mode: yaml.array_mode,
+                // Inter-repo accumulation: upgrade default Replace to AppendUnique
+                // so each upstream's array entries are preserved, not overwritten.
+                array_mode: if yaml.array_mode == crate::config::ArrayMergeMode::Replace {
+                    crate::config::ArrayMergeMode::AppendUnique
+                } else {
+                    yaml.array_mode
+                },
                 position: yaml.position,
                 defer: None,
                 auto_merge: None,
@@ -169,7 +193,11 @@ fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation
                 source: Some(source.to_string()),
                 dest: Some(dest.to_string()),
                 path: json.path.clone(),
-                array_mode: json.array_mode,
+                array_mode: if json.array_mode == crate::config::ArrayMergeMode::Replace {
+                    crate::config::ArrayMergeMode::AppendUnique
+                } else {
+                    json.array_mode
+                },
                 position: json.position,
                 defer: None,
                 auto_merge: None,
@@ -180,7 +208,11 @@ fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation
                 source: Some(source.to_string()),
                 dest: Some(dest.to_string()),
                 path: toml.path.clone(),
-                array_mode: toml.array_mode,
+                array_mode: if toml.array_mode == crate::config::ArrayMergeMode::Replace {
+                    crate::config::ArrayMergeMode::AppendUnique
+                } else {
+                    toml.array_mode
+                },
                 position: toml.position,
                 preserve_comments: toml.preserve_comments,
                 defer: None,
