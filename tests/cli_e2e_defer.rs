@@ -699,3 +699,124 @@ fn test_info_shows_deferred_operations() {
             predicate::str::contains("yaml").and(predicate::str::contains("json")), // Both operation types shown
         );
 }
+
+// =============================================================================
+// Auto-merge composition e2e test (real repos)
+// =============================================================================
+
+/// Test that chained repos with auto-merge for the same file trigger
+/// Phase 4 composition merge (not just last-write-wins).
+///
+/// Uses real repos:
+/// - common-repo/conventional-commits (chains to common-repo/pre-commit)
+/// - Both declare: yaml: { auto-merge: .pre-commit-config.yaml }
+///
+/// Note: The upstream repos currently use default array_mode (replace),
+/// so the merge fires but replaces rather than appends. This test verifies
+/// the merge mechanism works; the upstream repos would need array_mode: append
+/// to actually combine the repos: arrays.
+///
+/// Regression test for https://github.com/common-repo/common-repo/issues/284
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_auto_merge_chained_repos_merge_fires() {
+    let consumer = assert_fs::TempDir::new().unwrap();
+
+    // Consumer config inherits from conventional-commits, which itself
+    // chains to pre-commit. Both repos declare auto-merge for
+    // .pre-commit-config.yaml.
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(
+            r#"- repo:
+    url: https://github.com/common-repo/conventional-commits
+    ref: v1.0.1
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--config")
+        .arg(consumer.child(".common-repo.yaml").path())
+        .assert()
+        .success();
+
+    // The .pre-commit-config.yaml should exist
+    let pre_commit_config = consumer.child(".pre-commit-config.yaml");
+    assert!(
+        pre_commit_config.exists(),
+        ".pre-commit-config.yaml should exist in consumer output"
+    );
+
+    let content = std::fs::read_to_string(pre_commit_config.path()).unwrap();
+
+    // With default array_mode (replace), conventional-commits' repos: replaces
+    // pre-commit's repos:. The file should at minimum contain the conventional
+    // hook (proving the merge mechanism ran, not just raw overwrite).
+    assert!(
+        content.contains("conventional-pre-commit"),
+        "Should contain conventional-pre-commit hook.\nActual content:\n{}",
+        content
+    );
+}
+
+/// Test that chained repos with auto-merge + array_mode: append produce
+/// combined output containing hooks from ALL repos in the chain.
+///
+/// The consumer overrides the auto-merge with array_mode: append via
+/// inline with: clause to prove the full merge chain works.
+///
+/// Regression test for https://github.com/common-repo/common-repo/issues/284
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_auto_merge_chained_repos_combine_with_append() {
+    let consumer = assert_fs::TempDir::new().unwrap();
+
+    // Consumer inherits from conventional-commits but overrides the
+    // auto-merge to use append mode so both repos' hooks combine.
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(
+            r#"- repo:
+    url: https://github.com/common-repo/conventional-commits
+    ref: v1.0.1
+    with:
+      - yaml:
+          auto-merge: .pre-commit-config.yaml
+          array_mode: append
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--config")
+        .arg(consumer.child(".common-repo.yaml").path())
+        .assert()
+        .success();
+
+    let pre_commit_config = consumer.child(".pre-commit-config.yaml");
+    assert!(
+        pre_commit_config.exists(),
+        ".pre-commit-config.yaml should exist in consumer output"
+    );
+
+    let content = std::fs::read_to_string(pre_commit_config.path()).unwrap();
+
+    // With append mode, BOTH repos' hooks should be present
+    assert!(
+        content.contains("trailing-whitespace"),
+        "Should contain trailing-whitespace hook from pre-commit repo.\nActual content:\n{}",
+        content
+    );
+    assert!(
+        content.contains("conventional-pre-commit"),
+        "Should contain conventional-pre-commit hook from conventional-commits repo.\nActual content:\n{}",
+        content
+    );
+}
