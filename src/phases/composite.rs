@@ -69,17 +69,29 @@ pub fn execute(
     }
 
     // Merge processed filesystems in the operation order
-    // Later filesystems in the order take precedence (last-write-wins)
+    // Later filesystems in the order take precedence (last-write-wins),
+    // EXCEPT when the incoming repo declares an auto-merge for a file that
+    // already exists in the composite — in that case, perform format-aware
+    // merging to accumulate content from multiple upstreams.
     let mut composite_fs = MemoryFS::new();
     let mut deferred_ops = Vec::new();
 
     for repo_key in &order.order {
         if let Some(processed_fs) = processed_fss.get(repo_key) {
-            merge_filesystem(&mut composite_fs, processed_fs)?;
+            // Get this repo's merge operations to check for auto-merge declarations
+            let merge_ops = intermediate_fss
+                .get(repo_key)
+                .map(|ifs| &ifs.merge_operations)
+                .cloned()
+                .unwrap_or_default();
 
-            // Collect merge operations instead of executing them inline.
-            // These will be executed later during Phase 5, after local files
-            // are available as merge destinations.
+            // Build a map of auto-merge target paths -> operations for this repo
+            let auto_merge_targets = collect_auto_merge_targets(&merge_ops);
+
+            // Merge files individually, checking for auto-merge conflicts
+            merge_filesystem_with_auto_merge(&mut composite_fs, processed_fs, &auto_merge_targets)?;
+
+            // Collect merge operations for Phase 5 deferred execution
             if let Some(intermediate_fs) = intermediate_fss.get(repo_key) {
                 deferred_ops.extend(intermediate_fs.merge_operations.clone());
             }
@@ -102,9 +114,154 @@ pub fn execute(
 /// All files from source_fs are copied to target_fs. If a file already exists
 /// in target_fs, it is overwritten (last-write-wins strategy).
 /// This preserves file metadata from the source filesystem.
+#[cfg(test)]
 fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()> {
     for (path, file) in source_fs.files() {
         target_fs.add_file(path, file.clone())?;
+    }
+    Ok(())
+}
+
+/// Collect auto-merge target paths from a set of merge operations.
+///
+/// Returns a map from target file path to the corresponding Operation,
+/// for operations that have `auto_merge` set.
+fn collect_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
+    let mut targets = HashMap::new();
+    for op in ops {
+        if let Some(path) = get_auto_merge_path(op) {
+            targets.insert(path.to_string(), op.clone());
+        }
+    }
+    targets
+}
+
+/// Extract the auto-merge target path from an operation, if it has one.
+fn get_auto_merge_path(op: &Operation) -> Option<&str> {
+    match op {
+        Operation::Yaml { yaml } => yaml.auto_merge.as_deref(),
+        Operation::Json { json } => json.auto_merge.as_deref(),
+        Operation::Toml { toml } => toml.auto_merge.as_deref(),
+        Operation::Ini { ini } => ini.auto_merge.as_deref(),
+        Operation::Markdown { markdown } => markdown.auto_merge.as_deref(),
+        Operation::Xml { xml } => xml.auto_merge.as_deref(),
+        _ => None,
+    }
+}
+
+/// Create a synthetic merge operation with explicit source and dest paths,
+/// preserving all other parameters from the original auto-merge operation.
+fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation {
+    match op {
+        Operation::Yaml { yaml } => Operation::Yaml {
+            yaml: crate::config::YamlMergeOp {
+                source: Some(source.to_string()),
+                dest: Some(dest.to_string()),
+                path: yaml.path.clone(),
+                array_mode: yaml.array_mode,
+                position: yaml.position,
+                defer: None,
+                auto_merge: None,
+            },
+        },
+        Operation::Json { json } => Operation::Json {
+            json: crate::config::JsonMergeOp {
+                source: Some(source.to_string()),
+                dest: Some(dest.to_string()),
+                path: json.path.clone(),
+                array_mode: json.array_mode,
+                position: json.position,
+                defer: None,
+                auto_merge: None,
+            },
+        },
+        Operation::Toml { toml } => Operation::Toml {
+            toml: crate::config::TomlMergeOp {
+                source: Some(source.to_string()),
+                dest: Some(dest.to_string()),
+                path: toml.path.clone(),
+                array_mode: toml.array_mode,
+                position: toml.position,
+                preserve_comments: toml.preserve_comments,
+                defer: None,
+                auto_merge: None,
+            },
+        },
+        Operation::Ini { ini } => Operation::Ini {
+            ini: crate::config::IniMergeOp {
+                source: Some(source.to_string()),
+                dest: Some(dest.to_string()),
+                section: ini.section.clone(),
+                append: ini.append,
+                allow_duplicates: ini.allow_duplicates,
+                defer: None,
+                auto_merge: None,
+            },
+        },
+        Operation::Markdown { markdown } => Operation::Markdown {
+            markdown: crate::config::MarkdownMergeOp {
+                source: Some(source.to_string()),
+                dest: Some(dest.to_string()),
+                section: markdown.section.clone(),
+                append: markdown.append,
+                level: markdown.level,
+                position: markdown.position,
+                create_section: markdown.create_section,
+                defer: None,
+                auto_merge: None,
+            },
+        },
+        Operation::Xml { xml } => Operation::Xml {
+            xml: crate::config::XmlMergeOp {
+                source: Some(source.to_string()),
+                dest: Some(dest.to_string()),
+                path: xml.path.clone(),
+                array_mode: xml.array_mode,
+                position: xml.position,
+                defer: None,
+                auto_merge: None,
+            },
+        },
+        // Should not be called with non-merge operations
+        _ => op.clone(),
+    }
+}
+
+/// Merge a source filesystem into a target filesystem with auto-merge awareness.
+///
+/// For each file in source_fs:
+/// - If the file does NOT exist in target_fs: add it (normal behaviour)
+/// - If the file exists AND has an auto-merge declaration: perform format-aware
+///   merge to accumulate content from both repos
+/// - If the file exists but NO auto-merge: overwrite (last-write-wins, normal behaviour)
+fn merge_filesystem_with_auto_merge(
+    target_fs: &mut MemoryFS,
+    source_fs: &MemoryFS,
+    auto_merge_targets: &HashMap<String, Operation>,
+) -> Result<()> {
+    for (path, file) in source_fs.files() {
+        let path_str = path.to_string_lossy();
+        if target_fs.exists(path) {
+            if let Some(merge_op) = auto_merge_targets.get(path_str.as_ref()) {
+                // Auto-merge conflict: merge instead of overwrite.
+                // Stage the incoming file under a temp name, execute the merge,
+                // then clean up.
+                let temp_path = format!(".__common_repo_auto_merge_temp__{}", path_str);
+                target_fs.add_file(&temp_path, file.clone())?;
+
+                let explicit_op = make_explicit_merge_op(merge_op, &temp_path, &path_str);
+                execute_merge_operation(target_fs, &explicit_op)?;
+
+                // Clean up the temporary file
+                target_fs.remove_file(&temp_path)?;
+            } else {
+                // No auto-merge declaration: last-write-wins
+                target_fs.add_file(path, file.clone())?;
+            }
+        } else {
+            // No conflict: just add the file
+            target_fs.add_file(path, file.clone())?;
+        }
     }
     Ok(())
 }
@@ -962,5 +1119,219 @@ port = 8080
         // Consumer override applied
         assert!(content.contains("my-org"));
         assert!(!content.contains("christmas-island"));
+    }
+
+    // ===================================================================
+    // Auto-merge composition tests
+    // ===================================================================
+
+    mod auto_merge_composition_tests {
+        use super::*;
+        use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+
+        #[test]
+        fn test_auto_merge_combines_yaml_from_two_repos() {
+            // Simulates: pre-commit provides builtin hooks, conventional-commits
+            // provides the conventional hook. Both declare auto-merge for
+            // .pre-commit-config.yaml. Consumer should get both.
+            let pre_commit_yaml = r#"repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-json
+"#;
+            let conventional_yaml = r#"repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.1.0
+    hooks:
+      - id: conventional-pre-commit
+"#;
+
+            let mut fs_pre_commit = MemoryFS::new();
+            fs_pre_commit
+                .add_file_string(".pre-commit-config.yaml", pre_commit_yaml)
+                .unwrap();
+
+            let mut fs_conventional = MemoryFS::new();
+            fs_conventional
+                .add_file_string(".pre-commit-config.yaml", conventional_yaml)
+                .unwrap();
+
+            // pre-commit repo's intermediate FS with auto-merge op
+            let mut ifs_pre_commit = IntermediateFS::new(
+                fs_pre_commit,
+                "https://github.com/common-repo/pre-commit.git".to_string(),
+                "v1.0.0".to_string(),
+            );
+            ifs_pre_commit.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge(".pre-commit-config.yaml")
+                    .array_mode(ArrayMergeMode::Append),
+            });
+
+            // conventional-commits repo's intermediate FS with auto-merge op
+            let mut ifs_conventional = IntermediateFS::new(
+                fs_conventional,
+                "https://github.com/common-repo/conventional-commits.git".to_string(),
+                "v1.0.0".to_string(),
+            );
+            ifs_conventional.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge(".pre-commit-config.yaml")
+                    .array_mode(ArrayMergeMode::Append),
+            });
+
+            let mut intermediate_fss = HashMap::new();
+            let key_pre = "https://github.com/common-repo/pre-commit.git@v1.0.0".to_string();
+            let key_conv =
+                "https://github.com/common-repo/conventional-commits.git@v1.0.0".to_string();
+            intermediate_fss.insert(key_pre.clone(), ifs_pre_commit);
+            intermediate_fss.insert(key_conv.clone(), ifs_conventional);
+
+            // pre-commit first (deepest in chain), then conventional-commits
+            let order = OperationOrder::new(vec![key_pre, key_conv]);
+
+            let (composite, deferred_ops) = execute(&order, &intermediate_fss).unwrap();
+
+            // The composite should have .pre-commit-config.yaml with BOTH repos' hooks
+            assert!(composite.exists(".pre-commit-config.yaml"));
+            let content = String::from_utf8(
+                composite
+                    .get_file(".pre-commit-config.yaml")
+                    .unwrap()
+                    .content
+                    .clone(),
+            )
+            .unwrap();
+
+            assert!(
+                content.contains("pre-commit-hooks"),
+                "Should contain pre-commit-hooks repo: {}",
+                content
+            );
+            assert!(
+                content.contains("conventional-pre-commit"),
+                "Should contain conventional-pre-commit repo: {}",
+                content
+            );
+
+            // Deferred ops should still be collected for Phase 5
+            assert_eq!(deferred_ops.len(), 2);
+
+            // No temp files should remain
+            assert!(!composite.exists(".__common_repo_auto_merge_temp__.pre-commit-config.yaml"));
+        }
+
+        #[test]
+        fn test_no_auto_merge_still_uses_last_write_wins() {
+            // When there's no auto-merge declaration, last-write-wins as before
+            let mut fs1 = MemoryFS::new();
+            fs1.add_file_string("shared.txt", "from-repo-a").unwrap();
+            let mut fs2 = MemoryFS::new();
+            fs2.add_file_string("shared.txt", "from-repo-b").unwrap();
+
+            let ifs1 = IntermediateFS::new(
+                fs1,
+                "https://github.com/repo-a.git".to_string(),
+                "main".to_string(),
+            );
+            let ifs2 = IntermediateFS::new(
+                fs2,
+                "https://github.com/repo-b.git".to_string(),
+                "main".to_string(),
+            );
+
+            let mut intermediate_fss = HashMap::new();
+            let key_a = "https://github.com/repo-a.git@main".to_string();
+            let key_b = "https://github.com/repo-b.git@main".to_string();
+            intermediate_fss.insert(key_a.clone(), ifs1);
+            intermediate_fss.insert(key_b.clone(), ifs2);
+
+            let order = OperationOrder::new(vec![key_a, key_b]);
+            let (composite, _) = execute(&order, &intermediate_fss).unwrap();
+
+            let content =
+                String::from_utf8(composite.get_file("shared.txt").unwrap().content.clone())
+                    .unwrap();
+            assert_eq!(content, "from-repo-b");
+        }
+
+        #[test]
+        fn test_auto_merge_three_repos_accumulate() {
+            // Three repos in chain all provide the same file with auto-merge
+            let yaml_a = "repos:\n  - repo: repo-a\n    hooks:\n      - id: hook-a\n";
+            let yaml_b = "repos:\n  - repo: repo-b\n    hooks:\n      - id: hook-b\n";
+            let yaml_c = "repos:\n  - repo: repo-c\n    hooks:\n      - id: hook-c\n";
+
+            let mut fs_a = MemoryFS::new();
+            fs_a.add_file_string("config.yaml", yaml_a).unwrap();
+            let mut fs_b = MemoryFS::new();
+            fs_b.add_file_string("config.yaml", yaml_b).unwrap();
+            let mut fs_c = MemoryFS::new();
+            fs_c.add_file_string("config.yaml", yaml_c).unwrap();
+
+            let make_ifs = |fs: MemoryFS, url: &str| {
+                let mut ifs = IntermediateFS::new(fs, url.to_string(), "v1".to_string());
+                ifs.merge_operations.push(Operation::Yaml {
+                    yaml: YamlMergeOp::new()
+                        .auto_merge("config.yaml")
+                        .array_mode(ArrayMergeMode::Append),
+                });
+                ifs
+            };
+
+            let mut intermediate_fss = HashMap::new();
+            let key_a = "a@v1".to_string();
+            let key_b = "b@v1".to_string();
+            let key_c = "c@v1".to_string();
+            intermediate_fss.insert(key_a.clone(), make_ifs(fs_a, "a"));
+            intermediate_fss.insert(key_b.clone(), make_ifs(fs_b, "b"));
+            intermediate_fss.insert(key_c.clone(), make_ifs(fs_c, "c"));
+
+            let order = OperationOrder::new(vec![key_a, key_b, key_c]);
+            let (composite, _) = execute(&order, &intermediate_fss).unwrap();
+
+            let content =
+                String::from_utf8(composite.get_file("config.yaml").unwrap().content.clone())
+                    .unwrap();
+
+            assert!(content.contains("repo-a"), "Missing repo-a: {}", content);
+            assert!(content.contains("repo-b"), "Missing repo-b: {}", content);
+            assert!(content.contains("repo-c"), "Missing repo-c: {}", content);
+        }
+
+        #[test]
+        fn test_first_repo_no_conflict_just_adds() {
+            // First repo in order has auto-merge but no conflict (first occurrence)
+            // Should just add the file normally
+            let yaml = "repos:\n  - repo: first\n";
+
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("config.yaml", yaml).unwrap();
+
+            let mut ifs = IntermediateFS::new(
+                fs,
+                "https://github.com/first.git".to_string(),
+                "v1".to_string(),
+            );
+            ifs.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge("config.yaml")
+                    .array_mode(ArrayMergeMode::Append),
+            });
+
+            let mut intermediate_fss = HashMap::new();
+            let key = "https://github.com/first.git@v1".to_string();
+            intermediate_fss.insert(key.clone(), ifs);
+
+            let order = OperationOrder::new(vec![key]);
+            let (composite, _) = execute(&order, &intermediate_fss).unwrap();
+
+            let content =
+                String::from_utf8(composite.get_file("config.yaml").unwrap().content.clone())
+                    .unwrap();
+            assert!(content.contains("first"));
+        }
     }
 }
