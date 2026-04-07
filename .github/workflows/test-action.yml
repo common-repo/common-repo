@@ -43,6 +43,9 @@ jobs:
       # Test the action in dry-run mode
       - name: Test action (dry-run)
         id: sync
+        # TODO(shakefu): Unskip this when we have our release flow fixed so there's not an asset race condition
+        # Only run on pull requests
+        if: github.event_name == 'pull_request'
         uses: ./
         with:
           dry-run: 'true'
