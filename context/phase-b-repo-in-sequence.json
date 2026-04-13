@@ -1,0 +1,134 @@
+{
+  "plan_name": "Phase B: Repo-in-Sequence Resolution",
+  "last_updated": "2026-04-12",
+  "description": "Architectural change: resolve repo: operations inline at their position in the declaration sequence, not eagerly in Phase 1. This is the change that fully fixes the reported bug (upstream auto-merges executing at the right point relative to consumer filters).",
+  "status": "skeleton",
+  "context_doc": "context/sequential-operations-context.md",
+  "blocked_on": "context/phase-0-spec-discovery.json (needs Q1 decision on repo-in-sequence semantics)",
+  "depends_on": "context/sequential-operations.json (Phase A establishes sequential consumer op infrastructure)",
+  "session_startup": [
+    "Run git status - verify on feat/sequential-operations-* branch",
+    "Read context/sequential-operations-context.md fully",
+    "Verify Phase 0 is archived (context/completed/phase-0-spec-discovery.json exists)",
+    "Verify Phase A is archived (context/completed/sequential-operations.json exists)",
+    "Read context/current-task.json and this plan file",
+    "Read the updated specs (Phase 0 output) to understand the repo-in-sequence rule",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "scope": {
+    "what_changes": [
+      "How repo: operations are identified and processed in Phase 1 discovery",
+      "How the orchestrator drives the pipeline when repo: appears mid-sequence",
+      "Phase 2 processing: repo: is currently a no-op; must trigger inline sub-pipeline execution",
+      "Phase 5: may need to coordinate with mid-sequence repo resolution"
+    ],
+    "what_stays_the_same": [
+      "Cross-repo ordering (depth-first post-order from Phase 3)",
+      "Phase A's apply_consumer_operations in Phase 5 (still needed for consumer ops that sandwich repo: calls)",
+      "Auto-merge semantics at the operator level"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "read-phase-0-spec",
+      "name": "Read final spec to understand repo-in-sequence rule",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "description": "Phase 0 produced the Q1 decision on how repo: resolves mid-sequence. Understand it fully before coding.",
+      "steps": [
+        "Read spec/common-repo.allium for repo-in-sequence rules",
+        "Read spec/detailed/auto-merge-composition.allium for updated MergeLocalFiles and repo: resolution rules",
+        "Read spec/detailed/operators.allium for operator semantics",
+        "Write a short trace (on paper or in a temp file) of how the bug scenario's self: block should execute under the spec"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Agent can state the Q1 decision in one sentence",
+        "Agent can describe what 'current FS state' means when repo: appears mid-sequence"
+      ]
+    },
+    {
+      "id": "write-failing-e2e-test",
+      "name": "Write E2E test reproducing the concrete bug scenario",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "read-phase-0-spec",
+      "description": "Write an E2E test that reproduces the exact scenario from context/prompt.md — self: block with include/template/rename before repo: whose auto-merge must target a file renamed by the preceding ops. This test fails today and proves the architectural gap.",
+      "steps": [
+        "Create or extend tests/cli_e2e_sequential_ops.rs (or new tests/cli_e2e_repo_in_sequence.rs)",
+        "Use init_test_git_repo helper pattern from tests/cli_e2e_defer.rs:12-56",
+        "Set up upstream repo with a deferred auto-merge (pre-commit-config.yaml with append_unique)",
+        "Consumer config: self: block with include src/** → template → rename src/(.*)$ → $1 → repo: <upstream>",
+        "Consumer working dir has src/.pre-commit-config.yaml with local content",
+        "Assert: final .pre-commit-config.yaml contains BOTH local and upstream hooks (array_mode append_unique merged)",
+        "Run: cargo nextest run --test <test-file>",
+        "Expected: FAIL - current code eagerly resolves repo: in Phase 1, not at declaration position"
+      ],
+      "output_file": "tests (path TBD)",
+      "acceptance_criteria": [
+        "E2E test exists and FAILS with current code",
+        "Test exercises the full scenario from context/prompt.md",
+        "Test will PASS after repo-in-sequence is implemented"
+      ]
+    },
+    {
+      "id": "design-repo-inline-resolution",
+      "name": "Design the inline repo: resolution mechanism",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "write-failing-e2e-test",
+      "description": "PLACEHOLDER - detailed task will be written in Phase 0's flesh-out-phase-b-plan step. Options include: (a) pre-fetch all repos in Phase 1 but defer processing to the point in sequence where repo: appears; (b) recursively invoke the pipeline when processing hits a repo: op; (c) refactor orchestrator to walk ops as a tree with nested pipelines.",
+      "steps": [
+        "TBD after Phase 0 produces the Q1 spec rule and flesh-out-phase-b-plan task writes concrete design options"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Design approach selected with trade-offs documented",
+        "Design matches the spec's Q1 decision"
+      ]
+    },
+    {
+      "id": "implement-architectural-change",
+      "name": "Implement the selected design",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "design-repo-inline-resolution",
+      "description": "PLACEHOLDER - will be broken into sub-tasks after design is finalized. Likely needs sub-plan (plan-to-plan pattern) due to size.",
+      "steps": [
+        "TBD after design-repo-inline-resolution"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Inline repo: resolution works per the selected design",
+        "The failing E2E test now passes",
+        "No regressions in existing tests"
+      ]
+    },
+    {
+      "id": "review-and-finalize",
+      "name": "Review, verify, and prepare for PR",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "implement-architectural-change",
+      "description": "PLACEHOLDER - will include code review agent dispatch, allium:weed to verify spec-code alignment, and full CI run.",
+      "steps": [
+        "TBD"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Code reviewer agent confirms implementation matches spec",
+        "allium:weed reports no spec/code divergence",
+        "./script/cibuild passes",
+        "All three phases integrated cleanly"
+      ]
+    }
+  ],
+  "notes": [
+    "This plan is a SKELETON. Phase 0's flesh-out-phase-b-plan task converts it into a full plan after Q1 is decided.",
+    "Expect this plan to grow into sub-plans (plan-to-plan pattern per CLAUDE.md) — the architectural refactor is likely too large for a single flat plan.",
+    "The failing E2E test (write-failing-e2e-test) is the load-bearing acceptance criterion — it's the 'did we actually fix the reported bug' check.",
+    "Phase A's single-pass consumer ops are a prerequisite; confirm Phase A is merged before starting Phase B implementation work.",
+    "If design exploration reveals that Phase B needs Phase A's foundation to be changed, coordinate back through the plans rather than hacking Phase A retroactively."
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "task": "ls-exclude-bug",
+  "plan": "context/ls-exclude-bug.json",
+  "last_updated": "2026-03-07",
+  "description": "Fix ls command not respecting exclude filters (issue #226)"
+}

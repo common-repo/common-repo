@@ -1,0 +1,272 @@
+{
+  "plan_name": "Phase 0: Sequential Execution Spec Discovery",
+  "last_updated": "2026-04-13",
+  "description": "Use allium:elicit to discover and formalize sequential declaration-order execution semantics in the Allium spec. Produces the semantic decisions that Phase A (Phase 5 single-pass) and Phase B (repo-in-sequence) will implement.",
+  "context_doc": "context/sequential-operations-context.md",
+  "reference_files": {
+    "prompt": "context/prompt.md",
+    "exploration_synthesis": "context/operations/findings-synthesis.md",
+    "main_spec": "spec/common-repo.allium",
+    "auto_merge_spec": "spec/detailed/auto-merge-composition.allium",
+    "merge_ops_spec": "spec/detailed/merge-operations.allium"
+  },
+  "produces": {
+    "spec/common-repo.allium": "Updated with sequential execution rules and CompositePrecedence presence guarantee (or explicit decision to keep silent drop)",
+    "spec/detailed/operators.allium": "Created fresh; specifies Phase 5 filter scoping and per-operator sequential semantics",
+    "spec/detailed/auto-merge-composition.allium": "Updated with MergeLocalFiles interleaving rule and sequential repo: resolution semantic"
+  },
+  "session_startup": [
+    "Run git status - verify on feat/sequential-operations-* branch",
+    "Read context/sequential-operations-context.md fully",
+    "Read context/current-task.json and this plan file",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "open_semantic_questions": [
+    "Q1 (repo-in-sequence): When repo: appears mid-sequence, does it merge sub-composite inline, or run its own full pipeline against current FS? How do its deferred merges execute?",
+    "Q2 (include/exclude interleaving): Can a later include re-add files that a prior exclude removed? Source: original-FS vs current-FS?",
+    "Q3 (rename chaining): Do mappings within a single rename op chain? Do sequential rename ops chain?",
+    "Q4 (CompositePrecedence presence): Can filters silently drop upstream composite content, or must presence be preserved?",
+    "Q5 (merge source removal): When a preceding exclude removes a merge's source, is it an error, warning+skip, or silent skip?",
+    "Q6 (MergeLocalFiles interleaving): Formal rule for merges and filters interleaving in declaration order.",
+    "Q7 (scope of sequential): Applies to self:, source:, and with: clauses. Does NOT change cross-repo ordering."
+  ],
+  "tasks": [
+    {
+      "id": "review-existing-spec",
+      "name": "Read current Allium spec files end-to-end",
+      "status": "complete",
+      "priority": 1,
+      "blocked_by": null,
+      "description": "Build a complete mental model of the current spec before eliciting changes. The elicit session will surface contradictions and gaps; knowing the current state makes those easier to catch.",
+      "steps": [
+        "Read spec/common-repo.allium in full",
+        "Read spec/detailed/auto-merge-composition.allium in full",
+        "Read spec/detailed/merge-operations.allium in full",
+        "Note: no spec/detailed/operators.allium exists yet (will be created)",
+        "Summarize: existing entities, rules related to ordering, rules about Phase 5, rules about CompositePrecedence (lines 770-785 in main spec)",
+        "Note any rules that will need modification or removal when sequential execution is codified"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Agent has read all three existing spec files",
+        "Mental model includes: what ordering rules exist today (cross-repo DFS post-order), which rules constrain Phase 5, which rules are silent on declaration order",
+        "List of rules likely to need modification is in agent's working context"
+      ]
+    },
+    {
+      "id": "run-elicit-session",
+      "name": "Run allium:elicit session with user to resolve semantic questions",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "review-existing-spec",
+      "description": "Invoke allium:elicit skill. The session is a structured conversation with the user to resolve Q1-Q7 (see open_semantic_questions above). Agent's job: prepare questions, drive the conversation, capture decisions, produce draft spec rules.",
+      "steps": [
+        "Invoke Skill tool with skill=allium:elicit",
+        "Prime the session with the seven open questions (Q1-Q7) from this plan",
+        "Reference the concrete bug scenario from context/sequential-operations-context.md so decisions are grounded in a real case",
+        "For each question: elicit the user's intent, push back on vagueness, capture the rule",
+        "Specifically for Q1 (repo-in-sequence): clarify what 'current FS state' means when repo: is mid-sequence — is it the accumulated filesystem from preceding ops, or does the sub-repo run in isolation and get merged in?",
+        "Specifically for Q2: establish whether include re-adds from source FS or only from current FS (only current FS is implementable without keeping a source-FS copy around)",
+        "Produce draft rule text for each semantic decision"
+      ],
+      "output_file": "spec/common-repo.allium (draft updates held by elicit session)",
+      "acceptance_criteria": [
+        "All seven semantic questions have explicit decisions captured as draft Allium rules",
+        "Decisions are consistent with each other (no contradictions)",
+        "Decisions cover the concrete bug scenario — user can point to which rule makes the scenario work correctly",
+        "Draft rules are ready to be written to spec files"
+      ]
+    },
+    {
+      "id": "write-operators-spec",
+      "name": "Create spec/detailed/operators.allium",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "run-elicit-session",
+      "description": "Create the new operators.allium file referenced but missing. Contains per-operator sequential semantics and Phase 5 filter scoping decisions from the elicit session.",
+      "steps": [
+        "Use allium:tend to write the new file if elicit didn't already do so",
+        "Include: Include, Exclude, Rename, Template, TemplateVars operator specs",
+        "For each operator: in-place modification vs new-FS semantics, source-FS vs current-FS behavior, chaining rules",
+        "Reference and link to decisions from run-elicit-session"
+      ],
+      "output_file": "spec/detailed/operators.allium",
+      "acceptance_criteria": [
+        "File exists at spec/detailed/operators.allium",
+        "Each operator has an explicit sequential semantic rule",
+        "Q2 (include/exclude) and Q3 (rename chaining) decisions are encoded",
+        "File references back to common-repo.allium for shared entities"
+      ]
+    },
+    {
+      "id": "update-main-spec",
+      "name": "Update spec/common-repo.allium with sequential execution rules",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "run-elicit-session",
+      "description": "Add/modify rules in the main spec for within-repo sequential execution and CompositePrecedence presence guarantee.",
+      "steps": [
+        "Add a WithinRepoSequentialExecution rule (or equivalent) stating YAML order = execution order for all operations within a self:/source/with: block",
+        "Update or extend CompositePrecedence (lines 770-785) per Q4 decision",
+        "Add a rule for merge source removal (Q5) if the decision warrants spec-level codification",
+        "Ensure rules compose with existing cross-repo ordering (depth-first post-order from Phase 3) — sequential applies WITHIN a repo/block; DFS applies BETWEEN repos"
+      ],
+      "output_file": "spec/common-repo.allium",
+      "acceptance_criteria": [
+        "Within-repo sequential execution rule exists",
+        "CompositePrecedence reflects Q4 decision",
+        "No contradictions with existing cross-repo ordering rule",
+        "Allium syntax is valid"
+      ]
+    },
+    {
+      "id": "update-auto-merge-spec",
+      "name": "Update spec/detailed/auto-merge-composition.allium",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "run-elicit-session",
+      "description": "Codify MergeLocalFiles interleaving and sequential repo: resolution in the auto-merge spec.",
+      "steps": [
+        "Update MergeLocalFiles step 6 (or replace steps 5 and 6) to specify merges and filters interleave in declaration order (Q6)",
+        "Add a rule for repo: resolution at declaration position (Q1) — specifying what happens to the sub-repo's composite and its deferred merges when repo: is mid-sequence",
+        "Ensure MissingSourceAutoMerge rule still holds; extend or reference Q5 decision"
+      ],
+      "output_file": "spec/detailed/auto-merge-composition.allium",
+      "acceptance_criteria": [
+        "MergeLocalFiles reflects interleaving",
+        "repo-in-sequence rule exists and is testable",
+        "Q1 and Q6 decisions are encoded"
+      ]
+    },
+    {
+      "id": "validate-specs",
+      "name": "Validate all spec files parse and are internally consistent",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": ["write-operators-spec", "update-main-spec", "update-auto-merge-spec"],
+      "description": "Run Allium validation / use allium:tend or allium:weed to verify spec files are well-formed and internally consistent.",
+      "steps": [
+        "Invoke allium:tend with query to validate/normalize all three spec files",
+        "If validation errors, fix them (tend will guide)",
+        "Check for cross-file reference errors (entity referenced in one file but not defined anywhere)",
+        "Verify decisions from run-elicit-session are all reflected"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "All spec files validate cleanly",
+        "No undefined entity references",
+        "Q1-Q7 decisions all present and consistent across files"
+      ]
+    },
+    {
+      "id": "review-spec-against-bug",
+      "name": "Trace the concrete bug scenario through the updated spec",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "validate-specs",
+      "description": "Sanity check: walk through the bug scenario from context/prompt.md step-by-step, applying the new spec rules. Verify the spec predicts the desired outcome (merged .pre-commit-config.yaml contains both local and upstream content).",
+      "steps": [
+        "Take the concrete YAML config from context/prompt.md (the self: block with include/template/rename/repo)",
+        "For each operation, state which new spec rule governs its execution",
+        "Trace the FS state at each step: initial empty → after include → after template mark → after template-vars → after rename → after repo: resolution",
+        "Confirm the final FS contains .pre-commit-config.yaml with the merged content",
+        "If the trace doesn't produce the expected outcome, the spec is wrong — return to run-elicit-session"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Trace written down (in context/operations/ or similar)",
+        "Every operation maps to a spec rule",
+        "Final FS state matches the 'Expected' outcome from context/prompt.md",
+        "If mismatch: spec revised and re-validated"
+      ]
+    },
+    {
+      "id": "revise-phase-a-plan",
+      "name": "Revise Phase A plan to match the final spec",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": "review-spec-against-bug",
+      "description": "The current context/sequential-operations.json (Phase A plan) was written before the spec discovery. Reconcile it with the final spec — some tasks may need updates, especially around Q5 (merge source removal behavior) and the existing merges-before-filters test semantics.",
+      "steps": [
+        "Re-read context/sequential-operations.json",
+        "For each task, check its acceptance criteria against the new spec rules",
+        "Adjust test expectations that were based on guessed semantics (e.g., Q5 decision may change what test_phase5_sequential_exclude_before_merge_removes_source asserts)",
+        "Update docs/superpowers/plans/2026-04-12-sequential-operations.md to match"
+      ],
+      "output_file": "context/sequential-operations.json",
+      "acceptance_criteria": [
+        "Phase A plan's test assertions match the Q5 decision from elicit",
+        "Phase A plan's acceptance criteria reference specific spec rules where applicable",
+        "Reference markdown plan is synced"
+      ]
+    },
+    {
+      "id": "flesh-out-phase-b-plan",
+      "name": "Expand Phase B plan skeleton into detailed tasks",
+      "status": "pending",
+      "priority": 9,
+      "blocked_by": "review-spec-against-bug",
+      "description": "The Phase B plan is currently a skeleton. Now that the spec defines repo-in-sequence semantics (Q1), write concrete tasks for the architectural change.",
+      "steps": [
+        "Read context/phase-b-repo-in-sequence.json",
+        "Using Q1's decision, write detailed tasks covering: how repo: is identified mid-sequence, how the sub-pipeline runs, how its composite merges into the parent FS, how deferred ops propagate",
+        "Include E2E test task that exercises the exact concrete bug scenario from context/prompt.md",
+        "Include code review and verification checkpoints as in the Phase A plan",
+        "Decide if this needs to be broken into sub-plans (may be large enough to warrant the plan-to-plan pattern from CLAUDE.md)"
+      ],
+      "output_file": "context/phase-b-repo-in-sequence.json",
+      "acceptance_criteria": [
+        "Phase B plan has concrete tasks, not skeleton placeholders",
+        "Tasks reference specific files to modify (orchestrator.rs, discovery.rs, processing.rs)",
+        "E2E test against the bug scenario is included",
+        "Review checkpoints are in place"
+      ]
+    },
+    {
+      "id": "commit-phase-0-output",
+      "name": "Commit spec changes and plan updates",
+      "status": "pending",
+      "priority": 10,
+      "blocked_by": ["revise-phase-a-plan", "flesh-out-phase-b-plan"],
+      "description": "Commit Phase 0's artifacts: updated specs, new operators.allium, revised Phase A plan, fleshed-out Phase B plan.",
+      "steps": [
+        "Run ./script/ci to verify prose linter passes (specs are subject to prose rules if they contain markdown-style text)",
+        "git add spec/ context/",
+        "Commit with conventional message: 'docs(spec): formalize sequential declaration-order execution semantics'",
+        "Include note that code changes come in Phase A and Phase B"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "./script/ci passes",
+        "Commit contains all three spec files, both updated plans, and the context doc",
+        "Commit message is conventional and descriptive"
+      ]
+    },
+    {
+      "id": "archive-phase-0-activate-phase-a",
+      "name": "Archive Phase 0 plan and activate Phase A",
+      "status": "pending",
+      "priority": 11,
+      "blocked_by": "commit-phase-0-output",
+      "description": "Phase 0 is complete. Move this plan to context/completed/ and update current-task.json to point to Phase A.",
+      "steps": [
+        "git mv context/phase-0-spec-discovery.json context/completed/",
+        "Edit context/current-task.json: plan = 'context/sequential-operations.json', description reflects Phase A focus",
+        "Commit: 'chore(context): archive Phase 0 (spec discovery), activate Phase A (Phase 5 single-pass)'"
+      ],
+      "output_file": "context/current-task.json",
+      "acceptance_criteria": [
+        "context/phase-0-spec-discovery.json is in context/completed/",
+        "context/current-task.json points to context/sequential-operations.json",
+        "Commit created"
+      ]
+    }
+  ],
+  "notes": [
+    "Entry point for fresh sessions: context/sequential-operations-context.md",
+    "The elicit session (run-elicit-session task) is the critical task — all downstream tasks depend on its decisions",
+    "If elicit reveals that Phase A or Phase B scope needs to change (e.g., they need to be merged, or split further), update the plans during revise-phase-a-plan and flesh-out-phase-b-plan",
+    "Phase 0 does NOT modify any .rs code files — only specs, plans, and context docs",
+    "If spec-against-bug trace fails, don't hack the spec; return to elicit with the failure case"
+  ]
+}

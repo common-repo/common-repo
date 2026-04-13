@@ -1,0 +1,317 @@
+{
+  "plan_name": "Phase A: Sequential Consumer Operations (Phase 5 Single-Pass)",
+  "last_updated": "2026-04-12",
+  "description": "Replace two-pass consumer ops (all merges, then all filters) in Phase 5 with a single pass that applies operations in YAML declaration order. This is ONE PART of fixing the reported bug — Phase B (repo-in-sequence resolution) is also required for the full fix.",
+  "status": "blocked - waiting on Phase 0",
+  "blocked_on": "context/phase-0-spec-discovery.json - spec decisions may revise task acceptance criteria (especially Q5: merge source removal behavior)",
+  "context_doc": "context/sequential-operations-context.md",
+  "reference_plan": "docs/superpowers/plans/2026-04-12-sequential-operations.md",
+  "context": {
+    "bug_source": "src/phases/local_merge.rs:49-75",
+    "affected_functions": [
+      "apply_consumer_merges() at src/phases/local_merge.rs:211-236",
+      "apply_consumer_filters() at src/phases/local_merge.rs:242-262"
+    ],
+    "core_change": "Replace two-pass execution with single sequential pass",
+    "key_types": {
+      "Operation": "src/config.rs:987 (untagged enum)",
+      "Schema": "Vec<Operation>",
+      "MemoryFS": "src/filesystem.rs"
+    },
+    "out_of_scope": [
+      "Repo-in-sequence resolution (requires Phase 1 architectural change)",
+      "Allium spec updates (formalizing sequential execution in spec/common-repo.allium)",
+      "Creating spec/detailed/operators.allium"
+    ]
+  },
+  "session_startup": [
+    "Run git status to check branch (should be feat/sequential-operations-*)",
+    "Run ./script/test in background to verify baseline",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null",
+    "Read docs/superpowers/plans/2026-04-12-sequential-operations.md for full context"
+  ],
+  "tasks": [
+    {
+      "id": "write-key-failing-test",
+      "name": "Write the key failing test: exclude-before-merge",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "description": "Write the test that proves the bug exists. With exclude before merge in declaration order, sequential execution should cause the merge to error because the exclude removed the source file. With the current two-pass code, the merge runs first and succeeds.",
+      "steps": [
+        "Open src/phases/local_merge.rs",
+        "Add test `test_phase5_sequential_exclude_before_merge_removes_source` to the `mod tests` block",
+        "Config: [Exclude fragment.json, Json merge fragment→output]",
+        "Assert: execute() returns Err (because exclude removed the merge source)",
+        "Run: cargo nextest run test_phase5_sequential_exclude_before_merge_removes_source",
+        "Expected: FAIL (current code runs merges first, so merge succeeds and Result is Ok)"
+      ],
+      "output_file": "src/phases/local_merge.rs",
+      "acceptance_criteria": [
+        "Test exists in src/phases/local_merge.rs mod tests block",
+        "Test fails with current implementation (proves bug exists)",
+        "Test uses TempDir, Operation::Exclude, Operation::Json, execute()",
+        "See docs/superpowers/plans/2026-04-12-sequential-operations.md Task 2 for exact test code"
+      ]
+    },
+    {
+      "id": "implement-sequential-pass",
+      "name": "Implement apply_consumer_operations single sequential pass",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "write-key-failing-test",
+      "description": "Replace apply_consumer_merges() and apply_consumer_filters() with a single apply_consumer_operations() that iterates the config once and dispatches each operation as it appears.",
+      "steps": [
+        "Add new function apply_consumer_operations(final_fs, local_config) to src/phases/local_merge.rs",
+        "Function iterates local_config once with match on Operation enum",
+        "Match arms: Exclude, Include, Rename (filters) + Yaml, Json, Toml, Ini, Markdown, Xml (merges)",
+        "Update execute() function: replace the two calls (apply_consumer_merges + apply_consumer_filters) with single call to apply_consumer_operations",
+        "Delete old apply_consumer_merges() function (lines 211-236)",
+        "Delete old apply_consumer_filters() function (lines 242-262)",
+        "Run: cargo nextest run test_phase5_sequential_exclude_before_merge_removes_source",
+        "Expected: PASS (merge now errors because source was removed by preceding exclude)"
+      ],
+      "output_file": "src/phases/local_merge.rs",
+      "acceptance_criteria": [
+        "New apply_consumer_operations function exists with single for-loop over local_config",
+        "execute() calls apply_consumer_operations instead of the two old functions",
+        "Old apply_consumer_merges and apply_consumer_filters are removed",
+        "Key failing test now passes",
+        "cargo check succeeds",
+        "See docs/superpowers/plans/2026-04-12-sequential-operations.md Task 5 for exact code"
+      ]
+    },
+    {
+      "id": "update-existing-merges-before-filters-test",
+      "name": "Update test_phase5_consumer_merges_before_filters for new semantics",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "implement-sequential-pass",
+      "description": "The existing test asserts the OLD behavior (merges always before filters regardless of declaration order). Rename and update it to assert the NEW declaration-order behavior.",
+      "steps": [
+        "Open src/phases/local_merge.rs",
+        "Find test_phase5_consumer_merges_before_filters (currently around line 426)",
+        "Rename to test_phase5_consumer_operations_run_in_declaration_order",
+        "Reorder config: merge FIRST, then exclude (matches new sequential model)",
+        "Assertions unchanged: merge produces merged output.json, then exclude removes fragment.json",
+        "Run: cargo nextest run test_phase5_consumer_operations_run_in_declaration_order",
+        "Expected: PASS"
+      ],
+      "output_file": "src/phases/local_merge.rs",
+      "acceptance_criteria": [
+        "Test renamed to describe new semantics",
+        "Config has merge before exclude (reversed from old test)",
+        "Test passes",
+        "See docs/superpowers/plans/2026-04-12-sequential-operations.md Task 6 for exact code"
+      ]
+    },
+    {
+      "id": "run-full-unit-tests",
+      "name": "Run full unit test suite, verify no regressions",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "update-existing-merges-before-filters-test",
+      "description": "Ensure the refactor didn't break any existing tests.",
+      "steps": [
+        "Run: cargo nextest run",
+        "If any test fails, diagnose and fix (likely other tests depending on old ordering)",
+        "Verify all tests pass before proceeding"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "All unit tests pass (cargo nextest run exits 0)",
+        "No new failures introduced by the refactor"
+      ]
+    },
+    {
+      "id": "review-core-implementation",
+      "name": "Dispatch code-reviewer agent for core implementation review",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "run-full-unit-tests",
+      "description": "Use superpowers:code-reviewer subagent to review the core change against the plan and the project's coding standards.",
+      "steps": [
+        "Dispatch superpowers:code-reviewer agent with: 'Review the Phase 5 sequential execution refactor in src/phases/local_merge.rs. Original plan: docs/superpowers/plans/2026-04-12-sequential-operations.md. Changes to review: apply_consumer_operations function replacing apply_consumer_merges + apply_consumer_filters; execute() now calls single function; existing merges-before-filters test updated. Check for correctness, idiomatic Rust, and that the change matches the plan's intent.'",
+        "Address any issues raised by the reviewer (fix code, not just acknowledge)",
+        "Re-run tests after any fixes"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Code reviewer agent reports no blocking issues",
+        "Any raised issues are resolved in code",
+        "Tests still pass after review-triggered changes"
+      ]
+    },
+    {
+      "id": "add-interleaved-operation-tests",
+      "name": "Add tests for interleaved merge/filter scenarios",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "review-core-implementation",
+      "description": "Add unit tests covering sequential scenarios that were impossible with the old two-pass approach.",
+      "steps": [
+        "Add test_phase5_sequential_merge_then_exclude (reverse order: merge first, exclude second)",
+        "Add test_phase5_sequential_include_merge_exclude (include → merge → exclude interleaved)",
+        "Run: cargo nextest run test_phase5_sequential",
+        "Expected: All new sequential tests pass"
+      ],
+      "output_file": "src/phases/local_merge.rs",
+      "acceptance_criteria": [
+        "Both new tests exist and pass",
+        "Tests exercise sequential ordering semantics",
+        "See docs/superpowers/plans/2026-04-12-sequential-operations.md Tasks 3 and 4 for exact code"
+      ]
+    },
+    {
+      "id": "update-module-documentation",
+      "name": "Update Phase 5 module and execute() doc comments",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "add-interleaved-operation-tests",
+      "description": "Update doc comments to describe the new sequential execution model.",
+      "steps": [
+        "Update module-level doc comment (lines 1-35) to describe single sequential consumer pass",
+        "Step 5 in module docs: 'Apply Consumer Operations' (was two steps 5 and 6)",
+        "Explain: operations interleave, exclude before merge removes source, include before merge filters FS",
+        "Update execute() doc (lines 44-48) to say 'consumer operations in YAML declaration order'",
+        "Run: cargo xtask check-prose src/phases/local_merge.rs",
+        "Expected: No AI writing patterns detected"
+      ],
+      "output_file": "src/phases/local_merge.rs",
+      "acceptance_criteria": [
+        "Module doc reflects single sequential pass",
+        "execute() doc mentions declaration order",
+        "No AI writing pattern violations",
+        "See docs/superpowers/plans/2026-04-12-sequential-operations.md Task 7 for exact text"
+      ]
+    },
+    {
+      "id": "commit-core-changes",
+      "name": "Commit core implementation and tests",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": "update-module-documentation",
+      "description": "Commit the Phase 5 refactor with tests and doc updates.",
+      "steps": [
+        "Run ./script/ci to verify clean",
+        "git add src/phases/local_merge.rs",
+        "Commit with conventional message: 'feat: sequential declaration-order execution for Phase 5 consumer operations'",
+        "Include BREAKING CHANGE footer describing the new semantics"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "./script/ci passes",
+        "Commit created with conventional format",
+        "Message explains the behavior change (merges no longer forced before filters)"
+      ]
+    },
+    {
+      "id": "write-e2e-tests",
+      "name": "Write E2E tests for sequential consumer operations",
+      "status": "pending",
+      "priority": 9,
+      "blocked_by": "commit-core-changes",
+      "description": "Add E2E tests exercising sequential ops through the CLI with real git repos as upstreams.",
+      "steps": [
+        "Create tests/cli_e2e_sequential_ops.rs",
+        "Add init_test_git_repo helper (copy pattern from tests/cli_e2e_defer.rs:12-56)",
+        "Add test_sequential_merge_then_exclude_via_cli",
+        "Add test_sequential_rename_then_merge_via_cli",
+        "Run: cargo nextest run --test cli_e2e_sequential_ops",
+        "Expected: Both tests pass"
+      ],
+      "output_file": "tests/cli_e2e_sequential_ops.rs",
+      "acceptance_criteria": [
+        "File tests/cli_e2e_sequential_ops.rs exists",
+        "Uses cargo_bin_cmd! macro (not deprecated Command::cargo_bin)",
+        "Tests exercise the full CLI pipeline, not just Phase 5 in isolation",
+        "Both tests pass",
+        "See docs/superpowers/plans/2026-04-12-sequential-operations.md Task 8 for exact code"
+      ]
+    },
+    {
+      "id": "review-e2e-coverage",
+      "name": "Dispatch review agent to assess E2E test coverage",
+      "status": "pending",
+      "priority": 10,
+      "blocked_by": "write-e2e-tests",
+      "description": "Use a code-reviewer agent to assess whether E2E tests adequately cover the sequential semantics.",
+      "steps": [
+        "Dispatch superpowers:code-reviewer agent with: 'Review tests/cli_e2e_sequential_ops.rs for E2E coverage of the Phase 5 sequential execution model. The feature change: consumer operations (merges and filters) now execute in YAML declaration order instead of being grouped by type. Assess whether the tests cover the key semantic scenarios: merge-then-filter, filter-then-merge (should error), interleaved ops, and integration with deferred upstream merges. Flag gaps.'",
+        "Address any coverage gaps raised (add more tests)",
+        "Re-run E2E tests"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Review agent reports adequate coverage or gaps are filled",
+        "Any added tests pass"
+      ]
+    },
+    {
+      "id": "commit-e2e-tests",
+      "name": "Commit E2E tests",
+      "status": "pending",
+      "priority": 11,
+      "blocked_by": "review-e2e-coverage",
+      "description": "Commit the E2E tests separately from the core change.",
+      "steps": [
+        "Run ./script/ci",
+        "git add tests/cli_e2e_sequential_ops.rs",
+        "Commit: 'test: add E2E tests for sequential consumer operation execution'"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "./script/ci passes",
+        "Commit created"
+      ]
+    },
+    {
+      "id": "full-ci-validation",
+      "name": "Run full CI and verify no regressions",
+      "status": "pending",
+      "priority": 12,
+      "blocked_by": "commit-e2e-tests",
+      "description": "Final validation that the complete change is clean and ready for PR.",
+      "steps": [
+        "Run: ./script/cibuild",
+        "Verify fmt, clippy, all tests (unit + E2E), prose all pass",
+        "Run: cargo nextest run --test 'cli_e2e_*' to catch regressions in existing E2E tests",
+        "If any issues, fix and commit fixes"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "./script/cibuild exits 0",
+        "All E2E tests pass",
+        "No clippy warnings, no prose issues, no formatting issues"
+      ]
+    },
+    {
+      "id": "final-review-before-pr",
+      "name": "Final code review before creating PR",
+      "status": "pending",
+      "priority": 13,
+      "blocked_by": "full-ci-validation",
+      "description": "Dispatch a final reviewer to assess the complete branch against the plan.",
+      "steps": [
+        "Dispatch superpowers:code-reviewer agent with: 'Final review of feat/sequential-operations branch. Plan: docs/superpowers/plans/2026-04-12-sequential-operations.md. Assess: does the implementation match the plan? Are commits well-structured? Is the BREAKING CHANGE note accurate? Any edge cases missed?'",
+        "Address any final issues",
+        "Report readiness to create PR to user"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "Reviewer confirms implementation matches plan",
+        "Any final issues resolved",
+        "Branch ready for PR"
+      ]
+    }
+  ],
+  "notes": [
+    "Out of scope (require separate plans): repo-in-sequence resolution, Allium spec updates, detailed/operators.allium",
+    "The key diagnostic test is write-key-failing-test - it must FAIL before implement-sequential-pass and PASS after",
+    "BREAKING CHANGE: consumers whose configs rely on 'merges always run before filters' must reorder their configs so merges appear before the filters that would remove their source files",
+    "Reference plan with full code: docs/superpowers/plans/2026-04-12-sequential-operations.md",
+    "Tasks with blocked_by=null can run in parallel (only write-key-failing-test initially)",
+    "Update status to complete and last_updated when done"
+  ]
+}
