@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.1](https://github.com/common-repo/common-repo/compare/v0.34.0...v0.34.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* resolve XML merge parity gaps and update stale spec annotations ([e5d6982](https://github.com/common-repo/common-repo/commit/e5d6982a75e7307bb7cf6a33f97a32218e490eb4))
+
 ## [0.34.0](https://github.com/common-repo/common-repo/compare/v0.33.0...v0.34.0) (2026-04-14)
 
 
