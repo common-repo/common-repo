@@ -1,8 +1,8 @@
 {
   "plan_name": "Phase A: Sequential Consumer Operations (Phase 5 Single-Pass)",
-  "last_updated": "2026-04-13",
+  "last_updated": "2026-04-14",
   "description": "Replace two-pass consumer ops (all merges, then all filters) in Phase 5 with a single pass that applies operations in YAML declaration order. This is ONE PART of fixing the reported bug — Phase B (repo-in-sequence resolution) is also required for the full fix.",
-  "status": "ready",
+  "status": "in_progress",
   "blocked_on": null,
   "context_doc": "context/sequential-operations-context.md",
   "reference_plan": "docs/superpowers/plans/2026-04-12-sequential-operations.md",
@@ -50,7 +50,7 @@
     {
       "id": "write-key-failing-test",
       "name": "Write the key failing test: exclude-before-merge",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "description": "Write the test that proves the bug exists. With exclude before merge in declaration order, sequential execution should cause the merge to error because the exclude removed the source file. With the current two-pass code, the merge runs first and succeeds.",
@@ -73,7 +73,7 @@
     {
       "id": "implement-sequential-pass",
       "name": "Implement apply_consumer_operations single sequential pass",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "write-key-failing-test",
       "description": "Replace apply_consumer_merges() and apply_consumer_filters() with a single apply_consumer_operations() that iterates the config once and dispatches each operation as it appears.",
@@ -100,7 +100,7 @@
     {
       "id": "update-existing-merges-before-filters-test",
       "name": "Update test_phase5_consumer_merges_before_filters for new semantics",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "implement-sequential-pass",
       "description": "The existing test asserts the OLD behavior (merges always before filters regardless of declaration order). Rename and update it to assert the NEW declaration-order behavior.",
@@ -124,7 +124,7 @@
     {
       "id": "run-full-unit-tests",
       "name": "Run full unit test suite, verify no regressions",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "update-existing-merges-before-filters-test",
       "description": "Ensure the refactor didn't break any existing tests.",
@@ -142,7 +142,7 @@
     {
       "id": "review-core-implementation",
       "name": "Dispatch code-reviewer agent for core implementation review",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "run-full-unit-tests",
       "description": "Use superpowers:code-reviewer subagent to review the core change against the plan and the project's coding standards.",
@@ -161,7 +161,7 @@
     {
       "id": "add-interleaved-operation-tests",
       "name": "Add tests for interleaved merge/filter scenarios",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "review-core-implementation",
       "description": "Add unit tests covering sequential scenarios that were impossible with the old two-pass approach.",
@@ -181,7 +181,7 @@
     {
       "id": "update-module-documentation",
       "name": "Update Phase 5 module and execute() doc comments",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "add-interleaved-operation-tests",
       "description": "Update doc comments to describe the new sequential execution model.",
@@ -204,7 +204,7 @@
     {
       "id": "commit-core-changes",
       "name": "Commit core implementation and tests",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 8,
       "blocked_by": "update-module-documentation",
       "description": "Commit the Phase 5 refactor with tests and doc updates.",
