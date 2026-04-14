@@ -1075,7 +1075,7 @@ impl Operation {
         }
     }
 
-    /// Returns true if this is a merge operation (yaml, json, toml, ini, markdown).
+    /// Returns true if this is a merge operation (yaml, json, toml, ini, markdown, xml).
     pub fn is_merge_operation(&self) -> bool {
         matches!(
             self,
@@ -1084,6 +1084,7 @@ impl Operation {
                 | Operation::Toml { .. }
                 | Operation::Ini { .. }
                 | Operation::Markdown { .. }
+                | Operation::Xml { .. }
         )
     }
 }
@@ -3397,6 +3398,38 @@ mod tests {
             let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
 
             assert_eq!(warnings.len(), 0);
+        }
+
+        #[test]
+        fn test_xml_merge_is_recognized_as_merge_operation() {
+            let xml_op = Operation::Xml {
+                xml: XmlMergeOp {
+                    source: Some("fragment.xml".to_string()),
+                    dest: Some("config.xml".to_string()),
+                    ..Default::default()
+                },
+            };
+            assert!(xml_op.is_merge_operation());
+        }
+
+        #[test]
+        fn test_xml_merge_triggers_provenance_warning() {
+            // An XML consumer merge whose source is not in upstream deferred ops
+            // should produce a provenance warning
+            let consumer_config = vec![Operation::Xml {
+                xml: XmlMergeOp {
+                    source: Some("unknown-fragment.xml".to_string()),
+                    dest: Some("config.xml".to_string()),
+                    ..Default::default()
+                },
+            }];
+            let upstream_deferred_ops: Vec<Operation> = vec![];
+
+            let warnings = check_merge_provenance(&consumer_config, &upstream_deferred_ops);
+
+            assert_eq!(warnings.len(), 1);
+            assert_eq!(warnings[0].operation_index, 0);
+            assert_eq!(warnings[0].source_path, "unknown-fragment.xml");
         }
     }
 }

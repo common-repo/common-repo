@@ -255,7 +255,13 @@ fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation
                 source: Some(source.to_string()),
                 dest: Some(dest.to_string()),
                 path: xml.path.clone(),
-                array_mode: xml.array_mode,
+                // Inter-repo accumulation: upgrade default Replace to AppendUnique
+                // so each upstream's array entries are preserved, not overwritten.
+                array_mode: if xml.array_mode == crate::config::ArrayMergeMode::Replace {
+                    crate::config::ArrayMergeMode::AppendUnique
+                } else {
+                    xml.array_mode
+                },
                 position: xml.position,
                 defer: None,
                 auto_merge: None,
@@ -1429,6 +1435,81 @@ port = 8080
                 String::from_utf8(composite.get_file("config.yaml").unwrap().content.clone())
                     .unwrap();
             assert!(content.contains("first"));
+        }
+
+        #[test]
+        fn test_xml_auto_merge_upgrades_array_mode_from_replace() {
+            use crate::config::{ArrayMergeMode, Operation, XmlMergeOp};
+
+            // Two repos both provide config.xml with default (Replace) array_mode
+            // and repeated <plugin> elements (array-like).
+            // The auto-merge upgrade should change Replace -> AppendUnique so both
+            // repos' array entries are preserved, not overwritten.
+            let xml_a = "\
+<?xml version=\"1.0\"?>\
+<config>\
+<plugin>lint</plugin>\
+<plugin>fmt</plugin>\
+</config>";
+            let xml_b = "\
+<?xml version=\"1.0\"?>\
+<config>\
+<plugin>test</plugin>\
+<plugin>fmt</plugin>\
+</config>";
+
+            let mut fs_a = MemoryFS::new();
+            fs_a.add_file_string("config.xml", xml_a).unwrap();
+            let mut ifs_a = IntermediateFS::new(
+                fs_a,
+                "https://github.com/repo-a.git".to_string(),
+                "main".to_string(),
+            );
+            ifs_a.merge_operations.push(Operation::Xml {
+                xml: XmlMergeOp::new()
+                    .auto_merge("config.xml")
+                    .array_mode(ArrayMergeMode::Replace),
+            });
+
+            let mut fs_b = MemoryFS::new();
+            fs_b.add_file_string("config.xml", xml_b).unwrap();
+            let mut ifs_b = IntermediateFS::new(
+                fs_b,
+                "https://github.com/repo-b.git".to_string(),
+                "main".to_string(),
+            );
+            ifs_b.merge_operations.push(Operation::Xml {
+                xml: XmlMergeOp::new()
+                    .auto_merge("config.xml")
+                    .array_mode(ArrayMergeMode::Replace),
+            });
+
+            let mut intermediate_fss = HashMap::new();
+            let key_a = "https://github.com/repo-a.git@main".to_string();
+            let key_b = "https://github.com/repo-b.git@main".to_string();
+            intermediate_fss.insert(key_a.clone(), ifs_a);
+            intermediate_fss.insert(key_b.clone(), ifs_b);
+
+            let order = OperationOrder::new(vec![key_a, key_b]);
+            let (composite, _) = execute(&order, &intermediate_fss).unwrap();
+
+            let content =
+                String::from_utf8(composite.get_file("config.xml").unwrap().content.clone())
+                    .unwrap();
+            // With AppendUnique upgrade, all unique plugins from both repos should
+            // be present. "fmt" appears in both but should only appear once.
+            assert!(
+                content.contains("<plugin>lint</plugin>"),
+                "repo-a 'lint' preserved"
+            );
+            assert!(
+                content.contains("<plugin>test</plugin>"),
+                "repo-b 'test' preserved"
+            );
+            assert!(
+                content.contains("<plugin>fmt</plugin>"),
+                "shared 'fmt' preserved"
+            );
         }
     }
 
