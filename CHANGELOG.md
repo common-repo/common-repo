@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.34.0](https://github.com/common-repo/common-repo/compare/v0.33.0...v0.34.0) (2026-04-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Local dotfiles are no longer excluded from the merge phase. Projects with dotfiles in the working directory will now see them loaded into the pipeline. This aligns with the spec and with common-repo's core purpose of managing dotfiles.
+
+### Features
+
+* add integrate_sub_composite for incremental composite construction ([9afc2c9](https://github.com/common-repo/common-repo/commit/9afc2c9a626890988b773bea9385fe674bc463cc))
+* add resolve_repo_inline for on-demand sub-repo processing ([bfd2be8](https://github.com/common-repo/common-repo/commit/bfd2be8c196e81f6fabd721066fb7693a6eeb239))
+* add sequential-context hints to merge error messages ([ba657df](https://github.com/common-repo/common-repo/commit/ba657df720c4f7e1dc576ecfae069d3fb082c189))
+* wire sequential pipeline for self: blocks with inline repo resolution ([9304e91](https://github.com/common-repo/common-repo/commit/9304e913ee0bfe02405b9a9d44bce625688caa18))
+
+
+### Bug Fixes
+
+* address code review findings across phases module ([15e556b](https://github.com/common-repo/common-repo/commit/15e556bc064145e446b651e2fd56b886c4c7e017))
+* chain rename mappings per RenameEquivalence spec invariant ([97a7e5b](https://github.com/common-repo/common-repo/commit/97a7e5bad4c65f44108729abe62c3a9e30d34aca))
+* load dotfiles in local_merge phase instead of blanket-skipping ([5152685](https://github.com/common-repo/common-repo/commit/51526859c82aad85df04d1a5d3b4a225edc49a83))
+* resolve nested repo: tree children in inline resolution ([d68a4e2](https://github.com/common-repo/common-repo/commit/d68a4e2211d42bef099651cbad6b0642508f9bf6))
+
 ## [0.33.0](https://github.com/common-repo/common-repo/compare/v0.32.2...v0.33.0) (2026-04-14)
 
 
