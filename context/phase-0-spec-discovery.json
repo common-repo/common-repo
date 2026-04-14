@@ -56,7 +56,7 @@
     {
       "id": "run-elicit-session",
       "name": "Run allium:elicit session with user to resolve semantic questions",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "review-existing-spec",
       "description": "Invoke allium:elicit skill. The session is a structured conversation with the user to resolve Q1-Q7 (see open_semantic_questions above). Agent's job: prepare questions, drive the conversation, capture decisions, produce draft spec rules.",
@@ -80,7 +80,7 @@
     {
       "id": "write-operators-spec",
       "name": "Create spec/detailed/operators.allium",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "run-elicit-session",
       "description": "Create the new operators.allium file referenced but missing. Contains per-operator sequential semantics and Phase 5 filter scoping decisions from the elicit session.",
@@ -101,7 +101,7 @@
     {
       "id": "update-main-spec",
       "name": "Update spec/common-repo.allium with sequential execution rules",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "run-elicit-session",
       "description": "Add/modify rules in the main spec for within-repo sequential execution and CompositePrecedence presence guarantee.",
@@ -122,7 +122,7 @@
     {
       "id": "update-auto-merge-spec",
       "name": "Update spec/detailed/auto-merge-composition.allium",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "run-elicit-session",
       "description": "Codify MergeLocalFiles interleaving and sequential repo: resolution in the auto-merge spec.",
@@ -141,7 +141,7 @@
     {
       "id": "validate-specs",
       "name": "Validate all spec files parse and are internally consistent",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": ["write-operators-spec", "update-main-spec", "update-auto-merge-spec"],
       "description": "Run Allium validation / use allium:tend or allium:weed to verify spec files are well-formed and internally consistent.",
@@ -161,7 +161,7 @@
     {
       "id": "review-spec-against-bug",
       "name": "Trace the concrete bug scenario through the updated spec",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "validate-specs",
       "description": "Sanity check: walk through the bug scenario from context/prompt.md step-by-step, applying the new spec rules. Verify the spec predicts the desired outcome (merged .pre-commit-config.yaml contains both local and upstream content).",
@@ -183,7 +183,7 @@
     {
       "id": "revise-phase-a-plan",
       "name": "Revise Phase A plan to match the final spec",
-      "status": "pending",
+      "status": "complete",
       "priority": 8,
       "blocked_by": "review-spec-against-bug",
       "description": "The current context/sequential-operations.json (Phase A plan) was written before the spec discovery. Reconcile it with the final spec — some tasks may need updates, especially around Q5 (merge source removal behavior) and the existing merges-before-filters test semantics.",
@@ -203,7 +203,7 @@
     {
       "id": "flesh-out-phase-b-plan",
       "name": "Expand Phase B plan skeleton into detailed tasks",
-      "status": "pending",
+      "status": "complete",
       "priority": 9,
       "blocked_by": "review-spec-against-bug",
       "description": "The Phase B plan is currently a skeleton. Now that the spec defines repo-in-sequence semantics (Q1), write concrete tasks for the architectural change.",
@@ -225,7 +225,7 @@
     {
       "id": "commit-phase-0-output",
       "name": "Commit spec changes and plan updates",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 10,
       "blocked_by": ["revise-phase-a-plan", "flesh-out-phase-b-plan"],
       "description": "Commit Phase 0's artifacts: updated specs, new operators.allium, revised Phase A plan, fleshed-out Phase B plan.",

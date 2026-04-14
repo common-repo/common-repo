@@ -2,8 +2,8 @@
   "plan_name": "Phase A: Sequential Consumer Operations (Phase 5 Single-Pass)",
   "last_updated": "2026-04-12",
   "description": "Replace two-pass consumer ops (all merges, then all filters) in Phase 5 with a single pass that applies operations in YAML declaration order. This is ONE PART of fixing the reported bug — Phase B (repo-in-sequence resolution) is also required for the full fix.",
-  "status": "blocked - waiting on Phase 0",
-  "blocked_on": "context/phase-0-spec-discovery.json - spec decisions may revise task acceptance criteria (especially Q5: merge source removal behavior)",
+  "status": "ready",
+  "blocked_on": null,
   "context_doc": "context/sequential-operations-context.md",
   "reference_plan": "docs/superpowers/plans/2026-04-12-sequential-operations.md",
   "context": {
@@ -19,10 +19,19 @@
       "MemoryFS": "src/filesystem.rs"
     },
     "out_of_scope": [
-      "Repo-in-sequence resolution (requires Phase 1 architectural change)",
-      "Allium spec updates (formalizing sequential execution in spec/common-repo.allium)",
-      "Creating spec/detailed/operators.allium"
-    ]
+      "Repo-in-sequence resolution (requires Phase 1 architectural change — see Phase B plan)",
+      "Include operator semantic change: spec says include pulls from source FS (additive); current implementation filters combined FS (destructive). Phase A keeps existing filter semantics; Phase B delivers the full spec model.",
+      "Rename within-op chaining: Q3 spec decision says mappings within a single rename op chain. Current rename::apply may not chain. Phase A dispatches to existing rename::apply; chaining behavior change is a separate task."
+    ],
+    "phase_0_complete": true,
+    "spec_decisions_applied": {
+      "Q5_merge_source_removal": "Explicit merge missing source = error. Test assertion (is_err) is correct.",
+      "Q2_include_semantics": "Spec says include reads from source FS. Phase A keeps existing filter behavior. Full spec model requires Phase B.",
+      "Q3_rename_chaining": "Spec says within-op mappings chain. Phase A does not change rename::apply internals. Separate task needed.",
+      "Q4_composite_precedence": "No new presence guarantee. Sequential ordering is the mechanism. No Phase A impact.",
+      "Q6_interleaving": "Phase A implements this: single-pass replaces two-pass in Phase 5.",
+      "Q7_scope": "Phase A covers Phase 5 consumer ops only. Full self/source/with scope requires Phase B."
+    }
   },
   "session_startup": [
     "Run git status to check branch (should be feat/sequential-operations-*)",
@@ -307,7 +316,8 @@
     }
   ],
   "notes": [
-    "Out of scope (require separate plans): repo-in-sequence resolution, Allium spec updates, detailed/operators.allium",
+    "Phase 0 (spec discovery) is complete. Spec files updated: spec/common-repo.allium, spec/detailed/operators.allium (new), spec/detailed/auto-merge-composition.allium, spec/detailed/merge-operations.allium",
+    "Phase A implements Q6 (Phase 5 interleaving) only. Full spec model (Q1 repo-in-sequence, Q2 include-from-source-FS, Q3 rename chaining) requires Phase B and follow-up tasks",
     "The key diagnostic test is write-key-failing-test - it must FAIL before implement-sequential-pass and PASS after",
     "BREAKING CHANGE: consumers whose configs rely on 'merges always run before filters' must reorder their configs so merges appear before the filters that would remove their source files",
     "Reference plan with full code: docs/superpowers/plans/2026-04-12-sequential-operations.md",

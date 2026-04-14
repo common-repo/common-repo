@@ -1,0 +1,285 @@
+-- allium: 3
+-- detailed/operators.allium
+--
+-- Scope: Per-operator sequential execution semantics
+-- Includes: Include, Exclude, Rename, Template, TemplateVars operator
+--           behaviour within sequential declaration-order execution.
+--           Source-FS sourcing rules. Rename mapping chaining.
+-- Excludes:
+--   - Merge operation semantics (see merge-operations.allium)
+--   - Cross-repo ordering (see common-repo.allium Phase 3)
+--   - Auto-merge composition (see auto-merge-composition.allium)
+--
+-- Context: Operations within a self:, source, or with: block execute
+-- in YAML declaration order. Each operation transforms the in-memory
+-- composite as it stands when its turn comes. This file specifies what
+-- each non-merge operator does to the composite and where it sources
+-- its inputs from.
+
+-- ==========================================================================
+-- Source FS Contexts
+-- ==========================================================================
+
+-- Each operator that reads files has a "source FS" — the read-only
+-- input from which it can pull content. The source FS depends on the
+-- block context in which the operator appears.
+--
+-- Self block:    source FS = local working directory on disk
+-- Source block:  source FS = local working directory on disk
+-- With clause:   source FS = that upstream's IntermediateFS
+--
+-- The source FS is read-only and always available throughout the block.
+-- The in-memory composite is the mutable running result of sequential
+-- operations. Operators that "add" files pull from the source FS into
+-- the composite. Operators that "remove" or "transform" files act on
+-- the composite directly.
+
+-- ==========================================================================
+-- Rules
+-- ==========================================================================
+
+-- --------------------------------------------------------------------------
+-- Include
+-- --------------------------------------------------------------------------
+
+rule ApplyInclude {
+    when: ApplyOperation(op, composite)
+    requires: op.kind = Include
+
+    -- Include pulls files matching the glob patterns from the source FS
+    -- into the in-memory composite. Each include is an independent read
+    -- from the source FS, regardless of what previous operations have
+    -- added to or removed from the composite.
+    --
+    -- If a file at the matched path already exists in the composite
+    -- (from a prior include or upstream integration), the source FS
+    -- version replaces it — include is a fresh pull, not a merge.
+    for pattern in op.patterns:
+        let matched = source_fs.entries matching pattern
+        for entry in matched:
+            ensures: composite.entry(entry.path) = entry
+
+    @guidance
+        -- Include after exclude re-adds: because include always reads
+        -- from the source FS (not the composite), a file removed by a
+        -- preceding exclude can be re-added by a subsequent include.
+        --
+        -- De-templating idiom: template marks a file, then exclude
+        -- removes it, then include re-adds the unmarked version from
+        -- the source FS. The re-added entry has no template marking.
+        --
+        -- Empty match at validate time: when an include pattern matches
+        -- no files in the source FS, common-repo validate emits a
+        -- warning. This diagnostic is authoring-time only; it is not
+        -- propagated to consumers that inherit the repo.
+}
+
+-- --------------------------------------------------------------------------
+-- Exclude
+-- --------------------------------------------------------------------------
+
+rule ApplyExclude {
+    when: ApplyOperation(op, composite)
+    requires: op.kind = Exclude
+
+    -- Exclude removes files matching the glob patterns from the
+    -- in-memory composite. It does not read from or modify the
+    -- source FS. Only entries currently in the composite are affected.
+    for pattern in op.patterns:
+        let matched = composite.entries matching pattern
+        for entry in matched:
+            ensures: not composite.contains(entry.path)
+
+    @guidance
+        -- Exclude is purely subtractive. It cannot affect files that
+        -- have not yet entered the composite (e.g., files from a
+        -- subsequent repo: operation).
+}
+
+-- --------------------------------------------------------------------------
+-- Template
+-- --------------------------------------------------------------------------
+
+rule ApplyTemplate {
+    when: ApplyOperation(op, composite)
+    requires: op.kind = Template
+
+    -- Template marks files in the composite that match the glob
+    -- patterns and contain the __COMMON_REPO__ sentinel prefix.
+    -- Only files currently in the composite are checked. Files
+    -- added later (by subsequent include or repo: operations)
+    -- are not retroactively marked.
+    for pattern in op.patterns:
+        let matched = composite.entries matching pattern
+        for entry in matched:
+            if contains_sentinel(entry.content, "__COMMON_REPO__"):
+                ensures: entry.is_template = true
+
+    @guidance
+        -- Template operates on the composite, not the source FS.
+        -- A file must be in the composite (via a prior include or
+        -- upstream integration) before template can mark it.
+        --
+        -- Files containing only legacy ${VAR} syntax are not marked.
+        -- See LegacySyntaxMigrationWarning in common-repo.allium.
+}
+
+-- --------------------------------------------------------------------------
+-- TemplateVars
+-- --------------------------------------------------------------------------
+
+rule ApplyTemplateVars {
+    when: ApplyOperation(op, composite)
+    requires: op.kind = TemplateVars
+
+    -- TemplateVars records variable bindings in the pipeline's
+    -- template variable context. Later variables override earlier
+    -- ones with the same key (last-write-wins within the block).
+    -- No immediate substitution occurs; resolution happens during
+    -- composite finalization (Phase 4).
+    for name, value in op.vars:
+        ensures: template_context.set(name, value)
+
+    @guidance
+        -- TemplateVars is additive and context-scoped. It does not
+        -- modify the composite directly. Multiple TemplateVars
+        -- operations accumulate; the last value for a given key wins.
+}
+
+-- --------------------------------------------------------------------------
+-- Rename
+-- --------------------------------------------------------------------------
+
+rule ApplyRename {
+    when: ApplyOperation(op, composite)
+    requires: op.kind = Rename
+
+    -- Rename applies its mappings to the in-memory composite in
+    -- declaration order. Each mapping transforms the composite as
+    -- it stands — mappings within a single rename operation chain.
+    --
+    -- A rename with N mappings is semantically identical to N
+    -- separate rename operations with one mapping each.
+    for mapping in op.mappings in declaration_order:
+        for entry in composite.entries:
+            if matches(entry.path, mapping.from):
+                let new_path = replace(entry.path, mapping.from, mapping.to)
+                ensures: composite.move(entry.path, new_path)
+
+    @guidance
+        -- Chaining example:
+        --   rename: [{"^src/(.*)$": "lib/$1"}, {"^lib/(.*)$": "vendor/$1"}]
+        --
+        -- Given composite entry src/foo.rs:
+        --   1. First mapping: src/foo.rs -> lib/foo.rs (composite updated)
+        --   2. Second mapping: lib/foo.rs -> vendor/foo.rs (composite updated)
+        --   Final: vendor/foo.rs
+        --
+        -- This is identical to:
+        --   - rename: [{"^src/(.*)$": "lib/$1"}]
+        --   - rename: [{"^lib/(.*)$": "vendor/$1"}]
+        --
+        -- Sequential rename operations also chain: each rename op
+        -- sees the composite as updated by all preceding operations
+        -- (including prior rename ops). This falls out of the
+        -- sequential execution model but is stated explicitly for
+        -- clarity.
+        --
+        -- Path collision: if a rename produces a path that already
+        -- exists in the composite, the renamed entry overwrites it
+        -- (last-write-wins, consistent with include behaviour).
+}
+
+-- --------------------------------------------------------------------------
+-- Repo (inline resolution)
+-- --------------------------------------------------------------------------
+
+rule ApplyRepoInline {
+    when: ApplyOperation(op, composite)
+    requires: op.kind = Repo
+
+    -- When a repo: operation fires at its declaration position in
+    -- the sequential pass, it resolves the sub-repo's pipeline in
+    -- isolation (the sub-repo's own Phases 1-4 produce a sub-composite
+    -- and collected deferred merge operations). The sub-repo does
+    -- not see the parent's in-memory composite.
+    --
+    -- The sub-composite is then integrated into the parent composite
+    -- at this declaration position:
+    --   1. Files from the sub-composite enter the parent composite.
+    --      For path conflicts with no auto-merge: last-write-wins.
+    --      For path conflicts with auto-merge: format-aware merge
+    --      (see auto-merge-composition.allium).
+    --   2. The sub-repo's deferred auto-merge operations execute
+    --      against the parent composite at this position — the
+    --      parent composite already contains content from all
+    --      preceding operations (including local files pulled in
+    --      by earlier include ops).
+    let sub_composite = resolve_sub_pipeline(op.target)
+    ensures: IntegrateSubComposite(composite, sub_composite)
+    ensures: ExecuteDeferredMerges(composite, sub_composite.deferred_ops)
+
+    @guidance
+        -- The sub-repo's pipeline runs in isolation. Its behaviour
+        -- is independent of what the consumer did before invoking it.
+        -- This preserves determinism: the same repo: always produces
+        -- the same sub-composite regardless of consumer context.
+        --
+        -- Phase 1 (Discovery) is still eager — repos are cloned
+        -- up-front so they are available when their repo: op fires.
+        -- What changes is resolution timing: the sub-pipeline
+        -- executes lazily at declaration position, not eagerly
+        -- during Phase 1.
+        --
+        -- Recursive: if the sub-repo's own operations contain repo:
+        -- references, those resolve at their declaration positions
+        -- within the sub-repo's own sequential pass.
+}
+
+-- --------------------------------------------------------------------------
+-- Tools
+-- --------------------------------------------------------------------------
+
+rule ValidateTools {
+    when: ApplyOperation(op, composite)
+    requires: op.kind = Tools
+
+    -- Tools validates that required tools are available at the
+    -- specified versions. It does not modify the composite.
+    -- Validation failures produce errors.
+    for tool in op.tools:
+        requires: tool_available(tool.name, tool.version)
+}
+
+-- ==========================================================================
+-- Invariants
+-- ==========================================================================
+
+invariant SourceFSReadOnly {
+    -- The source FS (local working directory or upstream IntermediateFS)
+    -- is never modified by any operator. Operators read from the source
+    -- FS and write to the in-memory composite.
+}
+
+invariant RenameEquivalence {
+    -- A rename operation with N mappings produces the same result as
+    -- N sequential rename operations with one mapping each, applied
+    -- in the same declaration order. Grouping is purely syntactic
+    -- convenience with no semantic effect.
+}
+
+invariant IncludeIndependence {
+    -- Each include operation is an independent read from the source FS.
+    -- The set of files matched by an include pattern depends only on
+    -- the source FS contents, not on the current composite state.
+    -- Two include operations with the same patterns always match the
+    -- same source files, regardless of intervening operations.
+}
+
+-- ==========================================================================
+-- Open Questions
+-- ==========================================================================
+
+open question "Rename path collision: when a rename produces a path that collides with an existing composite entry, should it warn? Current proposal is silent last-write-wins, consistent with include, but a warning may catch accidental data loss."
+
+open question "Include matching nothing: should common-repo validate distinguish between globs that match nothing (likely a typo) and patterns that intentionally match nothing in some repo configurations (e.g., optional src/ directory)?"
