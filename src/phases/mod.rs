@@ -161,7 +161,53 @@ impl RepoTree {
     }
 }
 
-// Placeholder modules for remaining phases
+/// A repository that has been cloned but not yet processed into an IntermediateFS.
+///
+/// Holds the raw filesystem content (with config files already stripped) plus
+/// the metadata and operations needed for on-demand processing. This enables
+/// lazy resolution: Phase 1 clones eagerly, but processing into an IntermediateFS
+/// can happen on-demand when a `repo:` operation fires in the sequential pass.
+#[derive(Debug, Clone)]
+pub struct ClonedRepo {
+    /// Raw filesystem content from the cloned repository (config files removed)
+    pub fs: MemoryFS,
+    /// Repository URL
+    pub url: String,
+    /// Git reference (tag, branch, commit)
+    pub ref_: String,
+    /// Operations to apply when this repo is processed (from `with:` clause +
+    /// upstream filtering + deferred ops)
+    pub operations: Vec<Operation>,
+}
+
+impl ClonedRepo {
+    pub fn new(fs: MemoryFS, url: String, ref_: String, operations: Vec<Operation>) -> Self {
+        Self {
+            fs,
+            url,
+            ref_,
+            operations,
+        }
+    }
+
+    /// Generate the same unique key as RepoNode::node_key() for lookup consistency.
+    pub fn node_key(&self) -> String {
+        if self.operations.is_empty() {
+            return format!("{}@{}", self.url, self.ref_);
+        }
+
+        if let Ok(serialized) = serde_yaml::to_string(&self.operations) {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            let mut hasher = DefaultHasher::new();
+            serialized.hash(&mut hasher);
+            format!("{}#ops-{:016x}@{}", self.url, hasher.finish(), self.ref_)
+        } else {
+            format!("{}@{}", self.url, self.ref_)
+        }
+    }
+}
+
 /// Intermediate filesystem wrapper with metadata
 #[derive(Debug, Clone)]
 pub struct IntermediateFS {

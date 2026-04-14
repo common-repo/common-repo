@@ -40,7 +40,7 @@ use serde_yaml;
 
 use std::path::Path;
 
-use super::{IntermediateFS, RepoNode, RepoTree};
+use super::{ClonedRepo, IntermediateFS, RepoNode, RepoTree};
 use crate::cache::{CacheKey, RepoCache};
 use crate::config::Operation;
 use crate::defaults::{ALT_CONFIG_FILENAME, DEFAULT_CONFIG_FILENAME};
@@ -49,46 +49,164 @@ use crate::filesystem::MemoryFS;
 use crate::operators;
 use crate::repository::RepositoryManager;
 
+/// Walk a `RepoTree` and produce a map of `ClonedRepo` instances.
+///
+/// Each non-local node is fetched from the repository cache (already cloned in
+/// Phase 1) and bundled with its operations into a `ClonedRepo`. Config files
+/// are stripped so the raw FS is ready for on-demand processing.
+///
+/// The returned map is keyed by `RepoNode::node_key()`, the same key used
+/// by [`execute`] and the Phase 3 operation order.
+pub fn clone_tree_repos(
+    tree: &RepoTree,
+    repo_manager: &RepositoryManager,
+) -> Result<HashMap<String, ClonedRepo>> {
+    let mut cloned_repos = HashMap::new();
+    clone_tree_repos_recursive(&tree.root, repo_manager, &mut cloned_repos)?;
+    Ok(cloned_repos)
+}
+
+/// Recursively walk the tree and fetch each non-local repo into a ClonedRepo.
+fn clone_tree_repos_recursive(
+    node: &RepoNode,
+    repo_manager: &RepositoryManager,
+    cloned_repos: &mut HashMap<String, ClonedRepo>,
+) -> Result<()> {
+    // Process children first (same traversal order as process_repo_recursive)
+    for child in &node.children {
+        clone_tree_repos_recursive(child, repo_manager, cloned_repos)?;
+    }
+
+    // Skip local root and already-fetched repos
+    let key = node.node_key();
+    if node.url == "local" || cloned_repos.contains_key(&key) {
+        return Ok(());
+    }
+
+    let mut fs = repo_manager.fetch_repository(&node.url, &node.ref_)?;
+    remove_source_config_files(&mut fs);
+
+    cloned_repos.insert(
+        key,
+        ClonedRepo::new(
+            fs,
+            node.url.clone(),
+            node.ref_.clone(),
+            node.operations.clone(),
+        ),
+    );
+
+    Ok(())
+}
+
+/// Process a single `ClonedRepo` into an `IntermediateFS`.
+///
+/// Applies the repo's operations (include, exclude, rename, template, etc.)
+/// to a copy of the raw filesystem and collects template variables and
+/// deferred merge operations.
+///
+/// This is the on-demand counterpart of `execute`: instead of processing
+/// every repo in a tree, it processes one repo at a time so the sequential
+/// pass can invoke it when a `repo:` operation fires.
+pub fn process_cloned_repo(cloned: &ClonedRepo, cache: &RepoCache) -> Result<IntermediateFS> {
+    let template_vars = collect_template_vars(&cloned.operations)?;
+    let merge_operations = collect_merge_operations(&cloned.operations);
+
+    // Build a cache key from the cloned repo's identity + operations
+    let cache_key = cache_key_for_cloned(cloned)?;
+
+    if let Some(key) = cache_key {
+        let fs = cache.get_or_process(key, || -> Result<MemoryFS> {
+            let mut fs = cloned.fs.clone();
+            for operation in &cloned.operations {
+                apply_operation(&mut fs, operation)?;
+            }
+            Ok(fs)
+        })?;
+
+        return Ok(IntermediateFS::new_with_vars_and_merges(
+            fs,
+            cloned.url.clone(),
+            cloned.ref_.clone(),
+            template_vars,
+            merge_operations,
+        ));
+    }
+
+    // Fallback for edge cases (should not normally happen since ClonedRepo
+    // excludes the local root)
+    let mut fs = cloned.fs.clone();
+    for operation in &cloned.operations {
+        apply_operation(&mut fs, operation)?;
+    }
+
+    Ok(IntermediateFS::new_with_vars_and_merges(
+        fs,
+        cloned.url.clone(),
+        cloned.ref_.clone(),
+        template_vars,
+        merge_operations,
+    ))
+}
+
+/// Build a cache key for a ClonedRepo (mirrors cache_key_for_node)
+fn cache_key_for_cloned(cloned: &ClonedRepo) -> Result<Option<CacheKey>> {
+    if cloned.operations.is_empty() {
+        return Ok(Some(CacheKey::new(&cloned.url, &cloned.ref_)));
+    }
+
+    let serialized_ops =
+        serde_yaml::to_string(&cloned.operations).map_err(|err| Error::Serialization {
+            message: format!(
+                "Failed to serialize operations for cache key ({}@{}): {}",
+                cloned.url, cloned.ref_, err
+            ),
+        })?;
+
+    let mut hasher = DefaultHasher::new();
+    serialized_ops.hash(&mut hasher);
+    let fingerprint = format!("ops-{:016x}", hasher.finish());
+
+    Ok(Some(CacheKey::new(
+        &format!("{}#{}", cloned.url, fingerprint),
+        &cloned.ref_,
+    )))
+}
+
 /// Executes Phase 2 of the pipeline.
 ///
 /// This function takes the `RepoTree` from Phase 1 and processes each
 /// repository in the tree, applying its associated operations to produce a
 /// map of `IntermediateFS` instances, keyed by a unique repository
 /// identifier.
+///
+/// Internally delegates to [`clone_tree_repos`] and [`process_cloned_repo`]
+/// so the same per-repo processing logic is shared with the on-demand path
+/// used by the sequential pass.
 pub fn execute(
     tree: &RepoTree,
     repo_manager: &RepositoryManager,
     cache: &RepoCache,
 ) -> Result<HashMap<String, IntermediateFS>> {
+    // Clone all non-local repos into raw ClonedRepo structs
+    let cloned_repos = clone_tree_repos(tree, repo_manager)?;
+
     let mut intermediate_fss = HashMap::new();
 
-    // Process each repository in the tree
-    process_repo_recursive(tree, &tree.root, repo_manager, cache, &mut intermediate_fss)?;
-
-    Ok(intermediate_fss)
-}
-
-/// Recursively process repositories in the tree
-fn process_repo_recursive(
-    _tree: &RepoTree,
-    node: &RepoNode,
-    repo_manager: &RepositoryManager,
-    cache: &RepoCache,
-    intermediate_fss: &mut HashMap<String, IntermediateFS>,
-) -> Result<()> {
-    // Process children first (dependencies)
-    for child in &node.children {
-        process_repo_recursive(_tree, child, repo_manager, cache, intermediate_fss)?;
+    // Process each cloned repo into an IntermediateFS
+    for (key, cloned) in &cloned_repos {
+        let intermediate_fs = process_cloned_repo(cloned, cache)?;
+        intermediate_fss.insert(key.clone(), intermediate_fs);
     }
 
-    // Process this repository
-    let key = node.node_key();
-    if let std::collections::hash_map::Entry::Vacant(e) = intermediate_fss.entry(key) {
-        let intermediate_fs = process_single_repo(node, repo_manager, cache)?;
+    // Process the local root node (if it has operations)
+    let local_key = tree.root.node_key();
+    if let std::collections::hash_map::Entry::Vacant(e) = intermediate_fss.entry(local_key) {
+        let intermediate_fs = process_single_repo(&tree.root, repo_manager, cache)?;
         e.insert(intermediate_fs);
     }
 
-    Ok(())
+    Ok(intermediate_fss)
 }
 
 /// Process a single repository node into an intermediate filesystem
@@ -2150,6 +2268,396 @@ mod tests {
             assert!(!fs.exists(".common-repo.yaml"));
             assert!(fs.exists("config.yaml"));
             assert!(fs.exists(".github/workflows/ci.yaml"));
+        }
+    }
+
+    mod clone_tree_repos_tests {
+        use super::*;
+        use crate::phases::ClonedRepo;
+
+        #[test]
+        fn returns_cloned_repo_for_each_tree_node() {
+            let clone_calls = Arc::new(Mutex::new(0));
+            let cached_flag = Arc::new(Mutex::new(false));
+
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps::new(clone_calls.clone(), cached_flag.clone())),
+                Box::new(MockCacheOps::new(cached_flag.clone())),
+            );
+
+            let operations = vec![Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            }];
+
+            let child = RepoNode::new(
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                operations.clone(),
+            );
+            let expected_key = child.node_key();
+
+            let tree = build_tree_with_children(vec![child]);
+
+            let cloned_repos = clone_tree_repos(&tree, &repo_manager).expect("clone_tree_repos");
+
+            // Should have one entry for the repo (local root is excluded)
+            assert_eq!(cloned_repos.len(), 1);
+            assert!(cloned_repos.contains_key(&expected_key));
+
+            let cloned = &cloned_repos[&expected_key];
+            assert_eq!(cloned.url, "https://example.com/repo.git");
+            assert_eq!(cloned.ref_, "main");
+            assert_eq!(cloned.operations.len(), 1);
+
+            // Raw FS should have all files (operations NOT applied yet)
+            assert!(cloned.fs.exists("keep.txt"));
+            assert!(cloned.fs.exists("temp.tmp"));
+        }
+
+        #[test]
+        fn strips_config_files_from_cloned_repo() {
+            let clone_calls = Arc::new(Mutex::new(0));
+            let cached_flag = Arc::new(Mutex::new(false));
+
+            // Use a mock that includes config files in the FS
+            let mut filesystem = MemoryFS::new();
+            filesystem
+                .add_file_string("src/main.rs", "fn main() {}")
+                .unwrap();
+            filesystem
+                .add_file_string(".common-repo.yaml", "- include: ['**']")
+                .unwrap();
+            filesystem
+                .add_file_string(".commonrepo.yaml", "alt config")
+                .unwrap();
+
+            let mock_cache = MockCacheOpsWithFs {
+                cached_flag: cached_flag.clone(),
+                filesystem,
+            };
+
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps::new(clone_calls.clone(), cached_flag.clone())),
+                Box::new(mock_cache),
+            );
+
+            let child = RepoNode::new(
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+
+            let tree = build_tree_with_children(vec![child]);
+            let cloned_repos = clone_tree_repos(&tree, &repo_manager).expect("clone_tree_repos");
+
+            let cloned = cloned_repos.values().next().unwrap();
+            assert!(cloned.fs.exists("src/main.rs"));
+            assert!(!cloned.fs.exists(".common-repo.yaml"));
+            assert!(!cloned.fs.exists(".commonrepo.yaml"));
+        }
+
+        #[test]
+        fn node_key_matches_repo_node_key() {
+            let operations = vec![Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            }];
+
+            let node = RepoNode::new(
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                operations.clone(),
+            );
+
+            let cloned = ClonedRepo::new(
+                MemoryFS::new(),
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                operations,
+            );
+
+            assert_eq!(node.node_key(), cloned.node_key());
+        }
+    }
+
+    mod process_cloned_repo_tests {
+        use super::*;
+        use crate::cache::RepoCache;
+        use crate::config::IncludeOp;
+        use crate::phases::ClonedRepo;
+
+        #[test]
+        fn applies_exclude_operation() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("keep.txt", "important").unwrap();
+            fs.add_file_string("temp.tmp", "remove me").unwrap();
+
+            let cloned = ClonedRepo::new(
+                fs,
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.tmp".to_string()],
+                    },
+                }],
+            );
+
+            let cache = RepoCache::new();
+            let result = process_cloned_repo(&cloned, &cache).expect("process_cloned_repo");
+
+            assert!(result.fs.exists("keep.txt"));
+            assert!(!result.fs.exists("temp.tmp"));
+            assert_eq!(result.upstream_url, "https://example.com/repo.git");
+            assert_eq!(result.upstream_ref, "main");
+        }
+
+        #[test]
+        fn applies_include_operation() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
+            fs.add_file_string("README.md", "readme").unwrap();
+
+            let cloned = ClonedRepo::new(
+                fs,
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["src/**".to_string()],
+                    },
+                }],
+            );
+
+            let cache = RepoCache::new();
+            let result = process_cloned_repo(&cloned, &cache).expect("process_cloned_repo");
+
+            assert!(result.fs.exists("src/main.rs"));
+            assert!(!result.fs.exists("README.md"));
+        }
+
+        #[test]
+        fn collects_template_vars() {
+            let fs = MemoryFS::new();
+
+            let cloned = ClonedRepo::new(
+                fs,
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![Operation::TemplateVars {
+                    template_vars: TemplateVars {
+                        vars: {
+                            let mut vars = HashMap::new();
+                            vars.insert("OWNER".to_string(), "my-org".to_string());
+                            vars
+                        },
+                    },
+                }],
+            );
+
+            let cache = RepoCache::new();
+            let result = process_cloned_repo(&cloned, &cache).expect("process_cloned_repo");
+
+            assert_eq!(
+                result.template_vars.get("OWNER"),
+                Some(&"my-org".to_string())
+            );
+        }
+
+        #[test]
+        fn collects_deferred_merge_operations() {
+            use crate::config::YamlMergeOp;
+
+            let fs = MemoryFS::new();
+
+            let cloned = ClonedRepo::new(
+                fs,
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        source: Some("fragment.yaml".to_string()),
+                        dest: Some("config.yaml".to_string()),
+                        defer: Some(true),
+                        ..Default::default()
+                    },
+                }],
+            );
+
+            let cache = RepoCache::new();
+            let result = process_cloned_repo(&cloned, &cache).expect("process_cloned_repo");
+
+            assert_eq!(result.merge_operations.len(), 1);
+            assert!(matches!(
+                &result.merge_operations[0],
+                Operation::Yaml { .. }
+            ));
+        }
+
+        #[test]
+        fn does_not_modify_original_cloned_repo() {
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("keep.txt", "important").unwrap();
+            fs.add_file_string("temp.tmp", "remove me").unwrap();
+
+            let cloned = ClonedRepo::new(
+                fs,
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                vec![Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.tmp".to_string()],
+                    },
+                }],
+            );
+
+            let cache = RepoCache::new();
+            let _result = process_cloned_repo(&cloned, &cache).expect("process_cloned_repo");
+
+            // Original ClonedRepo should still have all files
+            assert!(cloned.fs.exists("keep.txt"));
+            assert!(cloned.fs.exists("temp.tmp"));
+        }
+    }
+
+    mod equivalence_tests {
+        use super::*;
+        use crate::cache::RepoCache;
+
+        #[test]
+        fn clone_then_process_matches_execute() {
+            // Setup: same mock infrastructure as existing tests
+            let clone_calls = Arc::new(Mutex::new(0));
+            let cached_flag = Arc::new(Mutex::new(false));
+
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps::new(clone_calls.clone(), cached_flag.clone())),
+                Box::new(MockCacheOps::new(cached_flag.clone())),
+            );
+
+            let operations = vec![Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            }];
+
+            let child = RepoNode::new(
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                operations,
+            );
+            let child_key = child.node_key();
+
+            let tree = build_tree_with_children(vec![child]);
+
+            // Path A: existing execute()
+            let cache_a = RepoCache::new();
+            let via_execute = execute(&tree, &repo_manager, &cache_a).expect("execute");
+
+            // Path B: clone_tree_repos + process_cloned_repo
+            let cache_b = RepoCache::new();
+            let cloned_repos = clone_tree_repos(&tree, &repo_manager).expect("clone_tree_repos");
+            let mut via_clone_process: HashMap<String, IntermediateFS> = HashMap::new();
+
+            for (key, cloned) in &cloned_repos {
+                let intermediate =
+                    process_cloned_repo(cloned, &cache_b).expect("process_cloned_repo");
+                via_clone_process.insert(key.clone(), intermediate);
+            }
+
+            // Compare: the repo entry should have the same files and metadata
+            let exec_fs = via_execute.get(&child_key).unwrap();
+            let clone_fs = via_clone_process.get(&child_key).unwrap();
+
+            assert_eq!(exec_fs.upstream_url, clone_fs.upstream_url);
+            assert_eq!(exec_fs.upstream_ref, clone_fs.upstream_ref);
+            assert_eq!(exec_fs.template_vars, clone_fs.template_vars);
+            assert_eq!(exec_fs.merge_operations, clone_fs.merge_operations);
+
+            // Same files in the FS
+            assert_eq!(
+                exec_fs.fs.exists("keep.txt"),
+                clone_fs.fs.exists("keep.txt")
+            );
+            assert_eq!(
+                exec_fs.fs.exists("temp.tmp"),
+                clone_fs.fs.exists("temp.tmp")
+            );
+
+            // Both should have keep.txt and not temp.tmp
+            assert!(exec_fs.fs.exists("keep.txt"));
+            assert!(!exec_fs.fs.exists("temp.tmp"));
+        }
+
+        #[test]
+        fn clone_then_process_preserves_template_vars() {
+            let clone_calls = Arc::new(Mutex::new(0));
+            let cached_flag = Arc::new(Mutex::new(false));
+
+            let repo_manager = RepositoryManager::with_operations(
+                Box::new(MockGitOps::new(clone_calls.clone(), cached_flag.clone())),
+                Box::new(MockCacheOps::new(cached_flag.clone())),
+            );
+
+            let operations = vec![Operation::TemplateVars {
+                template_vars: TemplateVars {
+                    vars: {
+                        let mut vars = HashMap::new();
+                        vars.insert("NAME".to_string(), "test-project".to_string());
+                        vars
+                    },
+                },
+            }];
+
+            let child = RepoNode::new(
+                "https://example.com/repo.git".to_string(),
+                "main".to_string(),
+                operations,
+            );
+            let child_key = child.node_key();
+
+            let tree = build_tree_with_children(vec![child]);
+
+            // Path A: execute
+            let cache_a = RepoCache::new();
+            let via_execute = execute(&tree, &repo_manager, &cache_a).expect("execute");
+
+            // Path B: clone + process
+            let cache_b = RepoCache::new();
+            let cloned_repos = clone_tree_repos(&tree, &repo_manager).expect("clone_tree_repos");
+            let cloned = cloned_repos.get(&child_key).unwrap();
+            let via_process = process_cloned_repo(cloned, &cache_b).expect("process_cloned_repo");
+
+            let exec_result = via_execute.get(&child_key).unwrap();
+            assert_eq!(exec_result.template_vars, via_process.template_vars);
+        }
+    }
+
+    /// Custom mock that lets us specify the exact filesystem content
+    struct MockCacheOpsWithFs {
+        cached_flag: Arc<Mutex<bool>>,
+        filesystem: MemoryFS,
+    }
+
+    impl CacheOperations for MockCacheOpsWithFs {
+        fn exists(&self, _cache_path: &Path) -> bool {
+            *self.cached_flag.lock().unwrap()
+        }
+
+        fn get_cache_path(&self, _url: &str, _ref_name: &str) -> PathBuf {
+            PathBuf::from("/mock/cache/path")
+        }
+
+        fn load_from_cache(&self, _cache_path: &Path) -> Result<MemoryFS> {
+            Ok(self.filesystem.clone())
+        }
+
+        fn save_to_cache(&self, _cache_path: &Path, _fs: &MemoryFS) -> Result<()> {
+            *self.cached_flag.lock().unwrap() = true;
+            Ok(())
         }
     }
 }
