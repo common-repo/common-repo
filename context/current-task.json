@@ -4,7 +4,7 @@
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
   "last_updated": "2026-04-14",
-  "description": "Phase B: Repo-in-Sequence Resolution. Tasks 1-8 complete. wire-sequential-pass and update-self-pipeline done — E2E test passes. Next unblocked: review-core-implementation (priority 9). Also unblocked: spec-phased-implementation-annotations (priority 15), rename-apply-chaining-fix (priority 16).",
+  "description": "Phase B: Repo-in-Sequence Resolution. Tasks 1-12 and 15-16 complete (priorities 9-12: review, edge-case tests, spec-code alignment, docs; 15-16: phased spec annotations, rename chaining fix). Next unblocked: full-ci-and-commit (priority 13). After that: error-messages-sequential-context-hints (priority 14).",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
