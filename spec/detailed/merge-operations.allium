@@ -70,6 +70,13 @@ rule MissingSourceExplicit {
 
     -- Explicit source/dest: missing source is an error.
     ensures: Error(message: "File not found in filesystem")
+
+    @guidance
+        -- With sequential operation execution, a preceding exclude or
+        -- rename may have removed or relocated the source file. The
+        -- error message should include a hint: "Was the source possibly
+        -- renamed or excluded by a preceding operation?" to aid
+        -- debugging declaration-order issues.
 }
 
 rule MissingSourceAutoMerge {
@@ -86,6 +93,11 @@ rule MissingSourceAutoMerge {
         -- the source nor destination exists, there is nothing to merge.
         -- This is a warning, not an error, because auto-merge is a
         -- best-effort directive.
+        --
+        -- With sequential operation execution, a preceding exclude or
+        -- rename may have removed or relocated the file. The warning
+        -- message should include a hint: "Was the source possibly
+        -- renamed or excluded by a preceding operation?"
 }
 
 -- --------------------------------------------------------------------------

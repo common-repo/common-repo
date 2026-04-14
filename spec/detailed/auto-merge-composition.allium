@@ -87,32 +87,47 @@ rule AutoMergeChainsAccumulate {
         -- in the composite at that path.
 }
 
-rule DeferredMergeStillApplies {
-    when: FilesystemsCombined(combined_fs, deferred_merge_ops)
+rule DeferredMergeAtDeclarationPosition {
+    when: ApplyRepoInline(op, parent_composite, sub_composite)
 
-    -- Auto-merge operations that were resolved during composition
-    -- (cross-upstream merging) should NOT re-execute during Phase 5
-    -- deferred merge application — the cross-upstream merge is already
-    -- done.
+    -- With sequential operation execution, auto-merge operations from
+    -- a sub-repo execute at the parent's repo: declaration position
+    -- during composite construction — not in a separate Phase 5 batch.
     --
-    -- However, the deferred merge into the CONSUMER's local file
-    -- still applies: if the consumer has a local .pre-commit-config.yaml,
-    -- the composite's accumulated version merges into it during Phase 5.
+    -- At the repo: declaration point:
+    --   1. The sub-composite's files enter the parent composite.
+    --   2. For paths that conflict AND have an auto-merge declaration:
+    --      format-aware merge fires immediately against the parent
+    --      composite (see AutoMergeInComposite).
+    --   3. For deferred merge operations whose destination is already
+    --      in the parent composite (e.g., local files pulled in by
+    --      a preceding include): the merge executes here.
+    --   4. For deferred merge operations whose destination is NOT in
+    --      the parent composite (local-only files not yet included):
+    --      the operation is collected for Phase 5 execution after
+    --      the composite is combined with local files.
     --
-    -- The auto-merge operation serves dual purpose:
-    --   1. Phase 4: merge across upstream repos in the composite
-    --   2. Phase 5: merge composite result into consumer's local file
-    --
-    -- Both phases use the same merge parameters (array_mode, position).
+    -- Cross-upstream auto-merge accumulation (AutoMergeChainsAccumulate)
+    -- still works: if the parent composite already has accumulated
+    -- content from a prior upstream at the same path, the new sub-repo's
+    -- auto-merge merges into that accumulated content.
 
     @guidance
-        -- Implementation note: deferred ops collected in Phase 4 should
-        -- still include auto-merge operations. Phase 5 execution of these
-        -- ops targets the combined filesystem (composite + local). If the
-        -- consumer has no local copy of the file, the deferred merge is
-        -- effectively a no-op (source and dest are the same composite file).
-        -- If the consumer has a local copy, the composite version merges
-        -- into it — which is exactly what deferred merge was designed for.
+        -- This replaces the previous model where all deferred ops were
+        -- collected during Phase 4 and executed in a single batch
+        -- during Phase 5.
+        --
+        -- The key benefit: in a self: block where include operators
+        -- pull local files into the composite before a repo: fires,
+        -- the auto-merge can see the local content at merge time.
+        -- This fixes the bug where consumer filters destroyed auto-
+        -- merged content because merges and filters did not interleave.
+        --
+        -- Auto-merge operations that were resolved during cross-
+        -- upstream composition (step 2 above) should NOT re-execute
+        -- at the repo: position — the cross-upstream merge is already
+        -- done. Only the consumer-facing deferred merge (step 3-4)
+        -- remains.
 }
 
 -- ==========================================================================

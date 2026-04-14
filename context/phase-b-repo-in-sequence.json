@@ -1,51 +1,59 @@
 {
   "plan_name": "Phase B: Repo-in-Sequence Resolution",
-  "last_updated": "2026-04-12",
-  "description": "Architectural change: resolve repo: operations inline at their position in the declaration sequence, not eagerly in Phase 1. This is the change that fully fixes the reported bug (upstream auto-merges executing at the right point relative to consumer filters).",
-  "status": "skeleton",
+  "last_updated": "2026-04-13",
+  "description": "Architectural change: resolve repo: operations inline at their declaration position in the sequential pass, not eagerly in Phase 1. Sub-repos run their own pipeline in isolation; their sub-composite + deferred auto-merges integrate into the parent composite at the repo: op's position. This fully fixes the reported bug.",
+  "status": "ready",
   "context_doc": "context/sequential-operations-context.md",
-  "blocked_on": "context/phase-0-spec-discovery.json (needs Q1 decision on repo-in-sequence semantics)",
-  "depends_on": "context/sequential-operations.json (Phase A establishes sequential consumer op infrastructure)",
+  "blocked_on": null,
+  "depends_on": "context/sequential-operations.json (Phase A must be merged first — sequential consumer ops infrastructure is a prerequisite)",
+  "spec_rules": {
+    "primary": "ApplyRepoInline in spec/detailed/operators.allium",
+    "supporting": [
+      "SequentialOperationExecution in spec/common-repo.allium",
+      "DeferredMergeAtDeclarationPosition in spec/detailed/auto-merge-composition.allium",
+      "BuildComposite (updated) in spec/common-repo.allium"
+    ]
+  },
+  "architecture": {
+    "approach": "Eager clone, lazy resolve. Phase 1 still discovers and clones all repos up-front. Phase 4 becomes a sequential pass over the consumer's operations. When a repo: op fires, the already-cloned sub-repo's processing (Phase 2) and composition (Phase 4) run on-demand, producing a sub-composite that integrates into the parent composite at that point.",
+    "key_files": {
+      "orchestrator": "src/phases/orchestrator.rs — drives the pipeline; needs lazy repo: resolution",
+      "discovery": "src/phases/discovery.rs — Phase 1; stays eager (clone all up-front)",
+      "processing": "src/phases/processing.rs — Phase 2; already per-repo; needs to be callable on-demand",
+      "composite": "src/phases/composite.rs — Phase 4; needs incremental composition support",
+      "local_merge": "src/phases/local_merge.rs — Phase 5; mostly handled by Phase A; minor coordination",
+      "config": "src/config.rs:987 — Operation enum; already has Repo variant"
+    }
+  },
   "session_startup": [
     "Run git status - verify on feat/sequential-operations-* branch",
     "Read context/sequential-operations-context.md fully",
     "Verify Phase 0 is archived (context/completed/phase-0-spec-discovery.json exists)",
     "Verify Phase A is archived (context/completed/sequential-operations.json exists)",
-    "Read context/current-task.json and this plan file",
-    "Read the updated specs (Phase 0 output) to understand the repo-in-sequence rule",
-    "Find first task where status=pending and blocked_by=null"
+    "Read spec/detailed/operators.allium (ApplyRepoInline rule)",
+    "Read this plan file, find first task where status=pending and blocked_by=null"
   ],
-  "scope": {
-    "what_changes": [
-      "How repo: operations are identified and processed in Phase 1 discovery",
-      "How the orchestrator drives the pipeline when repo: appears mid-sequence",
-      "Phase 2 processing: repo: is currently a no-op; must trigger inline sub-pipeline execution",
-      "Phase 5: may need to coordinate with mid-sequence repo resolution"
-    ],
-    "what_stays_the_same": [
-      "Cross-repo ordering (depth-first post-order from Phase 3)",
-      "Phase A's apply_consumer_operations in Phase 5 (still needed for consumer ops that sandwich repo: calls)",
-      "Auto-merge semantics at the operator level"
-    ]
-  },
   "tasks": [
     {
-      "id": "read-phase-0-spec",
-      "name": "Read final spec to understand repo-in-sequence rule",
+      "id": "read-spec-and-code",
+      "name": "Read final spec rules and current code to understand the gap",
       "status": "pending",
       "priority": 1,
       "blocked_by": null,
-      "description": "Phase 0 produced the Q1 decision on how repo: resolves mid-sequence. Understand it fully before coding.",
+      "description": "Build a mental model of the current Phase 1-4 code path vs the spec's sequential model. Identify exactly which functions need to change.",
       "steps": [
-        "Read spec/common-repo.allium for repo-in-sequence rules",
-        "Read spec/detailed/auto-merge-composition.allium for updated MergeLocalFiles and repo: resolution rules",
-        "Read spec/detailed/operators.allium for operator semantics",
-        "Write a short trace (on paper or in a temp file) of how the bug scenario's self: block should execute under the spec"
+        "Read spec/detailed/operators.allium (ApplyRepoInline rule)",
+        "Read spec/detailed/auto-merge-composition.allium (DeferredMergeAtDeclarationPosition)",
+        "Read src/phases/orchestrator.rs — understand how phases are driven today",
+        "Read src/phases/discovery.rs — understand how repo: ops trigger Phase 1 discovery",
+        "Read src/phases/composite.rs — understand how IntermediateFSs are folded",
+        "Read src/phases/processing.rs:212-268 — understand apply_operation and how repo: is handled",
+        "Write a gap analysis: for each spec rule, which code path implements it today (if any), and what needs to change"
       ],
       "output_file": null,
       "acceptance_criteria": [
-        "Agent can state the Q1 decision in one sentence",
-        "Agent can describe what 'current FS state' means when repo: appears mid-sequence"
+        "Agent can describe the current Phase 1-4 code path for repo: resolution",
+        "Agent has a gap analysis: spec rule → current code → needed change"
       ]
     },
     {
@@ -53,82 +61,255 @@
       "name": "Write E2E test reproducing the concrete bug scenario",
       "status": "pending",
       "priority": 2,
-      "blocked_by": "read-phase-0-spec",
-      "description": "Write an E2E test that reproduces the exact scenario from context/prompt.md — self: block with include/template/rename before repo: whose auto-merge must target a file renamed by the preceding ops. This test fails today and proves the architectural gap.",
+      "blocked_by": "read-spec-and-code",
+      "description": "E2E test that reproduces the exact scenario from context/prompt.md. This is the load-bearing acceptance test for Phase B.",
       "steps": [
-        "Create or extend tests/cli_e2e_sequential_ops.rs (or new tests/cli_e2e_repo_in_sequence.rs)",
-        "Use init_test_git_repo helper pattern from tests/cli_e2e_defer.rs:12-56",
-        "Set up upstream repo with a deferred auto-merge (pre-commit-config.yaml with append_unique)",
-        "Consumer config: self: block with include src/** → template → rename src/(.*)$ → $1 → repo: <upstream>",
-        "Consumer working dir has src/.pre-commit-config.yaml with local content",
-        "Assert: final .pre-commit-config.yaml contains BOTH local and upstream hooks (array_mode append_unique merged)",
-        "Run: cargo nextest run --test <test-file>",
-        "Expected: FAIL - current code eagerly resolves repo: in Phase 1, not at declaration position"
+        "Create tests/cli_e2e_repo_in_sequence.rs",
+        "Set up upstream repo with: include src/**, rename src/(.*)$ → $1, yaml auto-merge .pre-commit-config.yaml with array_mode append_unique",
+        "Set up consumer with self: block: include src/** → template → template-vars → rename src/(.*)$ → $1 → repo: <upstream>",
+        "Consumer has src/.pre-commit-config.yaml with local hooks content",
+        "Assert: final .pre-commit-config.yaml contains BOTH local and upstream hooks",
+        "Run: cargo nextest run --test cli_e2e_repo_in_sequence",
+        "Expected: FAIL (current code resolves repo: eagerly, auto-merge fires before consumer ops)"
       ],
-      "output_file": "tests (path TBD)",
+      "output_file": "tests/cli_e2e_repo_in_sequence.rs",
       "acceptance_criteria": [
         "E2E test exists and FAILS with current code",
-        "Test exercises the full scenario from context/prompt.md",
+        "Test exercises the full self: block scenario from the bug report",
         "Test will PASS after repo-in-sequence is implemented"
       ]
     },
     {
-      "id": "design-repo-inline-resolution",
-      "name": "Design the inline repo: resolution mechanism",
+      "id": "refactor-discovery-clone-from-resolve",
+      "name": "Separate cloning from resolution in Phase 1",
       "status": "pending",
       "priority": 3,
       "blocked_by": "write-failing-e2e-test",
-      "description": "PLACEHOLDER - detailed task will be written in Phase 0's flesh-out-phase-b-plan step. Options include: (a) pre-fetch all repos in Phase 1 but defer processing to the point in sequence where repo: appears; (b) recursively invoke the pipeline when processing hits a repo: op; (c) refactor orchestrator to walk ops as a tree with nested pipelines.",
+      "description": "Phase 1 currently discovers, clones, and processes repos in one pass. Separate cloning (which stays eager) from processing/resolution (which becomes lazy). The cloned repo data should be available as a lookup for the sequential pass to consume on-demand.",
       "steps": [
-        "TBD after Phase 0 produces the Q1 spec rule and flesh-out-phase-b-plan task writes concrete design options"
+        "Read src/phases/discovery.rs fully",
+        "Identify the boundary between 'clone repo' and 'parse and process repo config'",
+        "Extract a ClonedRepo struct or equivalent that holds the cloned working tree path + raw config but has NOT been processed into an IntermediateFS",
+        "Phase 1 produces a Map<RepoKey, ClonedRepo> instead of (or in addition to) the current RepoTree of processed nodes",
+        "Existing Phase 2/3/4 code continues to work (backward compatible)",
+        "Write unit tests for the new extraction",
+        "Run: cargo nextest run"
       ],
-      "output_file": null,
+      "output_file": "src/phases/discovery.rs",
       "acceptance_criteria": [
-        "Design approach selected with trade-offs documented",
-        "Design matches the spec's Q1 decision"
+        "Clone and resolve are separable",
+        "Phase 1 can produce cloned-but-unprocessed repo data",
+        "Existing pipeline still works (no behavioral change yet)",
+        "All tests pass"
       ]
     },
     {
-      "id": "implement-architectural-change",
-      "name": "Implement the selected design",
+      "id": "add-resolve-repo-inline",
+      "name": "Add resolve_repo_inline to orchestrator",
       "status": "pending",
       "priority": 4,
-      "blocked_by": "design-repo-inline-resolution",
-      "description": "PLACEHOLDER - will be broken into sub-tasks after design is finalized. Likely needs sub-plan (plan-to-plan pattern) due to size.",
+      "blocked_by": "refactor-discovery-clone-from-resolve",
+      "description": "Add a function that, given a ClonedRepo (or equivalent), runs the sub-repo's full processing pipeline (Phase 2-4) on demand and returns a sub-composite + deferred merge ops. This is the core of the lazy resolution mechanism.",
       "steps": [
-        "TBD after design-repo-inline-resolution"
+        "Add resolve_repo_inline(cloned_repo, parent_composite) -> (SubComposite, Vec<DeferredOp>) to orchestrator",
+        "Internally: parse sub-repo config, run Phase 2 processing, handle sub-repo's own repo: ops recursively, build sub-composite",
+        "The sub-repo's pipeline runs in isolation (its own MemoryFS, not the parent's)",
+        "Return the sub-composite and collected deferred merge ops",
+        "Write unit tests: resolve a simple repo with known files, verify sub-composite content",
+        "Run: cargo nextest run"
       ],
-      "output_file": null,
+      "output_file": "src/phases/orchestrator.rs",
       "acceptance_criteria": [
-        "Inline repo: resolution works per the selected design",
-        "The failing E2E test now passes",
-        "No regressions in existing tests"
+        "resolve_repo_inline function exists and is tested",
+        "Sub-repo pipeline runs in isolation (does not see parent composite)",
+        "Recursive repo: resolution works (sub-repo's own repo: ops fire within its pipeline)",
+        "All tests pass"
       ]
     },
     {
-      "id": "review-and-finalize",
-      "name": "Review, verify, and prepare for PR",
+      "id": "make-composite-incremental",
+      "name": "Support incremental composite construction",
       "status": "pending",
       "priority": 5,
-      "blocked_by": "implement-architectural-change",
-      "description": "PLACEHOLDER - will include code review agent dispatch, allium:weed to verify spec-code alignment, and full CI run.",
+      "blocked_by": "refactor-discovery-clone-from-resolve",
+      "description": "The current Phase 4 composite builder folds all IntermediateFSs in one pass. Add support for incremental additions: integrate a sub-composite into an existing composite at a specific point, including auto-merge conflict resolution.",
       "steps": [
-        "TBD"
+        "Read src/phases/composite.rs fully",
+        "Add integrate_sub_composite(parent_composite, sub_composite, deferred_ops) that merges a sub-composite into the parent",
+        "Handle auto-merge conflicts inline (reuse existing auto-merge logic from AutoMergeInComposite)",
+        "Execute applicable deferred merges against the parent composite at this point (DeferredMergeAtDeclarationPosition)",
+        "Deferred merges whose dest is not yet in parent composite are returned for later Phase 5 execution",
+        "Write unit tests for incremental integration",
+        "Run: cargo nextest run"
+      ],
+      "output_file": "src/phases/composite.rs",
+      "acceptance_criteria": [
+        "integrate_sub_composite function exists and is tested",
+        "Auto-merge conflicts handled correctly",
+        "Deferred merges fire against parent composite where dest exists",
+        "Deferred merges for missing dests are returned for Phase 5",
+        "All tests pass"
+      ]
+    },
+    {
+      "id": "wire-sequential-pass",
+      "name": "Wire up sequential operations pass in Phase 4",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": ["add-resolve-repo-inline", "make-composite-incremental"],
+      "description": "Connect the pieces: the orchestrator's Phase 4 now walks the consumer's operations in declaration order. Filter ops modify the composite directly. Repo: ops call resolve_repo_inline and integrate_sub_composite. This is the main integration point.",
+      "steps": [
+        "Modify Phase 4 in orchestrator to iterate consumer ops in declaration order",
+        "For filter ops (include/exclude/rename/template/template-vars): apply to composite using existing operator implementations",
+        "For repo: ops: call resolve_repo_inline, then integrate_sub_composite",
+        "For merge ops: apply merge against composite",
+        "Collect residual deferred merges (dests not in composite) for Phase 5",
+        "Update Phase 5 to receive and execute residual deferred merges",
+        "Run: cargo nextest run",
+        "Run: cargo nextest run --test cli_e2e_repo_in_sequence",
+        "Expected: E2E test now PASSES"
+      ],
+      "output_file": "src/phases/orchestrator.rs",
+      "acceptance_criteria": [
+        "Phase 4 is a sequential pass over consumer ops",
+        "Repo: ops resolve inline at their declaration position",
+        "The failing E2E test from write-failing-e2e-test now PASSES",
+        "All existing tests still pass"
+      ]
+    },
+    {
+      "id": "update-self-pipeline",
+      "name": "Update self: pipeline to use sequential Phase 4",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "wire-sequential-pass",
+      "description": "The self: pipeline runs its own Phase 1-6. Update it to use the new sequential Phase 4. Self blocks pull local files via include operators, so the self pipeline's Phase 5 combine-with-local step may simplify.",
+      "steps": [
+        "Read ExecuteSelfPipeline logic in orchestrator",
+        "Update self pipeline invocation to use the sequential Phase 4 pass",
+        "Verify include in self block sources from local working directory",
+        "Verify repo: in self block resolves inline (the bug scenario)",
+        "Run E2E tests including the bug scenario test",
+        "Run: cargo nextest run"
+      ],
+      "output_file": "src/phases/orchestrator.rs",
+      "acceptance_criteria": [
+        "Self pipeline uses sequential Phase 4",
+        "Bug scenario E2E test passes",
+        "All tests pass"
+      ]
+    },
+    {
+      "id": "review-core-implementation",
+      "name": "Dispatch code-reviewer for core implementation review",
+      "status": "pending",
+      "priority": 8,
+      "blocked_by": "update-self-pipeline",
+      "description": "Use superpowers:code-reviewer to review the architectural changes against the spec and coding standards.",
+      "steps": [
+        "Dispatch code-reviewer agent with full context: spec rules, changed files, test results",
+        "Address any issues raised",
+        "Re-run tests after fixes"
       ],
       "output_file": null,
       "acceptance_criteria": [
-        "Code reviewer agent confirms implementation matches spec",
-        "allium:weed reports no spec/code divergence",
+        "Code reviewer reports no blocking issues",
+        "Any raised issues resolved",
+        "Tests still pass"
+      ]
+    },
+    {
+      "id": "add-edge-case-tests",
+      "name": "Add tests for edge cases and nested repo: scenarios",
+      "status": "pending",
+      "priority": 9,
+      "blocked_by": "review-core-implementation",
+      "description": "Test nested repo: (repo within repo), multiple repo: ops in sequence, repo: between filters, and the include-from-source-FS behavior in self blocks.",
+      "steps": [
+        "Add unit tests for nested repo: resolution (sub-repo has its own repo: op)",
+        "Add unit test for multiple repo: ops interleaved with filters",
+        "Add E2E test for repo: between include and exclude",
+        "Add E2E test for self: block with multiple repo: ops",
+        "Run: cargo nextest run"
+      ],
+      "output_file": "tests/cli_e2e_repo_in_sequence.rs",
+      "acceptance_criteria": [
+        "All edge case tests pass",
+        "Nested repo: resolution works correctly",
+        "Multiple repo: ops interleave with filters correctly"
+      ]
+    },
+    {
+      "id": "spec-code-alignment",
+      "name": "Run allium:weed to verify spec-code alignment",
+      "status": "pending",
+      "priority": 10,
+      "blocked_by": "add-edge-case-tests",
+      "description": "Use allium:weed to check that the implementation matches the spec rules from Phase 0.",
+      "steps": [
+        "Invoke allium:weed skill",
+        "Compare ApplyRepoInline spec rule against resolve_repo_inline implementation",
+        "Compare DeferredMergeAtDeclarationPosition against integrate_sub_composite",
+        "Compare SequentialOperationExecution against the Phase 4 sequential pass",
+        "Fix any divergences"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
+        "No spec/code divergences",
+        "All spec rules have corresponding implementation"
+      ]
+    },
+    {
+      "id": "update-documentation",
+      "name": "Update module docs and user documentation",
+      "status": "pending",
+      "priority": 11,
+      "blocked_by": "spec-code-alignment",
+      "description": "Update doc comments on changed modules and any user-facing documentation in docs/src/.",
+      "steps": [
+        "Update orchestrator.rs module docs to describe sequential Phase 4",
+        "Update discovery.rs docs to note eager clone / lazy resolve split",
+        "Update composite.rs docs to describe incremental composition",
+        "Check docs/src/ for any user-facing docs that reference pipeline phases",
+        "Run: cargo xtask check-prose src/phases/ docs/src/",
+        "Run: ./script/ci"
+      ],
+      "output_file": "src/phases/orchestrator.rs",
+      "acceptance_criteria": [
+        "All changed modules have updated doc comments",
+        "No AI writing pattern violations",
+        "CI passes"
+      ]
+    },
+    {
+      "id": "full-ci-and-commit",
+      "name": "Full CI validation and commit",
+      "status": "pending",
+      "priority": 12,
+      "blocked_by": "update-documentation",
+      "description": "Final CI validation and commit of the Phase B changes.",
+      "steps": [
+        "Run: ./script/cibuild",
+        "Run: cargo nextest run --test 'cli_e2e_*'",
+        "Verify all tests pass",
+        "Commit with conventional message: 'feat: inline repo: resolution at declaration position in sequential pass'",
+        "Include BREAKING CHANGE footer if applicable"
+      ],
+      "output_file": null,
+      "acceptance_criteria": [
         "./script/cibuild passes",
-        "All three phases integrated cleanly"
+        "All E2E tests pass including the bug scenario test",
+        "Commit created with conventional format"
       ]
     }
   ],
   "notes": [
-    "This plan is a SKELETON. Phase 0's flesh-out-phase-b-plan task converts it into a full plan after Q1 is decided.",
-    "Expect this plan to grow into sub-plans (plan-to-plan pattern per CLAUDE.md) — the architectural refactor is likely too large for a single flat plan.",
-    "The failing E2E test (write-failing-e2e-test) is the load-bearing acceptance criterion — it's the 'did we actually fix the reported bug' check.",
-    "Phase A's single-pass consumer ops are a prerequisite; confirm Phase A is merged before starting Phase B implementation work.",
-    "If design exploration reveals that Phase B needs Phase A's foundation to be changed, coordinate back through the plans rather than hacking Phase A retroactively."
+    "Phase A must be merged before starting Phase B implementation work",
+    "The failing E2E test (write-failing-e2e-test) is the load-bearing acceptance criterion — it proves the reported bug is fixed",
+    "Tasks 3-5 (refactor discovery, add resolve_repo_inline, make composite incremental) can potentially run in parallel if the implementation approach allows it",
+    "If any single task grows too large, use the plan-to-plan pattern from CLAUDE.md to break it into a sub-plan",
+    "The spec describes the final state. Implementation may deviate slightly in internal structure as long as observable behavior matches",
+    "Phase B changes include operator semantics (Q2 include-from-source-FS, Q3 rename chaining) that Phase A deferred. These may need to be implemented alongside the architectural change.",
+    "If design exploration reveals that Phase A's foundation needs changes, coordinate back through the plans rather than hacking Phase A retroactively"
   ]
 }

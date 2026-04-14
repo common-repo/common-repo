@@ -584,36 +584,77 @@ rule DetermineOperationOrder {
 -- Phase 4: Composite Filesystem Construction
 -- ==========================================================================
 
+rule SequentialOperationExecution {
+    when: ExecuteOperations(block_operations, composite)
+
+    -- Operations within a self:, source, or with: block execute in
+    -- YAML declaration order. Each operation transforms the in-memory
+    -- composite as it stands when its turn comes. All operator kinds
+    -- share the same sequential timeline: include, exclude, rename,
+    -- template, template-vars, merge variants, and repo: references.
+    --
+    -- This rule applies to all three block contexts:
+    --   - self: blocks (local-only pipeline)
+    --   - source blocks (top-level operations outside self:)
+    --   - with: clauses (consumer's inline operations on an upstream)
+    --
+    -- Cross-repo ordering (depth-first post-order, Phase 3) is
+    -- unchanged. Sequential applies WITHIN a block; DFS applies
+    -- BETWEEN repos.
+    for op in block_operations in declaration_order:
+        ensures: ApplyOperation(op, composite)
+
+    @guidance
+        -- See detailed/operators.allium for per-operator semantics
+        -- within the sequential pass.
+        --
+        -- Phase 1 (Discovery) remains eager: repos are cloned
+        -- up-front. What changes is resolution timing: repo:
+        -- operations execute lazily at their declaration position,
+        -- not eagerly during Phase 1.
+        --
+        -- Each operator has a "source FS" (the read-only input it
+        -- pulls files from) and operates on the "composite" (the
+        -- mutable running result). See detailed/operators.allium
+        -- for the source FS context per block type.
+}
+
 rule BuildComposite {
     when: CompositeReady(order, intermediate_fss)
 
-    -- 1. Consolidate template vars (last-write-wins in operation order)
-    -- 2. Substitute __COMMON_REPO__VARNAME__ references with resolved values
-    -- 3. Merge filesystems in order:
-    --    a. For files with no conflict: add to composite
-    --    b. For files with conflict AND an auto-merge declaration on the
-    --       incoming repo: perform format-aware merge (accumulate content)
-    --    c. For files with conflict but no auto-merge: last-write-wins
-    -- 4. Collect deferred merge operations for Phase 5 execution
+    -- Composite construction is now a sequential pass over the
+    -- consumer's operations (see SequentialOperationExecution).
+    --
+    -- Within the sequential pass:
+    -- 1. Filter and transform operations (include, exclude, rename,
+    --    template, template-vars) modify the composite directly
+    -- 2. repo: operations resolve sub-pipelines lazily at their
+    --    declaration position; the sub-composite integrates into
+    --    the parent composite at that point (see ApplyRepoInline
+    --    in detailed/operators.allium)
+    -- 3. Auto-merge declarations from sub-repos execute against the
+    --    parent composite at the repo: operation's position
+    -- 4. Template variable consolidation: last-write-wins in
+    --    declaration order across TemplateVars operations
+    -- 5. Template substitution: replaces __COMMON_REPO__VARNAME__
+    --    sentinel patterns with resolved values after all operations
+    --    have executed
     ensures: CompositeBuilt(order, intermediate_fss)
 
     @guidance
-        -- Template variable consolidation: iterate repos in operation order,
-        -- later values override earlier for the same key.
-        -- Template substitution replaces __COMMON_REPO__VARNAME__ sentinel
-        -- patterns with the corresponding value from the consolidated vars.
-        -- Undefined variables produce an error (no environment fallback).
+        -- The sequential pass replaces the previous model where all
+        -- repo: operations were discovered and resolved up-front
+        -- (Phase 1) and composite construction was a simple fold
+        -- over IntermediateFSs.
         --
-        -- Filesystem merge: for each repo in order, copy files into composite.
-        -- When a file already exists in the composite and the incoming repo
-        -- declares an auto-merge operation targeting that path, perform a
-        -- format-aware merge instead of overwriting. This enables chained
-        -- upstreams to contribute content to the same file (e.g. multiple
-        -- repos adding hooks to .pre-commit-config.yaml).
-        -- See detailed/auto-merge-composition.allium for full semantics.
+        -- In the new model, the composite grows incrementally as
+        -- each operation fires. Include pulls from source FS. Repo:
+        -- resolves and integrates. Exclude removes. The composite
+        -- at any point reflects all operations that have fired so far.
         --
-        -- Deferred merge operations are still collected for Phase 5, where
-        -- they merge the composite result into the consumer's local files.
+        -- See detailed/auto-merge-composition.allium for auto-merge
+        -- behaviour when sub-repo content conflicts with existing
+        -- composite entries.
 }
 
 -- ==========================================================================
@@ -621,18 +662,24 @@ rule BuildComposite {
 -- ==========================================================================
 
 rule MergeLocalFiles {
-    when: CompositeBuilt(composite_fs, local_config, deferred_merge_ops)
+    when: CompositeBuilt(composite_fs, local_config)
 
+    -- With sequential operation execution, the composite already
+    -- contains the result of all consumer operations (filters,
+    -- transforms, upstream integrations, and auto-merges) applied
+    -- in declaration order. MergeLocalFiles is now a simpler step:
+    --
     -- 1. Load local files (skip hidden files, build artifacts, config files)
-    -- 2. Apply local template operations to local filesystem (mark files containing
-    --    __COMMON_REPO__ prefix, substitute template vars)
-    -- 3. Combine composite with local files:
+    -- 2. Combine composite with local files:
     --    a. Start with local files as base
     --    b. Overlay composite files on top (composite wins for shared paths)
     --    c. Local-only files (paths not in composite) are preserved
-    -- 4. Execute deferred merge operations against the combined filesystem
-    -- 5. Execute consumer-level merge operations against the combined filesystem
-    -- 6. Apply consumer filter operations (exclude, include, rename)
+    --
+    -- Steps 4-6 from the previous model (deferred merges, consumer
+    -- merges, consumer filters) no longer exist here. Those operations
+    -- now execute at their declaration positions during composite
+    -- construction (see SequentialOperationExecution and
+    -- detailed/operators.allium).
     ensures: FinalFSReady(composite_fs, local_config)
 
     @guidance
@@ -644,6 +691,12 @@ rule MergeLocalFiles {
         -- unchanged. These are files the consumer created that no upstream
         -- provides.
         --
+        -- For self: blocks where include operators pulled local files
+        -- into the composite during construction, this combine step
+        -- primarily preserves local-only files that were not included
+        -- (e.g., docs/, config files, anything the author chose not
+        -- to pull into the composite).
+        --
         -- Certain directories are always skipped when loading local files:
         -- .git, .svn, .hg, node_modules, target, build, dist, __pycache__, etc.
         -- The .common-repo.yaml and .commonrepo.yaml config files are also skipped.
@@ -652,23 +705,29 @@ rule MergeLocalFiles {
 rule ApplyDeferredMerges {
     when: FilesystemsCombined(combined_fs, deferred_merge_ops)
 
-    -- Deferred merge operations run after composite and local files are
-    -- combined. This means the merge destination is the actual file —
-    -- whether it came from another upstream or the consumer's working
-    -- directory — not a stub.
+    -- With sequential operation execution, deferred auto-merge
+    -- operations from sub-repos now fire at the parent's repo:
+    -- operation declaration position during composite construction
+    -- (see ApplyRepoInline in detailed/operators.allium).
     --
-    -- Operations execute in the same order they were collected during
-    -- composite construction (depth-first post-order by repo).
+    -- This rule still applies to any remaining deferred merge
+    -- operations that need to execute after the composite is
+    -- combined with local files — specifically, merges whose
+    -- destination is a local-only file not present in the composite
+    -- during construction.
     for op in deferred_merge_ops:
         ensures: MergeApplied(op, combined_fs)
 
     @guidance
         -- Example: upstream provides ci.job.yml (fragment) with a deferred
-        -- YAML merge into ci.yml. During composite construction, ci.job.yml
-        -- enters the composite and the merge op is collected. After combining
-        -- with local files, ci.yml is the consumer's actual file (local-only,
-        -- since no upstream provides it as a whole file). The deferred merge
-        -- then injects the fragment into the consumer's ci.yml.
+        -- YAML merge into ci.yml. If ci.yml is a local-only file (not
+        -- pulled into the composite by any include operator), the merge
+        -- executes here after local files are combined in.
+        --
+        -- For self: blocks where include operators pulled local files
+        -- into the composite, most deferred merges will have already
+        -- fired at the repo: declaration position. This rule handles
+        -- the remaining edge case.
         --
         -- Idempotency note: merge modes that detect uniqueness (replace,
         -- append_unique) produce the same result on repeated runs. Modes
@@ -774,9 +833,19 @@ invariant CompositePrecedence {
     --
     -- Local-only files (not present in composite) are preserved.
     --
-    -- Deferred merge operations run after this combination, so they
-    -- target the actual destination file (local or upstream) rather
-    -- than a stub.
+    -- With sequential operation execution, the composite reflects the
+    -- result of all operations applied in declaration order — including
+    -- auto-merges from upstream repos that fired at their repo:
+    -- declaration position. The composite content for a given path is
+    -- the final state after all sequential operations have run.
+    --
+    -- Presence control: sequential declaration order is the mechanism
+    -- by which a consumer controls which upstream-contributed paths
+    -- appear in the final filesystem. Filters that appear before a
+    -- repo: operation cannot affect that upstream's content (it has
+    -- not entered the composite yet). Filters that appear after a
+    -- repo: operation deliberately filter post-integration content.
+    -- There is no separate presence guarantee beyond this.
     for entry in FinalFilesystemEntries:
         if exists_in_composite(entry.path):
             entry.content = composite_content(entry.path)
@@ -829,3 +898,9 @@ open question "Should merge operations support conditional application (e.g., on
 open question "Divergence detection: when composite wins for a whole file, should common-repo detect and warn about files where the local version has significantly diverged from upstream? Candidate approaches: (1) git blob SHA history check — did the local file ever share content with the upstream version, (2) line-level similarity threshold, (3) sentinel comment string."
 
 open question "Should a future gitMerge operator support 3-way merge of whole files — replaying local changes on top of updated upstream content — as an alternative to wholesale overwrite?"
+
+open question "The defer: flag on merge operations predates auto-merge. Its original intent was to control whether a merged file should overwrite local content or merge into it. With sequential operation execution, timing is governed by declaration order. Should defer: be renamed (e.g., overwrite:) to better express its intent? Should the flag exist at all once sequential is in place, or does auto-merge subsume it?"
+
+open question "Under sequential operation execution, deferred auto-merge operations from sub-repos fire at the parent's repo: declaration position. Should the upstream's defer: true flag override this timing and push the merge to a later point (e.g., after Phase 5 local-file combination)? Current model: defer does not override declaration-position timing."
+
+open question "Cleanup of original local files after include + rename in a self: block. When include pulls src/foo into the composite and rename moves it to foo, the original src/foo remains on disk (untouched by the pipeline). Should the pipeline track and clean up source paths that were renamed away, or is this the author's responsibility?"
