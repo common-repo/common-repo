@@ -1051,6 +1051,26 @@ impl Operation {
             Operation::Toml { toml } => toml.get_source(),
             Operation::Ini { ini } => ini.get_source(),
             Operation::Markdown { markdown } => markdown.get_source(),
+            Operation::Xml { xml } => xml.get_source(),
+            _ => None,
+        }
+    }
+
+    /// Returns the effective destination path for merge operations, or `None`
+    /// for non-merge operations.
+    ///
+    /// The effective destination is derived from `dest` (if set), falling back
+    /// to `auto_merge` (which names the file that content merges into).
+    pub fn merge_effective_dest(&self) -> Option<&str> {
+        match self {
+            Operation::Yaml { yaml } => yaml.dest.as_deref().or(yaml.auto_merge.as_deref()),
+            Operation::Json { json } => json.dest.as_deref().or(json.auto_merge.as_deref()),
+            Operation::Toml { toml } => toml.dest.as_deref().or(toml.auto_merge.as_deref()),
+            Operation::Ini { ini } => ini.dest.as_deref().or(ini.auto_merge.as_deref()),
+            Operation::Markdown { markdown } => {
+                markdown.dest.as_deref().or(markdown.auto_merge.as_deref())
+            }
+            Operation::Xml { xml } => xml.dest.as_deref().or(xml.auto_merge.as_deref()),
             _ => None,
         }
     }

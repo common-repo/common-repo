@@ -19,6 +19,8 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
+use log::warn;
+
 use crate::config::Operation;
 use crate::filesystem::MemoryFS;
 
@@ -38,13 +40,24 @@ pub(crate) fn compute_repo_key(url: &str, ref_: &str, operations: &[Operation]) 
         return format!("{url}@{ref_}");
     }
 
-    if let Ok(serialized) = serde_yaml::to_string(operations) {
-        let mut hasher = DefaultHasher::new();
-        serialized.hash(&mut hasher);
-        format!("{url}#ops-{:016x}@{ref_}", hasher.finish())
+    if let Some(fingerprint) = ops_fingerprint(operations) {
+        format!("{url}#{fingerprint}@{ref_}")
     } else {
+        warn!("Failed to serialize operations for repo key ({url}@{ref_}), using fallback key");
         format!("{url}@{ref_}")
     }
+}
+
+/// Compute a fingerprint string from a list of operations.
+///
+/// Serializes the operations to YAML and hashes the result, producing
+/// a hex string like `ops-0123456789abcdef`. Returns `None` if
+/// serialization fails.
+pub(crate) fn ops_fingerprint(operations: &[Operation]) -> Option<String> {
+    let serialized = serde_yaml::to_string(operations).ok()?;
+    let mut hasher = DefaultHasher::new();
+    serialized.hash(&mut hasher);
+    Some(format!("ops-{:016x}", hasher.finish()))
 }
 
 // Phase modules - internal implementations
@@ -179,14 +192,14 @@ impl RepoTree {
 #[derive(Debug, Clone)]
 pub struct ClonedRepo {
     /// Raw filesystem content from the cloned repository (config files removed)
-    pub fs: MemoryFS,
+    pub(crate) fs: MemoryFS,
     /// Repository URL
-    pub url: String,
+    pub(crate) url: String,
     /// Git reference (tag, branch, commit)
-    pub ref_: String,
+    pub(crate) ref_: String,
     /// Operations to apply when this repo is processed (from `with:` clause +
     /// upstream filtering + deferred ops)
-    pub operations: Vec<Operation>,
+    pub(crate) operations: Vec<Operation>,
 }
 
 impl ClonedRepo {

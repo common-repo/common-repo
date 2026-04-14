@@ -688,7 +688,7 @@ Operations execute in the order they appear in the configuration file. For inher
 
 This means later operations can override earlier ones, and child repos can customize what they inherit from ancestors.
 
-`self:` blocks execute after the source pipeline completes. Each `self:` block runs as an independent pipeline invocation with its own composite filesystem. Like the source pipeline, composite (upstream-derived) files take precedence over local files for shared paths. Because each `self:` block starts with an empty composite, it needs a `repo:` operator to pull in upstream content — otherwise filtering operators have nothing to work with.
+`self:` blocks execute after the source pipeline completes, in declaration order. Each `self:` block runs as an independent sequential pipeline: operations fire in YAML declaration order, and `repo:` operations resolve inline at their declaration position. The pipeline starts with local files loaded from the working directory. Because local files are loaded first, filter operators (`include`, `exclude`, `rename`) can transform the local file set before a `repo:` integrates upstream content.
 
 ### Example Order
 
