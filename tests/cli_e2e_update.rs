@@ -717,24 +717,26 @@ fn test_update_preserves_yaml_structure() {
 
     let updated = std::fs::read_to_string(config_file.path()).unwrap();
 
-    // ref: should be updated from v2.0.0 to something newer
+    // ref: should be updated from v2.0.0 to something newer (compatible = same major)
     assert!(
         !updated.contains("ref: v2.0.0"),
         "Old ref v2.0.0 should be replaced, got:\n{}",
         updated
     );
-    assert!(
-        updated.contains("ref: v2.0."),
-        "ref should be updated to a v2.0.x version, got:\n{}",
-        updated
-    );
 
-    // Extract the new version for byte-identical check
+    // Extract the new version for byte-identical check.
+    // The update picks the latest compatible version (same major), which may be
+    // any v2.x.y — don't hardcode a minor version that will break when upstream
+    // releases a new minor.
     let new_ref = updated
         .lines()
-        .find(|l| l.contains("ref: v2.0."))
+        .find(|l| {
+            l.trim()
+                .strip_prefix("ref: v2.")
+                .is_some_and(|rest| rest != "0.0")
+        })
         .and_then(|l| l.trim().strip_prefix("ref: "))
-        .expect("should find updated ref");
+        .expect("should find updated ref (v2.x.y where x.y != 0.0)");
 
     // Hyphenated key must be preserved (not renamed to template_vars)
     assert!(
@@ -824,10 +826,14 @@ fn test_update_all_occurrences_including_self() {
         updated
     );
 
-    // Extract the new version
+    // Extract the new version (any v2.x.y, don't hardcode minor)
     let new_ref = updated
         .lines()
-        .find(|l| l.contains("ref: v2.0."))
+        .find(|l| {
+            l.trim()
+                .strip_prefix("ref: v2.")
+                .is_some_and(|rest| rest != "0.0")
+        })
         .and_then(|l| l.trim().strip_prefix("ref: "))
         .expect("should find updated ref");
 
