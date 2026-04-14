@@ -3,11 +3,14 @@
 //! Coordinates all phases to provide a clean API for the complete pull
 //! operation. Two pipeline modes are supported:
 //!
-//! - **Batch pipeline** ([`execute_source_pipeline`]): processes top-level
-//!   `repo:` operations through Phases 1-6 in batch.
-//! - **Sequential pipeline** ([`execute_sequential_pipeline`]): used for
-//!   `self:` blocks, where operations execute in YAML declaration order and
-//!   `repo:` operations resolve inline at their declaration position.
+//! - **Batch pipeline** (`execute_source_pipeline`): for top-level source
+//!   operations (everything outside `self:`). Phases 1-6 run in batch; Phase 4
+//!   calls `phase4::execute` once over the full intermediate map from Phase 2.
+//! - **Sequential pipeline** (`execute_sequential_pipeline`): for `self:`
+//!   blocks. Operations run in YAML declaration order. Each nested `repo:` is
+//!   resolved lazily via `resolve_repo_inline`, and the sub-composite merges
+//!   immediately through `phase4::integrate_sub_composite` instead of a single
+//!   batch Phase 4 pass over all intermediates.
 //!
 //! [`execute_pull`] partitions the config into source and `self:` operations,
 //! runs the batch pipeline for sources, then runs the sequential pipeline

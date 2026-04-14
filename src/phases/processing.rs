@@ -1,36 +1,24 @@
 //! Phase 2: Processing Individual Repositories
 //!
-//! This is the second phase of the `common-repo` execution pipeline. Its main
-//! responsibility is to take the raw, cloned repositories from Phase 1 and
-//! apply the operations defined in the configuration to each one, producing a
-//! set of "intermediate" in-memory filesystems.
+//! This phase applies each repository's configured operations to Phase 1
+//! clones, producing [`IntermediateFS`] values for composition and later phases.
 //!
-//! ## Process
+//! [`clone_tree_repos`] walks a [`RepoTree`], reads clones from the on-disk
+//! cache, and returns a map of [`ClonedRepo`] entries (raw [`crate::filesystem::MemoryFS`], URL,
+//! ref, and operations; config files already stripped). [`process_cloned_repo`]
+//! converts one `ClonedRepo` into an `IntermediateFS`, using the in-process
+//! [`RepoCache`] to reuse work when the same clone and operations appear again.
 //!
-//! 1.  **Recursive Processing**: The process traverses the `RepoTree` from the
-//!     leaves up to the root. For each repository in the tree, it performs the
-//!     following steps.
+//! [`execute`] is still the batch entry point for the source pipeline: it takes
+//! the tree and returns the keyed intermediate map as before, but now builds
+//! `ClonedRepo` values with [`clone_tree_repos`] and processes each repository
+//! (and the local root) through [`process_cloned_repo`], so the sequential
+//! `self:` pipeline can call [`process_cloned_repo`] on demand without a
+//! separate code path.
 //!
-//! 2.  **In-Process Caching**: Before processing, it checks the in-process
-//!     `RepoCache` to see if this exact repository (with the same set of `with:`
-//!     clause operations) has already been processed in this run. If so, it
-//!     uses the cached result to avoid redundant work.
-//!
-//! 3.  **Operation Application**: If not cached, it loads the repository's
-//!     contents from the on-disk cache into a `MemoryFS`. It then iterates
-//!     through the operations associated with that repository (from the `with:`
-//!     clause) and applies each one sequentially to the `MemoryFS`.
-//!
-//! 4.  **Template Variable Collection**: During this process, it also collects
-//!     any `template_vars` defined in the operations and stores them in the
-//!     `IntermediateFS` for use in a later phase.
-//!
-//! 5.  **Storing Results**: The resulting `MemoryFS` and collected template
-//!     variables are stored in an `IntermediateFS` struct, which is then added
-//!     to the in-process cache and a `HashMap` that is passed to the next phase.
-//!
-//! This phase transforms the raw source material from each repository into a
-//! set of processed, in-memory filesystems that are ready to be merged.
+//! For each repository, operations from the `with:` clause run in order on a
+//! copy of the raw filesystem. Template variables and deferred merge operations
+//! are collected into each `IntermediateFS` for Phase 4 and Phase 5.
 
 use std::collections::HashMap;
 
