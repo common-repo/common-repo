@@ -1,6 +1,6 @@
 {
   "plan_name": "Phase B: Repo-in-Sequence Resolution",
-  "last_updated": "2026-04-14",
+  "last_updated": "2026-04-15",
   "follow_up_items_added": "2026-04-14 — item 3 (fix-load-local-fs-dotfiles) inserted, priorities 3-15 bumped to 4-16",
   "description": "Architectural change: resolve repo: operations inline at their declaration position in the sequential pass, not eagerly in Phase 1. Sub-repos run their own pipeline in isolation; their sub-composite + deferred auto-merges integrate into the parent composite at the repo: op's position. This fully fixes the reported bug.",
   "status": "ready",
@@ -156,7 +156,7 @@
     {
       "id": "make-composite-incremental",
       "name": "Support incremental composite construction",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "refactor-discovery-clone-from-resolve",
       "description": "The current Phase 4 composite builder folds all IntermediateFSs in one pass. Add support for incremental additions: integrate a sub-composite into an existing composite at a specific point, including auto-merge conflict resolution.",
