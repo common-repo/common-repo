@@ -4,5 +4,26 @@
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
   "last_updated": "2026-04-13",
-  "description": "Phase A of sequential-operations: replace two-pass consumer ops in Phase 5 with a single sequential pass (YAML declaration order). Phase 0 (spec discovery) is archived at context/completed/phase-0-spec-discovery.json. Phase B (repo-in-sequence) follows Phase A."
+  "description": "Phase A of sequential-operations: replace two-pass consumer ops in Phase 5 with a single sequential pass (YAML declaration order). First pending task: write-key-failing-test. Phase 0 (spec discovery) is archived at context/completed/phase-0-spec-discovery.json. Phase B plan is at context/phase-b-repo-in-sequence.json (blocked on Phase A).",
+  "session_notes": {
+    "phase_0_complete": true,
+    "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
+    "spec_files_updated": [
+      "spec/common-repo.allium (SequentialOperationExecution rule, updated BuildComposite/MergeLocalFiles/CompositePrecedence)",
+      "spec/detailed/operators.allium (NEW — per-operator sequential semantics)",
+      "spec/detailed/auto-merge-composition.allium (DeferredMergeAtDeclarationPosition)",
+      "spec/detailed/merge-operations.allium (diagnostic hint guidance)"
+    ],
+    "key_spec_decisions": {
+      "Q1": "repo: sub-pipeline runs in isolation; sub-composite + deferred merges integrate at declaration position",
+      "Q2": "include reads from source FS independently; can re-add after exclude",
+      "Q3": "rename mappings chain within and across ops (behavior change for implementation)",
+      "Q4": "no new presence guarantee; declaration order controls presence",
+      "Q5": "explicit merge missing source = error; auto-merge = warn+skip (existing rules unchanged)",
+      "Q6": "Phase 4 becomes sequential pass; Phase 5 simplifies to combine-with-local",
+      "Q7": "sequential applies to self, source, and with: blocks; cross-repo DFS unchanged"
+    },
+    "phase_a_scope_notes": "Phase A only changes Phase 5 ordering (Q6 interleaving). Full spec model (Q1 repo-in-sequence, Q2 include-from-source-FS, Q3 rename chaining) requires Phase B.",
+    "reference_plan": "docs/superpowers/plans/2026-04-12-sequential-operations.md (gitignored, local only)"
+  }
 }
