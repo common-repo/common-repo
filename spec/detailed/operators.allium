@@ -43,6 +43,7 @@
 -- --------------------------------------------------------------------------
 
 rule ApplyInclude {
+    -- @status: Implemented
     when: ApplyOperation(op, composite)
     requires: op.kind = Include
 
@@ -79,6 +80,7 @@ rule ApplyInclude {
 -- --------------------------------------------------------------------------
 
 rule ApplyExclude {
+    -- @status: Implemented
     when: ApplyOperation(op, composite)
     requires: op.kind = Exclude
 
@@ -101,6 +103,7 @@ rule ApplyExclude {
 -- --------------------------------------------------------------------------
 
 rule ApplyTemplate {
+    -- @status: Implemented
     when: ApplyOperation(op, composite)
     requires: op.kind = Template
 
@@ -129,6 +132,7 @@ rule ApplyTemplate {
 -- --------------------------------------------------------------------------
 
 rule ApplyTemplateVars {
+    -- @status: Implemented
     when: ApplyOperation(op, composite)
     requires: op.kind = TemplateVars
 
@@ -151,6 +155,7 @@ rule ApplyTemplateVars {
 -- --------------------------------------------------------------------------
 
 rule ApplyRename {
+    -- @status: Implemented
     when: ApplyOperation(op, composite)
     requires: op.kind = Rename
 
@@ -195,6 +200,7 @@ rule ApplyRename {
 -- --------------------------------------------------------------------------
 
 rule ApplyRepoInline {
+    -- @status: Implemented
     when: ApplyOperation(op, composite)
     requires: op.kind = Repo
 
@@ -241,6 +247,7 @@ rule ApplyRepoInline {
 -- --------------------------------------------------------------------------
 
 rule ValidateTools {
+    -- @status: Implemented
     when: ApplyOperation(op, composite)
     requires: op.kind = Tools
 
@@ -256,12 +263,14 @@ rule ValidateTools {
 -- ==========================================================================
 
 invariant SourceFSReadOnly {
+    -- @status: Implemented
     -- The source FS (local working directory or upstream IntermediateFS)
     -- is never modified by any operator. Operators read from the source
     -- FS and write to the in-memory composite.
 }
 
 invariant RenameEquivalence {
+    -- @status: Implemented
     -- A rename operation with N mappings produces the same result as
     -- N sequential rename operations with one mapping each, applied
     -- in the same declaration order. Grouping is purely syntactic
@@ -269,6 +278,7 @@ invariant RenameEquivalence {
 }
 
 invariant IncludeIndependence {
+    -- @status: Future
     -- Each include operation is an independent read from the source FS.
     -- The set of files matched by an include pattern depends only on
     -- the source FS contents, not on the current composite state.
@@ -281,5 +291,7 @@ invariant IncludeIndependence {
 -- ==========================================================================
 
 open question "Rename path collision: when a rename produces a path that collides with an existing composite entry, should it warn? Current proposal is silent last-write-wins, consistent with include, but a warning may catch accidental data loss."
+-- @status: Open
 
 open question "Include matching nothing: should common-repo validate distinguish between globs that match nothing (likely a typo) and patterns that intentionally match nothing in some repo configurations (e.g., optional src/ directory)?"
+-- @status: Open
