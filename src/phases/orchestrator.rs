@@ -234,6 +234,10 @@ fn execute_sequential_pipeline(
 
     let mut all_template_vars = HashMap::new();
     let mut residual_deferred_ops: Vec<Operation> = Vec::new();
+    // Accumulate auto-merge targets across all repo integrations so that a
+    // later repo can trigger format-aware merge for a file declared by an
+    // earlier repo (or vice versa, when the later repo has defer: true).
+    let mut accumulated_auto_merge_targets = HashMap::new();
 
     // Sequential pass: walk operations in declaration order
     for operation in config {
@@ -274,7 +278,11 @@ fn execute_sequential_pipeline(
                 if let Some(cloned) = cloned {
                     let sub_composite = resolve_repo_inline(cloned, &cloned_repos, cache)?;
 
-                    let residual = phase4::integrate_sub_composite(&mut fs, &sub_composite)?;
+                    let residual = phase4::integrate_sub_composite_with_targets(
+                        &mut fs,
+                        &sub_composite,
+                        &mut accumulated_auto_merge_targets,
+                    )?;
                     residual_deferred_ops.extend(residual);
 
                     all_template_vars.extend(sub_composite.template_vars);
