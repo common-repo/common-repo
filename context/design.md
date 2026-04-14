@@ -91,7 +91,7 @@ For each inherited repo (and the local repo):
    - `tools:` Validate tool availability and versions (warn if missing/wrong)
 3. Result: An intermediate filesystem representing what this repo exports
 
-**Note**: At this phase, we're just preparing each repo's contribution. We haven't merged anything yet.
+**Note**: At this phase, we're just preparing each repo's contribution. We haven't merged anything yet. For the sequential pipeline (used by `self:` blocks), processing and composition happen interleaved — `repo:` operations resolve on-demand at their declaration position via `resolve_repo_inline`.
 
 ### Phase 3: Determining Operation Order
 

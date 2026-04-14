@@ -1,7 +1,17 @@
-//! Orchestrator for the complete pull operation
+//! Orchestrator for the complete pull operation.
 //!
-//! This module coordinates all phases to provide a clean API for the complete
-//! pull operation. Currently implements Phases 1-6 for end-to-end inheritance.
+//! Coordinates all phases to provide a clean API for the complete pull
+//! operation. Two pipeline modes are supported:
+//!
+//! - **Batch pipeline** ([`execute_source_pipeline`]): processes top-level
+//!   `repo:` operations through Phases 1-6 in batch.
+//! - **Sequential pipeline** ([`execute_sequential_pipeline`]): used for
+//!   `self:` blocks, where operations execute in YAML declaration order and
+//!   `repo:` operations resolve inline at their declaration position.
+//!
+//! [`execute_pull`] partitions the config into source and `self:` operations,
+//! runs the batch pipeline for sources, then runs the sequential pipeline
+//! for each `self:` block.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -48,8 +58,9 @@ pub fn partition_self_operations(config: &Schema) -> (Vec<SelfOp>, Schema) {
 ///
 /// When the repo's operations contain nested `repo:` references, those are
 /// resolved recursively by looking them up in `cloned_repos` and calling
-/// this function again. Circular references are detected and produce a
-/// warning rather than infinite recursion.
+/// this function again. Circular references and diamond dependencies (shared
+/// sub-repos) are detected via a visited set; already-resolved repos are
+/// skipped to prevent duplicate integration.
 ///
 /// # Arguments
 ///
@@ -110,9 +121,14 @@ fn resolve_repo_inline_inner(
                 let nested_key = compute_repo_key(&repo.url, &repo.r#ref, &repo.with);
 
                 if !visited.insert(nested_key.clone()) {
-                    warn!(
-                        "Circular repo: reference detected, skipping: {}@{}",
-                        repo.url, repo.r#ref
+                    // Already processed in this resolution tree — either a
+                    // circular reference or a diamond dependency (two parents
+                    // referencing the same child). Either way, skip to avoid
+                    // duplicate file integration.
+                    log::debug!(
+                        "Skipping already-resolved repo: {}@{} (cycle or shared dependency)",
+                        repo.url,
+                        repo.r#ref
                     );
                     continue;
                 }
@@ -199,19 +215,32 @@ fn execute_sequential_pipeline(
             Operation::Repo { repo } => {
                 // Phase 1 enriches each repo node with upstream filtering +
                 // deferred ops, so the cloned_repos key differs from the raw
-                // (url, ref, with) on the Operation::Repo.  Look up by
-                // (url, ref) instead.
-                let cloned = cloned_repos
+                // (url, ref, with) on the Operation::Repo. Look up by
+                // (url, ref) — if multiple candidates match (same URL+ref
+                // with different operations), we take the first and warn.
+                let candidates: Vec<_> = cloned_repos
                     .values()
-                    .find(|c| c.url == repo.url && c.ref_ == repo.r#ref);
+                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref)
+                    .collect();
+
+                if candidates.len() > 1 {
+                    warn!(
+                        "Multiple cloned repos match {}@{} ({} candidates); using first match",
+                        repo.url,
+                        repo.r#ref,
+                        candidates.len()
+                    );
+                }
+
+                let cloned = candidates.into_iter().next();
 
                 if let Some(cloned) = cloned {
                     let sub_composite = resolve_repo_inline(cloned, &cloned_repos, cache)?;
 
-                    all_template_vars.extend(sub_composite.template_vars.clone());
-
                     let residual = phase4::integrate_sub_composite(&mut fs, &sub_composite)?;
                     residual_deferred_ops.extend(residual);
+
+                    all_template_vars.extend(sub_composite.template_vars);
                 } else {
                     warn!(
                         "Repo reference not found in cloned repos, skipping: {}@{}",

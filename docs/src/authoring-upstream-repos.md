@@ -344,7 +344,7 @@ Consumers can pick specific concerns:
 
 ### Dotfiles and Hidden Files
 
-Dotfiles (files starting with `.`) are included by default. Structure them naturally:
+Dotfiles from upstream repos require explicit `include` patterns (e.g., `.*` and `.*/**`) to be pulled into the consumer's output. Structure them naturally in the upstream repo:
 
 ```
 upstream-repo/

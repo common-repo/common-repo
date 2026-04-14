@@ -121,6 +121,11 @@ pub(crate) fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
         ".gradle",       // Gradle cache
         ".parcel-cache", // Parcel bundler cache
         ".svelte-kit",   // SvelteKit build
+        ".ssh",          // SSH keys and config
+        ".gnupg",        // GPG keys
+        ".aws",          // AWS credentials
+        ".docker",       // Docker config and credentials
+        ".kube",         // Kubernetes config
         "bin",           // Binary output (broader than spec's explicit list)
         "obj",           // Object files (broader than spec's explicit list)
     ];

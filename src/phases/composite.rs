@@ -358,10 +358,16 @@ pub(crate) fn integrate_sub_composite(
                 .as_ref()
                 .or(toml.auto_merge.as_ref())
                 .is_some_and(|d| parent_fs.exists(d)),
-            Operation::Ini { ini } => ini.dest.as_ref().is_some_and(|d| parent_fs.exists(d)),
-            Operation::Markdown { markdown } => {
-                markdown.dest.as_ref().is_some_and(|d| parent_fs.exists(d))
-            }
+            Operation::Ini { ini } => ini
+                .dest
+                .as_ref()
+                .or(ini.auto_merge.as_ref())
+                .is_some_and(|d| parent_fs.exists(d)),
+            Operation::Markdown { markdown } => markdown
+                .dest
+                .as_ref()
+                .or(markdown.auto_merge.as_ref())
+                .is_some_and(|d| parent_fs.exists(d)),
             Operation::Xml { xml } => xml
                 .dest
                 .as_ref()
@@ -1456,10 +1462,14 @@ port = 8080
         #[test]
         fn test_no_conflicts_merges_all_files() {
             let mut parent = MemoryFS::new();
-            parent.add_file_string("existing.txt", "parent content").unwrap();
+            parent
+                .add_file_string("existing.txt", "parent content")
+                .unwrap();
 
             let mut sub_fs = MemoryFS::new();
-            sub_fs.add_file_string("new_file.txt", "sub content").unwrap();
+            sub_fs
+                .add_file_string("new_file.txt", "sub content")
+                .unwrap();
             let sub_composite = IntermediateFS::new(
                 sub_fs,
                 "https://github.com/sub.git".to_string(),
@@ -1471,7 +1481,8 @@ port = 8080
             assert!(parent.exists("existing.txt"));
             assert!(parent.exists("new_file.txt"));
             assert_eq!(
-                String::from_utf8(parent.get_file("new_file.txt").unwrap().content.clone()).unwrap(),
+                String::from_utf8(parent.get_file("new_file.txt").unwrap().content.clone())
+                    .unwrap(),
                 "sub content"
             );
             assert!(residual.is_empty());
@@ -1480,7 +1491,9 @@ port = 8080
         #[test]
         fn test_conflict_without_auto_merge_uses_last_write_wins() {
             let mut parent = MemoryFS::new();
-            parent.add_file_string("shared.txt", "parent version").unwrap();
+            parent
+                .add_file_string("shared.txt", "parent version")
+                .unwrap();
 
             let mut sub_fs = MemoryFS::new();
             sub_fs.add_file_string("shared.txt", "sub version").unwrap();
@@ -1505,7 +1518,8 @@ port = 8080
             use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
 
             // Parent already has a .pre-commit-config.yaml from a prior repo
-            let parent_yaml = "repos:\n  - repo: hooks-a\n    hooks:\n      - id: trailing-whitespace\n";
+            let parent_yaml =
+                "repos:\n  - repo: hooks-a\n    hooks:\n      - id: trailing-whitespace\n";
             let mut parent = MemoryFS::new();
             parent
                 .add_file_string(".pre-commit-config.yaml", parent_yaml)
@@ -1559,7 +1573,8 @@ port = 8080
                 .unwrap();
 
             // Sub-composite has a source file and a deferred merge op targeting the dest
-            let source_yaml = "repos:\n  - repo: upstream-hooks\n    hooks:\n      - id: upstream-check\n";
+            let source_yaml =
+                "repos:\n  - repo: upstream-hooks\n    hooks:\n      - id: upstream-check\n";
             let mut sub_fs = MemoryFS::new();
             sub_fs
                 .add_file_string(".pre-commit-config.yaml.common-repo-merge", source_yaml)
@@ -1602,9 +1617,7 @@ port = 8080
             use crate::config::{Operation, YamlMergeOp};
 
             let mut parent = MemoryFS::new();
-            parent
-                .add_file_string("other.txt", "something")
-                .unwrap();
+            parent.add_file_string("other.txt", "something").unwrap();
 
             // Sub-composite has a source file and deferred merge targeting a
             // file that does NOT exist in the parent
@@ -1674,10 +1687,8 @@ port = 8080
             let residual = integrate_sub_composite(&mut parent, &sub_ifs).unwrap();
 
             // dest-a.yaml was merged (source-a merged into it)
-            let content_a = String::from_utf8(
-                parent.get_file("dest-a.yaml").unwrap().content.clone(),
-            )
-            .unwrap();
+            let content_a =
+                String::from_utf8(parent.get_file("dest-a.yaml").unwrap().content.clone()).unwrap();
             assert!(content_a.contains("merged"), "source-a merged into dest-a");
 
             // dest-b.yaml still doesn't exist; its op is residual

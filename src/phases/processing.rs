@@ -32,11 +32,7 @@
 //! This phase transforms the raw source material from each repository into a
 //! set of processed, in-memory filesystems that are ready to be merged.
 
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-
-use serde_yaml;
 
 use std::path::Path;
 
@@ -57,7 +53,7 @@ use crate::repository::RepositoryManager;
 ///
 /// The returned map is keyed by `RepoNode::node_key()`, the same key used
 /// by [`execute`] and the Phase 3 operation order.
-pub fn clone_tree_repos(
+pub(crate) fn clone_tree_repos(
     tree: &RepoTree,
     repo_manager: &RepositoryManager,
 ) -> Result<HashMap<String, ClonedRepo>> {
@@ -155,17 +151,13 @@ fn cache_key_for_cloned(cloned: &ClonedRepo) -> Result<Option<CacheKey>> {
         return Ok(Some(CacheKey::new(&cloned.url, &cloned.ref_)));
     }
 
-    let serialized_ops =
-        serde_yaml::to_string(&cloned.operations).map_err(|err| Error::Serialization {
+    let fingerprint =
+        super::ops_fingerprint(&cloned.operations).ok_or_else(|| Error::Serialization {
             message: format!(
-                "Failed to serialize operations for cache key ({}@{}): {}",
-                cloned.url, cloned.ref_, err
+                "Failed to serialize operations for cache key ({}@{})",
+                cloned.url, cloned.ref_
             ),
         })?;
-
-    let mut hasher = DefaultHasher::new();
-    serialized_ops.hash(&mut hasher);
-    let fingerprint = format!("ops-{:016x}", hasher.finish());
 
     Ok(Some(CacheKey::new(
         &format!("{}#{}", cloned.url, fingerprint),
@@ -296,17 +288,13 @@ fn cache_key_for_node(node: &RepoNode) -> Result<Option<CacheKey>> {
         return Ok(Some(CacheKey::new(&node.url, &node.ref_)));
     }
 
-    let serialized_ops =
-        serde_yaml::to_string(&node.operations).map_err(|err| Error::Serialization {
+    let fingerprint =
+        super::ops_fingerprint(&node.operations).ok_or_else(|| Error::Serialization {
             message: format!(
-                "Failed to serialize operations for cache key ({}@{}): {}",
-                node.url, node.ref_, err
+                "Failed to serialize operations for cache key ({}@{})",
+                node.url, node.ref_
             ),
         })?;
-
-    let mut hasher = DefaultHasher::new();
-    serialized_ops.hash(&mut hasher);
-    let fingerprint = format!("ops-{:016x}", hasher.finish());
 
     Ok(Some(CacheKey::new(
         &format!("{}#{}", node.url, fingerprint),
