@@ -1,15 +1,14 @@
 {
-  "task": "sequential-operations",
-  "plan": "context/phase-b-repo-in-sequence.json",
-  "context_doc": "context/sequential-operations-context.md",
-  "prompt": "context/prompt.md",
+  "task": null,
+  "plan": null,
   "last_updated": "2026-04-14",
-  "description": "Phase B: Repo-in-Sequence Resolution. All 16 tasks complete. Phase B is ready for final review and merge.",
+  "description": "No active task. Phase B (repo-in-sequence) merged via PR #297.",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
     "phase_a_complete": true,
     "phase_a_archive": "context/completed/sequential-operations.json",
-    "phase_b_status": "in_progress"
+    "phase_b_complete": true,
+    "phase_b_archive": "context/completed/phase-b-repo-in-sequence.json"
   }
 }
