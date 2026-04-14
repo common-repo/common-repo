@@ -70,15 +70,16 @@ fn clone_tree_repos_recursive(
     let mut fs = repo_manager.fetch_repository(&node.url, &node.ref_)?;
     remove_source_config_files(&mut fs);
 
-    cloned_repos.insert(
-        key,
-        ClonedRepo::new(
-            fs,
-            node.url.clone(),
-            node.ref_.clone(),
-            node.operations.clone(),
-        ),
+    let children_keys: Vec<String> = node.children.iter().map(|c| c.node_key()).collect();
+    let mut cloned = ClonedRepo::new(
+        fs,
+        node.url.clone(),
+        node.ref_.clone(),
+        node.operations.clone(),
     );
+    cloned.children_keys = children_keys;
+
+    cloned_repos.insert(key, cloned);
 
     Ok(())
 }

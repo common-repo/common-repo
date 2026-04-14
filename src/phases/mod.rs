@@ -200,6 +200,11 @@ pub struct ClonedRepo {
     /// Operations to apply when this repo is processed (from `with:` clause +
     /// upstream filtering + deferred ops)
     pub(crate) operations: Vec<Operation>,
+    /// Keys of child repos discovered during Phase 1 (from the repo's own
+    /// `.common-repo.yaml` `repo:` entries). Used by `resolve_repo_inline` to
+    /// integrate nested repos that were extracted as tree children rather than
+    /// kept in `operations`.
+    pub(crate) children_keys: Vec<String>,
 }
 
 impl ClonedRepo {
@@ -209,6 +214,7 @@ impl ClonedRepo {
             url,
             ref_,
             operations,
+            children_keys: Vec::new(),
         }
     }
 

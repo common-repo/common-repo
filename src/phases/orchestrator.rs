@@ -21,9 +21,7 @@ use std::path::Path;
 
 use log::warn;
 
-use super::{
-    compute_repo_key, phase1, phase2, phase3, phase4, phase5, phase6, ClonedRepo, IntermediateFS,
-};
+use super::{phase1, phase2, phase3, phase4, phase5, phase6, ClonedRepo, IntermediateFS};
 use crate::cache::RepoCache;
 use crate::config::{Operation, Schema, SelfOp};
 use crate::error::Result;
@@ -68,8 +66,8 @@ pub fn partition_self_operations(config: &Schema) -> (Vec<SelfOp>, Schema) {
 /// # Arguments
 ///
 /// * `cloned` — The pre-cloned repository to process (raw FS + operations).
-/// * `cloned_repos` — All repos cloned by Phase 1, keyed by
-///   [`compute_repo_key`]. Used to look up nested `repo:` references.
+/// * `cloned_repos` — All repos cloned by Phase 1. Nested `repo:` references
+///   are looked up by `(url, ref)` to handle Phase 1 operation enrichment.
 /// * `cache` — In-process cache for deduplicating repeated processing of
 ///   the same repo+operations combination.
 ///
@@ -85,7 +83,7 @@ pub(crate) fn resolve_repo_inline(
     cache: &RepoCache,
 ) -> Result<IntermediateFS> {
     let mut visited = HashSet::new();
-    visited.insert(cloned.node_key());
+    visited.insert(format!("{}@{}", cloned.url, cloned.ref_));
     resolve_repo_inline_inner(cloned, cloned_repos, cache, &mut visited)
 }
 
@@ -96,20 +94,20 @@ fn resolve_repo_inline_inner(
     cache: &RepoCache,
     visited: &mut HashSet<String>,
 ) -> Result<IntermediateFS> {
-    // Fast path: no nested repo: ops → delegate to process_cloned_repo which
-    // uses the in-process cache for deduplication.
     let has_repo_ops = cloned
         .operations
         .iter()
         .any(|op| matches!(op, Operation::Repo { .. }));
 
-    if !has_repo_ops {
+    // Fast path: no nested repo: ops and no tree children → delegate to
+    // process_cloned_repo which uses the in-process cache for deduplication.
+    if !has_repo_ops && cloned.children_keys.is_empty() {
         return phase2::process_cloned_repo(cloned, cache);
     }
 
-    // Slow path: operations contain repo: references that need recursive
-    // resolution. Process sequentially so repo: ops fire at their declaration
-    // position.
+    // Slow path: operations contain repo: references or this node has tree
+    // children (repos discovered from the upstream .common-repo.yaml).
+    // Process sequentially so repo: ops fire at their declaration position.
     let mut template_vars = phase2::collect_template_vars(&cloned.operations)?;
     let mut merge_operations = phase2::collect_merge_operations(&cloned.operations);
 
@@ -118,16 +116,9 @@ fn resolve_repo_inline_inner(
     for operation in &cloned.operations {
         match operation {
             Operation::Repo { repo } => {
-                // Reconstruct the same key format Phase 1 uses when populating
-                // cloned_repos, so the lookup finds the pre-cloned entry.
-                // Only url, ref, and operations affect the key — no FS needed.
-                let nested_key = compute_repo_key(&repo.url, &repo.r#ref, &repo.with);
+                let visit_key = format!("{}@{}", repo.url, repo.r#ref);
 
-                if !visited.insert(nested_key.clone()) {
-                    // Already processed in this resolution tree — either a
-                    // circular reference or a diamond dependency (two parents
-                    // referencing the same child). Either way, skip to avoid
-                    // duplicate file integration.
+                if !visited.insert(visit_key) {
                     log::debug!(
                         "Skipping already-resolved repo: {}@{} (cycle or shared dependency)",
                         repo.url,
@@ -136,19 +127,32 @@ fn resolve_repo_inline_inner(
                     continue;
                 }
 
-                if let Some(nested_cloned) = cloned_repos.get(&nested_key) {
+                // Phase 1 enriches each repo node with upstream filtering +
+                // deferred ops, so the cloned_repos key may differ from the
+                // raw (url, ref, with) on the Operation::Repo. Look up by
+                // (url, ref) to match regardless of enrichment.
+                let candidates: Vec<_> = cloned_repos
+                    .values()
+                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref)
+                    .collect();
+
+                if candidates.len() > 1 {
+                    warn!(
+                        "Multiple cloned repos match nested {}@{} ({} candidates); using first",
+                        repo.url,
+                        repo.r#ref,
+                        candidates.len()
+                    );
+                }
+
+                if let Some(nested_cloned) = candidates.into_iter().next() {
                     let nested_result =
                         resolve_repo_inline_inner(nested_cloned, cloned_repos, cache, visited)?;
 
-                    // Integrate nested sub-composite into current FS
-                    // (last-write-wins for shared paths)
                     fs.merge(&nested_result.fs);
 
-                    // Propagate nested deferred merges so the caller can
-                    // execute them at the correct declaration position.
                     merge_operations.extend(nested_result.merge_operations);
 
-                    // Propagate nested template vars (last-write-wins)
                     template_vars.extend(nested_result.template_vars);
                 } else {
                     warn!(
@@ -160,6 +164,36 @@ fn resolve_repo_inline_inner(
             other => {
                 phase2::apply_operation(&mut fs, other)?;
             }
+        }
+    }
+
+    // Integrate tree children: repos discovered from the upstream
+    // .common-repo.yaml that were extracted as tree children during Phase 1
+    // discovery rather than kept in the operations list. Exact-key lookup
+    // is safe here because children_keys are captured from node_key() at
+    // the same time as the HashMap insertion in clone_tree_repos_recursive.
+    for child_key in &cloned.children_keys {
+        if let Some(child_cloned) = cloned_repos.get(child_key) {
+            let visit_key = format!("{}@{}", child_cloned.url, child_cloned.ref_);
+            if !visited.insert(visit_key) {
+                log::debug!(
+                    "Skipping already-resolved tree child: {} (cycle or shared dependency)",
+                    child_key
+                );
+                continue;
+            }
+
+            let child_result =
+                resolve_repo_inline_inner(child_cloned, cloned_repos, cache, visited)?;
+
+            fs.merge(&child_result.fs);
+            merge_operations.extend(child_result.merge_operations);
+            template_vars.extend(child_result.template_vars);
+        } else {
+            warn!(
+                "Tree child not found in cloned repos, skipping: {}",
+                child_key
+            );
         }
     }
 
