@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.33.0](https://github.com/common-repo/common-repo/compare/v0.32.2...v0.33.0) (2026-04-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Consumer operations now execute in declaration order. Configs that relied on merges always running before filters (regardless of declaration order) must be reordered so merges appear before the filters that would remove their source files.
+
+### Features
+
+* sequential declaration-order execution for Phase 5 consumer operations ([dc227ab](https://github.com/common-repo/common-repo/commit/dc227abd10500ba527689798fa02bc02748559d4))
+
 ## [0.32.2](https://github.com/common-repo/common-repo/compare/v0.32.1...v0.32.2) (2026-04-07)
 
 
