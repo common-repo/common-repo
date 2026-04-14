@@ -133,6 +133,9 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 ///
 /// Returns a map from target file path to the corresponding Operation,
 /// for operations that have `auto_merge` set.
+///
+/// Only collects non-explicitly-deferred ops. Used by the batch pipeline
+/// (Phase 4) where `defer: true` ops are reserved for Phase 5.
 fn collect_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
     let mut targets = HashMap::new();
     for op in ops {
@@ -142,6 +145,20 @@ fn collect_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
             if let Some(path) = get_auto_merge_path(op) {
                 targets.insert(path.to_string(), op.clone());
             }
+        }
+    }
+    targets
+}
+
+/// Collect ALL auto-merge target paths regardless of defer status.
+///
+/// Used by the sequential pipeline where there is no separate Phase 4/5
+/// split — all auto-merge conflict resolution happens during integration.
+fn collect_all_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
+    let mut targets = HashMap::new();
+    for op in ops {
+        if let Some(path) = get_auto_merge_path(op) {
+            targets.insert(path.to_string(), op.clone());
         }
     }
     targets
@@ -336,17 +353,47 @@ fn merge_filesystem_with_auto_merge(
 /// A `Vec<Operation>` of residual deferred merge operations that could
 /// not be executed because their destination was missing from the parent
 /// composite at this point.
+#[cfg(test)]
 pub(crate) fn integrate_sub_composite(
     parent_fs: &mut MemoryFS,
     sub_composite: &IntermediateFS,
 ) -> Result<Vec<Operation>> {
-    // 1. Get auto-merge targets from the sub-composite's non-deferred merge ops
-    let auto_merge_targets = collect_auto_merge_targets(&sub_composite.merge_operations);
+    let mut targets = HashMap::new();
+    integrate_sub_composite_with_targets(parent_fs, sub_composite, &mut targets)
+}
 
-    // 2. Merge sub-composite files into parent (with auto-merge awareness)
-    merge_filesystem_with_auto_merge(parent_fs, &sub_composite.fs, &auto_merge_targets)?;
+/// Variant of [`integrate_sub_composite`] that maintains an accumulated set of
+/// auto-merge targets across multiple sequential integrations.
+///
+/// In the sequential pipeline, repos are integrated one at a time. If repo A
+/// declares auto-merge for a file and repo B also provides that file later,
+/// the auto-merge from repo A must still trigger even though repo A was already
+/// integrated. The `accumulated_targets` map carries forward auto-merge
+/// declarations from all previously integrated repos.
+///
+/// Auto-merge ops with `defer: true` are included in the targets (unlike the
+/// batch pipeline) because there is no separate Phase 5 — conflict resolution
+/// happens entirely during integration.
+pub(crate) fn integrate_sub_composite_with_targets(
+    parent_fs: &mut MemoryFS,
+    sub_composite: &IntermediateFS,
+    accumulated_targets: &mut HashMap<String, Operation>,
+) -> Result<Vec<Operation>> {
+    // 1. Add this sub-composite's auto-merge targets (including deferred) to the
+    //    accumulated set so that future integrations can also trigger merges for
+    //    these files.
+    let new_targets = collect_all_auto_merge_targets(&sub_composite.merge_operations);
+    accumulated_targets.extend(new_targets);
 
-    // 3. Execute deferred merges where dest exists in parent; collect rest
+    // 2. Merge sub-composite files into parent (with auto-merge awareness).
+    //    Uses the accumulated targets from ALL prior + current integrations.
+    merge_filesystem_with_auto_merge(parent_fs, &sub_composite.fs, accumulated_targets)?;
+
+    // 3. Execute deferred merges where dest exists in parent; collect rest.
+    //    Auto-merge ops are skipped here because they were already handled
+    //    during the file merge above (the incoming file was staged under a
+    //    temp name and merged format-aware). Only explicit source/dest deferred
+    //    ops need processing.
     let mut residual_ops = Vec::new();
     for op in &sub_composite.merge_operations {
         if !is_explicitly_deferred(op) {
@@ -354,7 +401,12 @@ pub(crate) fn integrate_sub_composite(
             // (auto-merge conflicts). Skip them here.
             continue;
         }
-        // Deferred op: check if dest exists in parent composite
+        // Auto-merge ops were already handled during file merge; executing
+        // them again with source==dest would be a no-op at best.
+        if get_auto_merge_path(op).is_some() {
+            continue;
+        }
+        // Deferred op with explicit source/dest: check if dest exists in parent
         let dest_exists = op
             .merge_effective_dest()
             .is_some_and(|d| parent_fs.exists(d));
@@ -1752,6 +1804,225 @@ port = 8080
             // dest-b.yaml still doesn't exist; its op is residual
             assert!(!parent.exists("dest-b.yaml"));
             assert_eq!(residual.len(), 1);
+        }
+
+        /// When two repos are integrated sequentially and both provide the same
+        /// file with auto-merge declarations, the second integration must
+        /// format-aware merge even if its auto-merge op has `defer: true`.
+        ///
+        /// Reproduces a bug where `is_explicitly_deferred` excluded `defer: true`
+        /// ops from auto_merge_targets, causing the second repo to overwrite the
+        /// first via last-write-wins instead of merging.
+        #[test]
+        fn test_sequential_integration_auto_merge_with_defer_true() {
+            use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+            use crate::phases::composite::integrate_sub_composite_with_targets;
+
+            let mut parent = MemoryFS::new();
+            let mut accumulated = HashMap::new();
+
+            // --- First repo: conventional-commits (auto-merge, no explicit defer) ---
+            let yaml_a =
+                "repos:\n  - repo: conventional\n    hooks:\n      - id: conventional-commit\n";
+            let mut fs_a = MemoryFS::new();
+            fs_a.add_file_string(".pre-commit-config.yaml", yaml_a)
+                .unwrap();
+
+            let mut ifs_a = IntermediateFS::new(
+                fs_a,
+                "https://github.com/org/conventional.git".to_string(),
+                "v1.0.0".to_string(),
+            );
+            ifs_a.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge(".pre-commit-config.yaml")
+                    .array_mode(ArrayMergeMode::AppendUnique),
+            });
+
+            let residual_a =
+                integrate_sub_composite_with_targets(&mut parent, &ifs_a, &mut accumulated)
+                    .unwrap();
+            assert!(residual_a.is_empty());
+
+            // --- Second repo: pre-commit (auto-merge with defer: true) ---
+            let yaml_b = "repos:\n  - repo: builtin\n    hooks:\n      - id: trailing-whitespace\n";
+            let mut fs_b = MemoryFS::new();
+            fs_b.add_file_string(".pre-commit-config.yaml", yaml_b)
+                .unwrap();
+
+            let mut ifs_b = IntermediateFS::new(
+                fs_b,
+                "https://github.com/org/pre-commit.git".to_string(),
+                "v1.0.0".to_string(),
+            );
+            ifs_b.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp {
+                    auto_merge: Some(".pre-commit-config.yaml".to_string()),
+                    array_mode: ArrayMergeMode::AppendUnique,
+                    defer: Some(true),
+                    ..Default::default()
+                },
+            });
+
+            let residual_b =
+                integrate_sub_composite_with_targets(&mut parent, &ifs_b, &mut accumulated)
+                    .unwrap();
+            assert!(residual_b.is_empty());
+
+            // --- Verify: both repos' hooks must be present ---
+            let content = String::from_utf8(
+                parent
+                    .get_file(".pre-commit-config.yaml")
+                    .unwrap()
+                    .content
+                    .clone(),
+            )
+            .unwrap();
+            assert!(
+                content.contains("conventional"),
+                "first repo's hooks must survive; got:\n{}",
+                content
+            );
+            assert!(
+                content.contains("trailing-whitespace"),
+                "second repo's hooks must be merged in; got:\n{}",
+                content
+            );
+        }
+
+        /// Reverse order: the repo with defer: true comes FIRST, no-defer second.
+        /// The accumulated targets from the first repo must trigger auto-merge
+        /// when the second repo's file conflicts.
+        #[test]
+        fn test_sequential_integration_defer_true_first() {
+            use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+            use crate::phases::composite::integrate_sub_composite_with_targets;
+
+            let mut parent = MemoryFS::new();
+            let mut accumulated = HashMap::new();
+
+            // --- First repo: pre-commit (defer: true) ---
+            let yaml_a = "repos:\n  - repo: builtin\n    hooks:\n      - id: trailing-whitespace\n";
+            let mut fs_a = MemoryFS::new();
+            fs_a.add_file_string(".pre-commit-config.yaml", yaml_a)
+                .unwrap();
+            let mut ifs_a = IntermediateFS::new(
+                fs_a,
+                "https://github.com/org/pre-commit.git".to_string(),
+                "v1.0.0".to_string(),
+            );
+            ifs_a.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp {
+                    auto_merge: Some(".pre-commit-config.yaml".to_string()),
+                    array_mode: ArrayMergeMode::AppendUnique,
+                    defer: Some(true),
+                    ..Default::default()
+                },
+            });
+
+            let residual_a =
+                integrate_sub_composite_with_targets(&mut parent, &ifs_a, &mut accumulated)
+                    .unwrap();
+            assert!(residual_a.is_empty());
+
+            // --- Second repo: conventional-commits (no explicit defer) ---
+            let yaml_b =
+                "repos:\n  - repo: conventional\n    hooks:\n      - id: conventional-commit\n";
+            let mut fs_b = MemoryFS::new();
+            fs_b.add_file_string(".pre-commit-config.yaml", yaml_b)
+                .unwrap();
+            let mut ifs_b = IntermediateFS::new(
+                fs_b,
+                "https://github.com/org/conventional.git".to_string(),
+                "v1.0.0".to_string(),
+            );
+            ifs_b.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge(".pre-commit-config.yaml")
+                    .array_mode(ArrayMergeMode::AppendUnique),
+            });
+
+            let residual_b =
+                integrate_sub_composite_with_targets(&mut parent, &ifs_b, &mut accumulated)
+                    .unwrap();
+            assert!(residual_b.is_empty());
+
+            let content = String::from_utf8(
+                parent
+                    .get_file(".pre-commit-config.yaml")
+                    .unwrap()
+                    .content
+                    .clone(),
+            )
+            .unwrap();
+            assert!(
+                content.contains("trailing-whitespace"),
+                "first repo's hooks must survive; got:\n{}",
+                content
+            );
+            assert!(
+                content.contains("conventional"),
+                "second repo's hooks must be merged in; got:\n{}",
+                content
+            );
+        }
+
+        /// Three repos providing the same file; middle one has defer: true.
+        /// All three contributions must survive in the final output.
+        #[test]
+        fn test_sequential_integration_three_repos_accumulated() {
+            use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+            use crate::phases::composite::integrate_sub_composite_with_targets;
+
+            let mut parent = MemoryFS::new();
+            let mut accumulated = HashMap::new();
+
+            let make_yaml = |hook_id: &str| -> String {
+                format!(
+                    "repos:\n  - repo: hooks\n    hooks:\n      - id: {}\n",
+                    hook_id
+                )
+            };
+
+            let make_ifs = |hook_id: &str, url: &str, defer: Option<bool>| -> IntermediateFS {
+                let mut fs = MemoryFS::new();
+                fs.add_file_string(".pre-commit-config.yaml", &make_yaml(hook_id))
+                    .unwrap();
+                let mut ifs = IntermediateFS::new(fs, url.to_string(), "v1.0.0".to_string());
+                ifs.merge_operations.push(Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some(".pre-commit-config.yaml".to_string()),
+                        array_mode: ArrayMergeMode::AppendUnique,
+                        defer,
+                        ..Default::default()
+                    },
+                });
+                ifs
+            };
+
+            // Repo 1: no defer
+            let ifs1 = make_ifs("hook-alpha", "https://a.git", None);
+            integrate_sub_composite_with_targets(&mut parent, &ifs1, &mut accumulated).unwrap();
+
+            // Repo 2: defer: true
+            let ifs2 = make_ifs("hook-beta", "https://b.git", Some(true));
+            integrate_sub_composite_with_targets(&mut parent, &ifs2, &mut accumulated).unwrap();
+
+            // Repo 3: no defer
+            let ifs3 = make_ifs("hook-gamma", "https://c.git", None);
+            integrate_sub_composite_with_targets(&mut parent, &ifs3, &mut accumulated).unwrap();
+
+            let content = String::from_utf8(
+                parent
+                    .get_file(".pre-commit-config.yaml")
+                    .unwrap()
+                    .content
+                    .clone(),
+            )
+            .unwrap();
+            assert!(content.contains("hook-alpha"), "repo 1 missing:\n{content}");
+            assert!(content.contains("hook-beta"), "repo 2 missing:\n{content}");
+            assert!(content.contains("hook-gamma"), "repo 3 missing:\n{content}");
         }
     }
 }
