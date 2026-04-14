@@ -83,7 +83,7 @@
     {
       "id": "fix-load-local-fs-dotfiles",
       "name": "Fix load_local_fs to not skip dotfiles",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "write-failing-e2e-test",
       "description": "load_local_fs in local_merge.rs:124 blanket-skips all files and directories starting with '.'. This breaks self: blocks that need to include local dotfiles (e.g., .pre-commit-config.yaml, .eslintrc.yaml, .editorconfig). The spec (MergeLocalFiles rule) lists specific directories to skip (.git, .svn, node_modules, etc.) but does NOT say skip all dotfiles. The code should skip only the specific directories listed in SKIP_DIRS, not all hidden files. Upstream dotfiles work fine (they flow through the composite, not load_local_fs). Failing E2E tests already exist in tests/cli_e2e_dotfiles.rs.",
