@@ -298,6 +298,88 @@ fn merge_filesystem_with_auto_merge(
     Ok(())
 }
 
+/// Integrate a sub-composite into an existing parent composite at the
+/// current declaration position.
+///
+/// This is the incremental counterpart to the batch [`execute`] function.
+/// When a `repo:` operation fires during a sequential pass, the sub-repo's
+/// pipeline produces an [`IntermediateFS`]. This function merges that
+/// sub-composite into the parent composite:
+///
+/// 1. Files from the sub-composite are merged into the parent. Conflicts
+///    where the sub-composite declares an auto-merge trigger format-aware
+///    merging (reusing [`merge_filesystem_with_auto_merge`]). Other
+///    conflicts use last-write-wins.
+///
+/// 2. Deferred merge operations whose destination already exists in the
+///    parent composite execute immediately (the dest file is available).
+///
+/// 3. Deferred merge operations whose destination is not yet in the
+///    parent are returned for later execution during Phase 5, after local
+///    files become available.
+///
+/// # Returns
+///
+/// A `Vec<Operation>` of residual deferred merge operations that could
+/// not be executed because their destination was missing from the parent
+/// composite at this point.
+pub(crate) fn integrate_sub_composite(
+    parent_fs: &mut MemoryFS,
+    sub_composite: &IntermediateFS,
+) -> Result<Vec<Operation>> {
+    // 1. Get auto-merge targets from the sub-composite's non-deferred merge ops
+    let auto_merge_targets = collect_auto_merge_targets(&sub_composite.merge_operations);
+
+    // 2. Merge sub-composite files into parent (with auto-merge awareness)
+    merge_filesystem_with_auto_merge(parent_fs, &sub_composite.fs, &auto_merge_targets)?;
+
+    // 3. Execute deferred merges where dest exists in parent; collect rest
+    let mut residual_ops = Vec::new();
+    for op in &sub_composite.merge_operations {
+        if !is_explicitly_deferred(op) {
+            // Non-deferred ops were already handled during file merge above
+            // (auto-merge conflicts). Skip them here.
+            continue;
+        }
+        // Deferred op: check if dest exists in parent composite
+        let dest_exists = match op {
+            Operation::Yaml { yaml } => yaml
+                .dest
+                .as_ref()
+                .or(yaml.auto_merge.as_ref())
+                .is_some_and(|d| parent_fs.exists(d)),
+            Operation::Json { json } => json
+                .dest
+                .as_ref()
+                .or(json.auto_merge.as_ref())
+                .is_some_and(|d| parent_fs.exists(d)),
+            Operation::Toml { toml } => toml
+                .dest
+                .as_ref()
+                .or(toml.auto_merge.as_ref())
+                .is_some_and(|d| parent_fs.exists(d)),
+            Operation::Ini { ini } => ini.dest.as_ref().is_some_and(|d| parent_fs.exists(d)),
+            Operation::Markdown { markdown } => {
+                markdown.dest.as_ref().is_some_and(|d| parent_fs.exists(d))
+            }
+            Operation::Xml { xml } => xml
+                .dest
+                .as_ref()
+                .or(xml.auto_merge.as_ref())
+                .is_some_and(|d| parent_fs.exists(d)),
+            _ => false,
+        };
+
+        if dest_exists {
+            execute_merge_operation(parent_fs, op)?;
+        } else {
+            residual_ops.push(op.clone());
+        }
+    }
+
+    Ok(residual_ops)
+}
+
 /// Execute a single merge operation on the composite filesystem
 ///
 /// This function dispatches to the appropriate merge operation handler
@@ -1364,6 +1446,243 @@ port = 8080
                 String::from_utf8(composite.get_file("config.yaml").unwrap().content.clone())
                     .unwrap();
             assert!(content.contains("first"));
+        }
+    }
+
+    mod integrate_sub_composite_tests {
+        use super::*;
+        use crate::phases::composite::integrate_sub_composite;
+
+        #[test]
+        fn test_no_conflicts_merges_all_files() {
+            let mut parent = MemoryFS::new();
+            parent.add_file_string("existing.txt", "parent content").unwrap();
+
+            let mut sub_fs = MemoryFS::new();
+            sub_fs.add_file_string("new_file.txt", "sub content").unwrap();
+            let sub_composite = IntermediateFS::new(
+                sub_fs,
+                "https://github.com/sub.git".to_string(),
+                "main".to_string(),
+            );
+
+            let residual = integrate_sub_composite(&mut parent, &sub_composite).unwrap();
+
+            assert!(parent.exists("existing.txt"));
+            assert!(parent.exists("new_file.txt"));
+            assert_eq!(
+                String::from_utf8(parent.get_file("new_file.txt").unwrap().content.clone()).unwrap(),
+                "sub content"
+            );
+            assert!(residual.is_empty());
+        }
+
+        #[test]
+        fn test_conflict_without_auto_merge_uses_last_write_wins() {
+            let mut parent = MemoryFS::new();
+            parent.add_file_string("shared.txt", "parent version").unwrap();
+
+            let mut sub_fs = MemoryFS::new();
+            sub_fs.add_file_string("shared.txt", "sub version").unwrap();
+            let sub_composite = IntermediateFS::new(
+                sub_fs,
+                "https://github.com/sub.git".to_string(),
+                "main".to_string(),
+            );
+
+            let residual = integrate_sub_composite(&mut parent, &sub_composite).unwrap();
+
+            // Sub-composite wins (last-write-wins)
+            assert_eq!(
+                String::from_utf8(parent.get_file("shared.txt").unwrap().content.clone()).unwrap(),
+                "sub version"
+            );
+            assert!(residual.is_empty());
+        }
+
+        #[test]
+        fn test_auto_merge_conflict_triggers_format_aware_merge() {
+            use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+
+            // Parent already has a .pre-commit-config.yaml from a prior repo
+            let parent_yaml = "repos:\n  - repo: hooks-a\n    hooks:\n      - id: trailing-whitespace\n";
+            let mut parent = MemoryFS::new();
+            parent
+                .add_file_string(".pre-commit-config.yaml", parent_yaml)
+                .unwrap();
+
+            // Sub-composite brings its own version + auto-merge declaration
+            let sub_yaml = "repos:\n  - repo: hooks-b\n    hooks:\n      - id: conventional\n";
+            let mut sub_fs = MemoryFS::new();
+            sub_fs
+                .add_file_string(".pre-commit-config.yaml", sub_yaml)
+                .unwrap();
+
+            let mut sub_ifs = IntermediateFS::new(
+                sub_fs,
+                "https://github.com/sub.git".to_string(),
+                "main".to_string(),
+            );
+            sub_ifs.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge(".pre-commit-config.yaml")
+                    .array_mode(ArrayMergeMode::Append),
+            });
+
+            let residual = integrate_sub_composite(&mut parent, &sub_ifs).unwrap();
+
+            // Both hooks should be present (format-aware merge, not overwrite)
+            let content = String::from_utf8(
+                parent
+                    .get_file(".pre-commit-config.yaml")
+                    .unwrap()
+                    .content
+                    .clone(),
+            )
+            .unwrap();
+            assert!(content.contains("hooks-a"), "parent hooks-a preserved");
+            assert!(content.contains("hooks-b"), "sub hooks-b merged in");
+
+            // The auto-merge op was non-deferred, so nothing residual
+            assert!(residual.is_empty());
+        }
+
+        #[test]
+        fn test_deferred_merge_executes_when_dest_exists_in_parent() {
+            use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+
+            // Parent already has the dest file (e.g., pulled in by a prior include)
+            let dest_yaml = "repos:\n  - repo: local-hooks\n    hooks:\n      - id: mycheck\n";
+            let mut parent = MemoryFS::new();
+            parent
+                .add_file_string(".pre-commit-config.yaml", dest_yaml)
+                .unwrap();
+
+            // Sub-composite has a source file and a deferred merge op targeting the dest
+            let source_yaml = "repos:\n  - repo: upstream-hooks\n    hooks:\n      - id: upstream-check\n";
+            let mut sub_fs = MemoryFS::new();
+            sub_fs
+                .add_file_string(".pre-commit-config.yaml.common-repo-merge", source_yaml)
+                .unwrap();
+
+            let mut sub_ifs = IntermediateFS::new(
+                sub_fs,
+                "https://github.com/sub.git".to_string(),
+                "main".to_string(),
+            );
+            sub_ifs.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .source(".pre-commit-config.yaml.common-repo-merge")
+                    .dest(".pre-commit-config.yaml")
+                    .array_mode(ArrayMergeMode::Append)
+                    .defer(true),
+            });
+
+            let residual = integrate_sub_composite(&mut parent, &sub_ifs).unwrap();
+
+            // Deferred merge should have executed (dest existed in parent)
+            let content = String::from_utf8(
+                parent
+                    .get_file(".pre-commit-config.yaml")
+                    .unwrap()
+                    .content
+                    .clone(),
+            )
+            .unwrap();
+            assert!(content.contains("local-hooks"), "local content preserved");
+            assert!(
+                content.contains("upstream-hooks"),
+                "upstream content merged in"
+            );
+            assert!(residual.is_empty(), "no residual ops");
+        }
+
+        #[test]
+        fn test_deferred_merge_returned_when_dest_missing() {
+            use crate::config::{Operation, YamlMergeOp};
+
+            let mut parent = MemoryFS::new();
+            parent
+                .add_file_string("other.txt", "something")
+                .unwrap();
+
+            // Sub-composite has a source file and deferred merge targeting a
+            // file that does NOT exist in the parent
+            let mut sub_fs = MemoryFS::new();
+            sub_fs
+                .add_file_string("merge-source.yaml", "key: value\n")
+                .unwrap();
+
+            let mut sub_ifs = IntermediateFS::new(
+                sub_fs,
+                "https://github.com/sub.git".to_string(),
+                "main".to_string(),
+            );
+            sub_ifs.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .source("merge-source.yaml")
+                    .dest("not-in-parent.yaml")
+                    .defer(true),
+            });
+
+            let residual = integrate_sub_composite(&mut parent, &sub_ifs).unwrap();
+
+            // Dest doesn't exist in parent, so op is returned as residual
+            assert_eq!(residual.len(), 1);
+            // The source file was still merged into the parent FS
+            assert!(parent.exists("merge-source.yaml"));
+        }
+
+        #[test]
+        fn test_mixed_deferred_ops_some_execute_some_residual() {
+            use crate::config::{Operation, YamlMergeOp};
+
+            let mut parent = MemoryFS::new();
+            // Only dest-a.yaml exists in parent
+            parent
+                .add_file_string("dest-a.yaml", "key_a: original\n")
+                .unwrap();
+
+            let mut sub_fs = MemoryFS::new();
+            sub_fs
+                .add_file_string("source-a.yaml", "key_a: merged\n")
+                .unwrap();
+            sub_fs
+                .add_file_string("source-b.yaml", "key_b: pending\n")
+                .unwrap();
+
+            let mut sub_ifs = IntermediateFS::new(
+                sub_fs,
+                "https://github.com/sub.git".to_string(),
+                "main".to_string(),
+            );
+            // Deferred op whose dest exists → should execute
+            sub_ifs.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .source("source-a.yaml")
+                    .dest("dest-a.yaml")
+                    .defer(true),
+            });
+            // Deferred op whose dest is missing → should be residual
+            sub_ifs.merge_operations.push(Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .source("source-b.yaml")
+                    .dest("dest-b.yaml")
+                    .defer(true),
+            });
+
+            let residual = integrate_sub_composite(&mut parent, &sub_ifs).unwrap();
+
+            // dest-a.yaml was merged (source-a merged into it)
+            let content_a = String::from_utf8(
+                parent.get_file("dest-a.yaml").unwrap().content.clone(),
+            )
+            .unwrap();
+            assert!(content_a.contains("merged"), "source-a merged into dest-a");
+
+            // dest-b.yaml still doesn't exist; its op is residual
+            assert!(!parent.exists("dest-b.yaml"));
+            assert_eq!(residual.len(), 1);
         }
     }
 }
