@@ -3,8 +3,8 @@
   "plan": "context/sequential-operations.json",
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
-  "last_updated": "2026-04-13",
-  "description": "Phase A of sequential-operations: replace two-pass consumer ops in Phase 5 with a single sequential pass (YAML declaration order). First pending task: write-key-failing-test. Phase 0 (spec discovery) is archived at context/completed/phase-0-spec-discovery.json. Phase B plan is at context/phase-b-repo-in-sequence.json (blocked on Phase A).",
+  "last_updated": "2026-04-14",
+  "description": "Phase A of sequential-operations: core implementation complete (tasks 1-7 done). Next pending task: commit-core-changes. Remaining: commit, E2E tests, E2E review, E2E commit, full CI validation, final review. Phase 0 archived at context/completed/phase-0-spec-discovery.json. Phase B plan at context/phase-b-repo-in-sequence.json (blocked on Phase A).",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",

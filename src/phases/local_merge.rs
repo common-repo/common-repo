@@ -3,7 +3,7 @@
 //! This is the fifth phase of the `common-repo` execution pipeline. Its purpose
 //! is to combine the composite filesystem (created in Phase 4) with the files
 //! from the local project directory, execute deferred merge operations, and
-//! apply any consumer-level operations.
+//! apply consumer-level operations in declaration order.
 //!
 //! ## Process
 //!
@@ -23,12 +23,12 @@
 //!     merge into the actual destination file, whether it came from another
 //!     upstream or from the consumer's working directory.
 //!
-//! 5.  **Apply Consumer Merges**: Consumer-level merge operations (YAML, JSON,
-//!     TOML, INI, Markdown, XML) are applied to the combined filesystem. These run
-//!     before filters so merge sources are still available.
-//!
-//! 6.  **Apply Consumer Filters**: Consumer-level filter operations (exclude,
-//!     include, rename) are applied to control which files appear in the output.
+//! 5.  **Apply Consumer Operations**: All consumer-level operations (merges and
+//!     filters) execute in YAML declaration order. Each operation transforms the
+//!     filesystem as it exists at that point. This means:
+//!     - A merge after an exclude won't find files the exclude removed
+//!     - An include before a merge filters the FS before the merge runs
+//!     - Operations interleave naturally: include, merge, exclude, rename, etc.
 //!
 //! This phase produces the final, fully merged `MemoryFS`, which is an exact
 //! representation of what the output directory should look like.
@@ -44,8 +44,8 @@ use crate::filesystem::{File, MemoryFS};
 /// Executes Phase 5 of the pipeline.
 ///
 /// Combines local files with the composite filesystem (composite wins for
-/// shared paths), executes deferred merge operations, then runs consumer
-/// merges followed by consumer filters.
+/// shared paths), executes deferred merge operations, then runs all consumer
+/// operations in YAML declaration order.
 pub fn execute(
     composite_fs: &MemoryFS,
     local_config: &Schema,
@@ -65,11 +65,8 @@ pub fn execute(
         super::composite::execute_merge_operation(&mut final_fs, op)?;
     }
 
-    // Consumer merge operations first
-    apply_consumer_merges(&mut final_fs, local_config)?;
-
-    // Consumer filter operations second (exclude, include, rename)
-    apply_consumer_filters(&mut final_fs, local_config)?;
+    // Apply consumer operations in declaration order (YAML order = execution order)
+    apply_consumer_operations(&mut final_fs, local_config)?;
 
     Ok(final_fs)
 }
@@ -204,13 +201,29 @@ fn apply_local_operations_to_local_fs(
     Ok(())
 }
 
-/// Apply consumer merge operations from the local configuration
+/// Apply consumer operations from the local configuration in declaration order
 ///
-/// Merge operations (yaml, json, toml, ini, markdown) run before filter
-/// operations so that merge sources are available before filters can remove them.
-fn apply_consumer_merges(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
+/// All operations -- merges (yaml, json, toml, ini, markdown, xml) and filters
+/// (include, exclude, rename) -- execute sequentially in the order they appear
+/// in the config. YAML order = execution order.
+fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
+    use crate::operators;
+
     for operation in local_config {
         match operation {
+            // Filter operations
+            Operation::Exclude { exclude } => {
+                operators::exclude::apply(exclude, final_fs)?;
+            }
+            Operation::Include { include } => {
+                let mut filtered_fs = MemoryFS::new();
+                operators::include::apply(include, final_fs, &mut filtered_fs)?;
+                *final_fs = filtered_fs;
+            }
+            Operation::Rename { rename } => {
+                operators::rename::apply(rename, final_fs)?;
+            }
+            // Merge operations
             Operation::Yaml { yaml } => {
                 crate::merge::yaml::apply_yaml_merge_operation(final_fs, yaml)?;
             }
@@ -229,32 +242,7 @@ fn apply_consumer_merges(final_fs: &mut MemoryFS, local_config: &Schema) -> Resu
             Operation::Xml { xml } => {
                 crate::merge::xml::apply_xml_merge_operation(final_fs, xml)?;
             }
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
-/// Apply consumer filter operations from the local configuration
-///
-/// Filter operations (exclude, include, rename) run after merge operations
-/// so that merge sources are still present when merges execute.
-fn apply_consumer_filters(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
-    use crate::operators;
-
-    for operation in local_config {
-        match operation {
-            Operation::Exclude { exclude } => {
-                operators::exclude::apply(exclude, final_fs)?;
-            }
-            Operation::Include { include } => {
-                let mut filtered_fs = MemoryFS::new();
-                operators::include::apply(include, final_fs, &mut filtered_fs)?;
-                *final_fs = filtered_fs;
-            }
-            Operation::Rename { rename } => {
-                operators::rename::apply(rename, final_fs)?;
-            }
+            // Non-consumer operations are handled elsewhere
             _ => {}
         }
     }
@@ -423,7 +411,9 @@ mod tests {
     }
 
     #[test]
-    fn test_phase5_consumer_merges_before_filters() {
+    fn test_phase5_consumer_operations_run_in_declaration_order() {
+        // Declaration order: merge first, THEN exclude.
+        // Sequential model: merge succeeds (source exists), then exclude removes source.
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
@@ -432,19 +422,18 @@ mod tests {
 
         let composite_fs = MemoryFS::new();
 
-        // Config has an exclude BEFORE a merge in declaration order.
-        // Per spec, merges should still run first regardless of declaration order.
+        // Merge runs first (in declaration order), exclude runs second.
         let local_config = vec![
-            Operation::Exclude {
-                exclude: ExcludeOp {
-                    patterns: vec!["fragment.json".to_string()],
-                },
-            },
             Operation::Json {
                 json: JsonMergeOp {
                     source: Some("fragment.json".to_string()),
                     dest: Some("output.json".to_string()),
                     ..Default::default()
+                },
+            },
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["fragment.json".to_string()],
                 },
             },
         ];
@@ -457,7 +446,7 @@ mod tests {
         assert_eq!(json["base"], true);
         assert_eq!(json["added"], true);
 
-        // Fragment should be excluded after merge
+        // Fragment excluded after merge
         assert!(!final_fs.exists("fragment.json"));
     }
 
@@ -664,6 +653,39 @@ mod tests {
     }
 
     #[test]
+    fn test_phase5_sequential_exclude_before_merge_removes_source() {
+        // Sequential model: exclude runs FIRST, removing the merge source.
+        // The subsequent merge should fail because its source no longer exists.
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join("output.json"), r#"{"base": true}"#).unwrap();
+        std::fs::write(working_dir.join("fragment.json"), r#"{"added": true}"#).unwrap();
+
+        let composite_fs = MemoryFS::new();
+
+        let local_config = vec![
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["fragment.json".to_string()],
+                },
+            },
+            Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment.json".to_string()),
+                    dest: Some("output.json".to_string()),
+                    ..Default::default()
+                },
+            },
+        ];
+
+        let result = execute(&composite_fs, &local_config, working_dir, &[]);
+
+        // Sequential execution: exclude removed fragment.json, merge can't find source
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_phase5_deferred_merge_source_overwrites_conflicting_keys() {
         use crate::config::{JsonMergeOp, Operation};
 
@@ -704,5 +726,95 @@ mod tests {
         assert_eq!(json["retries"], 5);
         // Destination-only keys preserved
         assert_eq!(json["local_only"], true);
+    }
+
+    #[test]
+    fn test_phase5_sequential_merge_then_exclude() {
+        // Sequential model: merge runs first (succeeds), then exclude cleans up.
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join("output.json"), r#"{"base": true}"#).unwrap();
+        std::fs::write(working_dir.join("fragment.json"), r#"{"added": true}"#).unwrap();
+
+        let composite_fs = MemoryFS::new();
+
+        let local_config = vec![
+            Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("fragment.json".to_string()),
+                    dest: Some("output.json".to_string()),
+                    ..Default::default()
+                },
+            },
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["fragment.json".to_string()],
+                },
+            },
+        ];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
+
+        // Merge ran first: output.json has merged content
+        let file = final_fs.get_file("output.json").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(json["base"], true);
+        assert_eq!(json["added"], true);
+
+        // Exclude ran second: fragment.json is gone
+        assert!(!final_fs.exists("fragment.json"));
+    }
+
+    #[test]
+    fn test_phase5_sequential_include_merge_exclude() {
+        // Sequential model: include filters FS, merge runs against filtered FS,
+        // exclude cleans up merge source.
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::create_dir_all(working_dir.join("src")).unwrap();
+        std::fs::write(working_dir.join("src/config.json"), r#"{"base": true}"#).unwrap();
+        std::fs::write(working_dir.join("src/fragment.json"), r#"{"extra": true}"#).unwrap();
+        std::fs::write(working_dir.join("root.txt"), b"root file").unwrap();
+
+        let composite_fs = MemoryFS::new();
+
+        let local_config = vec![
+            // Step 1: Keep only src/**
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["src/**".to_string()],
+                },
+            },
+            // Step 2: Merge fragment into config (both survived the include)
+            Operation::Json {
+                json: JsonMergeOp {
+                    source: Some("src/fragment.json".to_string()),
+                    dest: Some("src/config.json".to_string()),
+                    ..Default::default()
+                },
+            },
+            // Step 3: Clean up the fragment file
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["src/fragment.json".to_string()],
+                },
+            },
+        ];
+
+        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
+
+        // root.txt gone (filtered by include)
+        assert!(!final_fs.exists("root.txt"));
+        // Merge happened: config.json has merged content
+        let file = final_fs.get_file("src/config.json").unwrap();
+        let content = String::from_utf8(file.content.clone()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(json["base"], true);
+        assert_eq!(json["extra"], true);
+        // Fragment cleaned up
+        assert!(!final_fs.exists("src/fragment.json"));
     }
 }
