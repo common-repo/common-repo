@@ -406,7 +406,8 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
     // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
     if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
         warn!(
-            "Auto-merge skipped, file not found on either side: {}",
+            "Auto-merge skipped, file not found on either side: {}. \
+             Was the file possibly renamed or excluded by a preceding operation?",
             source_path
         );
         return Ok(());
@@ -466,7 +467,7 @@ fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
         }),
         None => Err(Error::Merge {
             operation: format!("read {}", path),
-            message: "File not found in filesystem".to_string(),
+            message: "File not found in filesystem. Was it possibly renamed or excluded by a preceding operation?".to_string(),
         }),
     }
 }
