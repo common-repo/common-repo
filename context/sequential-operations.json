@@ -1,11 +1,17 @@
 {
   "plan_name": "Phase A: Sequential Consumer Operations (Phase 5 Single-Pass)",
-  "last_updated": "2026-04-12",
+  "last_updated": "2026-04-13",
   "description": "Replace two-pass consumer ops (all merges, then all filters) in Phase 5 with a single pass that applies operations in YAML declaration order. This is ONE PART of fixing the reported bug — Phase B (repo-in-sequence resolution) is also required for the full fix.",
   "status": "ready",
   "blocked_on": null,
   "context_doc": "context/sequential-operations-context.md",
   "reference_plan": "docs/superpowers/plans/2026-04-12-sequential-operations.md",
+  "spec_files": {
+    "main_spec": "spec/common-repo.allium (SequentialOperationExecution, BuildComposite, MergeLocalFiles, CompositePrecedence)",
+    "operators_spec": "spec/detailed/operators.allium (ApplyInclude, ApplyExclude, ApplyRename, ApplyTemplate, ApplyTemplateVars, ApplyRepoInline, ValidateTools)",
+    "auto_merge_spec": "spec/detailed/auto-merge-composition.allium (DeferredMergeAtDeclarationPosition)",
+    "merge_ops_spec": "spec/detailed/merge-operations.allium (MissingSourceExplicit, MissingSourceAutoMerge diagnostic hints)"
+  },
   "context": {
     "bug_source": "src/phases/local_merge.rs:49-75",
     "affected_functions": [
