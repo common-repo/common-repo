@@ -1,6 +1,6 @@
 {
   "plan_name": "Phase B: Repo-in-Sequence Resolution",
-  "last_updated": "2026-04-15",
+  "last_updated": "2026-04-14",
   "follow_up_items_added": "2026-04-14 — item 3 (fix-load-local-fs-dotfiles) inserted, priorities 3-15 bumped to 4-16",
   "description": "Architectural change: resolve repo: operations inline at their declaration position in the sequential pass, not eagerly in Phase 1. Sub-repos run their own pipeline in isolation; their sub-composite + deferred auto-merges integrate into the parent composite at the repo: op's position. This fully fixes the reported bug.",
   "status": "ready",
@@ -181,7 +181,7 @@
     {
       "id": "wire-sequential-pass",
       "name": "Wire up sequential operations pass in Phase 4",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": ["add-resolve-repo-inline", "make-composite-incremental"],
       "description": "Connect the pieces: the orchestrator's Phase 4 now walks the consumer's operations in declaration order. Filter ops modify the composite directly. Repo: ops call resolve_repo_inline and integrate_sub_composite. This is the main integration point.",
@@ -207,7 +207,7 @@
     {
       "id": "update-self-pipeline",
       "name": "Update self: pipeline to use sequential Phase 4",
-      "status": "pending",
+      "status": "complete",
       "priority": 8,
       "blocked_by": "wire-sequential-pass",
       "description": "The self: pipeline runs its own Phase 1-6. Update it to use the new sequential Phase 4. Self blocks pull local files via include operators, so the self pipeline's Phase 5 combine-with-local step may simplify.",

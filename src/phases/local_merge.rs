@@ -79,7 +79,7 @@ pub fn execute(
 /// Skips common build/artifact directories to avoid loading unnecessary data
 /// into memory. Dotfiles are loaded since common-repo manages them
 /// (e.g. `.editorconfig`, `.pre-commit-config.yaml`).
-fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
+pub(crate) fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
     let mut local_fs = MemoryFS::new();
 
     // VCS metadata, build artifacts, dependency caches, and IDE configs.

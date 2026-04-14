@@ -65,7 +65,6 @@ pub fn partition_self_operations(config: &Schema) -> (Vec<SelfOp>, Schema) {
 /// `merge_operations` includes both this repo's deferred merges and any
 /// propagated from nested `repo:` resolutions, and whose `template_vars`
 /// includes vars from nested repos (last-write-wins).
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn resolve_repo_inline(
     cloned: &ClonedRepo,
     cloned_repos: &HashMap<String, ClonedRepo>,
@@ -154,6 +153,109 @@ fn resolve_repo_inline_inner(
     ))
 }
 
+/// Execute a sequential pipeline where operations fire in declaration order.
+///
+/// Unlike [`execute_source_pipeline`] where Phases 2-4 process all repos in
+/// batch, this function walks the config's operations sequentially. When a
+/// `repo:` operation is encountered, it resolves inline at that position
+/// using [`resolve_repo_inline`] and [`phase4::integrate_sub_composite`].
+///
+/// This pipeline is used for `self:` blocks where the operation order
+/// matters: a preceding `include` or `rename` must transform the FS before
+/// a subsequent `repo:` integrates its sub-composite.
+fn execute_sequential_pipeline(
+    config: &Schema,
+    repo_manager: &RepositoryManager,
+    cache: &RepoCache,
+    working_dir: &Path,
+    output_path: Option<&Path>,
+) -> Result<MemoryFS> {
+    // Phase 1: Discover and clone repos eagerly
+    let repo_tree = phase1::execute(config, repo_manager, cache)?;
+
+    // Build cloned_repos map for on-demand resolution
+    let cloned_repos = phase2::clone_tree_repos(&repo_tree, repo_manager)?;
+
+    // Load local files from the working directory
+    let mut fs = phase5::load_local_fs(working_dir)?;
+
+    let mut all_template_vars = HashMap::new();
+    let mut residual_deferred_ops: Vec<Operation> = Vec::new();
+
+    // Sequential pass: walk operations in declaration order
+    for operation in config {
+        match operation {
+            Operation::Include { include } => {
+                let mut filtered_fs = MemoryFS::new();
+                crate::operators::include::apply(include, &fs, &mut filtered_fs)?;
+                fs = filtered_fs;
+            }
+            Operation::Exclude { exclude } => {
+                crate::operators::exclude::apply(exclude, &mut fs)?;
+            }
+            Operation::Rename { rename } => {
+                crate::operators::rename::apply(rename, &mut fs)?;
+            }
+            Operation::Repo { repo } => {
+                // Phase 1 enriches each repo node with upstream filtering +
+                // deferred ops, so the cloned_repos key differs from the raw
+                // (url, ref, with) on the Operation::Repo.  Look up by
+                // (url, ref) instead.
+                let cloned = cloned_repos
+                    .values()
+                    .find(|c| c.url == repo.url && c.ref_ == repo.r#ref);
+
+                if let Some(cloned) = cloned {
+                    let sub_composite = resolve_repo_inline(cloned, &cloned_repos, cache)?;
+
+                    all_template_vars.extend(sub_composite.template_vars.clone());
+
+                    let residual = phase4::integrate_sub_composite(&mut fs, &sub_composite)?;
+                    residual_deferred_ops.extend(residual);
+                } else {
+                    warn!(
+                        "Repo reference not found in cloned repos, skipping: {}@{}",
+                        repo.url, repo.r#ref
+                    );
+                }
+            }
+            Operation::Template { template } => {
+                crate::operators::template::mark(template, &mut fs)?;
+            }
+            Operation::TemplateVars { template_vars } => {
+                crate::operators::template_vars::collect(template_vars, &mut all_template_vars)?;
+            }
+            Operation::Yaml { .. }
+            | Operation::Json { .. }
+            | Operation::Toml { .. }
+            | Operation::Ini { .. }
+            | Operation::Markdown { .. }
+            | Operation::Xml { .. } => {
+                phase4::execute_merge_operation(&mut fs, operation)?;
+            }
+            Operation::Tools { tools } => {
+                crate::operators::tools::apply(tools)?;
+            }
+            Operation::Self_ { .. } => {}
+        }
+    }
+
+    // Execute residual deferred merges (dest wasn't in the FS during integration)
+    for op in &residual_deferred_ops {
+        phase4::execute_merge_operation(&mut fs, op)?;
+    }
+
+    // Process templates with all collected variables
+    crate::operators::template::process(&mut fs, &all_template_vars)?;
+
+    // Phase 6: Write to disk (if output path provided)
+    if let Some(output) = output_path {
+        phase6::execute(&fs, output)?;
+    }
+
+    Ok(fs)
+}
+
 /// Execute the source pipeline (Phases 1-6) for a given config.
 ///
 /// This is the core pipeline logic, extracted so it can be called
@@ -225,9 +327,10 @@ pub fn execute_pull(
         output_path,
     )?;
 
-    // Run self: pipelines (isolated, local-only)
+    // Run self: pipelines using sequential execution so repo: ops
+    // resolve inline at their declaration position.
     for self_op in &self_ops {
-        execute_source_pipeline(
+        execute_sequential_pipeline(
             &self_op.operations,
             repo_manager,
             cache,
