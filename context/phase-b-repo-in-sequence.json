@@ -1,6 +1,7 @@
 {
   "plan_name": "Phase B: Repo-in-Sequence Resolution",
   "last_updated": "2026-04-13",
+  "follow_up_items_added": "2026-04-13 — items 13-15 added from Phase A code review",
   "description": "Architectural change: resolve repo: operations inline at their declaration position in the sequential pass, not eagerly in Phase 1. Sub-repos run their own pipeline in isolation; their sub-composite + deferred auto-merges integrate into the parent composite at the repo: op's position. This fully fixes the reported bug.",
   "status": "ready",
   "context_doc": "context/sequential-operations-context.md",
@@ -301,6 +302,79 @@
         "All E2E tests pass including the bug scenario test",
         "Commit created with conventional format"
       ]
+    },
+    {
+      "id": "error-messages-sequential-context-hints",
+      "name": "Add sequential-execution context hints to error messages",
+      "status": "pending",
+      "priority": 13,
+      "blocked_by": "full-ci-and-commit",
+      "description": "The spec (spec/detailed/merge-operations.allium) calls for error messages to include hints like 'Was the source possibly renamed or excluded by a preceding operation?' when a merge source is missing. The current implementation produces bare missing-source errors without sequential-execution context. This touches all merge format modules.",
+      "steps": [
+        "Read spec/detailed/merge-operations.allium for the exact diagnostic hint guidance (MissingSourceExplicit, MissingSourceAutoMerge rules)",
+        "Read src/merge/json.rs, src/merge/yaml.rs, src/merge/toml.rs, src/merge/ini.rs, src/merge/markdown.rs, src/merge/xml.rs to find missing-source error paths",
+        "Determine how to thread sequential-execution context (e.g. list of preceding operations) to the error site",
+        "Add hint text to missing-source errors: suggest the source may have been renamed or excluded by a preceding operation",
+        "Write unit tests: trigger a missing-source error and assert the hint text is present",
+        "Run: cargo nextest run",
+        "Run: cargo xtask check-prose src/merge/"
+      ],
+      "output_file": "src/merge/",
+      "acceptance_criteria": [
+        "Missing-source errors in all 6 merge modules include a sequential-context hint",
+        "Hint text matches the spec guidance from merge-operations.allium",
+        "Unit tests verify hint text presence",
+        "No AI writing pattern violations in error messages",
+        "All tests pass"
+      ]
+    },
+    {
+      "id": "spec-phased-implementation-annotations",
+      "name": "Add phased implementation annotations to spec files",
+      "status": "pending",
+      "priority": 14,
+      "blocked_by": null,
+      "description": "The spec files describe behavior that goes beyond what is currently implemented (e.g., ApplyRepoInline lazy resolution is Phase B, include-from-source-FS is Phase B, rename chaining is Phase B). The spec needs annotations distinguishing 'implemented now' from 'planned future' so readers can tell what the code actually does vs. what is aspirational. This is a documentation/spec task with no code changes.",
+      "steps": [
+        "Read spec/common-repo.allium, spec/detailed/operators.allium, spec/detailed/auto-merge-composition.allium, spec/detailed/merge-operations.allium",
+        "For each rule, determine whether the behavior is implemented (Phase A), planned (Phase B), or future/unscheduled",
+        "Add annotations (e.g., comments or metadata fields) to each rule indicating implementation status: [Implemented: Phase A], [Planned: Phase B], [Future]",
+        "Use a consistent annotation format that does not break the Allium parser",
+        "Review annotations for accuracy against current code and Phase B plan",
+        "Commit: 'docs(spec): add phased implementation status annotations'"
+      ],
+      "output_file": "spec/",
+      "acceptance_criteria": [
+        "All spec rules have implementation-phase annotations",
+        "Annotations are consistent in format across all spec files",
+        "Annotations accurately reflect current implementation state",
+        "Allium spec files remain parseable (annotations do not break syntax)"
+      ]
+    },
+    {
+      "id": "rename-apply-chaining-fix",
+      "name": "Fix rename::apply to chain mappings per RenameEquivalence spec invariant",
+      "status": "pending",
+      "priority": 15,
+      "blocked_by": "wire-sequential-pass",
+      "description": "The spec (RenameEquivalence in spec/detailed/operators.allium) says mappings within a single rename op should chain: the first mapping's output feeds the second mapping's input. But src/operators.rs rename::apply captures current_files once at the start and does not chain — each mapping operates on the original file set independently. This was noted as Q3 in the Phase A plan and deferred as out-of-scope for Phase A.",
+      "steps": [
+        "Read spec/detailed/operators.allium for the RenameEquivalence rule and chaining semantics",
+        "Read src/operators.rs rename::apply to understand current non-chaining behavior",
+        "Write a failing test: define a rename op with two mappings where the second depends on the first's output (e.g., rename a→b then b→c; expect a→c, not a→b + b→c with b remaining)",
+        "Fix rename::apply to update the working file set after each mapping so subsequent mappings see the results of prior ones",
+        "Verify the test passes",
+        "Check for regressions in existing rename tests",
+        "Run: cargo nextest run"
+      ],
+      "output_file": "src/operators.rs",
+      "acceptance_criteria": [
+        "rename::apply chains mappings: each mapping sees the result of previous mappings",
+        "Failing test demonstrates chaining behavior and passes after fix",
+        "No regressions in existing rename tests",
+        "Behavior matches RenameEquivalence spec invariant",
+        "All tests pass"
+      ]
     }
   ],
   "notes": [
@@ -310,6 +384,10 @@
     "If any single task grows too large, use the plan-to-plan pattern from CLAUDE.md to break it into a sub-plan",
     "The spec describes the final state. Implementation may deviate slightly in internal structure as long as observable behavior matches",
     "Phase B changes include operator semantics (Q2 include-from-source-FS, Q3 rename chaining) that Phase A deferred. These may need to be implemented alongside the architectural change.",
-    "If design exploration reveals that Phase A's foundation needs changes, coordinate back through the plans rather than hacking Phase A retroactively"
+    "If design exploration reveals that Phase A's foundation needs changes, coordinate back through the plans rather than hacking Phase A retroactively",
+    "Items 13-15 added from Phase A code review follow-up (2026-04-13):",
+    "  Item 13 (error-messages-sequential-context-hints): blocked on full-ci-and-commit because it requires the sequential pass to be complete before hints make sense",
+    "  Item 14 (spec-phased-implementation-annotations): unblocked — pure documentation task, can be done anytime",
+    "  Item 15 (rename-apply-chaining-fix): blocked on wire-sequential-pass because the chaining fix interacts with how rename ops execute in the sequential pass (Q3 deferred work from Phase A)"
   ]
 }

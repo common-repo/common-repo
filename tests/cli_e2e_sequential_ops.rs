@@ -3,52 +3,12 @@
 //! These tests validate that consumer operations (merges and filters) execute
 //! in YAML declaration order, not grouped by type.
 
+mod common;
+
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
-
-/// Helper to initialize a local git repository for use as a test upstream.
-fn init_test_git_repo(
-    dir: &assert_fs::TempDir,
-    files: &[(&str, &str)],
-) -> Result<(), Box<dyn std::error::Error>> {
-    std::process::Command::new("git")
-        .args(["init", "-b", "main"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "commit.gpgsign", "false"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "core.hooksPath", "/dev/null"])
-        .current_dir(dir.path())
-        .output()?;
-    for (path, content) in files {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(dir.path().join(parent))?;
-            }
-        }
-        dir.child(path).write_str(content)?;
-    }
-    std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(dir.path())
-        .output()?;
-    Ok(())
-}
+use common::init_test_git_repo;
+use predicates::prelude::*;
 
 /// Sequential execution: merge runs first (succeeds), then exclude removes
 /// the merge source file. This validates that declaration order is respected
@@ -60,6 +20,7 @@ fn test_sequential_merge_then_exclude_via_cli() {
     init_test_git_repo(
         &upstream,
         &[("fragment.json", r#"{"from_upstream": true}"#)],
+        None,
     )
     .unwrap();
 
@@ -116,6 +77,7 @@ fn test_sequential_rename_then_merge_via_cli() {
             ("src/config.json", r#"{"upstream": true}"#),
             ("src/fragment.json", r#"{"extra": true}"#),
         ],
+        None,
     )
     .unwrap();
 
@@ -171,6 +133,7 @@ fn test_sequential_exclude_before_merge_fails_via_cli() {
     init_test_git_repo(
         &upstream,
         &[("fragment.json", r#"{"from_upstream": true}"#)],
+        None,
     )
     .unwrap();
 
@@ -204,5 +167,6 @@ fn test_sequential_exclude_before_merge_fails_via_cli() {
     cmd.arg("apply")
         .current_dir(consumer.path())
         .assert()
-        .failure();
+        .failure()
+        .stderr(predicate::str::contains("fragment.json"));
 }

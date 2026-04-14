@@ -7,7 +7,7 @@
 //! 2. Processing Individual Repos - Apply operations to each repo
 //! 3. Determining Operation Order - Calculate deterministic merge order
 //! 4. Composite Filesystem Construction - Merge all intermediate filesystems, collect deferred merge ops
-//! 5. Local File Merging - Combine with local files (composite wins), execute deferred merges, consumer merges then filters
+//! 5. Local File Merging - Combine with local files (composite wins), execute deferred merges, consumer operations in declaration order
 //! 6. Writing to Disk - Write final result to host filesystem
 //!
 //! Note: Caching happens automatically during Phase 1 via RepositoryManager, so there is no

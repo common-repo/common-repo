@@ -22,17 +22,20 @@
 use assert_fs::prelude::*;
 use std::env;
 use std::path::Path;
+use std::process::Command;
 
 /// Re-export commonly used test dependencies for convenience.
+#[allow(unused_imports)]
 pub mod prelude {
     pub use assert_cmd::cargo::cargo_bin_cmd;
     pub use assert_fs::prelude::*;
-    #[allow(unused_imports)]
     pub use assert_fs::TempDir;
     pub use predicates::prelude::*;
 
     #[allow(unused_imports)]
     pub use super::configs;
+    #[allow(unused_imports)]
+    pub use super::init_test_git_repo;
     #[allow(unused_imports)]
     pub use super::should_skip_network_tests;
     #[allow(unused_imports)]
@@ -92,6 +95,82 @@ pub fn should_skip_network_tests() -> bool {
     env::var("SKIP_NETWORK_TESTS").is_ok()
 }
 
+/// Initialize a local git repository for use as a test upstream.
+///
+/// Creates a git repo at the given path with the specified files,
+/// optionally tags the initial commit.
+///
+/// Safety measures included:
+/// - `commit.gpgsign false` to avoid GPG signing
+/// - `core.hooksPath /dev/null` to disable pre-commit hooks
+/// - `--no-verify` on commit to skip any remaining hooks
+/// - Asserts that the commit succeeds
+///
+/// # Arguments
+///
+/// * `dir` - Temporary directory in which to create the repo
+/// * `files` - Slice of `(path, content)` pairs to create and commit
+/// * `tag` - Optional tag name to create on the initial commit
+#[allow(dead_code)]
+pub fn init_test_git_repo(
+    dir: &assert_fs::TempDir,
+    files: &[(&str, &str)],
+    tag: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    Command::new("git")
+        .args(["init", "-b", "main"])
+        .current_dir(dir.path())
+        .output()?;
+    Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(dir.path())
+        .output()?;
+    Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(dir.path())
+        .output()?;
+    Command::new("git")
+        .args(["config", "commit.gpgsign", "false"])
+        .current_dir(dir.path())
+        .output()?;
+    Command::new("git")
+        .args(["config", "core.hooksPath", "/dev/null"])
+        .current_dir(dir.path())
+        .output()?;
+
+    for (path, content) in files {
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(dir.path().join(parent))?;
+            }
+        }
+        dir.child(path).write_str(content)?;
+    }
+
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()?;
+    let commit_output = Command::new("git")
+        .args(["commit", "--no-verify", "-m", "Initial commit"])
+        .current_dir(dir.path())
+        .output()?;
+    assert!(
+        commit_output.status.success(),
+        "git commit failed: {}",
+        String::from_utf8_lossy(&commit_output.stderr)
+    );
+
+    if let Some(tag_name) = tag {
+        Command::new("git")
+            .args(["tag", tag_name])
+            .current_dir(dir.path())
+            .output()?;
+    }
+
+    Ok(())
+}
+
 /// A test fixture that provides a temporary directory with optional config.
 ///
 /// This struct simplifies the common pattern of creating a temp directory
@@ -132,6 +211,7 @@ impl TestFixture {
     }
 
     /// Add the minimal valid configuration.
+    #[allow(dead_code)]
     pub fn with_minimal_config(self) -> Self {
         self.with_config(configs::MINIMAL)
     }

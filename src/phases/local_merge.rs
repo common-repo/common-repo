@@ -170,7 +170,9 @@ fn merge_composite_over_local(final_fs: &mut MemoryFS, composite_fs: &MemoryFS) 
 /// Apply operations to the local filesystem before merging
 ///
 /// Applies template operations (marking and variable collection) to local files,
-/// then processes templates with collected variables, and finally applies
+/// then processes templates with collected variables. Merge and filter operations
+/// are skipped here; they run later in `apply_consumer_operations` against the
+/// combined filesystem.
 fn apply_local_operations_to_local_fs(
     local_fs: &mut MemoryFS,
     local_config: &Schema,
@@ -193,10 +195,10 @@ fn apply_local_operations_to_local_fs(
     // Process templates in local files
     crate::operators::template::process(local_fs, &local_template_vars)?;
 
-    // Note: Merge operations (yaml, json, toml, ini, markdown) are NOT applied here.
-    // They are applied later in apply_local_operations() after local files are
-    // merged into the final filesystem. Applying them twice would cause duplicate
-    // merges (e.g., arrays would be appended twice).
+    // Note: Merge operations (yaml, json, toml, ini, markdown, xml) are NOT applied here.
+    // They run later in apply_consumer_operations() against the combined filesystem
+    // (local + composite). Applying them here AND there would cause duplicate merges
+    // (e.g., arrays would be appended twice).
 
     Ok(())
 }
@@ -216,6 +218,9 @@ fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> 
                 operators::exclude::apply(exclude, final_fs)?;
             }
             Operation::Include { include } => {
+                // include::apply copies matching files into a new FS rather than
+                // removing non-matching files, so we replace the entire FS with
+                // the filtered result.
                 let mut filtered_fs = MemoryFS::new();
                 operators::include::apply(include, final_fs, &mut filtered_fs)?;
                 *final_fs = filtered_fs;
@@ -223,27 +228,24 @@ fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> 
             Operation::Rename { rename } => {
                 operators::rename::apply(rename, final_fs)?;
             }
-            // Merge operations
-            Operation::Yaml { yaml } => {
-                crate::merge::yaml::apply_yaml_merge_operation(final_fs, yaml)?;
+            // Merge operations — delegate to the shared dispatcher
+            Operation::Yaml { .. }
+            | Operation::Json { .. }
+            | Operation::Toml { .. }
+            | Operation::Ini { .. }
+            | Operation::Markdown { .. }
+            | Operation::Xml { .. } => {
+                super::composite::execute_merge_operation(final_fs, operation)?;
             }
-            Operation::Json { json } => {
-                crate::merge::json::apply_json_merge_operation(final_fs, json)?;
-            }
-            Operation::Toml { toml } => {
-                crate::merge::toml::apply_toml_merge_operation(final_fs, toml)?;
-            }
-            Operation::Ini { ini } => {
-                crate::merge::ini::apply_ini_merge_operation(final_fs, ini)?;
-            }
-            Operation::Markdown { markdown } => {
-                crate::merge::markdown::apply_markdown_merge_operation(final_fs, markdown)?;
-            }
-            Operation::Xml { xml } => {
-                crate::merge::xml::apply_xml_merge_operation(final_fs, xml)?;
-            }
-            // Non-consumer operations are handled elsewhere
-            _ => {}
+            // Repo operations are resolved in Phase 1; template and
+            // template_vars are applied earlier in this phase via
+            // apply_local_operations_to_local_fs; tools and self run
+            // outside the consumer pipeline.
+            Operation::Repo { .. } => {}
+            Operation::Template { .. } => {}
+            Operation::TemplateVars { .. } => {}
+            Operation::Tools { .. } => {}
+            Operation::Self_ { .. } => {}
         }
     }
     Ok(())
@@ -726,45 +728,6 @@ mod tests {
         assert_eq!(json["retries"], 5);
         // Destination-only keys preserved
         assert_eq!(json["local_only"], true);
-    }
-
-    #[test]
-    fn test_phase5_sequential_merge_then_exclude() {
-        // Sequential model: merge runs first (succeeds), then exclude cleans up.
-        let temp_dir = TempDir::new().unwrap();
-        let working_dir = temp_dir.path();
-
-        std::fs::write(working_dir.join("output.json"), r#"{"base": true}"#).unwrap();
-        std::fs::write(working_dir.join("fragment.json"), r#"{"added": true}"#).unwrap();
-
-        let composite_fs = MemoryFS::new();
-
-        let local_config = vec![
-            Operation::Json {
-                json: JsonMergeOp {
-                    source: Some("fragment.json".to_string()),
-                    dest: Some("output.json".to_string()),
-                    ..Default::default()
-                },
-            },
-            Operation::Exclude {
-                exclude: ExcludeOp {
-                    patterns: vec!["fragment.json".to_string()],
-                },
-            },
-        ];
-
-        let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
-
-        // Merge ran first: output.json has merged content
-        let file = final_fs.get_file("output.json").unwrap();
-        let content = String::from_utf8(file.content.clone()).unwrap();
-        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
-        assert_eq!(json["base"], true);
-        assert_eq!(json["added"], true);
-
-        // Exclude ran second: fragment.json is gone
-        assert!(!final_fs.exists("fragment.json"));
     }
 
     #[test]

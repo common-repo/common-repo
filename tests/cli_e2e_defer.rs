@@ -4,57 +4,12 @@
 //! that allow upstream repositories to declare merge operations to be
 //! applied by consumers.
 
+mod common;
+
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
+use common::init_test_git_repo;
 use predicates::prelude::*;
-
-/// Helper to initialize a local git repository for use as a test upstream.
-fn init_test_git_repo(
-    dir: &assert_fs::TempDir,
-    files: &[(&str, &str)],
-) -> Result<(), Box<dyn std::error::Error>> {
-    std::process::Command::new("git")
-        .args(["init", "-b", "main"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "commit.gpgsign", "false"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "core.hooksPath", "/dev/null"])
-        .current_dir(dir.path())
-        .output()?;
-    for (path, content) in files {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(dir.path().join(parent))?;
-            }
-        }
-        dir.child(path).write_str(content)?;
-    }
-    std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(dir.path())
-        .output()?;
-    std::process::Command::new("git")
-        .args(["tag", "v1.0.0"])
-        .current_dir(dir.path())
-        .output()?;
-    Ok(())
-}
 
 // =============================================================================
 // Validation tests (no network required)
@@ -782,6 +737,7 @@ fn test_auto_merge_chained_repos_merge_fires() {
                 "- include: [\"**\"]\n- yaml:\n    auto-merge: .pre-commit-config.yaml\n",
             ),
         ],
+        Some("v1.0.0"),
     )
     .unwrap();
 
@@ -801,6 +757,7 @@ fn test_auto_merge_chained_repos_merge_fires() {
             ),
             (".common-repo.yaml", &upstream_b_config),
         ],
+        Some("v1.0.0"),
     )
     .unwrap();
 
@@ -870,6 +827,7 @@ fn test_auto_merge_chained_repos_combine_with_append() {
                 "- include: [\"**\"]\n- yaml:\n    auto-merge: .pre-commit-config.yaml\n",
             ),
         ],
+        Some("v1.0.0"),
     )
     .unwrap();
 
@@ -888,6 +846,7 @@ fn test_auto_merge_chained_repos_combine_with_append() {
             ),
             (".common-repo.yaml", &upstream_b_config),
         ],
+        Some("v1.0.0"),
     )
     .unwrap();
 

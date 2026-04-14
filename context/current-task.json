@@ -4,7 +4,7 @@
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
   "last_updated": "2026-04-14",
-  "description": "Phase A of sequential-operations: core implementation + E2E tests complete (tasks 1-10 done). Committing E2E tests (task 11). Remaining: E2E commit, full CI validation, final review. Phase 0 archived at context/completed/phase-0-spec-discovery.json. Phase B plan at context/phase-b-repo-in-sequence.json (blocked on Phase A).",
+  "description": "Phase A of sequential-operations is COMPLETE (all 13 tasks done). Phase B plan at context/phase-b-repo-in-sequence.json is ready to start (no longer blocked). Follow-up items 13-15 added to Phase B from Phase A code review: (13) error messages lack sequential-context hints, (14) spec needs phased implementation annotations, (15) rename::apply contradicts RenameEquivalence spec invariant. Phase 0 archived at context/completed/phase-0-spec-discovery.json.",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
