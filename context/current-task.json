@@ -1,8 +1,8 @@
 {
   "task": "sequential-operations",
-  "plan": "context/phase-0-spec-discovery.json",
+  "plan": "context/sequential-operations.json",
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
-  "last_updated": "2026-04-12",
-  "description": "Phase 0 of sequential-operations: use allium:elicit to discover and formalize sequential declaration-order execution semantics in the Allium spec. Phase A (Phase 5 single-pass) and Phase B (repo-in-sequence) are blocked until Phase 0 produces semantic decisions. Read context/sequential-operations-context.md first for full background."
+  "last_updated": "2026-04-13",
+  "description": "Phase A of sequential-operations: replace two-pass consumer ops in Phase 5 with a single sequential pass (YAML declaration order). Phase 0 (spec discovery) is archived at context/completed/phase-0-spec-discovery.json. Phase B (repo-in-sequence) follows Phase A."
 }
