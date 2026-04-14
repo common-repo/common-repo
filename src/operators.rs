@@ -115,15 +115,11 @@ pub(crate) mod rename {
     /// # Returns
     /// Result indicating success or failure
     pub(crate) fn apply(op: &RenameOp, target: &mut MemoryFS) -> Result<()> {
-        // Collect all current file paths
-        let current_files: Vec<_> = target.list_files();
-
-        // Apply each rename mapping
         for mapping in &op.mappings {
+            let current_files: Vec<_> = target.list_files();
             let from_pattern = &mapping.from;
             let to_pattern = &mapping.to;
 
-            // Collect files that need to be renamed
             let mut files_to_rename = Vec::new();
 
             for path in &current_files {
@@ -480,6 +476,40 @@ mod tests {
             assert!(!target.exists("test.js"));
             assert!(target.exists("main_rust.rs"));
             assert!(target.exists("test_js.js"));
+        }
+
+        #[test]
+        fn test_rename_chained_mappings() {
+            let mut target = MemoryFS::new();
+            target.add_file_string("src/foo.rs", "fn foo() {}").unwrap();
+
+            let op = RenameOp {
+                mappings: vec![
+                    RenameMapping {
+                        from: r"^src/(.*)$".to_string(),
+                        to: "lib/$1".to_string(),
+                    },
+                    RenameMapping {
+                        from: r"^lib/(.*)$".to_string(),
+                        to: "vendor/$1".to_string(),
+                    },
+                ],
+            };
+
+            rename::apply(&op, &mut target).unwrap();
+
+            assert!(
+                target.exists("vendor/foo.rs"),
+                "chained rename should produce vendor/foo.rs"
+            );
+            assert!(
+                !target.exists("src/foo.rs"),
+                "original src/foo.rs should be gone"
+            );
+            assert!(
+                !target.exists("lib/foo.rs"),
+                "intermediate lib/foo.rs should be consumed by second mapping"
+            );
         }
     }
 
@@ -1162,10 +1192,8 @@ mod tests {
 
         #[test]
         fn test_rename_multiple_renames_same_file() {
-            // Test multiple rename operations on the same file
-            // Note: The rename implementation collects all files ONCE at the start,
-            // so sequential renames in one operation won't chain (the second mapping
-            // won't see files created by the first mapping)
+            // Mappings chain per the RenameEquivalence spec invariant: each
+            // mapping sees the filesystem as updated by previous mappings.
             let mut target = MemoryFS::new();
             target.add_file_string("file.txt", "content").unwrap();
 
@@ -1184,11 +1212,9 @@ mod tests {
 
             rename::apply(&op, &mut target).unwrap();
 
-            // Only the first rename applies because current_files is collected once at the start
-            // The second mapping doesn't see renamed1.txt because it wasn't in the original list
             assert!(!target.exists("file.txt"));
-            assert!(target.exists("renamed1.txt"));
-            assert!(!target.exists("renamed2.txt"));
+            assert!(!target.exists("renamed1.txt"));
+            assert!(target.exists("renamed2.txt"));
         }
 
         #[test]
