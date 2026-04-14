@@ -15,10 +15,37 @@
 //!
 //! Each phase depends only on the previous phases and the foundation layers (0-2).
 
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 
 use crate::config::Operation;
 use crate::filesystem::MemoryFS;
+
+/// Compute a unique lookup key from a repo's URL, ref, and operations.
+///
+/// The key format is `url@ref` for repos without operations, or
+/// `url#ops-<hash>@ref` for repos with operations. This ensures that the
+/// same repository referenced with different operations (e.g., different
+/// `with:` template-vars) gets distinct keys in the intermediate filesystem
+/// map and operation order.
+///
+/// Used by [`RepoNode::node_key`] and [`ClonedRepo::node_key`] for lookup
+/// consistency, and by [`orchestrator::resolve_repo_inline`] when building
+/// keys for nested `repo:` references without allocating a temporary struct.
+pub(crate) fn compute_repo_key(url: &str, ref_: &str, operations: &[Operation]) -> String {
+    if operations.is_empty() {
+        return format!("{url}@{ref_}");
+    }
+
+    if let Ok(serialized) = serde_yaml::to_string(operations) {
+        let mut hasher = DefaultHasher::new();
+        serialized.hash(&mut hasher);
+        format!("{url}#ops-{:016x}@{ref_}", hasher.finish())
+    } else {
+        format!("{url}@{ref_}")
+    }
+}
 
 // Phase modules - internal implementations
 pub(crate) mod composite;
@@ -74,27 +101,9 @@ impl RepoNode {
 
     /// Generate a unique key for this node that includes the operations fingerprint.
     ///
-    /// The key format is `url@ref` for nodes without operations, or
-    /// `url#ops-<hash>@ref` for nodes with operations. This ensures that the
-    /// same repository referenced with different operations (e.g., different
-    /// `with:` template-vars) gets distinct keys in the intermediate filesystem
-    /// map and operation order.
+    /// Delegates to [`compute_repo_key`] for the actual key format.
     pub fn node_key(&self) -> String {
-        if self.operations.is_empty() {
-            return format!("{}@{}", self.url, self.ref_);
-        }
-
-        // Serialize operations and hash them for a compact fingerprint
-        if let Ok(serialized) = serde_yaml::to_string(&self.operations) {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::new();
-            serialized.hash(&mut hasher);
-            format!("{}#ops-{:016x}@{}", self.url, hasher.finish(), self.ref_)
-        } else {
-            // Fall back to simple key if serialization fails
-            format!("{}@{}", self.url, self.ref_)
-        }
+        compute_repo_key(&self.url, &self.ref_, &self.operations)
     }
 }
 
@@ -190,21 +199,11 @@ impl ClonedRepo {
         }
     }
 
-    /// Generate the same unique key as RepoNode::node_key() for lookup consistency.
+    /// Generate the same unique key as [`RepoNode::node_key`] for lookup consistency.
+    ///
+    /// Delegates to [`compute_repo_key`] for the actual key format.
     pub fn node_key(&self) -> String {
-        if self.operations.is_empty() {
-            return format!("{}@{}", self.url, self.ref_);
-        }
-
-        if let Ok(serialized) = serde_yaml::to_string(&self.operations) {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::new();
-            serialized.hash(&mut hasher);
-            format!("{}#ops-{:016x}@{}", self.url, hasher.finish(), self.ref_)
-        } else {
-            format!("{}@{}", self.url, self.ref_)
-        }
+        compute_repo_key(&self.url, &self.ref_, &self.operations)
     }
 }
 
