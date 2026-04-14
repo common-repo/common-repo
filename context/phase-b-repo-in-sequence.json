@@ -311,7 +311,7 @@
     {
       "id": "full-ci-and-commit",
       "name": "Full CI validation and commit",
-      "status": "pending",
+      "status": "complete",
       "priority": 13,
       "blocked_by": "update-documentation",
       "description": "Final CI validation and commit of the Phase B changes.",
@@ -332,7 +332,7 @@
     {
       "id": "error-messages-sequential-context-hints",
       "name": "Add sequential-execution context hints to error messages",
-      "status": "pending",
+      "status": "complete",
       "priority": 14,
       "blocked_by": "full-ci-and-commit",
       "description": "The spec (spec/detailed/merge-operations.allium) calls for error messages to include hints like 'Was the source possibly renamed or excluded by a preceding operation?' when a merge source is missing. The current implementation produces bare missing-source errors without sequential-execution context. This touches all merge format modules.",
