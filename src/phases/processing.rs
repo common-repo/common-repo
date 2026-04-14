@@ -261,7 +261,7 @@ fn process_single_repo(
 }
 
 /// Collect template variables from operations without processing them
-fn collect_template_vars(operations: &[Operation]) -> Result<HashMap<String, String>> {
+pub(crate) fn collect_template_vars(operations: &[Operation]) -> Result<HashMap<String, String>> {
     use crate::operators::template_vars;
     let mut vars = HashMap::new();
 
@@ -278,7 +278,7 @@ fn collect_template_vars(operations: &[Operation]) -> Result<HashMap<String, Str
 ///
 /// Only merge operations with `defer: true` or `auto-merge` set are collected
 /// during Phase 2 for later execution in Phase 4 during composition.
-fn collect_merge_operations(operations: &[Operation]) -> Vec<Operation> {
+pub(crate) fn collect_merge_operations(operations: &[Operation]) -> Vec<Operation> {
     operations
         .iter()
         .filter(|op| op.is_deferred())
@@ -327,7 +327,7 @@ fn remove_source_config_files(fs: &mut MemoryFS) {
 }
 
 /// Apply a single operation to a filesystem
-fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
+pub(crate) fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
     match operation {
         Operation::Include { include } => {
             // For include operations, create a new filtered filesystem

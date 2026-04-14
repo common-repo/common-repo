@@ -1,6 +1,6 @@
 {
   "plan_name": "Phase B: Repo-in-Sequence Resolution",
-  "last_updated": "2026-04-15",
+  "last_updated": "2026-04-14",
   "follow_up_items_added": "2026-04-14 — item 3 (fix-load-local-fs-dotfiles) inserted, priorities 3-15 bumped to 4-16",
   "description": "Architectural change: resolve repo: operations inline at their declaration position in the sequential pass, not eagerly in Phase 1. Sub-repos run their own pipeline in isolation; their sub-composite + deferred auto-merges integrate into the parent composite at the repo: op's position. This fully fixes the reported bug.",
   "status": "ready",
@@ -133,7 +133,7 @@
     {
       "id": "add-resolve-repo-inline",
       "name": "Add resolve_repo_inline to orchestrator",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "refactor-discovery-clone-from-resolve",
       "description": "Add a function that, given a ClonedRepo (or equivalent), runs the sub-repo's full processing pipeline (Phase 2-4) on demand and returns a sub-composite + deferred merge ops. This is the core of the lazy resolution mechanism.",

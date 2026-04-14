@@ -4,7 +4,7 @@
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
   "last_updated": "2026-04-15",
-  "description": "Phase B: Repo-in-Sequence Resolution. Next tasks: add-resolve-repo-inline (priority 5) and make-composite-incremental (priority 6) — both unblocked by refactor-discovery-clone-from-resolve. Also unblocked: spec-phased-implementation-annotations (priority 15).",
+  "description": "Phase B: Repo-in-Sequence Resolution. Next task: make-composite-incremental (priority 6) — unblocked. Also unblocked: spec-phased-implementation-annotations (priority 15).",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
