@@ -429,7 +429,7 @@ fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
         }),
         None => Err(Error::Merge {
             operation: format!("read {}", path),
-            message: "File not found in filesystem".to_string(),
+            message: "File not found in filesystem. Was it possibly renamed or excluded by a preceding operation?".to_string(),
         }),
     }
 }
@@ -522,6 +522,28 @@ mod tests {
         let op = XmlMergeOp::new().source("missing.xml").dest("dest.xml");
         let result = apply_xml_merge_operation(&mut fs, &op);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_xml_merge_missing_source_includes_sequential_hint() {
+        let mut fs = MemoryFS::new();
+        fs.add_file("dest.xml", File::from_string("<root/>"))
+            .unwrap();
+
+        let op = XmlMergeOp {
+            source: Some("missing.xml".to_string()),
+            dest: Some("dest.xml".to_string()),
+            ..Default::default()
+        };
+
+        let err_msg = apply_xml_merge_operation(&mut fs, &op)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err_msg.contains("renamed or excluded by a preceding operation"),
+            "missing-source error should include sequential-context hint, got: {}",
+            err_msg
+        );
     }
 
     // =====================================================================

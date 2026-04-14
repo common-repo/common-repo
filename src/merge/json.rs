@@ -342,7 +342,8 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
     // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
     if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
         warn!(
-            "Auto-merge skipped, file not found on either side: {}",
+            "Auto-merge skipped, file not found on either side: {}. \
+             Was the file possibly renamed or excluded by a preceding operation?",
             source_path
         );
         return Ok(());
@@ -384,7 +385,7 @@ fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
         }),
         None => Err(Error::Merge {
             operation: format!("read {}", path),
-            message: "File not found in filesystem".to_string(),
+            message: "File not found in filesystem. Was it possibly renamed or excluded by a preceding operation?".to_string(),
         }),
     }
 }
@@ -1040,6 +1041,27 @@ mod tests {
             assert!(result.is_err());
             let err_msg = format!("{}", result.unwrap_err());
             assert!(err_msg.contains("File not found"));
+        }
+
+        #[test]
+        fn test_json_merge_missing_source_includes_sequential_hint() {
+            let mut fs = MemoryFS::new();
+            fs.add_file("dest.json", File::from_string("{}")).unwrap();
+
+            let op = JsonMergeOp {
+                source: Some("missing.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                ..Default::default()
+            };
+
+            let err_msg = apply_json_merge_operation(&mut fs, &op)
+                .unwrap_err()
+                .to_string();
+            assert!(
+                err_msg.contains("renamed or excluded by a preceding operation"),
+                "missing-source error should include sequential-context hint, got: {}",
+                err_msg
+            );
         }
 
         #[test]
