@@ -229,7 +229,7 @@
     {
       "id": "review-core-implementation",
       "name": "Dispatch code-reviewer for core implementation review",
-      "status": "pending",
+      "status": "complete",
       "priority": 9,
       "blocked_by": "update-self-pipeline",
       "description": "Use superpowers:code-reviewer to review the architectural changes against the spec and coding standards.",
@@ -248,7 +248,7 @@
     {
       "id": "add-edge-case-tests",
       "name": "Add tests for edge cases and nested repo: scenarios",
-      "status": "pending",
+      "status": "complete",
       "priority": 10,
       "blocked_by": "review-core-implementation",
       "description": "Test nested repo: (repo within repo), multiple repo: ops in sequence, repo: between filters, and the include-from-source-FS behavior in self blocks.",
@@ -269,7 +269,7 @@
     {
       "id": "spec-code-alignment",
       "name": "Run allium:weed to verify spec-code alignment",
-      "status": "pending",
+      "status": "complete",
       "priority": 11,
       "blocked_by": "add-edge-case-tests",
       "description": "Use allium:weed to check that the implementation matches the spec rules from Phase 0.",
@@ -289,7 +289,7 @@
     {
       "id": "update-documentation",
       "name": "Update module docs and user documentation",
-      "status": "pending",
+      "status": "complete",
       "priority": 12,
       "blocked_by": "spec-code-alignment",
       "description": "Update doc comments on changed modules and any user-facing documentation in docs/src/.",
@@ -357,7 +357,7 @@
     {
       "id": "spec-phased-implementation-annotations",
       "name": "Add phased implementation annotations to spec files",
-      "status": "pending",
+      "status": "complete",
       "priority": 15,
       "blocked_by": null,
       "description": "The spec files describe behavior that goes beyond what is currently implemented (e.g., ApplyRepoInline lazy resolution is Phase B, include-from-source-FS is Phase B, rename chaining is Phase B). The spec needs annotations distinguishing 'implemented now' from 'planned future' so readers can tell what the code actually does vs. what is aspirational. This is a documentation/spec task with no code changes.",
@@ -380,7 +380,7 @@
     {
       "id": "rename-apply-chaining-fix",
       "name": "Fix rename::apply to chain mappings per RenameEquivalence spec invariant",
-      "status": "pending",
+      "status": "complete",
       "priority": 16,
       "blocked_by": "wire-sequential-pass",
       "description": "The spec (RenameEquivalence in spec/detailed/operators.allium) says mappings within a single rename op should chain: the first mapping's output feeds the second mapping's input. But src/operators.rs rename::apply captures current_files once at the start and does not chain — each mapping operates on the original file set independently. This was noted as Q3 in the Phase A plan and deferred as out-of-scope for Phase A.",
