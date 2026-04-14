@@ -1,29 +1,15 @@
 {
   "task": "sequential-operations",
-  "plan": "context/sequential-operations.json",
+  "plan": "context/phase-b-repo-in-sequence.json",
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
   "last_updated": "2026-04-14",
-  "description": "Phase A of sequential-operations is COMPLETE (all 13 tasks done). Phase B plan at context/phase-b-repo-in-sequence.json is ready to start (no longer blocked). Follow-up items 13-15 added to Phase B from Phase A code review: (13) error messages lack sequential-context hints, (14) spec needs phased implementation annotations, (15) rename::apply contradicts RenameEquivalence spec invariant. Phase 0 archived at context/completed/phase-0-spec-discovery.json.",
+  "description": "Phase B: Repo-in-Sequence Resolution. Architectural change to resolve repo: operations inline at their declaration position in the sequential pass. First unblocked tasks: read-spec-and-code (priority 1) and spec-phased-implementation-annotations (priority 14).",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
-    "spec_files_updated": [
-      "spec/common-repo.allium (SequentialOperationExecution rule, updated BuildComposite/MergeLocalFiles/CompositePrecedence)",
-      "spec/detailed/operators.allium (NEW — per-operator sequential semantics)",
-      "spec/detailed/auto-merge-composition.allium (DeferredMergeAtDeclarationPosition)",
-      "spec/detailed/merge-operations.allium (diagnostic hint guidance)"
-    ],
-    "key_spec_decisions": {
-      "Q1": "repo: sub-pipeline runs in isolation; sub-composite + deferred merges integrate at declaration position",
-      "Q2": "include reads from source FS independently; can re-add after exclude",
-      "Q3": "rename mappings chain within and across ops (behavior change for implementation)",
-      "Q4": "no new presence guarantee; declaration order controls presence",
-      "Q5": "explicit merge missing source = error; auto-merge = warn+skip (existing rules unchanged)",
-      "Q6": "Phase 4 becomes sequential pass; Phase 5 simplifies to combine-with-local",
-      "Q7": "sequential applies to self, source, and with: blocks; cross-repo DFS unchanged"
-    },
-    "phase_a_scope_notes": "Phase A only changes Phase 5 ordering (Q6 interleaving). Full spec model (Q1 repo-in-sequence, Q2 include-from-source-FS, Q3 rename chaining) requires Phase B.",
-    "reference_plan": "docs/superpowers/plans/2026-04-12-sequential-operations.md (gitignored, local only)"
+    "phase_a_complete": true,
+    "phase_a_archive": "context/completed/sequential-operations.json",
+    "phase_b_status": "starting"
   }
 }
