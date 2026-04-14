@@ -1,6 +1,6 @@
 {
   "plan_name": "Phase A: Sequential Consumer Operations (Phase 5 Single-Pass)",
-  "last_updated": "2026-04-14",
+  "last_updated": "2026-04-13",
   "description": "Replace two-pass consumer ops (all merges, then all filters) in Phase 5 with a single pass that applies operations in YAML declaration order. This is ONE PART of fixing the reported bug — Phase B (repo-in-sequence resolution) is also required for the full fix.",
   "status": "in_progress",
   "blocked_on": null,
@@ -204,7 +204,7 @@
     {
       "id": "commit-core-changes",
       "name": "Commit core implementation and tests",
-      "status": "in_progress",
+      "status": "complete",
       "priority": 8,
       "blocked_by": "update-module-documentation",
       "description": "Commit the Phase 5 refactor with tests and doc updates.",
@@ -224,7 +224,7 @@
     {
       "id": "write-e2e-tests",
       "name": "Write E2E tests for sequential consumer operations",
-      "status": "pending",
+      "status": "complete",
       "priority": 9,
       "blocked_by": "commit-core-changes",
       "description": "Add E2E tests exercising sequential ops through the CLI with real git repos as upstreams.",
@@ -248,7 +248,7 @@
     {
       "id": "review-e2e-coverage",
       "name": "Dispatch review agent to assess E2E test coverage",
-      "status": "pending",
+      "status": "complete",
       "priority": 10,
       "blocked_by": "write-e2e-tests",
       "description": "Use a code-reviewer agent to assess whether E2E tests adequately cover the sequential semantics.",
@@ -266,7 +266,7 @@
     {
       "id": "commit-e2e-tests",
       "name": "Commit E2E tests",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 11,
       "blocked_by": "review-e2e-coverage",
       "description": "Commit the E2E tests separately from the core change.",

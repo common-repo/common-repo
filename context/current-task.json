@@ -4,7 +4,7 @@
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
   "last_updated": "2026-04-14",
-  "description": "Phase A of sequential-operations: core implementation complete (tasks 1-7 done). Next pending task: commit-core-changes. Remaining: commit, E2E tests, E2E review, E2E commit, full CI validation, final review. Phase 0 archived at context/completed/phase-0-spec-discovery.json. Phase B plan at context/phase-b-repo-in-sequence.json (blocked on Phase A).",
+  "description": "Phase A of sequential-operations: core implementation + E2E tests complete (tasks 1-10 done). Committing E2E tests (task 11). Remaining: E2E commit, full CI validation, final review. Phase 0 archived at context/completed/phase-0-spec-discovery.json. Phase B plan at context/phase-b-repo-in-sequence.json (blocked on Phase A).",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",

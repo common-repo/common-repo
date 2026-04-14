@@ -531,7 +531,7 @@ fn test_source_rename_plus_exclude_interaction() {
 // =============================================================================
 
 /// Both source-level and consumer-level excludes should stack.
-/// Source excludes go.mod, consumer additionally excludes LICENSE.
+/// Source excludes go.mod, consumer also excludes LICENSE.
 /// Both files should be absent from ls/diff/apply output.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
