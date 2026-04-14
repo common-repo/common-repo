@@ -362,7 +362,7 @@ mod tests {
 
             if let Some(repo_url) = self.get_repo_key(cache_path) {
                 if let Some(config_content) = self.repo_configs.get(&repo_url) {
-                    fs.add_file_string(".common-repo.yaml", config_content)?;
+                    fs.add_file_string(DEFAULT_CONFIG_FILENAME, config_content)?;
                 }
             }
 

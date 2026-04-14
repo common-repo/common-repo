@@ -8,8 +8,8 @@
 //! ## Process
 //!
 //! 1.  **Load Local Files**: Load all files from the working directory into a
-//!     new `MemoryFS`. Hidden files, build artifacts, and config files are
-//!     skipped.
+//!     new `MemoryFS`. Specific build/tool directories and config files are
+//!     skipped. Dotfiles are loaded, since common-repo manages them.
 //!
 //! 2.  **Apply Local Template Operations**: Template marking and variable
 //!     substitution are applied to local files.
@@ -35,6 +35,8 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+
+use log::warn;
 
 use crate::config::{Operation, Schema};
 use crate::defaults::{ALT_CONFIG_FILENAME, DEFAULT_CONFIG_FILENAME};
@@ -74,12 +76,21 @@ pub fn execute(
 /// Load local files from the working directory into a MemoryFS
 ///
 /// Recursively walks the directory and loads all files, preserving relative paths.
-/// Skips common build/artifact directories and hidden files to avoid loading
-/// unnecessary data into memory.
+/// Skips common build/artifact directories to avoid loading unnecessary data
+/// into memory. Dotfiles are loaded since common-repo manages them
+/// (e.g. `.editorconfig`, `.pre-commit-config.yaml`).
 fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
     let mut local_fs = MemoryFS::new();
 
-    // Common directories to skip (build artifacts, dependencies, caches, etc.)
+    // VCS metadata, build artifacts, dependency caches, and IDE configs.
+    //
+    // This is a hardcoded list rather than a blanket "skip all dotfiles"
+    // approach because common-repo needs to load dotfiles it manages
+    // (.editorconfig, .pre-commit-config.yaml, etc.).
+    //
+    // The list goes beyond the spec's explicit examples (.git, .svn, .hg,
+    // node_modules, target, build, dist, __pycache__) to also cover IDE
+    // directories and language-specific caches.
     const SKIP_DIRS: &[&str] = &[
         "target",        // Rust build artifacts
         "node_modules",  // Node.js dependencies
@@ -95,12 +106,23 @@ fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
         "venv",          // Python virtual environment
         ".venv",         // Python virtual environment
         "env",           // Generic environment
-        ".env",          // Environment files
+        ".env",          // Environment dir (virtualenv) or file (dotenv) — both skipped
         ".idea",         // IntelliJ IDEA
         ".vscode",       // VS Code
         ".vs",           // Visual Studio
-        "bin",           // Binary output
-        "obj",           // Object files
+        ".cache",        // Generic cache directory
+        ".npm",          // npm cache
+        ".yarn",         // Yarn cache/releases
+        ".next",         // Next.js build cache
+        ".nuxt",         // Nuxt.js build output
+        ".turbo",        // Turborepo cache
+        ".nx",           // Nx build cache
+        ".angular",      // Angular cache
+        ".gradle",       // Gradle cache
+        ".parcel-cache", // Parcel bundler cache
+        ".svelte-kit",   // SvelteKit build
+        "bin",           // Binary output (broader than spec's explicit list)
+        "obj",           // Object files (broader than spec's explicit list)
     ];
 
     // Use walkdir to recursively find all files, filtering directories early
@@ -115,20 +137,32 @@ fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
             // Get the file/directory name
             let file_name = e.file_name().to_str().unwrap_or("");
 
-            // Skip if it's one of the common build directories
+            // Skip if it's one of the common build/tool directories
             if SKIP_DIRS.contains(&file_name) {
                 return false;
             }
 
-            // Skip hidden files/directories (starting with .)
-            if file_name.starts_with('.') {
+            // Skip platform-specific metadata files
+            if file_name == ".DS_Store"
+                || file_name == "Thumbs.db"
+                || file_name == "Desktop.ini"
+                || file_name == ".directory"
+                || file_name.starts_with("._")
+            {
                 return false;
             }
 
-            // Allow everything else
+            // Allow everything else (including dotfiles — common-repo
+            // manages dotfiles like .editorconfig, .pre-commit-config.yaml)
             true
         })
-        .filter_map(|e| e.ok())
+        .filter_map(|e| match e {
+            Ok(entry) => Some(entry),
+            Err(err) => {
+                warn!("Skipping inaccessible path during local FS load: {}", err);
+                None
+            }
+        })
         .filter(|e| e.file_type().is_file())
     {
         let file_path = entry.path();
@@ -453,14 +487,22 @@ mod tests {
     }
 
     #[test]
-    fn test_phase5_execute_skips_hidden_files() {
+    fn test_phase5_execute_skips_specific_dirs_and_config() {
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
+        // Dotfiles are loaded (common-repo manages these)
         std::fs::write(working_dir.join(".hidden"), b"hidden").unwrap();
+
+        // Config files are skipped
         std::fs::write(working_dir.join(".common-repo.yaml"), b"config").unwrap();
+
+        // SKIP_DIRS entries are skipped
         std::fs::create_dir_all(working_dir.join(".git")).unwrap();
         std::fs::write(working_dir.join(".git/config"), b"git config").unwrap();
+        std::fs::create_dir_all(working_dir.join("node_modules/pkg")).unwrap();
+        std::fs::write(working_dir.join("node_modules/pkg/index.js"), b"module").unwrap();
+
         std::fs::write(working_dir.join("visible.txt"), b"visible").unwrap();
 
         let composite_fs = MemoryFS::new();
@@ -469,9 +511,97 @@ mod tests {
         let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
 
         assert!(final_fs.exists("visible.txt"));
-        assert!(!final_fs.exists(".hidden"));
+        // Dotfiles are now loaded
+        assert!(final_fs.exists(".hidden"));
+        // Config files still skipped
         assert!(!final_fs.exists(".common-repo.yaml"));
+        // SKIP_DIRS still skipped
         assert!(!final_fs.exists(".git/config"));
+        assert!(!final_fs.exists("node_modules/pkg/index.js"));
+    }
+
+    #[test]
+    fn test_phase5_load_local_fs_includes_dotfiles() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Dotfiles that common-repo manages — these must be loaded
+        std::fs::write(working_dir.join(".pre-commit-config.yaml"), b"repos: []").unwrap();
+        std::fs::write(working_dir.join(".editorconfig"), b"root = true").unwrap();
+        std::fs::write(working_dir.join(".eslintrc.yaml"), b"rules: {}").unwrap();
+
+        // Specific dirs that should still be skipped
+        std::fs::create_dir_all(working_dir.join(".git")).unwrap();
+        std::fs::write(working_dir.join(".git/config"), b"git config").unwrap();
+
+        // Config files that should still be skipped
+        std::fs::write(working_dir.join(".common-repo.yaml"), b"config").unwrap();
+
+        // Regular file
+        std::fs::write(working_dir.join("README.md"), b"readme").unwrap();
+
+        let local_fs = load_local_fs(working_dir).unwrap();
+
+        // Dotfiles are loaded
+        assert!(local_fs.exists(".pre-commit-config.yaml"));
+        assert!(local_fs.exists(".editorconfig"));
+        assert!(local_fs.exists(".eslintrc.yaml"));
+
+        // Regular files are loaded
+        assert!(local_fs.exists("README.md"));
+
+        // SKIP_DIRS entries are still skipped
+        assert!(!local_fs.exists(".git/config"));
+
+        // Config files are still skipped
+        assert!(!local_fs.exists(".common-repo.yaml"));
+    }
+
+    #[test]
+    fn test_phase5_load_local_fs_includes_dotfiles_in_subdirectory() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::create_dir_all(working_dir.join("subdir")).unwrap();
+        std::fs::write(working_dir.join("subdir/.eslintrc.yaml"), b"rules: {}").unwrap();
+        std::fs::write(working_dir.join("subdir/visible.txt"), b"visible").unwrap();
+
+        let local_fs = load_local_fs(working_dir).unwrap();
+
+        assert!(local_fs.exists("subdir/.eslintrc.yaml"));
+        assert!(local_fs.exists("subdir/visible.txt"));
+    }
+
+    #[test]
+    fn test_phase5_load_local_fs_includes_dot_prefixed_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // A dot-prefixed directory NOT in SKIP_DIRS should have its contents loaded
+        std::fs::create_dir_all(working_dir.join(".config")).unwrap();
+        std::fs::write(working_dir.join(".config/settings.yaml"), b"key: value").unwrap();
+
+        let local_fs = load_local_fs(working_dir).unwrap();
+
+        assert!(local_fs.exists(".config/settings.yaml"));
+    }
+
+    #[test]
+    fn test_phase5_load_local_fs_skips_platform_metadata() {
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        std::fs::write(working_dir.join(".DS_Store"), b"metadata").unwrap();
+        std::fs::write(working_dir.join("Thumbs.db"), b"metadata").unwrap();
+        std::fs::write(working_dir.join("._resource"), b"metadata").unwrap();
+        std::fs::write(working_dir.join("real.txt"), b"content").unwrap();
+
+        let local_fs = load_local_fs(working_dir).unwrap();
+
+        assert!(!local_fs.exists(".DS_Store"));
+        assert!(!local_fs.exists("Thumbs.db"));
+        assert!(!local_fs.exists("._resource"));
+        assert!(local_fs.exists("real.txt"));
     }
 
     #[test]
