@@ -5,6 +5,13 @@
 //! intermediate filesystems produced by Phase 2, using the operation order
 //! calculated in Phase 3.
 //!
+//! The sequential `self:` pipeline merges one sub-composite at a time using
+//! [`integrate_sub_composite`] instead of calling [`execute`] over the full
+//! intermediate map. That path applies the same auto-merge rules as the batch
+//! merge: when the incoming sub-composite declares auto-merge for a path that
+//! already exists in the parent, content is merged in a format-aware way
+//! rather than overwriting blindly.
+//!
 //! ## Process
 //!
 //! 1.  **Variable Consolidation**: The template variables from all
@@ -342,39 +349,9 @@ pub(crate) fn integrate_sub_composite(
             continue;
         }
         // Deferred op: check if dest exists in parent composite
-        let dest_exists = match op {
-            Operation::Yaml { yaml } => yaml
-                .dest
-                .as_ref()
-                .or(yaml.auto_merge.as_ref())
-                .is_some_and(|d| parent_fs.exists(d)),
-            Operation::Json { json } => json
-                .dest
-                .as_ref()
-                .or(json.auto_merge.as_ref())
-                .is_some_and(|d| parent_fs.exists(d)),
-            Operation::Toml { toml } => toml
-                .dest
-                .as_ref()
-                .or(toml.auto_merge.as_ref())
-                .is_some_and(|d| parent_fs.exists(d)),
-            Operation::Ini { ini } => ini
-                .dest
-                .as_ref()
-                .or(ini.auto_merge.as_ref())
-                .is_some_and(|d| parent_fs.exists(d)),
-            Operation::Markdown { markdown } => markdown
-                .dest
-                .as_ref()
-                .or(markdown.auto_merge.as_ref())
-                .is_some_and(|d| parent_fs.exists(d)),
-            Operation::Xml { xml } => xml
-                .dest
-                .as_ref()
-                .or(xml.auto_merge.as_ref())
-                .is_some_and(|d| parent_fs.exists(d)),
-            _ => false,
-        };
+        let dest_exists = op
+            .merge_effective_dest()
+            .is_some_and(|d| parent_fs.exists(d));
 
         if dest_exists {
             execute_merge_operation(parent_fs, op)?;
