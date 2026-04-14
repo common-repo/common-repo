@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.2](https://github.com/common-repo/common-repo/compare/v0.34.1...v0.34.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* auto-merge with defer:true in sequential (self:) pipelines ([b172b2a](https://github.com/common-repo/common-repo/commit/b172b2a03943ef882e13b0e35fb2347155ad40ab))
+* update e2e tests to not hardcode upstream minor version ([f0a575b](https://github.com/common-repo/common-repo/commit/f0a575b52e136969376a007cb9e00c9e48dae7c9))
+
 ## [0.34.1](https://github.com/common-repo/common-repo/compare/v0.34.0...v0.34.1) (2026-04-14)
 
 
