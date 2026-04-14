@@ -487,6 +487,15 @@ rule CombineUpstreamOperations {
         -- This ordering means upstreams control what they expose (filtering),
         -- upstreams declare how their files merge (deferred merges), and
         -- consumers can further filter or transform the result (with: clause).
+        --
+        -- The with: clause only supports filtering and transformation operations:
+        --   include, exclude, rename, template, tools
+        -- The following operations are prohibited in with: clauses:
+        --   repo    — would create circular dependencies
+        --   self    — meaningless in upstream context
+        --   template_vars — must be collected globally across all repos
+        --   yaml, json, toml, ini, markdown, xml — merges execute during
+        --     composition (Phase 4), not during repo loading
 }
 
 rule DetectCycles {

@@ -64,8 +64,7 @@ rule AutoCreateDestination {
 -- --------------------------------------------------------------------------
 
 rule MissingSourceExplicit {
-    -- @status: Implemented (partial)
-    -- Sequential-context hints planned in Phase B Task 14
+    -- @status: Implemented
     when: ApplyMerge(op, filesystem)
     requires: op.source != null
     requires: op.auto_merge = null
@@ -83,8 +82,7 @@ rule MissingSourceExplicit {
 }
 
 rule MissingSourceAutoMerge {
-    -- @status: Implemented (partial)
-    -- Sequential-context hints planned in Phase B Task 14
+    -- @status: Implemented
     when: ApplyMerge(op, filesystem)
     requires: op.auto_merge != null
     requires: not filesystem.contains(op.effective_source)
