@@ -320,6 +320,7 @@ entity UpdateInfo {
 -- ==========================================================================
 
 rule ValidateMergeOperation {
+    -- @status: Implemented
     when: ValidateConfig(config)
     for op in config.operations:
         if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge, XmlMerge}:
@@ -328,6 +329,7 @@ rule ValidateMergeOperation {
 }
 
 rule SelfOperatorValidation {
+    -- @status: Implemented
     when: ValidateConfig(config)
     for op in config.operations:
         if op.kind = Self:
@@ -336,6 +338,7 @@ rule SelfOperatorValidation {
 }
 
 rule ValidateTemplateVarNames {
+    -- @status: Implemented
     when: ValidateConfig(config)
     for op in config.operations:
         if op.kind = TemplateVars:
@@ -359,6 +362,7 @@ rule ValidateTemplateVarNames {
 -- ==========================================================================
 
 rule MergeOperationProvenance {
+    -- @status: Implemented
     when: ValidateConfig(config)
 
     -- Merge operations are initiated by the upstream that provides the
@@ -386,6 +390,7 @@ rule MergeOperationProvenance {
 -- ==========================================================================
 
 rule SelfOperatorPartition {
+    -- @status: Implemented
     when: ExecutePull(config)
 
     -- Before the main pipeline runs, partition the config into two sets:
@@ -400,6 +405,7 @@ rule SelfOperatorPartition {
 }
 
 rule ExecuteSelfPipeline {
+    -- @status: Implemented
     when: SelfPipelineReady(self_ops)
     requires: self_ops.count > 0
 
@@ -420,6 +426,7 @@ rule ExecuteSelfPipeline {
 }
 
 rule SelfIgnoredWhenConsumed {
+    -- @status: Implemented
     when: ParseUpstreamConfig(node, upstream_config)
     requires: node.url != "local"
 
@@ -434,6 +441,7 @@ rule SelfIgnoredWhenConsumed {
 -- ==========================================================================
 
 rule DiscoverRepositories {
+    -- @status: Implemented
     when: SourcePipelineReady(source_ops)
 
     ensures: RepoTree.created(
@@ -446,6 +454,7 @@ rule DiscoverRepositories {
 }
 
 rule DiscoverInheritedConfigs {
+    -- @status: Implemented
     when: node: RepoNode.created
     requires: node.url != "local"
 
@@ -453,6 +462,7 @@ rule DiscoverInheritedConfigs {
 }
 
 rule StripConfigFiles {
+    -- @status: Implemented
     when: UpstreamConfigDiscovered(node)
     requires: node.url != "local"
 
@@ -462,6 +472,7 @@ rule StripConfigFiles {
 }
 
 rule CombineUpstreamOperations {
+    -- @status: Implemented
     when: UpstreamConfigDiscovered(node)
 
     -- When a consumer references an upstream repo, operations are combined
@@ -479,6 +490,7 @@ rule CombineUpstreamOperations {
 }
 
 rule DetectCycles {
+    -- @status: Implemented
     when: UpstreamConfigDiscovered(node)
 
     requires: not node in ancestor_path(node)
@@ -493,6 +505,7 @@ rule DetectCycles {
 -- ==========================================================================
 
 rule ProcessRepository {
+    -- @status: Implemented
     when: UpstreamConfigDiscovered(node)
     requires: node.url != "local"
 
@@ -505,24 +518,30 @@ rule ProcessRepository {
 }
 
 deferred ApplyInclude.apply
+    -- @status: Implemented
     -- see: detailed/operators.allium
 
 deferred ApplyExclude.apply
+    -- @status: Implemented
     -- see: detailed/operators.allium
 
 deferred ApplyRename.apply
+    -- @status: Implemented
     -- see: detailed/operators.allium
 
 deferred ApplyTemplate.mark
+    -- @status: Implemented
     -- Template content detection: within glob-matched files, checks for the
     -- __COMMON_REPO__ prefix to set is_template. Files containing only the
     -- legacy ${VAR} syntax are not marked as templates.
     -- see: detailed/operators.allium
 
 deferred ValidateTools.check
+    -- @status: Implemented
     -- see: detailed/operators.allium
 
 rule ResolveTemplateVariables {
+    -- @status: Implemented
     when: ProcessTemplates(filesystem, template_vars)
 
     -- Template variables use the sentinel pattern __COMMON_REPO__VARNAME__
@@ -542,6 +561,7 @@ rule ResolveTemplateVariables {
 }
 
 rule LegacySyntaxMigrationWarning {
+    -- @status: Implemented
     when: ProcessTemplates(filesystem, template_vars)
 
     -- When a template-marked file contains ${IDENTIFIER} patterns
@@ -566,6 +586,7 @@ rule LegacySyntaxMigrationWarning {
 -- ==========================================================================
 
 rule DetermineOperationOrder {
+    -- @status: Implemented
     when: AllRepositoriesProcessed(tree)
 
     -- Depth-first post-order: children before parents
@@ -585,6 +606,7 @@ rule DetermineOperationOrder {
 -- ==========================================================================
 
 rule SequentialOperationExecution {
+    -- @status: Implemented
     when: ExecuteOperations(block_operations, composite)
 
     -- Operations within a self:, source, or with: block execute in
@@ -620,6 +642,7 @@ rule SequentialOperationExecution {
 }
 
 rule BuildComposite {
+    -- @status: Implemented
     when: CompositeReady(order, intermediate_fss)
 
     -- Composite construction is now a sequential pass over the
@@ -662,6 +685,7 @@ rule BuildComposite {
 -- ==========================================================================
 
 rule MergeLocalFiles {
+    -- @status: Implemented
     when: CompositeBuilt(composite_fs, local_config)
 
     -- With sequential operation execution, the composite already
@@ -703,6 +727,7 @@ rule MergeLocalFiles {
 }
 
 rule ApplyDeferredMerges {
+    -- @status: Implemented
     when: FilesystemsCombined(combined_fs, deferred_merge_ops)
 
     -- With sequential operation execution, deferred auto-merge
@@ -741,6 +766,7 @@ rule ApplyDeferredMerges {
 -- ==========================================================================
 
 rule WriteToDisk {
+    -- @status: Implemented
     when: FinalFSReady(final_fs, config)
 
     -- Iterate all files in the final filesystem.
@@ -753,6 +779,7 @@ rule WriteToDisk {
 -- ==========================================================================
 
 rule CheckUpdates {
+    -- @status: Implemented
     when: CheckForUpdates(config, filters)
 
     -- Check repos in both source and self: blocks
@@ -768,6 +795,7 @@ rule CheckUpdates {
 }
 
 rule CheckSelfUpdates {
+    -- @status: Implemented
     when: CheckForUpdates(config, filters)
 
     -- Also check repos referenced inside self: blocks
@@ -788,21 +816,27 @@ rule CheckSelfUpdates {
 -- ==========================================================================
 
 deferred YamlMergeSemantics.merge
+    -- @status: Implemented
     -- see: detailed/merge-operations.allium
 
 deferred JsonMergeSemantics.merge
+    -- @status: Implemented
     -- see: detailed/merge-operations.allium
 
 deferred TomlMergeSemantics.merge
+    -- @status: Implemented
     -- see: detailed/merge-operations.allium
 
 deferred IniMergeSemantics.merge
+    -- @status: Implemented
     -- see: detailed/merge-operations.allium
 
 deferred MarkdownMergeSemantics.merge
+    -- @status: Implemented
     -- see: detailed/merge-operations.allium
 
 deferred XmlMergeSemantics.merge
+    -- @status: Implemented
     -- see: detailed/merge-operations.allium
 
 -- ==========================================================================
@@ -810,12 +844,14 @@ deferred XmlMergeSemantics.merge
 -- ==========================================================================
 
 invariant NoCyclesInRepoTree {
+    -- @status: Implemented
     for tree in RepoTrees:
         for node in tree.all_repos:
             not node in ancestor_path(node)
 }
 
 invariant SelfIsolation {
+    -- @status: Implemented
     -- Self pipelines never share in-memory filesystem state with the
     -- source pipeline. Each self: block executes an independent pipeline
     -- invocation with its own MemoryFS.
@@ -827,6 +863,7 @@ invariant SelfIsolation {
 }
 
 invariant CompositePrecedence {
+    -- @status: Implemented
     -- When composite (upstream-derived) files and local files share a
     -- path, the composite content wins. This ensures upstream updates
     -- propagate on subsequent runs.
@@ -854,22 +891,26 @@ invariant CompositePrecedence {
 }
 
 invariant ConfigFileExclusion {
+    -- @status: Implemented
     -- .common-repo.yaml and .commonrepo.yaml are never included in
     -- upstream filesystem output or local filesystem loading.
 }
 
 invariant DeterministicOrder {
+    -- @status: Implemented
     -- The same configuration always produces the same operation order
     -- and the same final filesystem output.
 }
 
 invariant NoEnvironmentVariableFallback {
+    -- @status: Implemented
     -- Template variable resolution never reads from the process
     -- environment. All variables must be explicitly declared in
     -- template-vars operators. Undefined variables produce an error.
 }
 
 invariant TemplateSyntaxIsolation {
+    -- @status: Implemented
     -- The template sentinel pattern __COMMON_REPO__VARNAME__ does not
     -- conflict with shell variable expansion (${VAR}), Docker Compose
     -- interpolation, GitHub Actions expressions (${{ }}), or any other
@@ -878,6 +919,7 @@ invariant TemplateSyntaxIsolation {
 }
 
 invariant ValidTemplateVarNames {
+    -- @status: Implemented
     for op in Operations:
         if op.kind = TemplateVars:
             for name in op.vars.keys:
@@ -889,6 +931,7 @@ invariant ValidTemplateVarNames {
 -- ==========================================================================
 
 open question "Should merge operations support conditional application (e.g., only merge if dest file exists)?"
+-- @status: Open
 
 -- Resolved: When multiple upstreams declare auto-merge for the same file,
 -- merges accumulate in operation order during Phase 4 composition.
@@ -896,11 +939,16 @@ open question "Should merge operations support conditional application (e.g., on
 -- See detailed/auto-merge-composition.allium.
 
 open question "Divergence detection: when composite wins for a whole file, should common-repo detect and warn about files where the local version has significantly diverged from upstream? Candidate approaches: (1) git blob SHA history check — did the local file ever share content with the upstream version, (2) line-level similarity threshold, (3) sentinel comment string."
+-- @status: Open
 
 open question "Should a future gitMerge operator support 3-way merge of whole files — replaying local changes on top of updated upstream content — as an alternative to wholesale overwrite?"
+-- @status: Open
 
 open question "The defer: flag on merge operations predates auto-merge. Its original intent was to control whether a merged file should overwrite local content or merge into it. With sequential operation execution, timing is governed by declaration order. Should defer: be renamed (e.g., overwrite:) to better express its intent? Should the flag exist at all once sequential is in place, or does auto-merge subsume it?"
+-- @status: Open
 
 open question "Under sequential operation execution, deferred auto-merge operations from sub-repos fire at the parent's repo: declaration position. Should the upstream's defer: true flag override this timing and push the merge to a later point (e.g., after Phase 5 local-file combination)? Current model: defer does not override declaration-position timing."
+-- @status: Open
 
 open question "Cleanup of original local files after include + rename in a self: block. When include pulls src/foo into the composite and rename moves it to foo, the original src/foo remains on disk (untouched by the pipeline). Should the pipeline track and clean up source paths that were renamed away, or is this the author's responsibility?"
+-- @status: Open

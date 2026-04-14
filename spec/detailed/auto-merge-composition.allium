@@ -32,6 +32,7 @@ value AutoMergeTarget {
 -- ==========================================================================
 
 rule AutoMergeInComposite {
+    -- @status: Implemented
     when: CompositeFileConflict(composite_fs, incoming_file, repo_key)
     requires: has_auto_merge_for(repo_key, incoming_file.path)
 
@@ -58,6 +59,7 @@ rule AutoMergeInComposite {
 }
 
 rule NoAutoMergeFallsThrough {
+    -- @status: Implemented
     when: CompositeFileConflict(composite_fs, incoming_file, repo_key)
     requires: not has_auto_merge_for(repo_key, incoming_file.path)
 
@@ -67,6 +69,7 @@ rule NoAutoMergeFallsThrough {
 }
 
 rule AutoMergeChainsAccumulate {
+    -- @status: Implemented
     when: CompositeReady(order, intermediate_fss)
 
     -- When three or more repos in the chain all declare auto-merge for
@@ -88,6 +91,7 @@ rule AutoMergeChainsAccumulate {
 }
 
 rule DeferredMergeAtDeclarationPosition {
+    -- @status: Implemented
     when: ApplyRepoInline(op, parent_composite, sub_composite)
 
     -- With sequential operation execution, auto-merge operations from
@@ -135,6 +139,7 @@ rule DeferredMergeAtDeclarationPosition {
 -- ==========================================================================
 
 invariant AutoMergePreservesAllContributions {
+    -- @status: Implemented
     -- When N upstream repos in a chain all declare auto-merge for the
     -- same file and all provide content for that file, the composite
     -- contains merged content from all N repos.
@@ -143,12 +148,14 @@ invariant AutoMergePreservesAllContributions {
 }
 
 invariant AutoMergeOrderDeterministic {
+    -- @status: Implemented
     -- Auto-merge composition follows the same operation order as
     -- regular composition (depth-first post-order). The merge result
     -- is deterministic for a given configuration.
 }
 
 invariant NonAutoMergeUnchanged {
+    -- @status: Implemented
     -- Files without auto-merge declarations continue to use
     -- last-write-wins. This change does not affect files that
     -- are not targets of auto-merge operations.

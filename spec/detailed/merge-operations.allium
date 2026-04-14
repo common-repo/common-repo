@@ -40,6 +40,7 @@ value PathSegment {
 -- --------------------------------------------------------------------------
 
 rule AutoCreateDestination {
+    -- @status: Implemented
     when: ApplyMerge(op, filesystem)
     requires: not filesystem.contains(op.effective_dest)
 
@@ -63,6 +64,8 @@ rule AutoCreateDestination {
 -- --------------------------------------------------------------------------
 
 rule MissingSourceExplicit {
+    -- @status: Implemented (partial)
+    -- Sequential-context hints planned in Phase B Task 14
     when: ApplyMerge(op, filesystem)
     requires: op.source != null
     requires: op.auto_merge = null
@@ -80,6 +83,8 @@ rule MissingSourceExplicit {
 }
 
 rule MissingSourceAutoMerge {
+    -- @status: Implemented (partial)
+    -- Sequential-context hints planned in Phase B Task 14
     when: ApplyMerge(op, filesystem)
     requires: op.auto_merge != null
     requires: not filesystem.contains(op.effective_source)
@@ -105,6 +110,7 @@ rule MissingSourceAutoMerge {
 -- --------------------------------------------------------------------------
 
 rule NavigatePath {
+    -- @status: Implemented
     when: ApplyStructuredMerge(op, dest_value, path)
     requires: path.segments.count > 0
 
@@ -115,6 +121,7 @@ rule NavigatePath {
 }
 
 rule PathThroughScalar {
+    -- @status: Implemented
     when: NavigatePath(dest_value, path, current_segment)
     requires: current_segment.kind = key
     requires: is_scalar(current_value)
@@ -130,6 +137,7 @@ rule PathThroughScalar {
 -- --------------------------------------------------------------------------
 
 rule ArrayReplace {
+    -- @status: Implemented
     when: MergeArrays(source, dest, mode, position)
     requires: mode = replace
 
@@ -138,6 +146,7 @@ rule ArrayReplace {
 }
 
 rule ArrayAppend {
+    -- @status: Implemented
     when: MergeArrays(source, dest, mode, position)
     requires: mode = append
 
@@ -149,6 +158,7 @@ rule ArrayAppend {
 }
 
 rule ArrayAppendUnique {
+    -- @status: Implemented
     when: MergeArrays(source, dest, mode, position)
     requires: mode = append_unique
 
@@ -166,6 +176,7 @@ rule ArrayAppendUnique {
 -- --------------------------------------------------------------------------
 
 rule TypeMismatchReplace {
+    -- @status: Implemented
     when: MergeValues(source, dest)
     requires: type_of(source) != type_of(dest)
 
@@ -182,6 +193,7 @@ rule TypeMismatchReplace {
 -- --------------------------------------------------------------------------
 
 rule ScalarOverwrite {
+    -- @status: Implemented
     when: MergeValues(source, dest)
     requires: is_scalar(source)
     requires: is_scalar(dest)
@@ -195,6 +207,7 @@ rule ScalarOverwrite {
 -- ==========================================================================
 
 rule YamlDeepMerge {
+    -- @status: Implemented
     when: ApplyYamlMerge(op, filesystem)
 
     -- Mappings merge recursively: source keys override destination keys,
@@ -209,6 +222,7 @@ rule YamlDeepMerge {
 -- ==========================================================================
 
 rule JsonDeepMerge {
+    -- @status: Implemented
     when: ApplyJsonMerge(op, filesystem)
 
     -- Objects merge recursively: source keys override destination keys,
@@ -228,6 +242,7 @@ rule JsonDeepMerge {
 -- ==========================================================================
 
 rule TomlDeepMerge {
+    -- @status: Implemented
     when: ApplyTomlMerge(op, filesystem)
 
     -- Tables merge recursively: source keys override destination keys,
@@ -238,6 +253,7 @@ rule TomlDeepMerge {
 }
 
 rule TomlCommentPreservation {
+    -- @status: Implemented
     when: ApplyTomlMerge(op, filesystem)
     requires: op.preserve_comments = true
 
@@ -255,6 +271,7 @@ rule TomlCommentPreservation {
 -- ==========================================================================
 
 rule IniSectionMerge {
+    -- @status: Implemented
     when: ApplyIniMerge(op, filesystem)
 
     ensures:
@@ -267,6 +284,7 @@ rule IniSectionMerge {
 }
 
 rule IniKeyMatching {
+    -- @status: Implemented
     when: IniCheckDuplicate(key, existing_keys)
 
     -- Key matching is case-insensitive. INI files originate from
@@ -276,6 +294,7 @@ rule IniKeyMatching {
 }
 
 rule IniAppendMode {
+    -- @status: Implemented
     when: IniMergeEntries(source_entries, dest_entries, op)
     requires: op.append = true
 
@@ -290,6 +309,7 @@ rule IniAppendMode {
 }
 
 rule IniReplaceMode {
+    -- @status: Implemented
     when: IniMergeEntries(source_entries, dest_entries, op)
     requires: op.append = false
 
@@ -308,6 +328,7 @@ rule IniReplaceMode {
 -- ==========================================================================
 
 rule MarkdownFindSection {
+    -- @status: Implemented
     when: ApplyMarkdownMerge(op, filesystem)
 
     -- Find section by first exact, case-sensitive heading match.
@@ -324,6 +345,7 @@ rule MarkdownFindSection {
 }
 
 rule MarkdownSectionNotFoundError {
+    -- @status: Implemented
     when: SectionNotFound(op, filesystem)
     requires: op.create_section = false
 
@@ -331,6 +353,7 @@ rule MarkdownSectionNotFoundError {
 }
 
 rule MarkdownCreateSection {
+    -- @status: Implemented
     when: SectionNotFound(op, filesystem)
     requires: op.create_section = true
 
@@ -345,6 +368,7 @@ rule MarkdownCreateSection {
 }
 
 rule MarkdownReplaceContent {
+    -- @status: Implemented
     when: SectionFound(op, filesystem)
     requires: op.append = false
 
@@ -354,6 +378,7 @@ rule MarkdownReplaceContent {
 }
 
 rule MarkdownAppendContent {
+    -- @status: Implemented
     when: SectionFound(op, filesystem)
     requires: op.append = true
 
@@ -367,6 +392,7 @@ rule MarkdownAppendContent {
 -- ==========================================================================
 
 rule XmlDeepMerge {
+    -- @status: Implemented
     when: ApplyXmlMerge(op, filesystem)
 
     -- Elements merge recursively: source child elements are merged into
@@ -387,6 +413,7 @@ rule XmlDeepMerge {
 }
 
 rule XmlRepeatedElements {
+    -- @status: Implemented
     when: XmlMergeChildren(source_children, dest_children, name, namespace, mode, position)
 
     -- Repeated sibling elements with the same local name and namespace
@@ -414,6 +441,7 @@ rule XmlRepeatedElements {
 }
 
 rule XmlNamespaceHandling {
+    -- @status: Implemented
     when: ApplyXmlMerge(op, filesystem)
 
     -- Elements are matched by local name AND namespace URI, never by
@@ -454,17 +482,20 @@ rule XmlNamespaceHandling {
 -- ==========================================================================
 
 invariant SourceAlwaysWins {
+    -- @status: Implemented
     -- When source and destination conflict at the same path, the source
     -- value is always used. No merge mode silently discards source data.
 }
 
 invariant MergeNeverCorrupts {
+    -- @status: Implemented
     -- A merge operation never produces output that is invalid for the
     -- target format. YAML output is valid YAML, JSON is valid JSON,
     -- TOML is valid TOML, XML is well-formed XML, etc.
 }
 
 invariant TrailingNewline {
+    -- @status: Implemented
     -- All merge output ends with a trailing newline.
 }
 
@@ -473,5 +504,7 @@ invariant TrailingNewline {
 -- ==========================================================================
 
 open question "Should INI merge support a case-sensitive key matching option for Linux-native INI files?"
+-- @status: Open
 
 open question "Should Markdown merge support regex or fuzzy heading matching as an opt-in?"
+-- @status: Open
