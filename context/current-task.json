@@ -4,7 +4,7 @@
   "context_doc": "context/sequential-operations-context.md",
   "prompt": "context/prompt.md",
   "last_updated": "2026-04-14",
-  "description": "Phase B: Repo-in-Sequence Resolution. Next task: fix-load-local-fs-dotfiles (priority 3) — load_local_fs blanket-skips dotfiles, breaking self: blocks that manage dotfiles. Failing E2E tests in tests/cli_e2e_dotfiles.rs. Also unblocked: spec-phased-implementation-annotations (priority 15).",
+  "description": "Phase B: Repo-in-Sequence Resolution. Next task: refactor-discovery-clone-from-resolve (priority 4) — separate cloning from resolution in Phase 1. Also unblocked: spec-phased-implementation-annotations (priority 15).",
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
