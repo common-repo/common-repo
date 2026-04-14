@@ -10,63 +10,12 @@
 //! or consumer-side), even though `apply` and `diff` correctly filter them.
 //! These tests ensure consistent behavior across ls, diff, and apply.
 
+mod common;
+
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
+use common::init_test_git_repo;
 use predicates::prelude::*;
-use std::process::Command;
-
-/// Helper to initialize a git repository with files and commit them.
-///
-/// Creates a git repo at the given path with the specified files.
-/// The repository uses "main" as the default branch name.
-fn init_git_repo(
-    dir: &assert_fs::TempDir,
-    files: &[(&str, &str)],
-) -> Result<(), Box<dyn std::error::Error>> {
-    Command::new("git")
-        .args(["init", "-b", "main"])
-        .current_dir(dir.path())
-        .output()?;
-
-    Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(dir.path())
-        .output()?;
-    Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(dir.path())
-        .output()?;
-    Command::new("git")
-        .args(["config", "commit.gpgsign", "false"])
-        .current_dir(dir.path())
-        .output()?;
-    // Disable global hooks (e.g. pre-commit) that may interfere with test repos
-    Command::new("git")
-        .args(["config", "core.hooksPath", "/dev/null"])
-        .current_dir(dir.path())
-        .output()?;
-
-    for (path, content) in files {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(dir.path().join(parent))?;
-            }
-        }
-        let file = dir.child(path);
-        file.write_str(content)?;
-    }
-
-    Command::new("git")
-        .args(["add", "."])
-        .current_dir(dir.path())
-        .output()?;
-    Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(dir.path())
-        .output()?;
-
-    Ok(())
-}
 
 // =============================================================================
 // Test 1: `ls` should respect source-declared excludes (regression test for #226)
@@ -82,7 +31,7 @@ fn init_git_repo(
 fn test_ls_respects_source_declared_excludes() {
     // Source repo excludes internal/** and go.mod
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -98,6 +47,7 @@ fn test_ls_respects_source_declared_excludes() {
             ("internal/secret.go", "package internal\n"),
             ("internal/helper.go", "package internal\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -139,7 +89,7 @@ fn test_ls_respects_source_declared_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_source_declared_includes() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -156,6 +106,7 @@ fn test_ls_respects_source_declared_includes() {
             ("src/main.rs", "fn main() {}\n"),
             ("LICENSE", "MIT\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -198,7 +149,7 @@ fn test_ls_respects_source_declared_includes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_consumer_with_excludes() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             ("README.md", "# Readme\n"),
@@ -207,6 +158,7 @@ fn test_ls_respects_consumer_with_excludes() {
             ("Makefile", "all:\n\techo hello\n"),
             ("src/app.go", "package main\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -255,7 +207,7 @@ fn test_ls_respects_consumer_with_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_consumer_toplevel_excludes() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             ("README.md", "# Readme\n"),
@@ -263,6 +215,7 @@ fn test_ls_respects_consumer_toplevel_excludes() {
             ("tests/app_test.go", "package main\n"),
             ("tests/integration_test.go", "package main\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -304,7 +257,7 @@ fn test_ls_respects_consumer_toplevel_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_diff_respects_source_declared_excludes() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -316,6 +269,7 @@ fn test_diff_respects_source_declared_excludes() {
             ("README.md", "# Source readme\n"),
             ("go.mod", "module example.com/source\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -373,7 +327,7 @@ fn test_diff_respects_source_declared_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_apply_respects_source_declared_excludes() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -385,6 +339,7 @@ fn test_apply_respects_source_declared_excludes() {
             ("README.md", "# Source README - should not be copied\n"),
             ("config.yaml", "key: source_value\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -442,7 +397,7 @@ fn test_apply_respects_source_declared_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_source_rename_plus_exclude_interaction() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -460,6 +415,7 @@ fn test_source_rename_plus_exclude_interaction() {
             ("internal/test_helper.go", "package internal\n"),
             ("README.md", "# Public readme\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -537,7 +493,7 @@ fn test_source_rename_plus_exclude_interaction() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_layered_source_and_consumer_excludes() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -551,6 +507,7 @@ fn test_layered_source_and_consumer_excludes() {
             ("LICENSE", "MIT License\n"),
             ("main.go", "package main\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -617,7 +574,7 @@ fn test_layered_source_and_consumer_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_count_respects_excludes() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -635,6 +592,7 @@ fn test_ls_count_respects_excludes() {
             ("internal/secret.go", "package internal\n"),
             ("internal/helper.go", "package internal\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -686,7 +644,7 @@ fn test_ls_count_respects_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_source_include_allowlist_across_all_commands() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -702,6 +660,7 @@ fn test_source_include_allowlist_across_all_commands() {
             ("src/main.rs", "fn main() {}\n"),
             ("Cargo.toml", "[package]\nname = \"test\"\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -780,7 +739,7 @@ fn test_source_include_allowlist_across_all_commands() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_output_matches_apply_result() {
     let source_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &source_repo,
         &[
             (
@@ -798,6 +757,7 @@ fn test_ls_output_matches_apply_result() {
             ("internal/a.go", "package internal\n"),
             ("internal/b.go", "package internal\n"),
         ],
+        None,
     )
     .unwrap();
 

@@ -150,6 +150,8 @@ This ensures:
 
 **Default behavior**: The host filesystem is overwritten with the contents of the composite filesystem.
 
+**Execution model**: All consumer operations (merges and filters) execute in YAML declaration order in a single pass. The order of operations in the config file determines the order of execution.
+
 **Customizing merge behavior**: The local repo can define merge operators in its `.common-repo.yaml` if it wants different behavior:
 
 1. If the local repo defines merge operators (`yaml:`, `json:`, etc.):

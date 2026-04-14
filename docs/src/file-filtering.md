@@ -38,10 +38,12 @@ Patterns use glob syntax:
 
 ## Order of Operations
 
-1. `include` runs first, adding files to the output
-2. `exclude` runs second, removing files from the output
+Operations execute in the order they appear in the config file. For example:
 
-This means you can include a broad pattern and then exclude specific files:
+1. `include` adds files to the output
+2. `exclude` removes files from the output
+
+When listed in this order, you can include a broad pattern and then exclude specific files:
 
 ```yaml
 - repo:
@@ -128,17 +130,16 @@ Include specific file types only:
 
 ## Combining with Other Operations
 
-Filtering happens before other operations in the `with` clause:
+Operations in the `with` clause execute in declaration order (YAML order). Filtering does not have a fixed position relative to other operations:
 
 ```yaml
 - repo:
     url: https://github.com/your-org/templates
     ref: v1.0.0
     with:
-      # Filter first
+      # These run in the order listed
       - include: ["templates/**"]
       - exclude: ["templates/internal/**"]
-      # Then rename
       - rename:
           - "^templates/(.*)": "$1"
 ```

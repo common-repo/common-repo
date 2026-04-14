@@ -12,70 +12,12 @@
 //! - Config files (.common-repo.yaml, .commonrepo.yaml): Auto-excluded from upstream repos
 //! - Operation order: Upstream ops first, then consumer's `with:` ops
 
+mod common;
+
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
+use common::init_test_git_repo;
 use predicates::prelude::*;
-use std::process::Command;
-
-/// Helper to initialize a git repository with files and commit them.
-///
-/// Creates a git repo at the given path with the specified files.
-/// The repository uses "main" as the default branch name.
-fn init_git_repo(
-    dir: &assert_fs::TempDir,
-    files: &[(&str, &str)],
-) -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize git repo with main as default branch
-    Command::new("git")
-        .args(["init", "-b", "main"])
-        .current_dir(dir.path())
-        .output()?;
-
-    // Configure git user for commits
-    Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(dir.path())
-        .output()?;
-    Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(dir.path())
-        .output()?;
-    // Disable commit signing for tests
-    Command::new("git")
-        .args(["config", "commit.gpgsign", "false"])
-        .current_dir(dir.path())
-        .output()?;
-
-    // Create files
-    for (path, content) in files {
-        let file = dir.child(path);
-        // Ensure parent directories exist
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(dir.path().join(parent))?;
-            }
-        }
-        file.write_str(content)?;
-    }
-
-    // Add and commit all files (--no-verify skips pre-commit hooks that
-    // would fail in temp directories without a .pre-commit-config.yaml)
-    Command::new("git")
-        .args(["add", "."])
-        .current_dir(dir.path())
-        .output()?;
-    let commit_output = Command::new("git")
-        .args(["commit", "--no-verify", "-m", "Initial commit"])
-        .current_dir(dir.path())
-        .output()?;
-    assert!(
-        commit_output.status.success(),
-        "git commit failed: {}",
-        String::from_utf8_lossy(&commit_output.stderr)
-    );
-
-    Ok(())
-}
 
 // =============================================================================
 // Bug: Upstream's .common-repo.yaml should NOT be copied to consumer
@@ -90,7 +32,7 @@ fn init_git_repo(
 fn test_upstream_config_file_not_copied() {
     // Create upstream repository
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -100,6 +42,7 @@ fn test_upstream_config_file_not_copied() {
             ("README.md", "# Upstream README\n"),
             ("src/lib.rs", "// Upstream library\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -173,7 +116,7 @@ fn test_upstream_config_file_not_copied() {
 fn test_upstream_include_operator_respected() {
     // Create upstream repository with include filter
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             // Upstream config says: only expose public-file.txt and docs/
@@ -190,6 +133,7 @@ fn test_upstream_include_operator_respected() {
             ("docs/guide.md", "Documentation\n"),
             ("src/internal.rs", "Internal code - should NOT be copied\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -246,7 +190,7 @@ fn test_upstream_include_operator_respected() {
 fn test_upstream_exclude_operator_respected() {
     // Create upstream repository with exclude filter
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             // Upstream excludes internal files
@@ -266,6 +210,7 @@ fn test_upstream_exclude_operator_respected() {
                 "Internal notes - should NOT be copied\n",
             ),
         ],
+        None,
     )
     .unwrap();
 
@@ -323,7 +268,7 @@ fn test_upstream_exclude_operator_respected() {
 fn test_operation_order_upstream_then_consumer() {
     // Create upstream repository that only exposes public/ directory
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -344,6 +289,7 @@ fn test_operation_order_upstream_then_consumer() {
                 "Internal - should NOT be available to consumer\n",
             ),
         ],
+        None,
     )
     .unwrap();
 
@@ -403,7 +349,7 @@ fn test_operation_order_upstream_then_consumer() {
 fn test_upstream_rename_operator_respected() {
     // Create upstream repository with rename
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -420,6 +366,7 @@ fn test_upstream_rename_operator_respected() {
             ),
             ("templates/readme.md.template", "# Template README\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -479,7 +426,7 @@ fn test_upstream_rename_operator_respected() {
 fn test_upstream_combined_operations() {
     // Create upstream repository with combined include + exclude
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -497,6 +444,7 @@ fn test_upstream_combined_operations() {
             ("docs/readme.md", "documentation\n"),
             ("src/main.rs", "code - not in include\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -554,7 +502,7 @@ fn test_upstream_combined_operations() {
 fn test_alternate_config_filename_not_copied() {
     // Create upstream repository with alternate config filename
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -563,6 +511,7 @@ fn test_alternate_config_filename_not_copied() {
             ),
             ("data.txt", "Some data\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -684,7 +633,7 @@ fn test_real_world_shakefu_vibes_repo() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_upstream_declared_excludes() {
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -701,6 +650,7 @@ fn test_ls_respects_upstream_declared_excludes() {
             ("lib/utils.go", "package lib\n"),
             ("README.md", "# Test\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -763,13 +713,14 @@ fn test_ls_respects_upstream_declared_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_consumer_top_level_excludes() {
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             ("lib/utils.go", "package lib\n"),
             ("README.md", "# Test\n"),
             ("Makefile", "all:\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -824,13 +775,14 @@ fn test_ls_respects_consumer_top_level_excludes() {
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_ls_respects_consumer_with_clause_excludes() {
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             ("lib/utils.go", "package lib\n"),
             ("README.md", "# Test\n"),
             ("LICENSE", "MIT\n"),
         ],
+        None,
     )
     .unwrap();
 
@@ -892,7 +844,7 @@ fn test_ls_respects_consumer_with_clause_excludes() {
 fn test_consumer_with_template_vars_override_upstream_defaults() {
     // Create upstream repository with template + template-vars
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -916,6 +868,7 @@ fn test_consumer_with_template_vars_override_upstream_defaults() {
                 "owner: __COMMON_REPO__GH_APP_OWNER__\napp_id: __COMMON_REPO__GH_APP_ID_VAR__\n",
             ),
         ],
+        None,
     )
     .unwrap();
 
@@ -977,7 +930,7 @@ fn test_consumer_with_template_vars_override_upstream_defaults() {
 fn test_consumer_top_level_template_vars_override_upstream_defaults() {
     // Create upstream repository with template + template-vars
     let upstream_repo = assert_fs::TempDir::new().unwrap();
-    init_git_repo(
+    init_test_git_repo(
         &upstream_repo,
         &[
             (
@@ -996,6 +949,7 @@ fn test_consumer_top_level_template_vars_override_upstream_defaults() {
                 "name: __COMMON_REPO__APP_NAME__\nport: __COMMON_REPO__APP_PORT__\n",
             ),
         ],
+        None,
     )
     .unwrap();
 
