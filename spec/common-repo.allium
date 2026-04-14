@@ -669,7 +669,7 @@ rule MergeLocalFiles {
     -- transforms, upstream integrations, and auto-merges) applied
     -- in declaration order. MergeLocalFiles is now a simpler step:
     --
-    -- 1. Load local files (skip hidden files, build artifacts, config files)
+    -- 1. Load local files (skip specific build/tool directories and config files)
     -- 2. Combine composite with local files:
     --    a. Start with local files as base
     --    b. Overlay composite files on top (composite wins for shared paths)

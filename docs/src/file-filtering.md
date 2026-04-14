@@ -81,7 +81,7 @@ Pull everything except test and example files:
       - exclude: ["tests/**", "examples/**", "**/*_test.rs"]
 ```
 
-### Include Hidden Files
+### Include Hidden Files from Upstream Repos
 
 Dotfiles and hidden directories require explicit patterns:
 
@@ -94,6 +94,10 @@ Dotfiles and hidden directories require explicit patterns:
           - ".*"        # .gitignore, .editorconfig, etc.
           - ".*/**"     # .github/*, .vscode/*, etc.
 ```
+
+> **Note:** This applies to files from upstream repositories. Local project
+> dotfiles (e.g., `.editorconfig`, `.pre-commit-config.yaml`) are loaded
+> automatically during the local file merge phase.
 
 ### Exclude Generated Files
 
@@ -165,4 +169,4 @@ common-repo ls -l
 
 **Too many files?** Add exclude patterns to filter out unwanted files.
 
-**Hidden files missing?** Remember to explicitly include `.*` and `.*/**` patterns.
+**Hidden files missing from upstream?** Remember to explicitly include `.*` and `.*/**` patterns in the upstream repo's `with:` block. Local project dotfiles are loaded automatically.

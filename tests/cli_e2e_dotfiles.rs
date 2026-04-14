@@ -147,7 +147,10 @@ fn test_upstream_dotfiles_delivered_to_consumer() {
                 ".common-repo.yaml",
                 "- include: [\"**\", \".*\", \".*/**\"]\n",
             ),
-            (".editorconfig", "root = true\n\n[*]\nindent_style = space\n"),
+            (
+                ".editorconfig",
+                "root = true\n\n[*]\nindent_style = space\n",
+            ),
             ("README.md", "# Test\n"),
         ],
         None,
