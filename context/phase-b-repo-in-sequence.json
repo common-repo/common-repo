@@ -1,7 +1,7 @@
 {
   "plan_name": "Phase B: Repo-in-Sequence Resolution",
-  "last_updated": "2026-04-13",
-  "follow_up_items_added": "2026-04-13 — items 13-15 added from Phase A code review",
+  "last_updated": "2026-04-14",
+  "follow_up_items_added": "2026-04-14 — item 3 (fix-load-local-fs-dotfiles) inserted, priorities 3-15 bumped to 4-16",
   "description": "Architectural change: resolve repo: operations inline at their declaration position in the sequential pass, not eagerly in Phase 1. Sub-repos run their own pipeline in isolation; their sub-composite + deferred auto-merges integrate into the parent composite at the repo: op's position. This fully fixes the reported bug.",
   "status": "ready",
   "context_doc": "context/sequential-operations-context.md",
@@ -38,7 +38,7 @@
     {
       "id": "read-spec-and-code",
       "name": "Read final spec rules and current code to understand the gap",
-      "status": "pending",
+      "status": "complete",
       "priority": 1,
       "blocked_by": null,
       "description": "Build a mental model of the current Phase 1-4 code path vs the spec's sequential model. Identify exactly which functions need to change.",
@@ -60,7 +60,7 @@
     {
       "id": "write-failing-e2e-test",
       "name": "Write E2E test reproducing the concrete bug scenario",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "read-spec-and-code",
       "description": "E2E test that reproduces the exact scenario from context/prompt.md. This is the load-bearing acceptance test for Phase B.",
@@ -81,11 +81,37 @@
       ]
     },
     {
-      "id": "refactor-discovery-clone-from-resolve",
-      "name": "Separate cloning from resolution in Phase 1",
+      "id": "fix-load-local-fs-dotfiles",
+      "name": "Fix load_local_fs to not skip dotfiles",
       "status": "pending",
       "priority": 3,
       "blocked_by": "write-failing-e2e-test",
+      "description": "load_local_fs in local_merge.rs:124 blanket-skips all files and directories starting with '.'. This breaks self: blocks that need to include local dotfiles (e.g., .pre-commit-config.yaml, .eslintrc.yaml, .editorconfig). The spec (MergeLocalFiles rule) lists specific directories to skip (.git, .svn, node_modules, etc.) but does NOT say skip all dotfiles. The code should skip only the specific directories listed in SKIP_DIRS, not all hidden files. Upstream dotfiles work fine (they flow through the composite, not load_local_fs). Failing E2E tests already exist in tests/cli_e2e_dotfiles.rs.",
+      "steps": [
+        "Read src/phases/local_merge.rs:79-158 (load_local_fs function)",
+        "Read spec/common-repo.allium MergeLocalFiles rule for the authoritative skip list",
+        "Remove the blanket file_name.starts_with('.') skip at line 124",
+        "Keep the specific SKIP_DIRS list (.git, .svn, .hg, etc.) — these are still correct",
+        "Keep the .common-repo.yaml / .commonrepo.yaml config file skip",
+        "Write a unit test: load_local_fs loads dotfiles from a temp dir",
+        "Run: cargo nextest run --test cli_e2e_dotfiles --features integration-tests (both tests should pass)",
+        "Run: cargo nextest run (all existing tests still pass)"
+      ],
+      "output_file": "src/phases/local_merge.rs",
+      "acceptance_criteria": [
+        "load_local_fs loads dotfiles from the working directory",
+        "Specific dirs (.git, node_modules, etc.) are still skipped",
+        "Config files (.common-repo.yaml) are still skipped",
+        "cli_e2e_dotfiles tests pass",
+        "All existing tests pass"
+      ]
+    },
+    {
+      "id": "refactor-discovery-clone-from-resolve",
+      "name": "Separate cloning from resolution in Phase 1",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "fix-load-local-fs-dotfiles",
       "description": "Phase 1 currently discovers, clones, and processes repos in one pass. Separate cloning (which stays eager) from processing/resolution (which becomes lazy). The cloned repo data should be available as a lookup for the sequential pass to consume on-demand.",
       "steps": [
         "Read src/phases/discovery.rs fully",
@@ -108,7 +134,7 @@
       "id": "add-resolve-repo-inline",
       "name": "Add resolve_repo_inline to orchestrator",
       "status": "pending",
-      "priority": 4,
+      "priority": 5,
       "blocked_by": "refactor-discovery-clone-from-resolve",
       "description": "Add a function that, given a ClonedRepo (or equivalent), runs the sub-repo's full processing pipeline (Phase 2-4) on demand and returns a sub-composite + deferred merge ops. This is the core of the lazy resolution mechanism.",
       "steps": [
@@ -131,7 +157,7 @@
       "id": "make-composite-incremental",
       "name": "Support incremental composite construction",
       "status": "pending",
-      "priority": 5,
+      "priority": 6,
       "blocked_by": "refactor-discovery-clone-from-resolve",
       "description": "The current Phase 4 composite builder folds all IntermediateFSs in one pass. Add support for incremental additions: integrate a sub-composite into an existing composite at a specific point, including auto-merge conflict resolution.",
       "steps": [
@@ -156,7 +182,7 @@
       "id": "wire-sequential-pass",
       "name": "Wire up sequential operations pass in Phase 4",
       "status": "pending",
-      "priority": 6,
+      "priority": 7,
       "blocked_by": ["add-resolve-repo-inline", "make-composite-incremental"],
       "description": "Connect the pieces: the orchestrator's Phase 4 now walks the consumer's operations in declaration order. Filter ops modify the composite directly. Repo: ops call resolve_repo_inline and integrate_sub_composite. This is the main integration point.",
       "steps": [
@@ -182,7 +208,7 @@
       "id": "update-self-pipeline",
       "name": "Update self: pipeline to use sequential Phase 4",
       "status": "pending",
-      "priority": 7,
+      "priority": 8,
       "blocked_by": "wire-sequential-pass",
       "description": "The self: pipeline runs its own Phase 1-6. Update it to use the new sequential Phase 4. Self blocks pull local files via include operators, so the self pipeline's Phase 5 combine-with-local step may simplify.",
       "steps": [
@@ -204,7 +230,7 @@
       "id": "review-core-implementation",
       "name": "Dispatch code-reviewer for core implementation review",
       "status": "pending",
-      "priority": 8,
+      "priority": 9,
       "blocked_by": "update-self-pipeline",
       "description": "Use superpowers:code-reviewer to review the architectural changes against the spec and coding standards.",
       "steps": [
@@ -223,7 +249,7 @@
       "id": "add-edge-case-tests",
       "name": "Add tests for edge cases and nested repo: scenarios",
       "status": "pending",
-      "priority": 9,
+      "priority": 10,
       "blocked_by": "review-core-implementation",
       "description": "Test nested repo: (repo within repo), multiple repo: ops in sequence, repo: between filters, and the include-from-source-FS behavior in self blocks.",
       "steps": [
@@ -244,7 +270,7 @@
       "id": "spec-code-alignment",
       "name": "Run allium:weed to verify spec-code alignment",
       "status": "pending",
-      "priority": 10,
+      "priority": 11,
       "blocked_by": "add-edge-case-tests",
       "description": "Use allium:weed to check that the implementation matches the spec rules from Phase 0.",
       "steps": [
@@ -264,7 +290,7 @@
       "id": "update-documentation",
       "name": "Update module docs and user documentation",
       "status": "pending",
-      "priority": 11,
+      "priority": 12,
       "blocked_by": "spec-code-alignment",
       "description": "Update doc comments on changed modules and any user-facing documentation in docs/src/.",
       "steps": [
@@ -286,7 +312,7 @@
       "id": "full-ci-and-commit",
       "name": "Full CI validation and commit",
       "status": "pending",
-      "priority": 12,
+      "priority": 13,
       "blocked_by": "update-documentation",
       "description": "Final CI validation and commit of the Phase B changes.",
       "steps": [
@@ -307,7 +333,7 @@
       "id": "error-messages-sequential-context-hints",
       "name": "Add sequential-execution context hints to error messages",
       "status": "pending",
-      "priority": 13,
+      "priority": 14,
       "blocked_by": "full-ci-and-commit",
       "description": "The spec (spec/detailed/merge-operations.allium) calls for error messages to include hints like 'Was the source possibly renamed or excluded by a preceding operation?' when a merge source is missing. The current implementation produces bare missing-source errors without sequential-execution context. This touches all merge format modules.",
       "steps": [
@@ -332,7 +358,7 @@
       "id": "spec-phased-implementation-annotations",
       "name": "Add phased implementation annotations to spec files",
       "status": "pending",
-      "priority": 14,
+      "priority": 15,
       "blocked_by": null,
       "description": "The spec files describe behavior that goes beyond what is currently implemented (e.g., ApplyRepoInline lazy resolution is Phase B, include-from-source-FS is Phase B, rename chaining is Phase B). The spec needs annotations distinguishing 'implemented now' from 'planned future' so readers can tell what the code actually does vs. what is aspirational. This is a documentation/spec task with no code changes.",
       "steps": [
@@ -355,7 +381,7 @@
       "id": "rename-apply-chaining-fix",
       "name": "Fix rename::apply to chain mappings per RenameEquivalence spec invariant",
       "status": "pending",
-      "priority": 15,
+      "priority": 16,
       "blocked_by": "wire-sequential-pass",
       "description": "The spec (RenameEquivalence in spec/detailed/operators.allium) says mappings within a single rename op should chain: the first mapping's output feeds the second mapping's input. But src/operators.rs rename::apply captures current_files once at the start and does not chain — each mapping operates on the original file set independently. This was noted as Q3 in the Phase A plan and deferred as out-of-scope for Phase A.",
       "steps": [
@@ -388,6 +414,7 @@
     "Items 13-15 added from Phase A code review follow-up (2026-04-13):",
     "  Item 13 (error-messages-sequential-context-hints): blocked on full-ci-and-commit because it requires the sequential pass to be complete before hints make sense",
     "  Item 14 (spec-phased-implementation-annotations): unblocked — pure documentation task, can be done anytime",
-    "  Item 15 (rename-apply-chaining-fix): blocked on wire-sequential-pass because the chaining fix interacts with how rename ops execute in the sequential pass (Q3 deferred work from Phase A)"
+    "  Item 15 (rename-apply-chaining-fix): blocked on wire-sequential-pass because the chaining fix interacts with how rename ops execute in the sequential pass (Q3 deferred work from Phase A)",
+    "Item 3 (fix-load-local-fs-dotfiles) added 2026-04-14: load_local_fs blanket-skips all dotfiles, but common-repo's core purpose is managing dotfiles. The spec's MergeLocalFiles rule only skips specific dirs (.git, node_modules, etc.), not all hidden files. This blocks the Phase B bug scenario (self: block with local .pre-commit-config.yaml). Failing E2E tests in tests/cli_e2e_dotfiles.rs. Must be fixed before the repo-in-sequence architecture work (tasks 4+). All old priorities bumped by 1."
   ]
 }

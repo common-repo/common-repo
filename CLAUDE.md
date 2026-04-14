@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code Navigation: Use rust-analyzer LSP
+
+When exploring or navigating the codebase, prefer the LSP tool (rust-analyzer) over reading files or grepping. Use go-to-definition, find-references, hover, call hierarchies, and workspace-symbol searches to trace types, functions, and call chains. Fall back to Read/Grep only for broad module-level overviews or when LSP is unavailable.
+
 ## Development Approach: Test-Driven Development
 
 **All feature work, bug fixes, and refactoring MUST follow TDD.** Read and follow @TDD.md before writing any implementation code. TDD is the default approach — not optional, not secondary to any other workflow.
