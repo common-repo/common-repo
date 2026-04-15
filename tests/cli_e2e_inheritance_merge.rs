@@ -133,3 +133,59 @@ fn merge_at_intermediate_combines_base() {
         "nested_list_keys entries should accumulate intermediate then base, got {repo_names:?}"
     );
 }
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn merge_at_overlay_chains_through_intermediate() {
+    let (_tmp, fixture) = stage_fixture();
+    let dir = fixture.join("upstream-overlay");
+
+    apply_in(&dir);
+
+    let merged = read_merge_yaml(&dir);
+    let map = merged
+        .as_mapping()
+        .expect("merge.yaml should be a YAML mapping");
+
+    let top = map
+        .get(serde_yaml::Value::String("top_level_key".into()))
+        .expect("top_level_key should exist");
+    assert_eq!(
+        top.as_f64(),
+        Some(1.0),
+        "top_level_key should reflect upstream-base winning the full-chain conflict, got {top:?}"
+    );
+
+    let list = map
+        .get(serde_yaml::Value::String("list_within_key".into()))
+        .and_then(|v| v.as_sequence())
+        .expect("list_within_key should be a sequence");
+    let list_strs: Vec<&str> = list.iter().filter_map(|v| v.as_str()).collect();
+    assert_eq!(
+        list_strs,
+        vec!["carrot", "fnord", "beta", "alpha"],
+        "list_within_key should accumulate overlay then intermediate then base with de-duplication, got {list_strs:?}"
+    );
+
+    let nested = map
+        .get(serde_yaml::Value::String("nested_list_keys".into()))
+        .and_then(|v| v.as_sequence())
+        .expect("nested_list_keys should be a sequence");
+    let repo_names: Vec<&str> = nested
+        .iter()
+        .filter_map(|v| {
+            v.as_mapping()?
+                .get(serde_yaml::Value::String("repo".into()))?
+                .as_str()
+        })
+        .collect();
+    assert_eq!(
+        repo_names,
+        vec![
+            "nested_list_carrot",
+            "nested_list_beta",
+            "nested_list_alpha",
+        ],
+        "nested_list_keys entries should accumulate overlay then intermediate then base, got {repo_names:?}"
+    );
+}
