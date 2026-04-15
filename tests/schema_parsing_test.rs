@@ -202,4 +202,8 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
 }
 
 // Register datatest harness to discover and run tests on all YAML files in testdata directory
-datatest_stable::harness!(test_schema_parsing, "tests/testdata", r".*\.yaml$");
+datatest_stable::harness!(
+    test_schema_parsing,
+    "tests/testdata",
+    r"(^|/)(\.common-repo|\.commonrepo|schema-[^/]+)\.yaml$"
+);
