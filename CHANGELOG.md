@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.35.0](https://github.com/common-repo/common-repo/compare/v0.34.3...v0.35.0) (2026-04-15)
+
+
+### Features
+
+* **spec:** add local filesystem path support for repo references ([ca53a66](https://github.com/common-repo/common-repo/commit/ca53a660f25d8cb458d78e085541c9e46b46c7fe))
+
+
+### Bug Fixes
+
+* separate read-only source FS from composite in self block pipelines ([c820617](https://github.com/common-repo/common-repo/commit/c820617cc6e9c55aed06adbe4489dac74e8cfcb2)), closes [#310](https://github.com/common-repo/common-repo/issues/310)
+
 ## [0.34.3](https://github.com/common-repo/common-repo/compare/v0.34.2...v0.34.3) (2026-04-15)
 
 
