@@ -148,7 +148,7 @@ fn matches_filter(repo: &RepoOp, filters: &[String]) -> bool {
 
 /// Check for updates for a single repository
 pub fn check_repo_updates(repo: &RepoOp, repo_manager: &RepositoryManager) -> Result<UpdateInfo> {
-    let current_ref = &repo.r#ref;
+    let current_ref = repo.r#ref.as_deref().unwrap_or("");
 
     // List all tags for this repository
     let tags = repo_manager.list_repository_tags(&repo.url)?;
@@ -193,7 +193,7 @@ pub fn check_repo_updates(repo: &RepoOp, repo_manager: &RepositoryManager) -> Re
 
     Ok(UpdateInfo {
         url: repo.url.clone(),
-        current_ref: current_ref.clone(),
+        current_ref: current_ref.to_string(),
         latest_version,
         breaking_changes,
         compatible_updates,
@@ -313,7 +313,7 @@ mod tests {
             Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/example/source".to_string(),
-                    r#ref: "v1.0.0".to_string(),
+                    r#ref: Some("v1.0.0".to_string()),
                     path: None,
                     with: vec![],
                 },
@@ -323,7 +323,7 @@ mod tests {
                     operations: vec![Operation::Repo {
                         repo: RepoOp {
                             url: "https://github.com/example/tooling".to_string(),
-                            r#ref: "v2.0.0".to_string(),
+                            r#ref: Some("v2.0.0".to_string()),
                             path: None,
                             with: vec![],
                         },
@@ -421,12 +421,12 @@ mod tests {
                 repo: RepoOp {
                     url: "https://github.com/org/repo1.git".to_string(),
                     path: None,
-                    r#ref: "v1.0.0".to_string(),
+                    r#ref: Some("v1.0.0".to_string()),
                     with: vec![crate::config::Operation::Repo {
                         repo: RepoOp {
                             url: "https://github.com/org/repo2.git".to_string(),
                             path: None,
-                            r#ref: "main".to_string(),
+                            r#ref: Some("main".to_string()),
                             with: vec![],
                         },
                     }],
@@ -449,7 +449,7 @@ mod tests {
     fn test_build_match_target_url_only() {
         let repo = RepoOp {
             url: "https://github.com/org/repo".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -460,7 +460,7 @@ mod tests {
     fn test_build_match_target_url_with_path() {
         let repo = RepoOp {
             url: "https://github.com/org/monorepo".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: Some("configs/eslint".to_string()),
             with: vec![],
         };
@@ -475,7 +475,7 @@ mod tests {
         // Test https
         let repo = RepoOp {
             url: "https://github.com/org/repo".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -484,7 +484,7 @@ mod tests {
         // Test git://
         let repo = RepoOp {
             url: "git://gitlab.com/org/repo".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -493,7 +493,7 @@ mod tests {
         // Test ssh://
         let repo = RepoOp {
             url: "ssh://git@github.com/org/repo".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -504,7 +504,7 @@ mod tests {
     fn test_build_match_target_trims_path_slashes() {
         let repo = RepoOp {
             url: "https://github.com/org/repo".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: Some("/configs/eslint/".to_string()),
             with: vec![],
         };
@@ -518,7 +518,7 @@ mod tests {
     fn test_matches_filter_single_pattern() {
         let repo = RepoOp {
             url: "https://github.com/org/ci-templates".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -542,7 +542,7 @@ mod tests {
     fn test_matches_filter_multiple_patterns_or_logic() {
         let repo = RepoOp {
             url: "https://github.com/org/ci-templates".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -556,7 +556,7 @@ mod tests {
         // Second pattern matches
         let repo2 = RepoOp {
             url: "https://github.com/org/linter-config".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -568,7 +568,7 @@ mod tests {
         // Neither pattern matches
         let repo3 = RepoOp {
             url: "https://github.com/org/utils".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: None,
             with: vec![],
         };
@@ -582,7 +582,7 @@ mod tests {
     fn test_matches_filter_with_path() {
         let repo = RepoOp {
             url: "https://github.com/org/monorepo".to_string(),
-            r#ref: "v1.0.0".to_string(),
+            r#ref: Some("v1.0.0".to_string()),
             path: Some("configs/eslint".to_string()),
             with: vec![],
         };

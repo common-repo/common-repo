@@ -317,7 +317,11 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
 
         for operation in &schema {
             if let config::Operation::Repo { repo } = operation {
-                print!("   Checking {}@{}... ", repo.url, repo.r#ref);
+                print!(
+                    "   Checking {}@{}... ",
+                    repo.url,
+                    repo.r#ref.as_deref().unwrap_or("")
+                );
 
                 // Try to list tags to verify accessibility
                 match repo_manager.list_repository_tags(&repo.url) {

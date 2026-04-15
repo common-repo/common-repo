@@ -308,14 +308,18 @@ fn process_config_to_node(config: &Schema) -> Result<RepoNode> {
         // Check for cycles before adding (same url+ref as root would be a cycle)
         if repo_op.url == "local" {
             return Err(Error::CycleDetected {
-                cycle: format!("{}@{}", repo_op.url, repo_op.r#ref),
+                cycle: format!("{}@{}", repo_op.url, repo_op.r#ref.as_deref().unwrap_or("")),
             });
         }
 
         // Extract operations from the repo's `with:` clause
         let child_operations = repo_op.with;
 
-        let child_node = RepoNode::new(repo_op.url, repo_op.r#ref, child_operations);
+        let child_node = RepoNode::new(
+            repo_op.url,
+            repo_op.r#ref.clone().unwrap_or_default(),
+            child_operations,
+        );
 
         root_node.add_child(child_node);
     }
@@ -578,7 +582,7 @@ mod tests {
         let config: Schema = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/example/repo".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -606,7 +610,7 @@ mod tests {
             Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/example/repo1".to_string(),
-                    r#ref: "v1.0".to_string(),
+                    r#ref: Some("v1.0".to_string()),
                     path: None,
                     with: vec![Operation::Exclude {
                         exclude: ExcludeOp {
@@ -623,7 +627,7 @@ mod tests {
             Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/example/repo2".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![],
                 },
@@ -652,7 +656,7 @@ mod tests {
         let config: Schema = vec![Operation::Repo {
             repo: RepoOp {
                 url: "local".to_string(),
-                r#ref: "HEAD".to_string(),
+                r#ref: Some("HEAD".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -1340,7 +1344,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "example".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![],
                     },
@@ -1367,7 +1371,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "example".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![],
                     },
@@ -1413,7 +1417,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "example".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![],
                     },
@@ -1503,7 +1507,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "example".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![],
                     },
@@ -1535,7 +1539,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "example".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![],
                     },
@@ -1592,7 +1596,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "example".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![],
                     },
@@ -1642,7 +1646,7 @@ mod tests {
             Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/example/repo".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![],
                 },

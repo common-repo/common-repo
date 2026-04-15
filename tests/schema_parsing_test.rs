@@ -42,7 +42,7 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
                     path.display()
                 );
                 assert!(
-                    !repo.r#ref.is_empty(),
+                    repo.r#ref.as_deref().is_none_or(|r| !r.is_empty()),
                     "Repo operation {} in {} has empty ref",
                     idx,
                     path.display()
