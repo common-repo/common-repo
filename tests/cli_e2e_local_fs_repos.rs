@@ -32,13 +32,11 @@ fn apply_succeeds_in_inheritance_merge_delta() {
 
     let delta_dir = tmp.path().join("inheritance-merge").join("delta");
     let mut cmd = cargo_bin_cmd!("common-repo");
-    // The fixture chain (delta -> carrot -> beta -> alpha) is parse-only for
-    // this feature; the orchestrator resolves local-path repo nodes correctly
-    // during discovery but the integration layer does not yet deliver files
-    // across local-path hops. Assert that apply exits successfully — the
-    // file-delivery assertion is deferred to a follow-up that completes the
-    // merge-operator integration.
     cmd.current_dir(&delta_dir).arg("apply").assert().success();
+    // The chain delta -> carrot -> beta -> alpha resolves through local-path
+    // hops; alpha has `- include: ['**']` so merge.yaml is delivered into
+    // delta/ after the orchestrator fix.
+    assert!(delta_dir.join("merge.yaml").exists());
 }
 
 #[test]
@@ -65,6 +63,7 @@ fn apply_warns_on_local_url_with_ref() {
         .assert()
         .success()
         .stderr(predicate::str::contains("ignored on local-path"));
+    assert!(consumer.join("payload.txt").exists());
 }
 
 #[test]
@@ -105,7 +104,6 @@ fn apply_accepts_absolute_local_path() {
     .unwrap();
 
     let mut cmd = cargo_bin_cmd!("common-repo");
-    // apply recognises the absolute path as a local-FS repo and exits
-    // successfully; file delivery across local-path hops is tracked separately.
     cmd.current_dir(&consumer).arg("apply").assert().success();
+    assert!(consumer.join("payload.txt").exists());
 }

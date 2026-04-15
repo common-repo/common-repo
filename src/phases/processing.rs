@@ -78,6 +78,7 @@ fn clone_tree_repos_recursive(
         node.operations.clone(),
     );
     cloned.children_keys = children_keys;
+    cloned.original_url = node.original_url.clone();
 
     cloned_repos.insert(key, cloned);
 

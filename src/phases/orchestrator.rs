@@ -30,10 +30,24 @@ use log::warn;
 
 use super::{phase1, phase2, phase4, phase5, phase6, ClonedRepo, IntermediateFS};
 use crate::cache::RepoCache;
-use crate::config::{Operation, Schema, SelfOp};
+use crate::config::{Operation, RepoOp, Schema, SelfOp};
 use crate::error::Result;
 use crate::filesystem::MemoryFS;
 use crate::repository::RepositoryManager;
+
+/// Match a [`ClonedRepo`] against an [`Operation::Repo`] entry.
+///
+/// For git repos: compares `(url, ref)` pairs directly.
+/// For local repos: the config carries the original relative/absolute spelling
+/// (e.g. `../upstream`) while the cloned repo's `url` is the canonical abs
+/// path set by discovery. We match via `original_url` instead.
+fn match_cloned_repo_to_op(cloned: &ClonedRepo, repo: &RepoOp) -> bool {
+    if repo.is_local() {
+        cloned.original_url.as_deref() == Some(repo.url.as_str())
+    } else {
+        cloned.url == repo.url && cloned.ref_ == repo.r#ref.as_deref().unwrap_or("")
+    }
+}
 
 /// Partition a config into self operations and source operations.
 ///
@@ -140,11 +154,12 @@ fn resolve_repo_inline_inner(
 
                 // Phase 1 enriches each repo node with upstream filtering +
                 // deferred ops, so the cloned_repos key may differ from the
-                // raw (url, ref, with) on the Operation::Repo. Look up by
-                // (url, ref) to match regardless of enrichment.
+                // raw (url, ref, with) on the Operation::Repo. Look up via
+                // match_cloned_repo_to_op, which handles both git repos
+                // (by url+ref) and local repos (by original_url).
                 let candidates: Vec<_> = cloned_repos
                     .values()
-                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref.as_deref().unwrap_or(""))
+                    .filter(|c| match_cloned_repo_to_op(c, repo))
                     .collect();
 
                 if candidates.len() > 1 {
@@ -346,12 +361,13 @@ fn execute_sequential_pipeline(
             Operation::Repo { repo } => {
                 // Phase 1 enriches each repo node with upstream filtering +
                 // deferred ops, so the cloned_repos key differs from the raw
-                // (url, ref, with) on the Operation::Repo. Look up by
-                // (url, ref) — if multiple candidates match (same URL+ref
-                // with different operations), we take the first and warn.
+                // (url, ref, with) on the Operation::Repo. Look up via
+                // match_cloned_repo_to_op, which handles both git repos
+                // (by url+ref) and local repos (by original_url). If multiple
+                // candidates match, take the first and warn.
                 let candidates: Vec<_> = cloned_repos
                     .values()
-                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref.as_deref().unwrap_or(""))
+                    .filter(|c| match_cloned_repo_to_op(c, repo))
                     .collect();
 
                 if candidates.len() > 1 {
