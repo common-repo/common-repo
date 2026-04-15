@@ -89,10 +89,14 @@ pub use discovery::discover_repos;
 /// Repository tree node representing inheritance hierarchy
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoNode {
-    /// Repository URL
+    /// Repository URL. For local nodes after discovery, this is the canonical
+    /// absolute path produced by `fs::canonicalize`.
     pub url: String,
-    /// Git reference (tag, branch, commit)
+    /// Git reference (tag, branch, commit). Empty string for local nodes.
     pub ref_: String,
+    /// Original URL as written in the config (only populated for local nodes
+    /// — preserves `./foo` spelling for error messages and display).
+    pub original_url: Option<String>,
     /// Child repositories that inherit from this one
     pub children: Vec<RepoNode>,
     /// Operations to apply to this repository
@@ -104,6 +108,7 @@ impl RepoNode {
         Self {
             url,
             ref_,
+            original_url: None,
             children: Vec::new(),
             operations,
         }
@@ -118,6 +123,16 @@ impl RepoNode {
     /// Delegates to [`compute_repo_key`] for the actual key format.
     pub fn node_key(&self) -> String {
         compute_repo_key(&self.url, &self.ref_, &self.operations)
+    }
+
+    /// Returns true when this node references a local filesystem path.
+    ///
+    /// Uses `original_url` when present (which it is for local nodes after
+    /// discovery canonicalises the path); falls back to `url` for nodes that
+    /// haven't been through discovery yet.
+    pub fn is_local(&self) -> bool {
+        let s = self.original_url.as_deref().unwrap_or(self.url.as_str());
+        s.starts_with("./") || s.starts_with("../") || s.starts_with('/')
     }
 }
 
@@ -468,6 +483,35 @@ mod phase_tests {
 
             let deferred = tree.collect_upstream_deferred_ops();
             assert!(deferred.is_empty());
+        }
+
+        #[test]
+        fn repo_node_is_local_uses_original_url_when_present() {
+            // Local node after discovery: url = canonical abs, original_url = "./foo"
+            let node = RepoNode {
+                url: "/abs/foo".to_string(),
+                ref_: String::new(),
+                original_url: Some("./foo".to_string()),
+                operations: vec![],
+                children: vec![],
+            };
+            assert!(node.is_local());
+        }
+
+        #[test]
+        fn repo_node_is_local_false_for_local_sentinel() {
+            let node = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            assert!(!node.is_local());
+        }
+
+        #[test]
+        fn repo_node_is_local_false_for_git_url() {
+            let node = RepoNode::new(
+                "https://github.com/foo/bar".to_string(),
+                "main".to_string(),
+                vec![],
+            );
+            assert!(!node.is_local());
         }
     }
 }
