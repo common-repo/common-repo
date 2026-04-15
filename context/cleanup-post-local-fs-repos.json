@@ -1,0 +1,145 @@
+{
+  "plan_name": "Post-merge cleanup after local-fs-repos feature",
+  "last_updated": "2026-04-15",
+  "context": "PR #313 (feat: local filesystem repo references) merged into main. Several context/ entries are stale: two completed plans need archiving, one task-stash points at an already-complete plan, and current-task.json still carries the Phase 3 metadata. This plan executes the CLAUDE.md archive + stash-pop protocols so the next session starts from a clean slate.",
+  "session_startup": [
+    "Run git status to verify working tree state",
+    "Run git branch --show-current — expect either feat/local-fs-repos-20260414-2235 (before task sync-main-branch runs) or main (after)",
+    "Read this file to find current task",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "sync-main-branch",
+      "name": "Sync local main and delete merged feature branch",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": null,
+      "steps": [
+        "Run git status — confirm working tree is on feat/local-fs-repos-20260414-2235 with only context/current-task.json modified (leave alone) and librust_out.rlib untracked (handled in remove-stray-artifacts)",
+        "Run git checkout main",
+        "Run git pull — pull the merged PR #313",
+        "Run git log --oneline -3 — confirm the merge commit (or squashed commit) for local-fs-repos is at HEAD",
+        "Run git branch -d feat/local-fs-repos-20260414-2235 — succeeds because the branch is merged. If it reports 'not fully merged', investigate before using -D"
+      ],
+      "acceptance_criteria": [
+        "Current branch is main",
+        "main HEAD contains the local-fs-repos changes (e.g. docs/src/local-paths.md exists in the checkout)",
+        "feat/local-fs-repos-20260414-2235 no longer appears in git branch --list"
+      ]
+    },
+    {
+      "id": "remove-stray-artifacts",
+      "name": "Delete untracked librust_out.rlib debris",
+      "status": "pending",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": null,
+      "steps": [
+        "Run git status to confirm librust_out.rlib is still present and untracked",
+        "Delete librust_out.rlib at repo root",
+        "Verify git status no longer lists it"
+      ],
+      "acceptance_criteria": [
+        "librust_out.rlib no longer exists at the repo root",
+        "git status output no longer mentions it"
+      ]
+    },
+    {
+      "id": "archive-ls-exclude-bug",
+      "name": "Archive the completed ls-exclude-bug plan",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "sync-main-branch",
+      "output_file": "context/completed/ls-exclude-bug.json",
+      "steps": [
+        "Run grep '\"status\"' context/ls-exclude-bug.json — expect 5/5 complete (already verified in 2026-04-15 cleanup planning session)",
+        "Run git mv context/ls-exclude-bug.json context/completed/",
+        "Stage the move and commit with message: 'chore(context): archive completed ls-exclude-bug plan'"
+      ],
+      "acceptance_criteria": [
+        "context/ls-exclude-bug.json no longer exists",
+        "context/completed/ls-exclude-bug.json exists and contains the original plan content",
+        "The move shows as a rename in git log"
+      ]
+    },
+    {
+      "id": "archive-github-action-plan",
+      "name": "Archive the completed github-action-impl-plan",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "sync-main-branch",
+      "output_file": "context/completed/github-action-impl-plan.json",
+      "steps": [
+        "Run grep '\"status\"' context/github-action-impl-plan.json — expect 7/7 complete (already verified)",
+        "Run git mv context/github-action-impl-plan.json context/completed/",
+        "Stage the move and commit with message: 'chore(context): archive completed github-action-impl-plan'"
+      ],
+      "acceptance_criteria": [
+        "context/github-action-impl-plan.json no longer exists",
+        "context/completed/github-action-impl-plan.json exists and contains the original plan content"
+      ]
+    },
+    {
+      "id": "clear-stale-stash",
+      "name": "Delete current-task-stash1.json since its target is already archived",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "archive-ls-exclude-bug",
+      "output_file": null,
+      "steps": [
+        "Verify current-task-stash1.json still points at ls-exclude-bug (it does as of 2026-04-15)",
+        "Verify ls-exclude-bug was moved to context/completed/ by the archive-ls-exclude-bug task",
+        "Delete context/current-task-stash1.json — the pop protocol says rename the stash back to current-task.json, but that only applies when the stash holds in-progress work. Since the target plan is complete, discarding the stash is the correct action",
+        "Stage the deletion (git rm context/current-task-stash1.json) as part of the next commit"
+      ],
+      "acceptance_criteria": [
+        "context/current-task-stash1.json no longer exists",
+        "No current-task-stash*.json files remain"
+      ]
+    },
+    {
+      "id": "reset-current-task",
+      "name": "Update current-task.json to reflect completion of local-fs-repos",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "clear-stale-stash",
+      "output_file": "context/current-task.json",
+      "steps": [
+        "Discard the uncommitted diff on context/current-task.json that was carrying Phase 3 session metadata — the feature shipped via PR #313; the metadata is no longer load-bearing. Run git checkout -- context/current-task.json to revert to the committed Phase 2 snapshot, OR overwrite it directly in the next step",
+        "Decide the next active plan: init-apply-bug-plan (5 pending tasks) or performance-review (3 pending tasks) or null. Confirm with the user before writing",
+        "Write the new current-task.json with 'task', 'plan', 'last_updated', 'description', and a session_startup array. If no next plan is chosen, use { \"task\": null, \"plan\": null, \"last_updated\": \"2026-04-15\", \"description\": \"No active plan. Pick up init-apply-bug-plan or performance-review next session.\" }",
+        "Commit with message: 'chore(context): clear stale stash and reset current-task after local-fs-repos ship'. Include the stash deletion from the previous task in this commit (they are one logical cleanup unit)",
+        "Run git status — expect clean working tree"
+      ],
+      "acceptance_criteria": [
+        "context/current-task.json points at the chosen next plan (or has null task/plan fields)",
+        "current-task-stash1.json is gone",
+        "Working tree is clean per git status",
+        "Commit history contains the archive + reset commits, each in conventional-commit format"
+      ]
+    },
+    {
+      "id": "verify-ci-still-green",
+      "name": "Verify main is still healthy after the cleanup commits",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "reset-current-task",
+      "output_file": null,
+      "steps": [
+        "Run ./script/ci — should pass (these are context-only changes, no code impact)",
+        "Optional: run cargo nextest run if paranoid; context changes do not affect tests"
+      ],
+      "acceptance_criteria": [
+        "./script/ci exits 0",
+        "No stray artefacts or uncommitted files remain"
+      ]
+    }
+  ],
+  "notes": [
+    "Tasks with blocked_by=null can run in parallel (sync-main-branch and remove-stray-artifacts).",
+    "Two of the context/ entries that are NOT touched here — init-apply-bug-plan.json (5 pending) and performance-review.json (3 pending) — remain available for future sessions to pick up.",
+    "The archive commits are separate per plan per the CLAUDE.md convention ('chore(context): archive completed <plan-name>'). Stash-pop + current-task reset happen in one combined commit because they are logically inseparable (the stash-pop is the trigger for deciding what the new current-task points at)."
+  ]
+}
