@@ -317,11 +317,15 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
 
         for operation in &schema {
             if let config::Operation::Repo { repo } = operation {
-                print!(
-                    "   Checking {}@{}... ",
-                    repo.url,
-                    repo.r#ref.as_deref().unwrap_or("")
-                );
+                if repo.is_local() {
+                    print!("   Checking {}... ", repo.url);
+                } else {
+                    print!(
+                        "   Checking {}@{}... ",
+                        repo.url,
+                        repo.r#ref.as_deref().unwrap_or("")
+                    );
+                }
 
                 // Local filesystem repos don't need a network check
                 if repo.is_local() {
