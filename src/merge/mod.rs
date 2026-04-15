@@ -17,6 +17,9 @@
 //! The `PathSegment` enum and path parsing functions are shared across formats
 //! to navigate nested data structures during merge operations.
 
+use crate::error::{Error, Result};
+use crate::filesystem::{File, MemoryFS};
+
 // Merge format modules - internal implementations
 // These are called by the phases module during merge operations
 pub(crate) mod ini;
@@ -148,6 +151,46 @@ pub fn parse_path(path: &str) -> Vec<PathSegment> {
     }
 
     segments
+}
+
+// Shared file I/O helpers used by all merge format modules.
+
+pub(super) fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
+    match fs.get_file(path) {
+        Some(file) => String::from_utf8(file.content.clone()).map_err(|_| Error::Merge {
+            operation: format!("read {}", path),
+            message: "File content is not valid UTF-8".to_string(),
+        }),
+        None => Err(Error::Merge {
+            operation: format!("read {}", path),
+            message: "File not found in filesystem. Was it possibly renamed or excluded by a preceding operation?".to_string(),
+        }),
+    }
+}
+
+pub(super) fn read_file_as_string_optional(fs: &MemoryFS, path: &str) -> Result<Option<String>> {
+    if let Some(file) = fs.get_file(path) {
+        Ok(Some(String::from_utf8(file.content.clone()).map_err(
+            |_| Error::Merge {
+                operation: format!("read {}", path),
+                message: "File content is not valid UTF-8".to_string(),
+            },
+        )?))
+    } else {
+        Ok(None)
+    }
+}
+
+pub(super) fn ensure_trailing_newline(mut content: String) -> String {
+    if !content.ends_with('\n') {
+        content.push('\n');
+    }
+    content
+}
+
+pub(super) fn write_string_to_file(fs: &mut MemoryFS, path: &str, content: String) -> Result<()> {
+    let normalized = ensure_trailing_newline(content);
+    fs.add_file(path, File::from_string(&normalized))
 }
 
 #[cfg(test)]

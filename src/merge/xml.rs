@@ -6,10 +6,13 @@
 use log::warn;
 use xot::Xot;
 
-use super::PathSegment;
+use super::{read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment};
 use crate::config::{ArrayMergeMode, InsertPosition, XmlMergeOp};
 use crate::error::{Error, Result};
-use crate::filesystem::{File, MemoryFS};
+use crate::filesystem::MemoryFS;
+
+#[cfg(test)]
+use crate::filesystem::File;
 
 /// Context for XML merge operations, bundling diagnostic metadata.
 pub(crate) struct XmlMergeContext<'a> {
@@ -417,46 +420,6 @@ pub fn apply_xml_merge_operation(fs: &mut MemoryFS, op: &XmlMergeOp) -> Result<(
         })?;
 
     write_string_to_file(fs, dest_path, serialized)
-}
-
-// File I/O helpers (same pattern as json.rs)
-
-fn read_file_as_string(fs: &MemoryFS, path: &str) -> Result<String> {
-    match fs.get_file(path) {
-        Some(file) => String::from_utf8(file.content.clone()).map_err(|_| Error::Merge {
-            operation: format!("read {}", path),
-            message: "File content is not valid UTF-8".to_string(),
-        }),
-        None => Err(Error::Merge {
-            operation: format!("read {}", path),
-            message: "File not found in filesystem. Was it possibly renamed or excluded by a preceding operation?".to_string(),
-        }),
-    }
-}
-
-fn read_file_as_string_optional(fs: &MemoryFS, path: &str) -> Result<Option<String>> {
-    if let Some(file) = fs.get_file(path) {
-        Ok(Some(String::from_utf8(file.content.clone()).map_err(
-            |_| Error::Merge {
-                operation: format!("read {}", path),
-                message: "File content is not valid UTF-8".to_string(),
-            },
-        )?))
-    } else {
-        Ok(None)
-    }
-}
-
-fn ensure_trailing_newline(mut content: String) -> String {
-    if !content.ends_with('\n') {
-        content.push('\n');
-    }
-    content
-}
-
-fn write_string_to_file(fs: &mut MemoryFS, path: &str, content: String) -> Result<()> {
-    let normalized = ensure_trailing_newline(content);
-    fs.add_file(path, File::from_string(&normalized))
 }
 
 #[cfg(test)]
