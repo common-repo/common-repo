@@ -129,6 +129,11 @@ impl CacheOperations for DefaultCacheOperations {
     }
 }
 
+/// Returns true when `url` is a local filesystem path (relative or absolute).
+pub(crate) fn is_local_url(url: &str) -> bool {
+    url.starts_with("./") || url.starts_with("../") || url.starts_with('/')
+}
+
 /// The main entry point for managing repositories.
 ///
 /// This struct orchestrates the Git and cache operations to provide a simple,
@@ -185,6 +190,10 @@ impl RepositoryManager {
         ref_name: &str,
         path: Option<&str>,
     ) -> Result<MemoryFS> {
+        if is_local_url(url) {
+            return load_local_path(url, path);
+        }
+
         let cache_path = self.cache_ops.get_cache_path_with_path(url, ref_name, path);
 
         // Check if already cached
@@ -216,6 +225,10 @@ impl RepositoryManager {
         ref_name: &str,
         path: Option<&str>,
     ) -> Result<MemoryFS> {
+        if is_local_url(url) {
+            return load_local_path(url, path);
+        }
+
         let cache_path = self.cache_ops.get_cache_path_with_path(url, ref_name, path);
 
         // Always clone fresh
@@ -233,6 +246,9 @@ impl RepositoryManager {
     /// Checks if a repository with an optional sub-path is present in the
     /// on-disk cache.
     pub fn is_cached_with_path(&self, url: &str, ref_name: &str, path: Option<&str>) -> bool {
+        if is_local_url(url) {
+            return false;
+        }
         let cache_path = self.cache_ops.get_cache_path_with_path(url, ref_name, path);
         self.cache_ops.exists(&cache_path)
     }
@@ -241,6 +257,35 @@ impl RepositoryManager {
     pub fn list_repository_tags(&self, url: &str) -> Result<Vec<String>> {
         self.git_ops.list_tags(url)
     }
+}
+
+/// Load a local filesystem path into a MemoryFS, honouring optional sub-path.
+fn load_local_path(url: &str, sub_path: Option<&str>) -> Result<MemoryFS> {
+    let candidate = std::path::PathBuf::from(url);
+    let canonical =
+        std::fs::canonicalize(&candidate).map_err(|e| crate::error::Error::LocalPathNotFound {
+            original: url.to_string(),
+            attempted: candidate.clone(),
+            source: e,
+        })?;
+
+    let root = match sub_path {
+        Some(sub) if !sub.is_empty() && sub != "." && sub != "/" => {
+            canonical.join(sub.trim_matches('/'))
+        }
+        _ => canonical,
+    };
+    if !root.is_dir() {
+        return Err(crate::error::Error::LocalPathNotDirectory { path: root });
+    }
+
+    crate::git::load_directory_into_memfs(
+        &root,
+        crate::git::LoadOptions {
+            skip_symlinks: true,
+            skip_git_dirs: true,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -644,5 +689,76 @@ mod tests {
         // This tests the delegation, though the actual save may fail in test environment
         // The important part is that it delegates to git::save_to_cache
         let _ = save_result; // We don't assert since filesystem operations may vary
+    }
+
+    #[test]
+    fn fetch_repository_with_path_routes_local_to_loader() {
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("hello.txt"), b"world").unwrap();
+
+        let cache_root = TempDir::new().unwrap();
+        let manager = RepositoryManager::new(cache_root.path().to_path_buf());
+
+        let abs = dir.path().to_string_lossy().into_owned();
+        let fs = manager.fetch_repository_with_path(&abs, "", None).unwrap();
+        assert!(fs.exists("hello.txt"));
+    }
+
+    #[test]
+    fn fetch_repository_with_path_local_missing_dir_is_local_path_not_found() {
+        let cache_root = tempfile::TempDir::new().unwrap();
+        let manager = RepositoryManager::new(cache_root.path().to_path_buf());
+
+        let err = manager
+            .fetch_repository_with_path("/this/does/not/exist", "", None)
+            .unwrap_err();
+        assert!(
+            matches!(err, crate::error::Error::LocalPathNotFound { .. }),
+            "expected LocalPathNotFound, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn fetch_repository_with_path_local_is_file_is_local_path_not_directory() {
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("not-a-dir.txt");
+        std::fs::write(&file, b"x").unwrap();
+
+        let cache_root = TempDir::new().unwrap();
+        let manager = RepositoryManager::new(cache_root.path().to_path_buf());
+
+        let err = manager
+            .fetch_repository_with_path(file.to_str().unwrap(), "", None)
+            .unwrap_err();
+        assert!(
+            matches!(err, crate::error::Error::LocalPathNotDirectory { .. }),
+            "expected LocalPathNotDirectory, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn fetch_repository_with_path_local_does_not_touch_cache() {
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("a.txt"), b"a").unwrap();
+
+        let cache_root = TempDir::new().unwrap();
+        let manager = RepositoryManager::new(cache_root.path().to_path_buf());
+
+        // Call twice; the cache root must stay empty.
+        let abs = dir.path().to_string_lossy().into_owned();
+        let _ = manager.fetch_repository_with_path(&abs, "", None).unwrap();
+        let _ = manager.fetch_repository_with_path(&abs, "", None).unwrap();
+
+        let entries: Vec<_> = std::fs::read_dir(cache_root.path()).unwrap().collect();
+        assert!(
+            entries.is_empty(),
+            "cache root should be untouched for local paths: {entries:?}"
+        );
     }
 }
