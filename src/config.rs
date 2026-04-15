@@ -1173,7 +1173,41 @@ pub fn parse(yaml_content: &str) -> Result<Schema> {
         }
     };
     validate_self_operations(&schema)?;
+    validate_repo_ref(&schema)?;
     Ok(schema)
+}
+
+/// Validate repo operations' ref requirement.
+///
+/// Git URLs must have a ref; local filesystem URLs (starting with `./`,
+/// `../`, or `/`) may omit ref. A local URL with an explicit ref logs a
+/// warning and the ref is ignored downstream.
+pub fn validate_repo_ref(schema: &Schema) -> Result<()> {
+    for op in schema {
+        if let Operation::Repo { repo } = op {
+            if repo.is_local() {
+                if repo.r#ref.is_some() {
+                    log::warn!(
+                        "ref '{}' ignored on local-path repo {}",
+                        repo.r#ref.as_deref().unwrap_or(""),
+                        repo.url
+                    );
+                }
+            } else if repo.r#ref.is_none() {
+                return Err(Error::ConfigParse {
+                    message: "Repo operation missing ref".to_string(),
+                    hint: Some(
+                        "Add 'ref: main' or 'ref: v1.0.0' to the repo block, \
+                         or use a local path URL (./foo, ../foo, /foo)"
+                            .to_string(),
+                    ),
+                });
+            }
+            // Recurse into with: clauses
+            validate_repo_ref(&repo.with)?;
+        }
+    }
+    Ok(())
 }
 
 /// Validate self: operations in a schema.
@@ -3472,5 +3506,63 @@ mod tests {
             };
             assert_eq!(op.is_local(), expected, "url={url}");
         }
+    }
+
+    #[test]
+    fn validate_repo_ref_rejects_git_url_without_ref() {
+        let schema: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "https://github.com/foo/bar".to_string(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            },
+        }];
+        let result = validate_repo_ref(&schema);
+        assert!(matches!(
+            result,
+            Err(Error::ConfigParse { ref message, .. }) if message.contains("missing ref")
+        ));
+    }
+
+    #[test]
+    fn validate_repo_ref_allows_local_without_ref() {
+        let schema: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "./sibling".to_string(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            },
+        }];
+        assert!(validate_repo_ref(&schema).is_ok());
+    }
+
+    #[test]
+    fn validate_repo_ref_allows_local_with_ref_but_emits_warning() {
+        // Warning emission is verified indirectly: the fn returns Ok.
+        // Log capture is covered by an integration test in tests/cli_e2e_local_fs_repos.rs.
+        let schema: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "./sibling".to_string(),
+                r#ref: Some("main".to_string()),
+                path: None,
+                with: vec![],
+            },
+        }];
+        assert!(validate_repo_ref(&schema).is_ok());
+    }
+
+    #[test]
+    fn validate_repo_ref_allows_git_with_ref() {
+        let schema: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "https://github.com/foo/bar".to_string(),
+                r#ref: Some("v1.0.0".to_string()),
+                path: None,
+                with: vec![],
+            },
+        }];
+        assert!(validate_repo_ref(&schema).is_ok());
     }
 }
