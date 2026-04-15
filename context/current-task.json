@@ -1,37 +1,20 @@
 {
-  "task": "read-prompt-md",
-  "plan": null,
+  "task": "execute-cleanup-post-local-fs-repos",
+  "plan": "context/cleanup-post-local-fs-repos.json",
   "last_updated": "2026-04-15",
-  "description": "Phase 2: Planning & implementation for local filesystem repo references. Brainstorming complete; design doc at docs/superpowers/specs/2026-04-15-local-fs-repos-design.md. Read ./prompt.md for the full handoff, then confirm spec approval with user, invoke superpowers:writing-plans, then execute via TDD.",
+  "description": "Post-merge housekeeping after PR #313 (feat: local filesystem repo references) shipped in release 0.36.0. Archive two stale-completed plans (ls-exclude-bug, github-action-impl-plan), drop an orphan task stash whose target is already complete, delete one untracked build artefact, and reset current-task.json to point at the next real plan (or null). See the plan file for full task decomposition.",
   "session_startup": [
-    "Read ./prompt.md in full before doing anything else",
-    "Read docs/superpowers/specs/2026-04-15-local-fs-repos-design.md (the approved design)",
-    "Run git status to verify you are on feat/local-fs-repos-20260414-2235 with the expected uncommitted files",
-    "Run ./script/test in background — expect exactly 3 pre-existing schema_parsing failures on inheritance-merge/*/merge.yaml",
-    "Confirm with user that the spec is approved (or help them review it)",
-    "Once approved, ask for commit permission for spec + fixture + this JSON",
-    "Invoke superpowers:writing-plans to produce the implementation plan",
-    "Execute via TDD — one failing test at a time per TDD.md"
+    "Read context/cleanup-post-local-fs-repos.json for the full task list",
+    "Run git status to confirm the branch is chore/context-cleanup-20260415-0345 with a clean working tree (besides the untracked librust_out.rlib that task `remove-stray-artifacts` deletes)",
+    "Run git log --oneline -3 — top commit should be the one that introduced this plan file and task pointer",
+    "Find the first task in the plan where status=pending and blocked_by=null; execute in priority order",
+    "After executing `reset-current-task`, confirm with the user which next plan (init-apply-bug-plan or performance-review or null) current-task.json should point at — do not choose unilaterally"
   ],
   "session_notes": {
-    "phase_0_complete": true,
-    "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
-    "phase_a_complete": true,
-    "phase_a_archive": "context/completed/sequential-operations.json",
-    "phase_b_complete": true,
-    "phase_b_archive": "context/completed/phase-b-repo-in-sequence.json",
-    "brainstorming_complete": true,
-    "design_doc": "docs/superpowers/specs/2026-04-15-local-fs-repos-design.md",
-    "feature_branch": "feat/local-fs-repos-20260414-2235",
-    "approach_chosen": "A (minimal types + threaded parent-dir parameter)",
-    "decisions": {
-      "explicit_ref_on_local": "warn",
-      "path_on_local": "identical to git",
-      "config_stripping": "strip config files only",
-      "cycle_detection": "canonicalize",
-      "symlinks": "skip entirely",
-      "fixture_scope": "parse-only (merge operators follow-up)"
-    },
-    "baseline_state": "3 pre-existing failures: schema_parsing on inheritance-merge/{alpha,beta,carrot}/merge.yaml; fix via glob tightening in the design doc"
+    "previous_plan_shipped": "feat/local-fs-repos-20260414-2235 → PR #313 → release 0.36.0",
+    "pending_plans_available": {
+      "init-apply-bug-plan": "2 complete, 5 pending",
+      "performance-review": "5 complete, 3 pending"
+    }
   }
 }
