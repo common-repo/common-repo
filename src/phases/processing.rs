@@ -672,7 +672,7 @@ mod tests {
         let local_config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/parent/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![Operation::Include {
                     include: crate::config::IncludeOp {
@@ -757,7 +757,7 @@ mod tests {
         let local_config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/repo-a.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -792,7 +792,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/repo-a.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -865,7 +865,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/repo-a.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -925,7 +925,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/repo-a.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -972,7 +972,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/repo-a.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -1023,7 +1023,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/repo-a.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -1053,7 +1053,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/simple/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -1085,7 +1085,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: Some("subdir".to_string()),
                 with: vec![],
             },
@@ -1114,7 +1114,7 @@ mod tests {
         let config = vec![Operation::Repo {
             repo: RepoOp {
                 url: "https://github.com/no-config/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![],
             },
@@ -1724,7 +1724,7 @@ mod tests {
             let operation = Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/example/repo.git".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![],
                 },

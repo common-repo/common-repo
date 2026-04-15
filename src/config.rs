@@ -67,10 +67,14 @@ pub struct SelfOp {
 /// Repo operator configuration
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepoOp {
-    /// The URL of the Git repository to inherit from.
+    /// The URL of the Git repository to inherit from, or a relative/absolute
+    /// filesystem path (`./`, `../`, `/`) for a local filesystem repo.
     pub url: String,
-    /// The Git reference (e.g., a branch name, tag, or commit hash) to use.
-    pub r#ref: String,
+    /// The Git reference (branch, tag, or commit hash). Required for git URLs;
+    /// optional for local filesystem paths (if supplied on a local path it is
+    /// warned about and ignored).
+    #[serde(default)]
+    pub r#ref: Option<String>,
     /// An optional sub-path within the repository.
     ///
     /// If specified, this path will be treated as the effective root of the
@@ -82,6 +86,15 @@ pub struct RepoOp {
     /// content.
     #[serde(default)]
     pub with: Vec<Operation>,
+}
+
+impl RepoOp {
+    /// Returns true when `url` is a local filesystem path (starts with `./`,
+    /// `../`, or `/`).
+    pub fn is_local(&self) -> bool {
+        let u = self.url.as_str();
+        u.starts_with("./") || u.starts_with("../") || u.starts_with('/')
+    }
 }
 
 /// Include operator configuration
@@ -1249,11 +1262,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
 
             let r#ref = repo_map
                 .remove(serde_yaml::Value::String("ref".to_string()))
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .ok_or_else(|| Error::ConfigParse {
-                    message: "Repo operation missing ref".to_string(),
-                    hint: Some("Add 'ref: main' or 'ref: v1.0.0' to the repo block".to_string()),
-                })?;
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
 
             let path = repo_map
                 .remove(serde_yaml::Value::String("path".to_string()))
@@ -1481,7 +1490,7 @@ mod tests {
         match &schema[0] {
             Operation::Repo { repo } => {
                 assert_eq!(repo.url, "https://github.com/example/repo");
-                assert_eq!(repo.r#ref, "main");
+                assert_eq!(repo.r#ref.as_deref(), Some("main"));
                 assert!(repo.with.is_empty());
             }
             _ => panic!("Expected Repo operation"),
@@ -1530,12 +1539,10 @@ mod tests {
 
     #[test]
     fn test_parse_invalid_yaml() {
+        // A repo operation without a url is invalid (url is required).
         let invalid_yaml = r#"
 - repo:
-    url: https://github.com/example/repo
-  ref: missing-colon
-- include:
-  patterns: ["valid"]
+    ref: main
 "#;
 
         let result = parse(invalid_yaml);
@@ -1629,7 +1636,7 @@ mod tests {
         match &schema[0] {
             Operation::Repo { repo } => {
                 assert_eq!(repo.url, "https://github.com/example/repo");
-                assert_eq!(repo.r#ref, "main");
+                assert_eq!(repo.r#ref.as_deref(), Some("main"));
                 assert_eq!(repo.with.len(), 1);
             }
             _ => panic!("Expected Repo operation"),
@@ -1721,7 +1728,7 @@ mod tests {
         match &schema[0] {
             Operation::Repo { repo } => {
                 assert_eq!(repo.url, "https://github.com/shakefu/commonrepo");
-                assert_eq!(repo.r#ref, "v1.1.0");
+                assert_eq!(repo.r#ref.as_deref(), Some("v1.1.0"));
                 assert_eq!(repo.with.len(), 3);
             }
             _ => panic!("Expected Repo operation"),
@@ -1976,7 +1983,7 @@ mod tests {
         match &schema[0] {
             Operation::Repo { repo } => {
                 assert_eq!(repo.url, "https://github.com/example/repo");
-                assert_eq!(repo.r#ref, "main");
+                assert_eq!(repo.r#ref.as_deref(), Some("main"));
                 assert_eq!(repo.with.len(), 4);
 
                 // Check include in with clause (original format)
@@ -2948,7 +2955,7 @@ mod tests {
             let op = Operation::Repo {
                 repo: RepoOp {
                     url: "https://example.com/repo".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![],
                 },
@@ -3143,7 +3150,7 @@ mod tests {
                     repo.url,
                     "https://github.com/christmas-island/cr-semantic-release"
                 );
-                assert_eq!(repo.r#ref, "main");
+                assert_eq!(repo.r#ref.as_deref(), Some("main"));
                 assert_eq!(
                     repo.with.len(),
                     1,
@@ -3430,6 +3437,29 @@ mod tests {
             assert_eq!(warnings.len(), 1);
             assert_eq!(warnings[0].operation_index, 0);
             assert_eq!(warnings[0].source_path, "unknown-fragment.xml");
+        }
+    }
+
+    #[test]
+    fn repo_op_is_local_recognises_prefixes() {
+        let cases = [
+            ("./foo", true),
+            ("../foo", true),
+            ("/abs/foo", true),
+            ("https://github.com/x/y", false),
+            ("git@github.com:x/y.git", false),
+            ("local", false),
+            ("", false),
+            ("./", true),
+        ];
+        for (url, expected) in cases {
+            let op = RepoOp {
+                url: url.to_string(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            };
+            assert_eq!(op.is_local(), expected, "url={url}");
         }
     }
 }

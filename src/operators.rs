@@ -166,8 +166,11 @@ pub(crate) mod repo {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn apply(op: &RepoOp, repo_manager: &RepositoryManager) -> Result<MemoryFS> {
         // Fetch the repository with optional path filtering
-        let mut fs =
-            repo_manager.fetch_repository_with_path(&op.url, &op.r#ref, op.path.as_deref())?;
+        let mut fs = repo_manager.fetch_repository_with_path(
+            &op.url,
+            op.r#ref.as_deref().unwrap_or(""),
+            op.path.as_deref(),
+        )?;
 
         // Apply inline with: operations if present
         if !op.with.is_empty() {
@@ -627,7 +630,7 @@ mod tests {
             // Create repo operation
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![], // No with clause
             };
@@ -663,7 +666,7 @@ mod tests {
             // Create repo operation with with: clause that excludes .rs files
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![Operation::Exclude {
                     exclude: ExcludeOp {
@@ -703,7 +706,7 @@ mod tests {
             // Create repo operation with complex with: clause
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![
                     Operation::Exclude {
@@ -806,7 +809,7 @@ mod tests {
                 repo: RepoOp {
                     url: "https://github.com/test/repo.git".to_string(),
                     path: None,
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     with: vec![],
                 },
             }];
@@ -865,7 +868,7 @@ mod tests {
             // Create repo operation with path filter
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: Some("uv".to_string()),
                 with: vec![], // No with clause
             };
@@ -905,7 +908,7 @@ mod tests {
             // Create repo operation with path filter and with: clause to exclude test files
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: Some("uv".to_string()),
                 with: vec![Operation::Exclude {
                     exclude: ExcludeOp {
@@ -941,7 +944,7 @@ mod tests {
             // Create repo operation without path (backward compatibility)
             let op = RepoOp {
                 url: "https://github.com/test/repo.git".to_string(),
-                r#ref: "main".to_string(),
+                r#ref: Some("main".to_string()),
                 path: None,
                 with: vec![], // No with clause
             };

@@ -98,6 +98,25 @@ pub enum Error {
     #[error("Cycle detected in repository dependencies: {cycle}")]
     CycleDetected { cycle: String },
 
+    /// A local filesystem path referenced in a `repo:` op does not exist.
+    #[error("Local path not found: {original} (attempted: {attempted:?}): {source}")]
+    LocalPathNotFound {
+        /// Original URL as written in the config (e.g., `./foo`).
+        original: String,
+        /// The fully resolved path that was attempted.
+        attempted: std::path::PathBuf,
+        /// Underlying I/O error from canonicalisation.
+        #[source]
+        source: std::io::Error,
+    },
+
+    /// A local filesystem path resolved to something that is not a directory.
+    #[error("Local path is not a directory: {path:?}")]
+    LocalPathNotDirectory {
+        /// The resolved path that was expected to be a directory.
+        path: std::path::PathBuf,
+    },
+
     /// A warning for a merge conflict, typically when a file would be
     /// overwritten.
     #[error("Merge conflict warning: {src} -> {dst}: {message}")]

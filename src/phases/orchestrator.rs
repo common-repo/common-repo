@@ -127,13 +127,13 @@ fn resolve_repo_inline_inner(
     for operation in &cloned.operations {
         match operation {
             Operation::Repo { repo } => {
-                let visit_key = format!("{}@{}", repo.url, repo.r#ref);
+                let visit_key = format!("{}@{}", repo.url, repo.r#ref.as_deref().unwrap_or(""));
 
                 if !visited.insert(visit_key) {
                     log::debug!(
                         "Skipping already-resolved repo: {}@{} (cycle or shared dependency)",
                         repo.url,
-                        repo.r#ref
+                        repo.r#ref.as_deref().unwrap_or("")
                     );
                     continue;
                 }
@@ -144,14 +144,14 @@ fn resolve_repo_inline_inner(
                 // (url, ref) to match regardless of enrichment.
                 let candidates: Vec<_> = cloned_repos
                     .values()
-                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref)
+                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref.as_deref().unwrap_or(""))
                     .collect();
 
                 if candidates.len() > 1 {
                     warn!(
                         "Multiple cloned repos match nested {}@{} ({} candidates); using first",
                         repo.url,
-                        repo.r#ref,
+                        repo.r#ref.as_deref().unwrap_or(""),
                         candidates.len()
                     );
                 }
@@ -183,7 +183,8 @@ fn resolve_repo_inline_inner(
                 } else {
                     warn!(
                         "Nested repo: reference not found in cloned repos, skipping: {}@{}",
-                        repo.url, repo.r#ref
+                        repo.url,
+                        repo.r#ref.as_deref().unwrap_or("")
                     );
                 }
             }
@@ -350,14 +351,14 @@ fn execute_sequential_pipeline(
                 // with different operations), we take the first and warn.
                 let candidates: Vec<_> = cloned_repos
                     .values()
-                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref)
+                    .filter(|c| c.url == repo.url && c.ref_ == repo.r#ref.as_deref().unwrap_or(""))
                     .collect();
 
                 if candidates.len() > 1 {
                     warn!(
                         "Multiple cloned repos match {}@{} ({} candidates); using first match",
                         repo.url,
-                        repo.r#ref,
+                        repo.r#ref.as_deref().unwrap_or(""),
                         candidates.len()
                     );
                 }
@@ -400,7 +401,8 @@ fn execute_sequential_pipeline(
                 } else {
                     warn!(
                         "Repo reference not found in cloned repos, skipping: {}@{}",
-                        repo.url, repo.r#ref
+                        repo.url,
+                        repo.r#ref.as_deref().unwrap_or("")
                     );
                 }
             }
@@ -766,7 +768,7 @@ mod tests {
             vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/child.git".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![], // matches child's operations
                 },
@@ -819,7 +821,7 @@ mod tests {
             vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/grandchild.git".to_string(),
-                    r#ref: "v1".to_string(),
+                    r#ref: Some("v1".to_string()),
                     path: None,
                     with: vec![],
                 },
@@ -836,12 +838,12 @@ mod tests {
             vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/child.git".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![Operation::Repo {
                         repo: RepoOp {
                             url: "https://github.com/test/grandchild.git".to_string(),
-                            r#ref: "v1".to_string(),
+                            r#ref: Some("v1".to_string()),
                             path: None,
                             with: vec![],
                         },
@@ -1018,7 +1020,7 @@ mod tests {
             vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/nonexistent.git".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![],
                 },
@@ -1076,7 +1078,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "https://github.com/test/child.git".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![],
                     },
@@ -1123,12 +1125,12 @@ mod tests {
             vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/b.git".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![Operation::Repo {
                         repo: RepoOp {
                             url: "https://github.com/test/a.git".to_string(),
-                            r#ref: "main".to_string(),
+                            r#ref: Some("main".to_string()),
                             path: None,
                             with: vec![],
                         },
@@ -1147,7 +1149,7 @@ mod tests {
             vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/a.git".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![],
                 },
@@ -1208,7 +1210,7 @@ mod tests {
             vec![Operation::Repo {
                 repo: RepoOp {
                     url: "https://github.com/test/child.git".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![merge_op],
                 },
@@ -1433,7 +1435,7 @@ mod tests {
                 Operation::Repo {
                     repo: RepoOp {
                         url: "https://github.com/test/child.git".to_string(),
-                        r#ref: "main".to_string(),
+                        r#ref: Some("main".to_string()),
                         path: None,
                         with: vec![child_tv_op],
                     },

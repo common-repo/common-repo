@@ -115,9 +115,13 @@ fn check_repo_cache_status(
         .iter()
         .map(|repo| {
             if let Some(path) = &repo.path {
-                repo_manager.is_cached_with_path(&repo.url, &repo.r#ref, Some(path))
+                repo_manager.is_cached_with_path(
+                    &repo.url,
+                    repo.r#ref.as_deref().unwrap_or(""),
+                    Some(path),
+                )
             } else {
-                repo_manager.is_cached(&repo.url, &repo.r#ref)
+                repo_manager.is_cached(&repo.url, repo.r#ref.as_deref().unwrap_or(""))
             }
         })
         .collect()
@@ -144,7 +148,10 @@ fn display_info(
         };
         println!(
             "  • {} @ {}{} {}",
-            repo.url, repo.r#ref, path_info, cache_status
+            repo.url,
+            repo.r#ref.as_deref().unwrap_or(""),
+            path_info,
+            cache_status
         );
     }
 
@@ -244,7 +251,7 @@ mod tests {
             Operation::Repo {
                 repo: RepoOp {
                     url: "https://example.com/repo".to_string(),
-                    r#ref: "main".to_string(),
+                    r#ref: Some("main".to_string()),
                     path: None,
                     with: vec![],
                 },
