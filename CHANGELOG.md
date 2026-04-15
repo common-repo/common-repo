@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.3](https://github.com/common-repo/common-repo/compare/v0.34.2...v0.34.3) (2026-04-15)
+
+
+### Bug Fixes
+
+* unify source and self: pipelines to use the same sequential code path ([2c4d1e9](https://github.com/common-repo/common-repo/commit/2c4d1e9459aebf5aaf38d6a58fb92ccf19c636f3)), closes [#305](https://github.com/common-repo/common-repo/issues/305)
+
 ## [0.34.2](https://github.com/common-repo/common-repo/compare/v0.34.1...v0.34.2) (2026-04-14)
 
 
