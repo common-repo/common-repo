@@ -5,6 +5,7 @@
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
+use predicates::prelude::*;
 
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
@@ -275,4 +276,30 @@ fn test_validate_with_custom_cache_root() {
         .arg(cache_dir.path())
         .assert()
         .success();
+}
+
+#[test]
+fn validate_check_repos_skips_local_repos() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    config_file
+        .write_str(
+            r#"
+- repo:
+    url: ../upstream
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(temp.path())
+        .arg("validate")
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("--check-repos")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("local, skipping network check"));
 }
