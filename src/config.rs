@@ -71,8 +71,8 @@ pub struct RepoOp {
     /// filesystem path (`./`, `../`, `/`) for a local filesystem repo.
     pub url: String,
     /// The Git reference (branch, tag, or commit hash). Required for git URLs;
-    /// optional for local filesystem paths (if supplied on a local path it is
-    /// warned about and ignored).
+    /// optional for local filesystem paths. If supplied on a local path, the
+    /// value is not used when loading the directory.
     #[serde(default)]
     pub r#ref: Option<String>,
     /// An optional sub-path within the repository.
@@ -89,8 +89,11 @@ pub struct RepoOp {
 }
 
 impl RepoOp {
-    /// Returns true when `url` is a local filesystem path (starts with `./`,
-    /// `../`, or `/`).
+    /// Returns true when `url` refers to a local filesystem path rather than
+    /// a git repository. Callers use this to route a repo operation through
+    /// the local-directory loader instead of the git clone/cache path.
+    ///
+    /// A URL is local when it starts with `./`, `../`, or `/`.
     pub fn is_local(&self) -> bool {
         let u = self.url.as_str();
         u.starts_with("./") || u.starts_with("../") || u.starts_with('/')
@@ -1546,7 +1549,15 @@ mod tests {
 "#;
 
         let result = parse(invalid_yaml);
-        assert!(result.is_err());
+        match result {
+            Err(crate::error::Error::ConfigParse { message, .. }) => {
+                assert!(
+                    message.contains("missing url"),
+                    "unexpected message: {message}"
+                );
+            }
+            other => panic!("expected ConfigParse for missing url, got: {other:?}"),
+        }
     }
 
     #[test]
