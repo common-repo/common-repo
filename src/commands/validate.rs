@@ -323,6 +323,12 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
                     repo.r#ref.as_deref().unwrap_or("")
                 );
 
+                // Local filesystem repos don't need a network check
+                if repo.is_local() {
+                    println!("local, skipping network check");
+                    continue;
+                }
+
                 // Try to list tags to verify accessibility
                 match repo_manager.list_repository_tags(&repo.url) {
                     Ok(tags) => {
