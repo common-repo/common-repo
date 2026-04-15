@@ -95,8 +95,7 @@ impl RepoOp {
     ///
     /// A URL is local when it starts with `./`, `../`, or `/`.
     pub fn is_local(&self) -> bool {
-        let u = self.url.as_str();
-        u.starts_with("./") || u.starts_with("../") || u.starts_with('/')
+        crate::repository::is_local_url(&self.url)
     }
 }
 
