@@ -8,6 +8,7 @@
 - [Update Workflow](update-workflow.md)
 - [File Filtering](file-filtering.md)
 - [Configuration Reference](configuration.md)
+- [Local filesystem references](./local-paths.md)
 - [CLI Reference](cli.md)
 - [GitHub Actions](github-actions.md)
 - [Recipes](recipes.md)
