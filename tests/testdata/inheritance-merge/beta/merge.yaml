@@ -1,0 +1,9 @@
+top_level_key: 2.0
+list_within_key:
+- beta
+- fnord
+nested_list_keys:
+- repo: nested_list_beta
+  rev: beta
+  hooks:
+  - id: beta

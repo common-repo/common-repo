@@ -1,0 +1,9 @@
+top_level_key: 1.0
+list_within_key:
+- alpha
+- fnord
+nested_list_keys:
+- repo: nested_list_alpha
+  rev: alpha
+  hooks:
+  - id: alpha

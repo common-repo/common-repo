@@ -1,14 +1,37 @@
 {
-  "task": null,
+  "task": "read-prompt-md",
   "plan": null,
-  "last_updated": "2026-04-14",
-  "description": "No active task. Phase B (repo-in-sequence) merged via PR #297.",
+  "last_updated": "2026-04-15",
+  "description": "Phase 2: Planning & implementation for local filesystem repo references. Brainstorming complete; design doc at docs/superpowers/specs/2026-04-15-local-fs-repos-design.md. Read ./prompt.md for the full handoff, then confirm spec approval with user, invoke superpowers:writing-plans, then execute via TDD.",
+  "session_startup": [
+    "Read ./prompt.md in full before doing anything else",
+    "Read docs/superpowers/specs/2026-04-15-local-fs-repos-design.md (the approved design)",
+    "Run git status to verify you are on feat/local-fs-repos-20260414-2235 with the expected uncommitted files",
+    "Run ./script/test in background — expect exactly 3 pre-existing schema_parsing failures on inheritance-merge/*/merge.yaml",
+    "Confirm with user that the spec is approved (or help them review it)",
+    "Once approved, ask for commit permission for spec + fixture + this JSON",
+    "Invoke superpowers:writing-plans to produce the implementation plan",
+    "Execute via TDD — one failing test at a time per TDD.md"
+  ],
   "session_notes": {
     "phase_0_complete": true,
     "phase_0_archive": "context/completed/phase-0-spec-discovery.json",
     "phase_a_complete": true,
     "phase_a_archive": "context/completed/sequential-operations.json",
     "phase_b_complete": true,
-    "phase_b_archive": "context/completed/phase-b-repo-in-sequence.json"
+    "phase_b_archive": "context/completed/phase-b-repo-in-sequence.json",
+    "brainstorming_complete": true,
+    "design_doc": "docs/superpowers/specs/2026-04-15-local-fs-repos-design.md",
+    "feature_branch": "feat/local-fs-repos-20260414-2235",
+    "approach_chosen": "A (minimal types + threaded parent-dir parameter)",
+    "decisions": {
+      "explicit_ref_on_local": "warn",
+      "path_on_local": "identical to git",
+      "config_stripping": "strip config files only",
+      "cycle_detection": "canonicalize",
+      "symlinks": "skip entirely",
+      "fixture_scope": "parse-only (merge operators follow-up)"
+    },
+    "baseline_state": "3 pre-existing failures: schema_parsing on inheritance-merge/{alpha,beta,carrot}/merge.yaml; fix via glob tightening in the design doc"
   }
 }
