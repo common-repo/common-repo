@@ -1150,6 +1150,25 @@ mod tests {
         }
 
         #[test]
+        fn test_cache_key_for_local_filesystem_path_returns_none() {
+            // A local-filesystem node (canonical URL, original_url Some) must
+            // return None so the pipeline enforces LocalPathNoCache.
+            let node = RepoNode {
+                url: "/canonical/abs/path".to_string(),
+                ref_: String::new(),
+                original_url: Some("./relative".to_string()),
+                children: Vec::new(),
+                operations: Vec::new(),
+            };
+
+            let result = cache_key_for_node(&node).expect("should not error");
+            assert!(
+                result.is_none(),
+                "expected cache_key_for_node to return None for local-filesystem node, got {result:?}"
+            );
+        }
+
+        #[test]
         fn test_cache_key_for_repo_with_empty_operations() {
             // Remote repo with no operations should return simple cache key
             let node = RepoNode::new(
