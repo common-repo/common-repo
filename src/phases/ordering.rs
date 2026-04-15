@@ -33,6 +33,7 @@ use crate::error::Result;
 /// that base configurations are applied before derived ones.
 ///
 /// Returns an OperationOrder containing repository keys in merge order.
+#[allow(dead_code)]
 pub fn execute(tree: &RepoTree) -> Result<OperationOrder> {
     let mut order = Vec::new();
     let mut visited = HashSet::new();
@@ -48,6 +49,7 @@ pub fn execute(tree: &RepoTree) -> Result<OperationOrder> {
 /// This ensures that dependencies (children) are processed before their parents.
 /// The resulting order guarantees that base repositories are applied before
 /// repositories that depend on them.
+#[allow(dead_code)]
 fn build_order_recursive(node: &RepoNode, order: &mut Vec<String>, visited: &mut HashSet<String>) {
     let node_key = node.node_key();
 

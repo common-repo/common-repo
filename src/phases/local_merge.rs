@@ -43,11 +43,15 @@ use crate::defaults::{ALT_CONFIG_FILENAME, DEFAULT_CONFIG_FILENAME};
 use crate::error::{Error, Result};
 use crate::filesystem::{File, MemoryFS};
 
-/// Executes Phase 5 of the pipeline.
+/// Executes Phase 5 of the pipeline (batch mode).
 ///
 /// Combines local files with the composite filesystem (composite wins for
 /// shared paths), executes deferred merge operations, then runs all consumer
 /// operations in YAML declaration order.
+///
+/// Used by unit tests; the production pipeline now uses the sequential
+/// model which handles local file loading and combination inline.
+#[allow(dead_code)]
 pub fn execute(
     composite_fs: &MemoryFS,
     local_config: &Schema,
@@ -199,6 +203,7 @@ pub(crate) fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
 }
 
 /// Merge composite files over local files (composite wins for shared paths)
+#[allow(dead_code)]
 fn merge_composite_over_local(final_fs: &mut MemoryFS, composite_fs: &MemoryFS) -> Result<()> {
     for (path, file) in composite_fs.files() {
         final_fs.add_file(path, file.clone())?;
@@ -212,6 +217,7 @@ fn merge_composite_over_local(final_fs: &mut MemoryFS, composite_fs: &MemoryFS) 
 /// then processes templates with collected variables. Merge and filter operations
 /// are skipped here; they run later in `apply_consumer_operations` against the
 /// combined filesystem.
+#[allow(dead_code)]
 fn apply_local_operations_to_local_fs(
     local_fs: &mut MemoryFS,
     local_config: &Schema,
@@ -247,6 +253,7 @@ fn apply_local_operations_to_local_fs(
 /// All operations -- merges (yaml, json, toml, ini, markdown, xml) and filters
 /// (include, exclude, rename) -- execute sequentially in the order they appear
 /// in the config. YAML order = execution order.
+#[allow(dead_code)]
 fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> Result<()> {
     use crate::operators;
 
