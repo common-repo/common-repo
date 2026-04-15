@@ -100,6 +100,27 @@ pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(),
     Ok(())
 }
 
+/// Options controlling how a directory is loaded into a `MemoryFS`.
+#[derive(Debug, Clone, Copy)]
+pub struct LoadOptions {
+    /// Skip symlinks instead of following them. Used for local filesystem
+    /// repos so the MemoryFS contains only regular files that actually live
+    /// inside the directory.
+    pub skip_symlinks: bool,
+    /// Skip `.git` sub-directories. Always true in practice; repos whose
+    /// working tree has a `.git` dir should never bleed it into the composite.
+    pub skip_git_dirs: bool,
+}
+
+impl Default for LoadOptions {
+    fn default() -> Self {
+        Self {
+            skip_symlinks: false,
+            skip_git_dirs: true,
+        }
+    }
+}
+
 /// Loads the contents of a cached repository from a directory on the host
 /// filesystem into an in-memory `MemoryFS`.
 pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
@@ -107,16 +128,27 @@ pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
 }
 
 /// Loads a cached repository into a `MemoryFS`, with an option to filter by
-/// a sub-path.
-///
-/// If a `path` is specified, only the files within that sub-directory of the
-/// repository will be loaded. The paths of the loaded files will be remapped
-/// to be relative to the specified `path`, making it the new root of the
-/// in-memory filesystem.
+/// a sub-path. Thin wrapper over `load_directory_into_memfs` with default
+/// options (`skip_git_dirs: true, skip_symlinks: false`).
 pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result<MemoryFS, Error> {
+    load_directory_with_filter(cache_dir, path, LoadOptions::default())
+}
+
+/// Load a directory on disk into a MemoryFS, honouring the supplied options.
+///
+/// `skip_symlinks` uses `fs::symlink_metadata` to detect symlinks without
+/// following them. `skip_git_dirs` skips any directory named `.git`.
+pub fn load_directory_into_memfs(root: &Path, opts: LoadOptions) -> Result<MemoryFS, Error> {
+    load_directory_with_filter(root, None, opts)
+}
+
+fn load_directory_with_filter(
+    cache_dir: &Path,
+    path: Option<&str>,
+    opts: LoadOptions,
+) -> Result<MemoryFS, Error> {
     let mut fs = MemoryFS::new();
 
-    // Normalize path: remove leading/trailing slashes, handle empty/None
     let filter_path = path
         .filter(|p| !p.is_empty() && *p != "." && *p != "/")
         .map(|p| PathBuf::from(p.trim_matches('/')));
@@ -126,94 +158,76 @@ pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result
         base_path: &Path,
         fs: &mut MemoryFS,
         filter_path: Option<&PathBuf>,
+        opts: LoadOptions,
     ) -> Result<(), Error> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
             let relative_path = path.strip_prefix(base_path).unwrap();
 
+            // Check symlink status without following.
+            let link_meta = fs::symlink_metadata(&path)?;
+            if opts.skip_symlinks && link_meta.file_type().is_symlink() {
+                continue;
+            }
+
             if path.is_dir() {
-                // Skip .git directory
-                if !path.ends_with(".git") {
-                    load_directory(&path, base_path, fs, filter_path)?;
+                if opts.skip_git_dirs && path.ends_with(".git") {
+                    continue;
                 }
+                load_directory(&path, base_path, fs, filter_path, opts)?;
             } else {
                 // Apply path filtering if specified
                 if let Some(filter) = filter_path {
-                    // Check if this file is under the filter path
                     if !relative_path.starts_with(filter) {
                         continue;
                     }
-                    // Remap the path to be relative to the filter path
                     let remapped_path = relative_path.strip_prefix(filter).unwrap_or(relative_path);
                     if remapped_path.as_os_str().is_empty() {
-                        continue; // Skip the root directory itself
+                        continue;
                     }
-
-                    // Read file content
-                    let content = fs::read(&path)?;
-                    let metadata = entry.metadata()?;
-
-                    // Create File with basic metadata
-                    let permissions = {
-                        #[cfg(unix)]
-                        {
-                            use std::os::unix::fs::PermissionsExt;
-                            metadata.permissions().mode()
-                        }
-                        #[cfg(not(unix))]
-                        {
-                            0o644 // Default permissions on non-Unix systems
-                        }
-                    };
-
-                    let file = File {
-                        content,
-                        permissions,
-                        modified_time: metadata
-                            .modified()
-                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
-                        is_template: false,
-                    };
-
-                    fs.add_file(remapped_path, file)?;
+                    add_file(fs, &path, remapped_path, &entry)?;
                 } else {
-                    // No filtering - load all files as-is
-                    // Read file content
-                    let content = fs::read(&path)?;
-                    let metadata = entry.metadata()?;
-
-                    // Create File with basic metadata
-                    let permissions = {
-                        #[cfg(unix)]
-                        {
-                            use std::os::unix::fs::PermissionsExt;
-                            metadata.permissions().mode()
-                        }
-                        #[cfg(not(unix))]
-                        {
-                            0o644 // Default permissions on non-Unix systems
-                        }
-                    };
-
-                    let file = File {
-                        content,
-                        permissions,
-                        modified_time: metadata
-                            .modified()
-                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
-                        is_template: false,
-                    };
-
-                    fs.add_file(relative_path, file)?;
+                    add_file(fs, &path, relative_path, &entry)?;
                 }
             }
         }
         Ok(())
     }
 
-    load_directory(cache_dir, cache_dir, &mut fs, filter_path.as_ref())?;
+    load_directory(cache_dir, cache_dir, &mut fs, filter_path.as_ref(), opts)?;
     Ok(fs)
+}
+
+fn add_file(
+    fs: &mut MemoryFS,
+    abs_path: &Path,
+    dest: &Path,
+    entry: &fs::DirEntry,
+) -> Result<(), Error> {
+    let content = fs::read(abs_path)?;
+    let metadata = entry.metadata()?;
+    let permissions = {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            metadata.permissions().mode()
+        }
+        #[cfg(not(unix))]
+        {
+            0o644
+        }
+    };
+    let file = File {
+        content,
+        permissions,
+        modified_time: metadata
+            .modified()
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+        is_template: false,
+    };
+    fs.add_file(dest, file)?;
+    Ok(())
 }
 
 /// Saves the contents of a `MemoryFS` to a directory on the host filesystem.
@@ -898,4 +912,54 @@ mod tests {
     // Note: Integration tests for clone_shallow and list_tags would require
     // actual git repositories and network access, so they're omitted for now
     // Unit tests for list_tags would require mocking the Command output
+}
+
+#[cfg(test)]
+mod loader_tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+    use tempfile::TempDir;
+
+    #[test]
+    fn load_directory_into_memfs_skips_symlinks_when_requested() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("real.txt"), b"real-content").unwrap();
+        std::fs::write(dir.path().join("target.txt"), b"target-content").unwrap();
+        symlink(dir.path().join("target.txt"), dir.path().join("link.txt")).unwrap();
+
+        let opts = LoadOptions {
+            skip_symlinks: true,
+            skip_git_dirs: true,
+        };
+        let fs = load_directory_into_memfs(dir.path(), opts).unwrap();
+
+        assert!(fs.exists("real.txt"));
+        assert!(fs.exists("target.txt"));
+        assert!(!fs.exists("link.txt"), "symlink should be skipped");
+    }
+
+    #[test]
+    fn load_directory_into_memfs_keeps_symlinks_by_default() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("target.txt"), b"target-content").unwrap();
+        symlink(dir.path().join("target.txt"), dir.path().join("link.txt")).unwrap();
+
+        let fs = load_directory_into_memfs(dir.path(), LoadOptions::default()).unwrap();
+
+        assert!(fs.exists("target.txt"));
+        assert!(fs.exists("link.txt"), "default options preserve symlinks");
+    }
+
+    #[test]
+    fn load_directory_into_memfs_skips_git_dir() {
+        let dir = TempDir::new().unwrap();
+        std::fs::create_dir(dir.path().join(".git")).unwrap();
+        std::fs::write(dir.path().join(".git/HEAD"), b"ref: refs/heads/main").unwrap();
+        std::fs::write(dir.path().join("README.md"), b"# hi").unwrap();
+
+        let fs = load_directory_into_memfs(dir.path(), LoadOptions::default()).unwrap();
+
+        assert!(fs.exists("README.md"));
+        assert!(!fs.exists(".git/HEAD"));
+    }
 }
