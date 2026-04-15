@@ -148,6 +148,17 @@ fn matches_filter(repo: &RepoOp, filters: &[String]) -> bool {
 
 /// Check for updates for a single repository
 pub fn check_repo_updates(repo: &RepoOp, repo_manager: &RepositoryManager) -> Result<UpdateInfo> {
+    if repo.is_local() {
+        return Ok(UpdateInfo {
+            url: repo.url.clone(),
+            current_ref: String::new(),
+            latest_version: None,
+            breaking_changes: false,
+            compatible_updates: false,
+            available_versions: vec![],
+        });
+    }
+
     let current_ref = repo.r#ref.as_deref().unwrap_or("");
 
     // List all tags for this repository
@@ -604,5 +615,73 @@ mod tests {
             &repo,
             &["github.com/org/monorepo/**".to_string()]
         ));
+    }
+
+    #[test]
+    fn check_repo_updates_skips_local() {
+        use crate::config::RepoOp;
+        use std::sync::{Arc, Mutex};
+
+        struct CountingGit {
+            tag_calls: Arc<Mutex<u32>>,
+        }
+        impl crate::repository::GitOperations for CountingGit {
+            fn clone_shallow(
+                &self,
+                _: &str,
+                _: &str,
+                _: &std::path::Path,
+            ) -> crate::error::Result<()> {
+                Ok(())
+            }
+            fn list_tags(&self, _: &str) -> crate::error::Result<Vec<String>> {
+                *self.tag_calls.lock().unwrap() += 1;
+                Ok(vec![])
+            }
+        }
+        struct NullCache;
+        impl crate::repository::CacheOperations for NullCache {
+            fn exists(&self, _: &std::path::Path) -> bool {
+                false
+            }
+            fn get_cache_path(&self, _: &str, _: &str) -> std::path::PathBuf {
+                std::path::PathBuf::new()
+            }
+            fn load_from_cache(
+                &self,
+                _: &std::path::Path,
+            ) -> crate::error::Result<crate::filesystem::MemoryFS> {
+                Ok(crate::filesystem::MemoryFS::new())
+            }
+            fn save_to_cache(
+                &self,
+                _: &std::path::Path,
+                _: &crate::filesystem::MemoryFS,
+            ) -> crate::error::Result<()> {
+                Ok(())
+            }
+        }
+
+        let calls = Arc::new(Mutex::new(0));
+        let git = Box::new(CountingGit {
+            tag_calls: calls.clone(),
+        });
+        let cache = Box::new(NullCache);
+        let manager = crate::repository::RepositoryManager::with_operations(git, cache);
+
+        let repo = RepoOp {
+            url: "./local".to_string(),
+            r#ref: None,
+            path: None,
+            with: vec![],
+        };
+        let info = check_repo_updates(&repo, &manager).unwrap();
+        assert_eq!(info.url, "./local");
+        assert_eq!(info.current_ref, "");
+        assert!(info.latest_version.is_none());
+        assert!(!info.breaking_changes);
+        assert!(!info.compatible_updates);
+        assert!(info.available_versions.is_empty());
+        assert_eq!(*calls.lock().unwrap(), 0, "list_tags must not be called");
     }
 }
