@@ -1,0 +1,9 @@
+top_level_key: 2.0
+list_within_key:
+- carrot
+- fnord
+nested_list_keys:
+- repo: nested_list_carrot
+  rev: carrot
+  hooks:
+  - id: carrot
