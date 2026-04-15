@@ -101,14 +101,16 @@ pub fn clone_shallow(url: &str, ref_name: &str, target_dir: &Path) -> Result<(),
 }
 
 /// Options controlling how a directory is loaded into a `MemoryFS`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoadOptions {
     /// Skip symlinks instead of following them. Used for local filesystem
     /// repos so the MemoryFS contains only regular files that actually live
     /// inside the directory.
     pub skip_symlinks: bool,
-    /// Skip `.git` sub-directories. Always true in practice; repos whose
-    /// working tree has a `.git` dir should never bleed it into the composite.
+    /// Skip any directory whose final path component is `.git`, matched at
+    /// every level of the tree (not just the root). Always true in practice;
+    /// repos whose working tree has a `.git` dir should never bleed it into
+    /// the composite.
     pub skip_git_dirs: bool,
 }
 
@@ -127,9 +129,16 @@ pub fn load_from_cache(cache_dir: &Path) -> Result<MemoryFS, Error> {
     load_from_cache_with_path(cache_dir, None)
 }
 
-/// Loads a cached repository into a `MemoryFS`, with an option to filter by
-/// a sub-path. Thin wrapper over `load_directory_into_memfs` with default
-/// options (`skip_git_dirs: true, skip_symlinks: false`).
+/// Loads a cached repository into a `MemoryFS`, with an optional sub-path
+/// filter that restricts which files are loaded.
+///
+/// If `path` is specified, only files within that sub-directory are
+/// loaded. Their paths are remapped to be relative to the sub-path,
+/// making it the effective root of the in-memory filesystem.
+///
+/// Uses `LoadOptions::default()` (skip_git_dirs: true, skip_symlinks: false).
+/// For local-filesystem repos that need symlink-skip, call
+/// [`load_directory_into_memfs`] directly.
 pub fn load_from_cache_with_path(cache_dir: &Path, path: Option<&str>) -> Result<MemoryFS, Error> {
     load_directory_with_filter(cache_dir, path, LoadOptions::default())
 }
@@ -165,10 +174,12 @@ fn load_directory_with_filter(
             let path = entry.path();
             let relative_path = path.strip_prefix(base_path).unwrap();
 
-            // Check symlink status without following.
-            let link_meta = fs::symlink_metadata(&path)?;
-            if opts.skip_symlinks && link_meta.file_type().is_symlink() {
-                continue;
+            // Skip symlinks without following when requested.
+            if opts.skip_symlinks {
+                let link_meta = fs::symlink_metadata(&path)?;
+                if link_meta.file_type().is_symlink() {
+                    continue;
+                }
             }
 
             if path.is_dir() {
