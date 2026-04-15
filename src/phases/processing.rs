@@ -67,7 +67,7 @@ fn clone_tree_repos_recursive(
         return Ok(());
     }
 
-    let mut fs = repo_manager.fetch_repository(&node.url, &node.ref_)?;
+    let mut fs = repo_manager.fetch_repository_with_path(&node.url, &node.ref_, None)?;
     remove_source_config_files(&mut fs);
 
     let children_keys: Vec<String> = node.children.iter().map(|c| c.node_key()).collect();
@@ -136,6 +136,10 @@ pub fn process_cloned_repo(cloned: &ClonedRepo, cache: &RepoCache) -> Result<Int
 
 /// Build a cache key for a ClonedRepo (mirrors cache_key_for_node)
 fn cache_key_for_cloned(cloned: &ClonedRepo) -> Result<Option<CacheKey>> {
+    if crate::repository::is_local_url(&cloned.url) {
+        return Ok(None);
+    }
+
     if cloned.operations.is_empty() {
         return Ok(Some(CacheKey::new(&cloned.url, &cloned.ref_)));
     }
@@ -272,7 +276,7 @@ pub(crate) fn collect_merge_operations(operations: &[Operation]) -> Vec<Operatio
 /// Build a cache key for a repository node (includes operations fingerprint)
 #[allow(dead_code)]
 fn cache_key_for_node(node: &RepoNode) -> Result<Option<CacheKey>> {
-    if node.url == "local" {
+    if node.url == "local" || node.is_local() {
         return Ok(None);
     }
 
@@ -2336,6 +2340,36 @@ mod tests {
             assert!(cloned.fs.exists("src/main.rs"));
             assert!(!cloned.fs.exists(".common-repo.yaml"));
             assert!(!cloned.fs.exists(".commonrepo.yaml"));
+        }
+
+        #[test]
+        fn clone_tree_repos_handles_local_node() {
+            use crate::phases::{RepoNode, RepoTree};
+            use tempfile::TempDir;
+
+            let dir = TempDir::new().unwrap();
+            std::fs::write(dir.path().join("hello.txt"), b"hi").unwrap();
+            let canonical = std::fs::canonicalize(dir.path()).unwrap();
+
+            let local_child = RepoNode {
+                url: canonical.to_string_lossy().into_owned(),
+                ref_: String::new(),
+                original_url: Some("./wherever".to_string()),
+                children: Vec::new(),
+                operations: Vec::new(),
+            };
+            let mut root = RepoNode::new("local".to_string(), "HEAD".to_string(), vec![]);
+            root.add_child(local_child);
+            let tree = RepoTree::new(root);
+
+            let cache_root = TempDir::new().unwrap();
+            let manager =
+                crate::repository::RepositoryManager::new(cache_root.path().to_path_buf());
+
+            let cloned = clone_tree_repos(&tree, &manager).unwrap();
+            assert_eq!(cloned.len(), 1);
+            let (_, cloned_repo) = cloned.iter().next().unwrap();
+            assert!(cloned_repo.fs.exists("hello.txt"));
         }
 
         #[test]
