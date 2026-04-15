@@ -209,10 +209,15 @@ impl RepoTree {
 pub struct ClonedRepo {
     /// Raw filesystem content from the cloned repository (config files removed)
     pub(crate) fs: MemoryFS,
-    /// Repository URL
+    /// Repository URL. For local nodes this is the canonical absolute path
+    /// produced by `fs::canonicalize`.
     pub(crate) url: String,
-    /// Git reference (tag, branch, commit)
+    /// Git reference (tag, branch, commit). Empty string for local nodes.
     pub(crate) ref_: String,
+    /// Original URL as written in the config (only populated for local nodes
+    /// — preserves `./foo` / `../foo` spelling for orchestrator lookup, which
+    /// sees the unresolved spelling in Operation::Repo entries).
+    pub(crate) original_url: Option<String>,
     /// Operations to apply when this repo is processed (from `with:` clause +
     /// upstream filtering + deferred ops)
     pub(crate) operations: Vec<Operation>,
@@ -229,6 +234,7 @@ impl ClonedRepo {
             fs,
             url,
             ref_,
+            original_url: None,
             operations,
             children_keys: Vec::new(),
         }
