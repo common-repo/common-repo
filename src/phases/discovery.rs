@@ -32,6 +32,7 @@
 //! before the processing and merging phases begin.
 
 use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use log::warn;
@@ -43,6 +44,17 @@ use crate::config::{Operation, Schema};
 use crate::defaults::{ALT_CONFIG_FILENAME, DEFAULT_CONFIG_FILENAME};
 use crate::error::{Error, Result};
 use crate::repository::RepositoryManager;
+
+/// A deduplicated key used in cycle-detection and the discovery visited set.
+///
+/// Two local-directory references to the same canonical path are considered
+/// the same key regardless of how the path was spelled in the config (e.g.
+/// `./alpha` vs `../consumer/../alpha`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum VisitKey {
+    Git { url: String, ref_: String },
+    Local { canonical: PathBuf },
+}
 
 /// Executes Phase 1 of the pipeline.
 ///
@@ -64,16 +76,24 @@ pub fn execute(
 /// Uses breadth-first traversal to discover all repositories that need to be fetched.
 /// This ensures we find all dependencies before starting any cloning operations.
 pub fn discover_repos(config: &Schema, repo_manager: &RepositoryManager) -> Result<RepoTree> {
-    // Extract repo operations and build the repository tree
-    let root_node = process_config_to_node(config)?;
+    discover_repos_with_parent(config, std::env::current_dir()?.as_path(), repo_manager)
+}
 
-    // Recursively discover all inherited repos by parsing their .common-repo.yaml files
-    let root_node = discover_inherited_configs(root_node, repo_manager, &mut HashSet::new())?;
-
-    // Check for cycles in the discovered tree
+/// Discover repositories with an explicit parent directory for local path resolution.
+///
+/// Like [`discover_repos`] but allows the caller to supply the directory that
+/// the config was read from. Relative local-path references in `config` are
+/// resolved against `parent_dir`.
+pub(crate) fn discover_repos_with_parent(
+    config: &Schema,
+    parent_dir: &Path,
+    repo_manager: &RepositoryManager,
+) -> Result<RepoTree> {
+    let root_node = process_config_to_node(config, parent_dir)?;
+    let root_node =
+        discover_inherited_configs(root_node, parent_dir, repo_manager, &mut HashSet::new())?;
     let tree = RepoTree::new(root_node.clone());
     detect_cycles(&tree.root, &mut Vec::new())?;
-
     Ok(tree)
 }
 
@@ -83,76 +103,82 @@ pub fn discover_repos(config: &Schema, repo_manager: &RepositoryManager) -> Resu
 /// file to discover further inheritance. Uses a visited set to prevent infinite recursion.
 fn discover_inherited_configs(
     mut node: RepoNode,
+    parent_dir: &Path,
     repo_manager: &RepositoryManager,
-    visited: &mut HashSet<(String, String)>,
+    visited: &mut HashSet<VisitKey>,
 ) -> Result<RepoNode> {
-    // Process all children recursively
     let mut new_children = Vec::new();
 
     for child in node.children {
-        // If this child represents a real repository (not "local"), try to parse its config
-        if child.url != "local" {
-            let repo_key = (child.url.clone(), child.ref_.clone());
-
-            // Check if we've already visited this repo to prevent infinite recursion
-            if visited.contains(&repo_key) {
-                // Skip this repo - it's already been processed (cycle prevention)
-                continue;
-            }
-
-            // Mark as visited
-            visited.insert(repo_key.clone());
-
-            // Try to fetch and parse the inherited config
-            match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
-                Ok(inherited_config) => {
-                    // Extract upstream operations (include/exclude/rename/template/template-vars)
-                    // These define the "public API" of files the upstream repo exposes
-                    let upstream_filtering_ops = extract_upstream_operations(&inherited_config);
-
-                    // Extract deferred operations from the upstream repo's config
-                    // These are merge operations with defer: true or auto-merge
-                    let deferred_ops = extract_deferred_operations(&inherited_config);
-
-                    // Process the inherited config to get its repo operations
-                    let inherited_node = process_config_to_node(&inherited_config)?;
-
-                    // Recursively discover configs for the inherited repos
-                    let inherited_node =
-                        discover_inherited_configs(inherited_node, repo_manager, visited)?;
-
-                    // Combine operations in correct order:
-                    // 1. Upstream filtering ops (define exposed file set)
-                    // 2. Deferred ops (upstream-declared merge behavior)
-                    // 3. Consumer's with: ops (can further filter/transform)
-                    let mut combined_operations = upstream_filtering_ops;
-                    combined_operations.extend(deferred_ops);
-                    combined_operations.extend(child.operations.clone());
-
-                    // The inherited node becomes a child with combined operations
-                    let mut combined_node =
-                        RepoNode::new(child.url.clone(), child.ref_.clone(), combined_operations);
-
-                    // Add all the inherited repos as children
-                    for inherited_child in inherited_node.children {
-                        combined_node.add_child(inherited_child);
-                    }
-
-                    new_children.push(combined_node);
-                }
-                Err(_) => {
-                    // If we can't fetch/parse the config, just use the original child as-is
-                    // This allows repositories without .common-repo.yaml files to still work
-                    new_children.push(child);
-                }
-            }
-
-            // Remove from visited set when done processing this branch
-            visited.remove(&repo_key);
-        } else {
-            // Local nodes don't need inheritance discovery
+        if child.url == "local" {
             new_children.push(child);
+            continue;
         }
+
+        let visit_key = if child.is_local() {
+            VisitKey::Local {
+                canonical: PathBuf::from(&child.url),
+            }
+        } else {
+            VisitKey::Git {
+                url: child.url.clone(),
+                ref_: child.ref_.clone(),
+            }
+        };
+
+        if visited.contains(&visit_key) {
+            continue;
+        }
+        visited.insert(visit_key.clone());
+
+        // The directory the child's own .common-repo.yaml sits in:
+        // for local children, the canonical path on the node; for git
+        // children, the cache checkout directory (not threaded here — we
+        // use cwd as a best-effort fallback since nested git configs
+        // already work without parent-dir resolution).
+        let child_parent = if child.is_local() {
+            PathBuf::from(&child.url)
+        } else {
+            parent_dir.to_path_buf()
+        };
+
+        match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
+            Ok(inherited_config) => {
+                let upstream_filtering_ops = extract_upstream_operations(&inherited_config);
+                let deferred_ops = extract_deferred_operations(&inherited_config);
+
+                let inherited_node = process_config_to_node(&inherited_config, &child_parent)?;
+                let inherited_node = discover_inherited_configs(
+                    inherited_node,
+                    &child_parent,
+                    repo_manager,
+                    visited,
+                )?;
+
+                let mut combined_operations = upstream_filtering_ops;
+                combined_operations.extend(deferred_ops);
+                combined_operations.extend(child.operations.clone());
+
+                let mut combined_node = RepoNode {
+                    url: child.url.clone(),
+                    ref_: child.ref_.clone(),
+                    original_url: child.original_url.clone(),
+                    children: Vec::new(),
+                    operations: combined_operations,
+                };
+                for inherited_child in inherited_node.children {
+                    combined_node.add_child(inherited_child);
+                }
+                new_children.push(combined_node);
+            }
+            Err(_) => {
+                // If we can't fetch/parse the config, just use the original child as-is
+                // This allows repositories without .common-repo.yaml files to still work
+                new_children.push(child);
+            }
+        }
+
+        visited.remove(&visit_key);
     }
 
     node.children = new_children;
@@ -238,35 +264,43 @@ fn extract_upstream_operations(config: &Schema) -> Vec<Operation> {
 ///
 /// A cycle occurs when a repository appears multiple times in a single dependency path
 /// (from root to leaf). Multiple branches can reference the same repo - that's allowed.
-fn detect_cycles(node: &RepoNode, path: &mut Vec<(String, String)>) -> Result<()> {
-    // Skip the synthetic "local" root node for cycle detection
+fn detect_cycles(node: &RepoNode, path: &mut Vec<VisitKey>) -> Result<()> {
     if node.url != "local" {
-        let repo_key = (node.url.clone(), node.ref_.clone());
+        let key = if node.is_local() {
+            VisitKey::Local {
+                canonical: PathBuf::from(&node.url),
+            }
+        } else {
+            VisitKey::Git {
+                url: node.url.clone(),
+                ref_: node.ref_.clone(),
+            }
+        };
 
-        // Check if this repo already appears in the current path (cycle detected)
-        if path.contains(&repo_key) {
-            // Build cycle description showing the circular path
-            let mut cycle_path = path
+        if path.contains(&key) {
+            let mut cycle_path: Vec<String> = path
                 .iter()
-                .map(|(url, ref_)| format!("{}@{}", url, ref_))
-                .collect::<Vec<_>>();
-            cycle_path.push(format!("{}@{}", node.url, node.ref_));
-
+                .map(|k| match k {
+                    VisitKey::Git { url, ref_ } => format!("{url}@{ref_}"),
+                    VisitKey::Local { canonical } => canonical.to_string_lossy().into_owned(),
+                })
+                .collect();
+            cycle_path.push(match &key {
+                VisitKey::Git { url, ref_ } => format!("{url}@{ref_}"),
+                VisitKey::Local { canonical } => canonical.to_string_lossy().into_owned(),
+            });
             return Err(Error::CycleDetected {
                 cycle: cycle_path.join(" -> "),
             });
         }
 
-        // Add this repo to the current path
-        path.push(repo_key.clone());
+        path.push(key);
     }
 
-    // Recursively check all children
     for child in &node.children {
         detect_cycles(child, path)?;
     }
 
-    // Remove this repo from path when backtracking (allows same repo in different branches)
     if node.url != "local" {
         path.pop();
     }
@@ -277,49 +311,60 @@ fn detect_cycles(node: &RepoNode, path: &mut Vec<(String, String)>) -> Result<()
 /// Convert a configuration into a repository node
 ///
 /// Extracts repo operations as child nodes and keeps other operations in the root node.
-fn process_config_to_node(config: &Schema) -> Result<RepoNode> {
-    // For the root config, we don't have a URL/ref, so we create a synthetic root
-    // The root represents the local operations that will be applied
-
+/// Relative and absolute local-path URLs are canonicalised against `defining_config_dir`.
+fn process_config_to_node(config: &Schema, defining_config_dir: &Path) -> Result<RepoNode> {
     let mut repo_operations = Vec::new();
     let mut other_operations = Vec::new();
 
-    // Separate repo operations from other operations
     for operation in config {
         match operation {
-            Operation::Repo { repo } => {
-                repo_operations.push(repo.clone());
-            }
-            _ => {
-                other_operations.push(operation.clone());
-            }
+            Operation::Repo { repo } => repo_operations.push(repo.clone()),
+            _ => other_operations.push(operation.clone()),
         }
     }
 
-    // Create root node with non-repo operations
-    let mut root_node = RepoNode::new(
-        "local".to_string(), // Special marker for local config
-        "HEAD".to_string(),  // Not used for local
-        other_operations,
-    );
+    let mut root_node = RepoNode::new("local".to_string(), "HEAD".to_string(), other_operations);
 
-    // Create child nodes for each repo operation
     for repo_op in repo_operations {
-        // Check for cycles before adding (same url+ref as root would be a cycle)
         if repo_op.url == "local" {
             return Err(Error::CycleDetected {
                 cycle: format!("{}@{}", repo_op.url, repo_op.r#ref.as_deref().unwrap_or("")),
             });
         }
 
-        // Extract operations from the repo's `with:` clause
-        let child_operations = repo_op.with;
+        let child_operations = repo_op.with.clone();
 
-        let child_node = RepoNode::new(
-            repo_op.url,
-            repo_op.r#ref.unwrap_or_default(),
-            child_operations,
-        );
+        let child_node = if repo_op.is_local() {
+            // Resolve the URL against defining_config_dir
+            let candidate = if repo_op.url.starts_with('/') {
+                PathBuf::from(&repo_op.url)
+            } else {
+                defining_config_dir.join(&repo_op.url)
+            };
+            let canonical =
+                std::fs::canonicalize(&candidate).map_err(|e| Error::LocalPathNotFound {
+                    original: repo_op.url.clone(),
+                    attempted: candidate.clone(),
+                    source: e,
+                })?;
+            if !canonical.is_dir() {
+                return Err(Error::LocalPathNotDirectory { path: canonical });
+            }
+
+            RepoNode {
+                url: canonical.to_string_lossy().into_owned(),
+                ref_: String::new(),
+                original_url: Some(repo_op.url.clone()),
+                children: Vec::new(),
+                operations: child_operations,
+            }
+        } else {
+            RepoNode::new(
+                repo_op.url,
+                repo_op.r#ref.unwrap_or_default(),
+                child_operations,
+            )
+        };
 
         root_node.add_child(child_node);
     }
@@ -543,7 +588,7 @@ mod tests {
     #[test]
     fn test_process_config_to_node_empty_config() {
         let config: Schema = vec![];
-        let result = process_config_to_node(&config);
+        let result = process_config_to_node(&config, std::env::current_dir().unwrap().as_path());
 
         assert!(result.is_ok());
         let node = result.unwrap();
@@ -568,7 +613,7 @@ mod tests {
             },
         ];
 
-        let result = process_config_to_node(&config);
+        let result = process_config_to_node(&config, std::env::current_dir().unwrap().as_path());
         assert!(result.is_ok());
 
         let node = result.unwrap();
@@ -588,7 +633,7 @@ mod tests {
             },
         }];
 
-        let result = process_config_to_node(&config);
+        let result = process_config_to_node(&config, std::env::current_dir().unwrap().as_path());
         assert!(result.is_ok());
 
         let node = result.unwrap();
@@ -634,7 +679,7 @@ mod tests {
             },
         ];
 
-        let result = process_config_to_node(&config);
+        let result = process_config_to_node(&config, std::env::current_dir().unwrap().as_path());
         assert!(result.is_ok());
 
         let node = result.unwrap();
@@ -662,7 +707,7 @@ mod tests {
             },
         }];
 
-        let result = process_config_to_node(&config);
+        let result = process_config_to_node(&config, std::env::current_dir().unwrap().as_path());
         assert!(result.is_err());
 
         let error = result.unwrap_err();
@@ -1662,9 +1707,101 @@ mod tests {
             },
         ];
 
-        let node = process_config_to_node(&config).unwrap();
+        let node =
+            process_config_to_node(&config, std::env::current_dir().unwrap().as_path()).unwrap();
         assert_eq!(node.children.len(), 1); // one repo child
         assert_eq!(node.operations.len(), 1); // self goes to operations
         assert!(matches!(node.operations[0], Operation::Self_ { .. }));
+    }
+
+    #[test]
+    fn process_config_to_node_resolves_local_relative_path() {
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().unwrap();
+        let alpha_dir = tmp.path().join("alpha");
+        let beta_dir = tmp.path().join("beta");
+        std::fs::create_dir(&alpha_dir).unwrap();
+        std::fs::create_dir(&beta_dir).unwrap();
+        std::fs::write(alpha_dir.join(".common-repo.yaml"), b"- include: ['**']\n").unwrap();
+
+        // beta/.common-repo.yaml references ../alpha
+        let config: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "../alpha".to_string(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            },
+        }];
+
+        let node = process_config_to_node(&config, &beta_dir).unwrap();
+        assert_eq!(node.children.len(), 1);
+        let child = &node.children[0];
+        assert_eq!(
+            child.url,
+            std::fs::canonicalize(&alpha_dir).unwrap().to_string_lossy()
+        );
+        assert_eq!(child.original_url.as_deref(), Some("../alpha"));
+        assert_eq!(child.ref_, "");
+    }
+
+    #[test]
+    fn process_config_to_node_errors_when_local_path_missing() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let config: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "./nope".to_string(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            },
+        }];
+        let err = process_config_to_node(&config, tmp.path()).unwrap_err();
+        assert!(
+            matches!(err, Error::LocalPathNotFound { .. }),
+            "expected LocalPathNotFound, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn process_config_to_node_errors_when_local_path_is_file() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let file = tmp.path().join("a-file.txt");
+        std::fs::write(&file, b"x").unwrap();
+
+        let config: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "./a-file.txt".to_string(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            },
+        }];
+        let err = process_config_to_node(&config, tmp.path()).unwrap_err();
+        assert!(matches!(err, Error::LocalPathNotDirectory { .. }));
+    }
+
+    #[test]
+    fn process_config_to_node_absolute_local_path() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let sub = tmp.path().join("abs-target");
+        std::fs::create_dir(&sub).unwrap();
+
+        let config: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: sub.to_string_lossy().into_owned(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            },
+        }];
+        // parent_dir here is irrelevant for an absolute-path URL
+        let node = process_config_to_node(&config, tmp.path()).unwrap();
+        assert_eq!(node.children.len(), 1);
+        assert_eq!(
+            node.children[0].url,
+            std::fs::canonicalize(&sub).unwrap().to_string_lossy()
+        );
     }
 }
