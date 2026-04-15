@@ -1,0 +1,218 @@
+{
+  "plan_name": "Inheritance-Merge E2E Tests",
+  "last_updated": "2026-04-15",
+  "design_doc": "docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md",
+  "plan_doc": "docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+  "context": "Extend the inheritance-merge fixture with semantic dir names and real YAML auto-merge ops, then add a 4-test E2E matrix (one test per chain depth) in tests/cli_e2e_inheritance_merge.rs. Each test parses merge.yaml with serde_yaml and asserts on specific keys. The superseded apply_succeeds_in_inheritance_merge_delta test in tests/cli_e2e_local_fs_repos.rs is deleted at the end. Six commits total; each task below produces exactly one commit (except the final verification task).",
+  "session_startup": [
+    "Run git status and git stash list — expect clean working tree on feat/inheritance-merge-e2e-20260415-0525",
+    "Run git log --oneline -5 — latest commit should be e08f594 or later",
+    "Run ./script/test with run_in_background: true to start baseline",
+    "Read this file to find current task",
+    "Read the design doc (docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md) and plan doc (docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md) for full context",
+    "Find first task where status=pending and blocked_by=null"
+  ],
+  "tasks": [
+    {
+      "id": "rename-and-wire-fixture",
+      "name": "Rename fixture dirs to semantic names and add YAML auto-merge ops",
+      "status": "complete",
+      "priority": 1,
+      "blocked_by": null,
+      "output_file": "tests/testdata/inheritance-merge/",
+      "plan_section": "Task 0 + Task 1 in docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+      "steps": [
+        "Run ls tests/testdata/inheritance-merge/ — expect alpha beta carrot delta",
+        "Run git mv tests/testdata/inheritance-merge/alpha tests/testdata/inheritance-merge/upstream-base",
+        "Run git mv tests/testdata/inheritance-merge/beta tests/testdata/inheritance-merge/upstream-intermediate",
+        "Run git mv tests/testdata/inheritance-merge/carrot tests/testdata/inheritance-merge/upstream-overlay",
+        "Run git mv tests/testdata/inheritance-merge/delta tests/testdata/inheritance-merge/consumer",
+        "Overwrite upstream-base/.common-repo.yaml with: `- include: [\"**\"]` then `- yaml:` block with auto-merge: merge.yaml and array_mode: append_unique (exact YAML in plan doc Step 1)",
+        "Overwrite upstream-intermediate/.common-repo.yaml with `- repo: url: ../upstream-base` then a `- yaml:` auto-merge block (exact YAML in plan doc Step 2)",
+        "Overwrite upstream-overlay/.common-repo.yaml with `- repo: url: ../upstream-intermediate` then a `- yaml:` auto-merge block (exact YAML in plan doc Step 3)",
+        "Overwrite consumer/.common-repo.yaml with just `- repo: url: ../upstream-overlay` (no local YAML op — exact YAML in plan doc Step 4)",
+        "Leave upstream-*/merge.yaml files UNCHANGED — the fixture payload is already append_unique-friendly",
+        "Spot-check by running: cargo nextest run --test schema_parsing_test inheritance-merge 2>&1 | tail -20 — expect 4 .common-repo.yaml files parse green",
+        "Verify cli_e2e_local_fs_repos::apply_succeeds_in_inheritance_merge_delta now FAILS because delta/ is gone (expected; Task 6 deletes it). The other 3 tests in that file must still pass",
+        "git add tests/testdata/inheritance-merge/",
+        "Commit with message: test(fixtures): rename inheritance-merge dirs and add YAML auto-merge ops — include a note in the body that apply_succeeds_in_inheritance_merge_delta is left failing and removed later in this plan"
+      ],
+      "acceptance_criteria": [
+        "ls tests/testdata/inheritance-merge/ shows consumer, upstream-base, upstream-intermediate, upstream-overlay (no alpha/beta/carrot/delta)",
+        "upstream-base/.common-repo.yaml has include + yaml auto-merge (append_unique)",
+        "upstream-intermediate/.common-repo.yaml has repo: ../upstream-base + yaml auto-merge",
+        "upstream-overlay/.common-repo.yaml has repo: ../upstream-intermediate + yaml auto-merge",
+        "consumer/.common-repo.yaml has only repo: ../upstream-overlay (no yaml op)",
+        "consumer/ has no merge.yaml",
+        "schema_parsing_test passes for all 4 .common-repo.yaml files",
+        "Exactly one commit added on this branch"
+      ]
+    },
+    {
+      "id": "scaffold-test-file-with-base-noop",
+      "name": "Create tests/cli_e2e_inheritance_merge.rs with helpers and apply_at_base_is_local_noop test",
+      "status": "pending",
+      "priority": 2,
+      "blocked_by": "rename-and-wire-fixture",
+      "output_file": "tests/cli_e2e_inheritance_merge.rs",
+      "plan_section": "Task 2 in docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+      "steps": [
+        "Confirm serde_yaml is in [dependencies] but NOT in [dev-dependencies]: grep -nE 'serde_yaml' Cargo.toml (expect line 13 only)",
+        "Add `serde_yaml = \"0.9\"` at the top of the [dev-dependencies] block in Cargo.toml (line 40 area, above tempfile)",
+        "Run cargo check --tests --features integration-tests to confirm the Cargo change is accepted",
+        "Create tests/cli_e2e_inheritance_merge.rs with module doc comment, imports (assert_cmd::cargo::cargo_bin_cmd, std::fs, std::path::{Path,PathBuf}, tempfile::TempDir), and 4 helpers: copy_tree (duplicated from cli_e2e_local_fs_repos.rs), stage_fixture, apply_in, read_merge_yaml — exact code in plan doc Step 4",
+        "Append the first test apply_at_base_is_local_noop: snapshot merge.yaml before, apply in upstream-base, snapshot after, assert before==after, sanity-check top_level_key==1.0 via .as_f64() — exact code in plan doc Step 4",
+        "Run cargo check --tests --features integration-tests — expect Finished",
+        "Run cargo nextest run --features integration-tests --test cli_e2e_inheritance_merge apply_at_base_is_local_noop — expect 1 passed. If top_level_key assert fails on type mismatch, fall back to top.as_f64() == Some(1.0)",
+        "Run cargo nextest run --features integration-tests 2>&1 | tail -20 — full suite passes EXCEPT apply_succeeds_in_inheritance_merge_delta (still failing, deleted in Task 6). Record baseline counts",
+        "Run ./script/ci — fix any fmt/clippy/prose issues inline and re-stage before committing",
+        "git add Cargo.toml tests/cli_e2e_inheritance_merge.rs",
+        "Commit with message: test(e2e): scaffold cli_e2e_inheritance_merge with base no-op test — body mentions serde_yaml dev-dep addition and deferred-op local-noop premise"
+      ],
+      "acceptance_criteria": [
+        "Cargo.toml [dev-dependencies] contains serde_yaml = \"0.9\"",
+        "tests/cli_e2e_inheritance_merge.rs exists and compiles",
+        "Helpers present: copy_tree, stage_fixture, apply_in, read_merge_yaml",
+        "apply_at_base_is_local_noop passes with --features integration-tests",
+        "./script/ci is green",
+        "Exactly one commit added on this branch beyond the previous task"
+      ]
+    },
+    {
+      "id": "add-intermediate-test",
+      "name": "Add merge_at_intermediate_combines_base test",
+      "status": "pending",
+      "priority": 3,
+      "blocked_by": "scaffold-test-file-with-base-noop",
+      "output_file": "tests/cli_e2e_inheritance_merge.rs",
+      "plan_section": "Task 3 in docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+      "steps": [
+        "Append merge_at_intermediate_combines_base to tests/cli_e2e_inheritance_merge.rs — stage fixture, apply in upstream-intermediate, parse merge.yaml, assert top_level_key.as_f64()==Some(2.0), list_within_key==[alpha,fnord,beta], nested_list_keys repo names==[nested_list_alpha, nested_list_beta] — exact code in plan doc Step 1",
+        "Run cargo nextest run --features integration-tests --test cli_e2e_inheritance_merge merge_at_intermediate_combines_base — expect PASS",
+        "If the test FAILS, apply the discovery-event protocol from plan doc Step 3: read the panic, decide bug vs wrong-assumption. For wrong-assumption, update assertions to match observed with a `// Observed on first run:` comment. For suspected bug, STOP and escalate",
+        "Run cargo nextest run --features integration-tests 2>&1 | tail -20 — expect 2 passing tests in cli_e2e_inheritance_merge now",
+        "Run ./script/ci",
+        "git add tests/cli_e2e_inheritance_merge.rs",
+        "Commit with message: test(e2e): add intermediate-level merge test to inheritance-merge suite — if assertions were adjusted in Step 3, add a Note: line in the body describing observed vs expected"
+      ],
+      "acceptance_criteria": [
+        "merge_at_intermediate_combines_base passes with --features integration-tests",
+        "Assertions cover top_level_key precedence, append_unique de-dup on scalars, and nested-map accumulation",
+        "If assertions were adjusted: commit message body explains observed vs expected",
+        "./script/ci is green",
+        "Exactly one commit added on this branch beyond the previous task"
+      ]
+    },
+    {
+      "id": "add-overlay-test",
+      "name": "Add merge_at_overlay_chains_through_intermediate test",
+      "status": "pending",
+      "priority": 4,
+      "blocked_by": "add-intermediate-test",
+      "output_file": "tests/cli_e2e_inheritance_merge.rs",
+      "plan_section": "Task 4 in docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+      "steps": [
+        "Append merge_at_overlay_chains_through_intermediate to tests/cli_e2e_inheritance_merge.rs — apply in upstream-overlay, assert top_level_key.as_f64()==Some(2.0), list_within_key==[alpha,fnord,beta,carrot], nested_list_keys repo names==[nested_list_alpha, nested_list_beta, nested_list_carrot] — exact code in plan doc Step 1",
+        "Run cargo nextest run --features integration-tests --test cli_e2e_inheritance_merge merge_at_overlay_chains_through_intermediate — expect PASS",
+        "If test FAILS, apply discovery-event protocol; keep order/shape choices CONSISTENT with the intermediate test from the prior task",
+        "Run cargo nextest run --features integration-tests 2>&1 | tail -20 — expect 3 passing tests in cli_e2e_inheritance_merge now",
+        "Run ./script/ci",
+        "git add tests/cli_e2e_inheritance_merge.rs",
+        "Commit with message: test(e2e): add overlay-level merge test chaining through intermediate"
+      ],
+      "acceptance_criteria": [
+        "merge_at_overlay_chains_through_intermediate passes with --features integration-tests",
+        "Assertion ordering is consistent with the intermediate test (same accumulation direction)",
+        "./script/ci is green",
+        "Exactly one commit added on this branch beyond the previous task"
+      ]
+    },
+    {
+      "id": "add-consumer-test",
+      "name": "Add merge_at_consumer_propagates_full_chain test",
+      "status": "pending",
+      "priority": 5,
+      "blocked_by": "add-overlay-test",
+      "output_file": "tests/cli_e2e_inheritance_merge.rs",
+      "plan_section": "Task 5 in docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+      "steps": [
+        "Append merge_at_consumer_propagates_full_chain to tests/cli_e2e_inheritance_merge.rs — uses TWO independent stage_fixture() pairs: one to produce the overlay reference output, one for the consumer. After apply in consumer, assert consumer/merge.yaml exists, then assert consumer_merged == overlay_merged (serde_yaml::Value equality). Add belt-and-suspenders assert on list_within_key==[alpha,fnord,beta,carrot] — exact code in plan doc Step 1",
+        "Run cargo nextest run --features integration-tests --test cli_e2e_inheritance_merge merge_at_consumer_propagates_full_chain — expect PASS",
+        "If consumer/merge.yaml does not exist post-apply, the chain is broken — STOP and escalate (this is the regression coverage the old apply_succeeds_in_inheritance_merge_delta test was protecting)",
+        "If consumer_merged != overlay_merged, escalate — pure consumer should be transparent",
+        "Run cargo nextest run --features integration-tests 2>&1 | tail -20 — expect all 4 cli_e2e_inheritance_merge tests passing (old delta test still failing)",
+        "Run ./script/ci",
+        "git add tests/cli_e2e_inheritance_merge.rs",
+        "Commit with message: test(e2e): add consumer-level full-chain propagation test"
+      ],
+      "acceptance_criteria": [
+        "merge_at_consumer_propagates_full_chain passes with --features integration-tests",
+        "consumer/merge.yaml is materialized by the apply (via upstream-base's include + chain-deferred ops)",
+        "Asserts serde_yaml::Value equality between consumer and overlay outputs",
+        "./script/ci is green",
+        "Exactly one commit added on this branch beyond the previous task"
+      ]
+    },
+    {
+      "id": "delete-superseded-test",
+      "name": "Delete apply_succeeds_in_inheritance_merge_delta and its now-unused copy_tree helper",
+      "status": "pending",
+      "priority": 6,
+      "blocked_by": "add-consumer-test",
+      "output_file": "tests/cli_e2e_local_fs_repos.rs",
+      "plan_section": "Task 6 in docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+      "steps": [
+        "Confirm current state: cargo nextest run --features integration-tests --test cli_e2e_local_fs_repos 2>&1 | tail -15 — expect 3 passing, 1 failing (the delta test)",
+        "Delete the #[test] block for apply_succeeds_in_inheritance_merge_delta in tests/cli_e2e_local_fs_repos.rs (lines 23-40 at plan-write time)",
+        "Run Grep for copy_tree usages in tests/cli_e2e_local_fs_repos.rs — if no callers remain, delete the copy_tree fn definition too",
+        "Remove any now-unused imports flagged by cargo check",
+        "Run cargo check --tests --features integration-tests — expect Finished with no unused-code warnings",
+        "Run cargo nextest run --features integration-tests --test cli_e2e_local_fs_repos 2>&1 | tail -15 — expect 3 tests all passing",
+        "Run cargo nextest run --features integration-tests 2>&1 | tail -20 — expect the FULL suite green for the first time in this plan",
+        "Run ./script/ci",
+        "git add tests/cli_e2e_local_fs_repos.rs",
+        "Commit with message: test(e2e): remove superseded apply_succeeds_in_inheritance_merge_delta — body notes subsumption by cli_e2e_inheritance_merge suite and any copy_tree cleanup"
+      ],
+      "acceptance_criteria": [
+        "apply_succeeds_in_inheritance_merge_delta no longer exists in tests/cli_e2e_local_fs_repos.rs",
+        "tests/cli_e2e_local_fs_repos.rs has 3 tests (apply_warns_on_local_url_with_ref, apply_errors_on_missing_local_dir, apply_accepts_absolute_local_path) all passing",
+        "copy_tree removed from cli_e2e_local_fs_repos.rs if unused there",
+        "Full --features integration-tests suite passes with zero failures",
+        "./script/ci is green",
+        "Exactly one commit added on this branch beyond the previous task"
+      ]
+    },
+    {
+      "id": "final-ci-verification",
+      "name": "Final CI gate and handoff",
+      "status": "pending",
+      "priority": 7,
+      "blocked_by": "delete-superseded-test",
+      "output_file": null,
+      "plan_section": "Task 7 in docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
+      "steps": [
+        "Run cargo nextest run 2>&1 | tail -10 — unit suite (no integration feature). All pass; the 4 new E2E tests are ignore'd without the feature flag",
+        "Run cargo nextest run --features integration-tests 2>&1 | tail -15 — all tests pass",
+        "Run ./script/ci 2>&1 | tail -20 — fmt, clippy, prose, security audits all green",
+        "Run git log --oneline main..HEAD — expect 6 commits matching the task sequence (rename+wire, scaffold, intermediate, overlay, consumer, delete-superseded)",
+        "Update context/current-task.json: either point at the next plan or set task/plan to null with a description explaining the inheritance-merge-e2e plan shipped",
+        "Report to user: 6 new commits, tests/cli_e2e_inheritance_merge.rs has 4 green E2E tests, tests/cli_e2e_local_fs_repos.rs shrunk, fixture renamed+wired, serde_yaml added to dev-deps. If any discovery-event adjustments happened in the intermediate/overlay/consumer tests, summarize what was observed vs expected",
+        "Remind user that the Future Work items in the design doc remain open (format fan-out, array-mode coverage, symmetric consumer-contributes fixture, snapshot testing, regression tests for named bugs)"
+      ],
+      "acceptance_criteria": [
+        "cargo nextest run passes (unit)",
+        "cargo nextest run --features integration-tests passes (full)",
+        "./script/ci exits 0",
+        "6 commits on the branch for this plan",
+        "context/current-task.json updated"
+      ]
+    }
+  ],
+  "notes": [
+    "Every task except final-ci-verification produces exactly ONE commit. Task dependencies are strictly linear (blocked_by chain) because each task mutates tests/cli_e2e_inheritance_merge.rs; there is no parallelism.",
+    "The rename-and-wire-fixture task intentionally leaves apply_succeeds_in_inheritance_merge_delta failing — it is deleted in delete-superseded-test. A reviewer looking at individual commits will see a transient red test from commit 1 to commit 5, then it disappears. Document this in the commit message body.",
+    "The merge_at_intermediate_combines_base and merge_at_overlay_chains_through_intermediate tests have inferred-expected list orders and dedup behaviour. The design doc explicitly flags this as two open questions. If the first run contradicts expectations, apply the discovery-event protocol in the plan markdown Step 3 (update assertion + add Observed: comment for wrong-assumption, escalate for suspected bug).",
+    "After any edit to cli_e2e_inheritance_merge.rs, start a fresh background ./script/test run so the baseline stays current (per CLAUDE.md Agent Session Protocol).",
+    "Future work tracked in the design doc (not this plan): format fan-out to TOML/JSON/INI/XML/Markdown, array_mode append/replace coverage, symmetric consumer-contributes fixture, snapshot testing migration, regression tests for pending bugs."
+  ]
+}
