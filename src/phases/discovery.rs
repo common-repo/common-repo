@@ -317,7 +317,7 @@ fn process_config_to_node(config: &Schema) -> Result<RepoNode> {
 
         let child_node = RepoNode::new(
             repo_op.url,
-            repo_op.r#ref.clone().unwrap_or_default(),
+            repo_op.r#ref.unwrap_or_default(),
             child_operations,
         );
 
