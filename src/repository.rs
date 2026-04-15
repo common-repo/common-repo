@@ -265,7 +265,7 @@ fn load_local_path(url: &str, sub_path: Option<&str>) -> Result<MemoryFS> {
     let canonical =
         std::fs::canonicalize(&candidate).map_err(|e| crate::error::Error::LocalPathNotFound {
             original: url.to_string(),
-            attempted: candidate.clone(),
+            attempted: candidate,
             source: e,
         })?;
 
