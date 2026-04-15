@@ -1,12 +1,11 @@
 {
-  "task": "investigate-init-apply-bug",
-  "plan": "context/init-apply-bug-plan.json",
+  "task": null,
+  "plan": null,
   "last_updated": "2026-04-15",
-  "description": "Investigate bug where `common-repo init` copies the source repo's .common-repo.yaml and ignores its include operator. 2 tasks complete, 5 pending. See context/init-apply-bug-plan.json for full task decomposition.",
+  "description": "No active plan. The init-apply-bug investigation was archived as superseded by c404843 (2026-01-20) — the bug is fixed, regression-protected by 18 e2e tests in tests/cli_e2e_upstream_ops.rs, and live-reproduction attempts succeed (bug absent). Pick the next plan to work on before starting a task.",
   "session_startup": [
     "Run git status to check branch and working tree",
-    "Run ./script/test in background to verify baseline",
-    "Read context/init-apply-bug-plan.json for the full task list",
-    "Find the first task where status=pending and blocked_by=null"
+    "Ask the user which plan to work on next — there is no active plan in context/",
+    "Once a plan is chosen, update this file to point at it and follow its session_startup"
   ]
 }
