@@ -393,10 +393,17 @@ rule SelfOperatorPartition {
     -- @status: Implemented
     when: ExecutePull(config)
 
-    -- Before the main pipeline runs, partition the config into two sets:
+    -- Before pipeline execution, partition the config into two sets:
     --   1. self_config: operations nested inside self: blocks
     --   2. source_config: all other operations (the source API)
-    -- These run as independent pipelines with no shared state.
+    -- Both sets execute through the same sequential pipeline code path
+    -- (execute_sequential_pipeline). They run as independent invocations
+    -- with no shared in-memory state. The only behavioural difference is
+    -- inheritance visibility:
+    --   - source operations are exposed to consumers when this repo is
+    --     used as an upstream (filtering ops, deferred merges, repo children)
+    --   - self operations are invisible to consumers and apply only to
+    --     the defining repo's working directory
     let self_ops = config.self_operations
     let source_ops = config.source_operations
 
@@ -409,15 +416,17 @@ rule ExecuteSelfPipeline {
     when: SelfPipelineReady(self_ops)
     requires: self_ops.count > 0
 
-    -- Each self: block's inner operations run through the full 6-phase
-    -- pipeline independently. Output is written to the working directory.
+    -- Each self: block's inner operations run through
+    -- execute_sequential_pipeline — the same code path used by source
+    -- blocks. Output is written to the working directory.
     for self_op in self_ops:
         ensures: SelfPipelineExecuted(self_op)
 
     @guidance
-        -- The self pipeline reuses the same phase logic (discovery, processing,
-        -- ordering, composition, local merge, write). It is not a new pipeline
-        -- implementation — it is a second invocation with different input.
+        -- Both self: and source blocks call the same sequential pipeline
+        -- entry point. There is no separate pipeline implementation for
+        -- either block type. The difference is purely in what is exposed
+        -- to consumers (see SelfOperatorPartition).
         --
         -- Self pipelines follow the same CompositePrecedence invariant:
         -- composite (upstream-derived) whole files overwrite local files.
@@ -518,6 +527,12 @@ rule ProcessRepository {
     when: UpstreamConfigDiscovered(node)
     requires: node.url != "local"
 
+    -- Prepare the upstream's IntermediateFS. In the sequential model this
+    -- happens lazily when a repo: operation fires at its declaration
+    -- position (see ApplyRepoInline in detailed/operators.allium). The
+    -- IntermediateFS captures the upstream's cloned content, collected
+    -- template variables, and deferred merge operations — all of which
+    -- feed into the sub-pipeline that resolves at the repo: position.
     ensures: IntermediateFS.created(
         url: node.url,
         ref: node.ref,
@@ -598,7 +613,10 @@ rule DetermineOperationOrder {
     -- @status: Implemented
     when: AllRepositoriesProcessed(tree)
 
-    -- Depth-first post-order: children before parents
+    -- Cross-repo ordering: depth-first post-order (children before parents).
+    -- This governs the order in which repo: operations resolve their
+    -- sub-pipelines. Within each block (self:, source, with:), operation
+    -- order is YAML declaration order (see SequentialOperationExecution).
     ensures: OperationOrder.created(
         order: post_order_keys(tree.root)
     )
@@ -608,6 +626,12 @@ rule DetermineOperationOrder {
         -- Each repository appears exactly once in the order.
         -- The node key includes an operations fingerprint when the same
         -- repo+ref is referenced with different operations.
+        --
+        -- In the sequential model, this ordering is used when a repo:
+        -- operation fires: its sub-pipeline resolves child repo: operations
+        -- recursively in depth-first post-order. The ordering does not
+        -- create a separate batch phase; it describes the recursive
+        -- resolution order within the sequential pass.
 }
 
 -- ==========================================================================
@@ -674,15 +698,16 @@ rule BuildComposite {
     ensures: CompositeBuilt(order, intermediate_fss)
 
     @guidance
-        -- The sequential pass replaces the previous model where all
-        -- repo: operations were discovered and resolved up-front
+        -- The sequential pass replaces the previous batch model where
+        -- all repo: operations were discovered and resolved up-front
         -- (Phase 1) and composite construction was a simple fold
         -- over IntermediateFSs.
         --
-        -- In the new model, the composite grows incrementally as
-        -- each operation fires. Include pulls from source FS. Repo:
-        -- resolves and integrates. Exclude removes. The composite
-        -- at any point reflects all operations that have fired so far.
+        -- In the sequential model, the composite grows incrementally
+        -- as each operation fires. Include pulls from source FS.
+        -- Repo: resolves and integrates. Exclude removes. The
+        -- composite at any point reflects all operations that have
+        -- fired so far.
         --
         -- See detailed/auto-merge-composition.allium for auto-merge
         -- behaviour when sub-repo content conflicts with existing
@@ -861,9 +886,11 @@ invariant NoCyclesInRepoTree {
 
 invariant SelfIsolation {
     -- @status: Implemented
-    -- Self pipelines never share in-memory filesystem state with the
-    -- source pipeline. Each self: block executes an independent pipeline
-    -- invocation with its own MemoryFS.
+    -- Self and source blocks use the same sequential pipeline code path
+    -- (execute_sequential_pipeline) but never share in-memory filesystem
+    -- state. Each self: block executes an independent pipeline invocation
+    -- with its own MemoryFS. The code path is identical; the state is
+    -- isolated.
     --
     -- Note: self and source pipelines share the on-disk working directory.
     -- The source pipeline's write output is visible to the self pipeline's

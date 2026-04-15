@@ -47,11 +47,15 @@ use crate::config::Operation;
 use crate::error::{Error, Result};
 use crate::filesystem::MemoryFS;
 
-/// Executes Phase 4 of the pipeline.
+/// Executes Phase 4 of the pipeline (batch mode).
 ///
 /// This function orchestrates the construction of the composite filesystem
 /// by first processing all templates with a unified set of variables and
 /// then merging the resulting filesystems in the correct order.
+///
+/// Used by unit tests; the production pipeline now uses the sequential
+/// model via [`super::orchestrator::execute_sequential_pipeline`].
+#[allow(dead_code)]
 pub fn execute(
     order: &OperationOrder,
     intermediate_fss: &HashMap<String, IntermediateFS>,
@@ -136,6 +140,7 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 ///
 /// Only collects non-explicitly-deferred ops. Used by the batch pipeline
 /// (Phase 4) where `defer: true` ops are reserved for Phase 5.
+#[allow(dead_code)]
 fn collect_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
     let mut targets = HashMap::new();
     for op in ops {
@@ -179,7 +184,7 @@ fn is_explicitly_deferred(op: &Operation) -> bool {
 }
 
 /// Extract the auto-merge target path from an operation, if it has one.
-fn get_auto_merge_path(op: &Operation) -> Option<&str> {
+pub(crate) fn get_auto_merge_path(op: &Operation) -> Option<&str> {
     match op {
         Operation::Yaml { yaml } => yaml.auto_merge.as_deref(),
         Operation::Json { json } => json.auto_merge.as_deref(),
@@ -193,7 +198,7 @@ fn get_auto_merge_path(op: &Operation) -> Option<&str> {
 
 /// Create a synthetic merge operation with explicit source and dest paths,
 /// preserving all other parameters from the original auto-merge operation.
-fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation {
+pub(crate) fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation {
     match op {
         Operation::Yaml { yaml } => Operation::Yaml {
             yaml: crate::config::YamlMergeOp {
@@ -287,6 +292,22 @@ fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -> Operation
         // Should not be called with non-merge operations
         _ => op.clone(),
     }
+}
+
+/// Overlay composite files onto a target FS, using format-aware auto-merge
+/// for paths that have auto-merge declarations.
+///
+/// This is the public entry point used by the orchestrator to merge the
+/// composite (built during the sequential pass) onto local files during
+/// Phase 5. For paths where both target and source have a file and an
+/// auto-merge declaration exists, the content is merged rather than
+/// overwritten.
+pub(crate) fn merge_composite_with_auto_merge(
+    target_fs: &mut MemoryFS,
+    source_fs: &MemoryFS,
+    auto_merge_targets: &HashMap<String, Operation>,
+) -> Result<()> {
+    merge_filesystem_with_auto_merge(target_fs, source_fs, auto_merge_targets)
 }
 
 /// Merge a source filesystem into a target filesystem with auto-merge awareness.

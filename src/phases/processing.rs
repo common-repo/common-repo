@@ -164,6 +164,7 @@ fn cache_key_for_cloned(cloned: &ClonedRepo) -> Result<Option<CacheKey>> {
 /// Internally delegates to [`clone_tree_repos`] and [`process_cloned_repo`]
 /// so the same per-repo processing logic is shared with the on-demand path
 /// used by the sequential pass.
+#[allow(dead_code)]
 pub fn execute(
     tree: &RepoTree,
     repo_manager: &RepositoryManager,
@@ -191,6 +192,7 @@ pub fn execute(
 }
 
 /// Process a single repository node into an intermediate filesystem
+#[allow(dead_code)]
 fn process_single_repo(
     node: &RepoNode,
     repo_manager: &RepositoryManager,
@@ -268,6 +270,7 @@ pub(crate) fn collect_merge_operations(operations: &[Operation]) -> Vec<Operatio
 }
 
 /// Build a cache key for a repository node (includes operations fingerprint)
+#[allow(dead_code)]
 fn cache_key_for_node(node: &RepoNode) -> Result<Option<CacheKey>> {
     if node.url == "local" {
         return Ok(None);

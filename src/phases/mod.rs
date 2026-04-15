@@ -75,6 +75,7 @@ pub mod orchestrator;
 pub(crate) use composite as phase4;
 pub(crate) use discovery as phase1;
 pub(crate) use local_merge as phase5;
+#[allow(unused_imports)]
 pub(crate) use ordering as phase3;
 pub(crate) use processing as phase2;
 pub(crate) use write as phase6;

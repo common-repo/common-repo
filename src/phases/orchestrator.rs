@@ -1,27 +1,31 @@
 //! Orchestrator for the complete pull operation.
 //!
 //! Coordinates all phases to provide a clean API for the complete pull
-//! operation. Two pipeline modes are supported:
+//! operation. Both source and `self:` blocks use the same sequential
+//! pipeline (`execute_sequential_pipeline`). Operations run in YAML
+//! declaration order. Each nested `repo:` is resolved lazily via
+//! `resolve_repo_inline`, and the sub-composite merges immediately
+//! through `phase4::integrate_sub_composite` instead of a single batch
+//! Phase 4 pass over all intermediates.
 //!
-//! - **Batch pipeline** (`execute_source_pipeline`): for top-level source
-//!   operations (everything outside `self:`). Phases 1-6 run in batch; Phase 4
-//!   calls `phase4::execute` once over the full intermediate map from Phase 2.
-//! - **Sequential pipeline** (`execute_sequential_pipeline`): for `self:`
-//!   blocks. Operations run in YAML declaration order. Each nested `repo:` is
-//!   resolved lazily via `resolve_repo_inline`, and the sub-composite merges
-//!   immediately through `phase4::integrate_sub_composite` instead of a single
-//!   batch Phase 4 pass over all intermediates.
+//! The two block types differ only in starting state and finalization:
+//!
+//! - **`self:` blocks** start from the local working directory and write
+//!   directly after the sequential pass.
+//! - **Source blocks** start from an empty FS and run Phase 5 (local file
+//!   merge) after the sequential pass to combine the composite with local
+//!   files.
 //!
 //! [`execute_pull`] partitions the config into source and `self:` operations,
-//! runs the batch pipeline for sources, then runs the sequential pipeline
-//! for each `self:` block.
+//! runs the sequential pipeline for sources, then runs the sequential
+//! pipeline for each `self:` block.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use log::warn;
 
-use super::{phase1, phase2, phase3, phase4, phase5, phase6, ClonedRepo, IntermediateFS};
+use super::{phase1, phase2, phase4, phase5, phase6, ClonedRepo, IntermediateFS};
 use crate::cache::RepoCache;
 use crate::config::{Operation, Schema, SelfOp};
 use crate::error::Result;
@@ -112,6 +116,10 @@ fn resolve_repo_inline_inner(
     let mut merge_operations = phase2::collect_merge_operations(&cloned.operations);
 
     let mut fs = cloned.fs.clone();
+    // Track auto-merge targets across nested repos so cross-upstream
+    // auto-merges accumulate correctly (e.g., when a chained upstream
+    // also declares auto-merge for the same file).
+    let mut accumulated_auto_merge_targets = HashMap::new();
 
     for operation in &cloned.operations {
         match operation {
@@ -149,9 +157,24 @@ fn resolve_repo_inline_inner(
                     let nested_result =
                         resolve_repo_inline_inner(nested_cloned, cloned_repos, cache, visited)?;
 
-                    fs.merge(&nested_result.fs);
+                    // Use auto-merge-aware integration so that chained
+                    // repos with auto-merge declarations accumulate
+                    // content instead of overwriting via last-write-wins.
+                    let nested_intermediate = IntermediateFS::new_with_vars_and_merges(
+                        nested_result.fs.clone(),
+                        nested_result.upstream_url.clone(),
+                        nested_result.upstream_ref.clone(),
+                        HashMap::new(), // template_vars handled below
+                        nested_result.merge_operations.clone(),
+                    );
+                    let residual = phase4::integrate_sub_composite_with_targets(
+                        &mut fs,
+                        &nested_intermediate,
+                        &mut accumulated_auto_merge_targets,
+                    )?;
 
                     merge_operations.extend(nested_result.merge_operations);
+                    merge_operations.extend(residual);
 
                     template_vars.extend(nested_result.template_vars);
                 } else {
@@ -186,8 +209,22 @@ fn resolve_repo_inline_inner(
             let child_result =
                 resolve_repo_inline_inner(child_cloned, cloned_repos, cache, visited)?;
 
-            fs.merge(&child_result.fs);
+            // Same auto-merge-aware integration for tree children
+            let child_intermediate = IntermediateFS::new_with_vars_and_merges(
+                child_result.fs.clone(),
+                child_result.upstream_url.clone(),
+                child_result.upstream_ref.clone(),
+                HashMap::new(),
+                child_result.merge_operations.clone(),
+            );
+            let residual = phase4::integrate_sub_composite_with_targets(
+                &mut fs,
+                &child_intermediate,
+                &mut accumulated_auto_merge_targets,
+            )?;
+
             merge_operations.extend(child_result.merge_operations);
+            merge_operations.extend(residual);
             template_vars.extend(child_result.template_vars);
         } else {
             warn!(
@@ -206,22 +243,41 @@ fn resolve_repo_inline_inner(
     ))
 }
 
+/// Whether the sequential pipeline is running for a `self:` block or a
+/// source block.
+///
+/// Both use [`execute_sequential_pipeline`], but differ in two ways:
+///
+/// 1. **Starting FS** — `SelfBlock` starts from local files (local files
+///    form the base of the composite). `SourceBlock` starts from an empty
+///    FS so that consumer-level operations (include, exclude, rename) only
+///    affect upstream content. Local files are combined in Phase 5 after
+///    the sequential pass.
+///
+/// 2. **Phase 5** — `SourceBlock` runs a Phase 5 merge to combine the
+///    composite with local files after the sequential pass. `SelfBlock`
+///    skips this because local files were already the starting base.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PipelineMode {
+    SelfBlock,
+    SourceBlock,
+}
+
 /// Execute a sequential pipeline where operations fire in declaration order.
 ///
-/// Unlike [`execute_source_pipeline`] where Phases 2-4 process all repos in
-/// batch, this function walks the config's operations sequentially. When a
-/// `repo:` operation is encountered, it resolves inline at that position
-/// using [`resolve_repo_inline`] and [`phase4::integrate_sub_composite`].
+/// This function walks the config's operations sequentially. When a `repo:`
+/// operation is encountered, it resolves inline at that position using
+/// [`resolve_repo_inline`] and [`phase4::integrate_sub_composite`].
 ///
-/// This pipeline is used for `self:` blocks where the operation order
-/// matters: a preceding `include` or `rename` must transform the FS before
-/// a subsequent `repo:` integrates its sub-composite.
+/// Both `self:` and source blocks use this pipeline. See [`PipelineMode`]
+/// for the differences.
 fn execute_sequential_pipeline(
     config: &Schema,
     repo_manager: &RepositoryManager,
     cache: &RepoCache,
     working_dir: &Path,
     output_path: Option<&Path>,
+    mode: PipelineMode,
 ) -> Result<MemoryFS> {
     // Phase 1: Discover and clone repos eagerly
     let repo_tree = phase1::execute(config, repo_manager, cache)?;
@@ -229,8 +285,14 @@ fn execute_sequential_pipeline(
     // Build cloned_repos map for on-demand resolution
     let cloned_repos = phase2::clone_tree_repos(&repo_tree, repo_manager)?;
 
-    // Load local files from the working directory
-    let mut fs = phase5::load_local_fs(working_dir)?;
+    // Starting FS depends on pipeline mode:
+    // - SelfBlock: local files form the base. Upstream content overlays.
+    // - SourceBlock: empty FS. Consumer operations (include, exclude, rename)
+    //   affect only upstream content. Local files are combined in Phase 5.
+    let mut fs = match mode {
+        PipelineMode::SelfBlock => phase5::load_local_fs(working_dir)?,
+        PipelineMode::SourceBlock => MemoryFS::new(),
+    };
 
     let mut all_template_vars = HashMap::new();
     let mut residual_deferred_ops: Vec<Operation> = Vec::new();
@@ -238,6 +300,12 @@ fn execute_sequential_pipeline(
     // later repo can trigger format-aware merge for a file declared by an
     // earlier repo (or vice versa, when the later repo has defer: true).
     let mut accumulated_auto_merge_targets = HashMap::new();
+    // In source mode, snapshot upstream file content for auto-merge targets
+    // at the time each repo: fires. These snapshots survive subsequent
+    // consumer operations (e.g., exclude) and are used during Phase 5 to
+    // merge upstream content into local files that were not in the composite
+    // during the sequential pass.
+    let mut auto_merge_snapshots: HashMap<String, crate::filesystem::File> = HashMap::new();
 
     // Sequential pass: walk operations in declaration order
     for operation in config {
@@ -278,6 +346,20 @@ fn execute_sequential_pipeline(
                 if let Some(cloned) = cloned {
                     let sub_composite = resolve_repo_inline(cloned, &cloned_repos, cache)?;
 
+                    // In source mode, snapshot auto-merge source files BEFORE
+                    // integration. These snapshots survive subsequent consumer
+                    // ops (exclude, rename) and are used during Phase 5 to
+                    // merge upstream content into local files.
+                    if mode == PipelineMode::SourceBlock {
+                        for op in &sub_composite.merge_operations {
+                            if let Some(path) = phase4::get_auto_merge_path(op) {
+                                if let Some(file) = sub_composite.fs.get_file(path) {
+                                    auto_merge_snapshots.insert(path.to_string(), file.clone());
+                                }
+                            }
+                        }
+                    }
+
                     let residual = phase4::integrate_sub_composite_with_targets(
                         &mut fs,
                         &sub_composite,
@@ -285,7 +367,15 @@ fn execute_sequential_pipeline(
                     )?;
                     residual_deferred_ops.extend(residual);
 
-                    all_template_vars.extend(sub_composite.template_vars);
+                    // Upstream template vars fill in defaults but do not
+                    // overwrite consumer-level vars already set by a preceding
+                    // template-vars operation. This matches the old batch
+                    // pipeline where Phase 4 processed repos in post-order
+                    // (children before parents, local root last) and the local
+                    // root's consumer vars were the final write.
+                    for (key, value) in sub_composite.template_vars {
+                        all_template_vars.entry(key).or_insert(value);
+                    }
                 } else {
                     warn!(
                         "Repo reference not found in cloned repos, skipping: {}@{}",
@@ -305,6 +395,28 @@ fn execute_sequential_pipeline(
             | Operation::Ini { .. }
             | Operation::Markdown { .. }
             | Operation::Xml { .. } => {
+                // In source mode, the merge source and/or dest may be local
+                // files not yet in the composite. Load them from disk so the
+                // merge can reference them. This mirrors the old batch
+                // pipeline where Phase 5 loaded local files before running
+                // consumer merge operations.
+                if mode == PipelineMode::SourceBlock {
+                    for path in [
+                        operation.merge_effective_source(),
+                        operation.merge_effective_dest(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    {
+                        if !fs.exists(path) {
+                            let disk_path = working_dir.join(path);
+                            if disk_path.exists() {
+                                let content = std::fs::read(&disk_path)?;
+                                fs.add_file(path, crate::filesystem::File::new(content))?;
+                            }
+                        }
+                    }
+                }
                 phase4::execute_merge_operation(&mut fs, operation)?;
             }
             Operation::Tools { tools } => {
@@ -312,6 +424,46 @@ fn execute_sequential_pipeline(
             }
             Operation::Self_ { .. } => {}
         }
+    }
+
+    // Source blocks: Phase 5 — combine composite with local files.
+    // Local files that are not in the composite are preserved. Composite
+    // files win for shared paths (CompositePrecedence invariant). Auto-merge
+    // targets use format-aware merging instead of overwriting.
+    if mode == PipelineMode::SourceBlock {
+        let local_fs = phase5::load_local_fs(working_dir)?;
+        let mut combined = local_fs;
+        // Overlay composite on top of local files, with auto-merge awareness
+        phase4::merge_composite_with_auto_merge(
+            &mut combined,
+            &fs,
+            &accumulated_auto_merge_targets,
+        )?;
+
+        // Apply auto-merge snapshots for upstream files that were removed
+        // from the composite by consumer operations (e.g., exclude) after
+        // the repo: fired. The snapshots preserve the upstream's original
+        // file content so it can merge into local files even though the
+        // composite no longer contains it.
+        for (path, auto_merge_op) in &accumulated_auto_merge_targets {
+            // Skip paths still in the composite — handled by the overlay.
+            if fs.exists(path) {
+                continue;
+            }
+            // Merge snapshot into local file if both exist
+            if combined.exists(path) {
+                if let Some(snapshot_file) = auto_merge_snapshots.get(path) {
+                    let temp_path = format!(".__common_repo_auto_merge_snapshot__{}", path);
+                    combined.add_file(&temp_path, snapshot_file.clone())?;
+                    let explicit_op =
+                        phase4::make_explicit_merge_op(auto_merge_op, &temp_path, path);
+                    phase4::execute_merge_operation(&mut combined, &explicit_op)?;
+                    combined.remove_file(&temp_path)?;
+                }
+            }
+        }
+
+        fs = combined;
     }
 
     // Execute residual deferred merges (dest wasn't in the FS during integration)
@@ -330,55 +482,17 @@ fn execute_sequential_pipeline(
     Ok(fs)
 }
 
-/// Execute the source pipeline (Phases 1-6) for a given config.
+/// Execute the complete pull operation.
 ///
-/// This is the core pipeline logic, extracted so it can be called
-/// once for the main source config and again for each self: block.
-fn execute_source_pipeline(
-    config: &Schema,
-    repo_manager: &RepositoryManager,
-    cache: &RepoCache,
-    working_dir: &Path,
-    output_path: Option<&Path>,
-) -> Result<MemoryFS> {
-    // Phase 1: Discovery and Cloning
-    let repo_tree = phase1::execute(config, repo_manager, cache)?;
-
-    // Phase 2: Processing Individual Repos
-    let intermediate_fss = phase2::execute(&repo_tree, repo_manager, cache)?;
-
-    // Phase 3: Determining Operation Order
-    let operation_order = phase3::execute(&repo_tree)?;
-
-    // Phase 4: Composite Filesystem Construction
-    let (composite_fs, deferred_ops) = phase4::execute(&operation_order, &intermediate_fss)?;
-
-    // Phase 5: Local File Merging (receives deferred ops)
-    let final_fs = phase5::execute(&composite_fs, config, working_dir, &deferred_ops)?;
-
-    // Phase 6: Write to Disk (if output path provided)
-    if let Some(output) = output_path {
-        phase6::execute(&final_fs, output)?;
-    }
-
-    Ok(final_fs)
-}
-
-/// Execute the complete pull operation (Phases 1-6)
+/// Partitions the config into source and `self:` operations, then runs
+/// each through [`execute_sequential_pipeline`]. Both use the same
+/// sequential execution model where operations fire in YAML declaration
+/// order. The only difference is starting state:
 ///
-/// This orchestrates the complete inheritance pipeline:
-/// 1. Discover and clone repositories (with automatic caching)
-/// 2. Process each repository with its operations
-/// 3. Determine correct merge order
-/// 4. Merge into composite filesystem
-/// 5. Merge with local files and apply local operations
-/// 6. Write final filesystem to disk (if output_path is provided)
-///
-/// If the config contains `self:` blocks, they are partitioned out and
-/// run as independent pipeline invocations after the source pipeline
-/// completes. Self pipeline output is written to the working directory
-/// but never enters the composite filesystem that downstream consumers
-/// see.
+/// - Source blocks start from an empty FS and run Phase 5 (local merge)
+///   after the sequential pass.
+/// - `self:` blocks start from the local working directory and write
+///   directly.
 ///
 /// If `output_path` is `None`, returns the final MemoryFS without writing to disk.
 /// If `output_path` is `Some(path)`, writes to disk and returns the MemoryFS.
@@ -392,17 +506,18 @@ pub fn execute_pull(
     // Partition self: operations from source operations
     let (self_ops, source_config) = partition_self_operations(config);
 
-    // Run the source pipeline (main composite — what consumers see)
-    let final_fs = execute_source_pipeline(
+    // Run the source pipeline using the sequential model so operations
+    // execute in YAML declaration order (same code path as self: blocks).
+    let final_fs = execute_sequential_pipeline(
         &source_config,
         repo_manager,
         cache,
         working_dir,
         output_path,
+        PipelineMode::SourceBlock,
     )?;
 
-    // Run self: pipelines using sequential execution so repo: ops
-    // resolve inline at their declaration position.
+    // Run self: pipelines using the same sequential execution model.
     for self_op in &self_ops {
         execute_sequential_pipeline(
             &self_op.operations,
@@ -410,6 +525,7 @@ pub fn execute_pull(
             cache,
             working_dir,
             output_path,
+            PipelineMode::SelfBlock,
         )?;
     }
 
