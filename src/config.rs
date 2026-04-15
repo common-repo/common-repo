@@ -1186,10 +1186,10 @@ pub fn validate_repo_ref(schema: &Schema) -> Result<()> {
     for op in schema {
         if let Operation::Repo { repo } = op {
             if repo.is_local() {
-                if repo.r#ref.is_some() {
+                if let Some(ref_value) = repo.r#ref.as_deref() {
                     log::warn!(
                         "ref '{}' ignored on local-path repo {}",
-                        repo.r#ref.as_deref().unwrap_or(""),
+                        ref_value,
                         repo.url
                     );
                 }
@@ -3540,8 +3540,7 @@ mod tests {
 
     #[test]
     fn validate_repo_ref_allows_local_with_ref_but_emits_warning() {
-        // Warning emission is verified indirectly: the fn returns Ok.
-        // Log capture is covered by an integration test in tests/cli_e2e_local_fs_repos.rs.
+        testing_logger::setup();
         let schema: Schema = vec![Operation::Repo {
             repo: RepoOp {
                 url: "./sibling".to_string(),
@@ -3551,6 +3550,12 @@ mod tests {
             },
         }];
         assert!(validate_repo_ref(&schema).is_ok());
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(captured_logs[0].level, log::Level::Warn);
+            assert!(captured_logs[0].body.contains("main"));
+            assert!(captured_logs[0].body.contains("./sibling"));
+        });
     }
 
     #[test]
