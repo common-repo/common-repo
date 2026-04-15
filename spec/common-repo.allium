@@ -79,13 +79,17 @@ entity Configuration {
 
 entity Repository {
     url: String
-    ref: String
+    ref: String?
     path: String?
     -- Config key: "with:" — renamed here to avoid Allium reserved keyword
     inline_operations: List<Operation>
 
+    -- Derived: true when url starts with "./", "../", or "/"
+    is_local: starts_with(url, "./") or starts_with(url, "../") or starts_with(url, "/")
+
     -- Conceptual key (not materialized in code; see RepoNode.node_key)
-    -- key: url + "@" + ref
+    -- For git repos: url + "@" + ref
+    -- For local repos: resolved absolute path (no @ref suffix)
 }
 
 entity RepoTree {
@@ -95,13 +99,17 @@ entity RepoTree {
 
 entity RepoNode {
     url: String
-    ref: String
+    ref: String?
     children: List<RepoNode>
     operations: List<Operation>
 
+    -- Derived: true when url starts with "./", "../", or "/"
+    is_local: starts_with(url, "./") or starts_with(url, "../") or starts_with(url, "/")
+
     -- Derived: simplified form shown; when inline_operations are present,
     -- includes an operations fingerprint: url + "#ops-" + hash + "@" + ref
-    node_key: url + "@" + ref
+    -- For local repos: resolved absolute path (no @ref suffix)
+    node_key: if is_local: resolved_path(url) else: url + "@" + ref
 }
 
 entity Operation {
@@ -284,7 +292,7 @@ entity Filesystem {
 
 entity IntermediateFS {
     url: String
-    ref: String
+    ref: String?
     filesystem: Filesystem
     template_vars: Map<String, String>
     merge_operations: List<Operation>
@@ -355,6 +363,22 @@ rule ValidateTemplateVarNames {
         -- Names with hyphens or other non-identifier characters are
         -- also rejected since they cannot appear in the sentinel
         -- pattern __COMMON_REPO__VARNAME__.
+}
+
+rule ValidateRepoRef {
+    -- @status: Not Implemented
+    when: ValidateConfig(config)
+    for op in config.operations:
+        if op.kind = Repo:
+            if not op.target.is_local:
+                -- Git URLs require a ref
+                requires: op.target.ref != null
+
+    @guidance
+        -- Local path repos (URLs starting with ./, ../, or /) do not
+        -- require a ref. If ref is provided on a local path repo it
+        -- is ignored. Git URLs must always specify a ref so the
+        -- pipeline knows which commit to clone.
 }
 
 -- ==========================================================================
@@ -468,6 +492,47 @@ rule DiscoverInheritedConfigs {
     requires: node.url != "local"
 
     ensures: UpstreamConfigDiscovered(node)
+
+    @guidance
+        -- Local path repos participate fully in inheritance discovery.
+        -- A local path repo can have its own .common-repo.yaml that
+        -- references other repos (local or git). The pipeline recurses
+        -- into those configs normally.
+}
+
+rule ResolveLocalPath {
+    -- @status: Not Implemented
+    when: node: RepoNode.created
+    requires: node.is_local
+
+    -- Relative paths (./ or ../) resolve against the parent directory
+    -- of the .common-repo.yaml that defines the reference. Absolute
+    -- paths (/) are used as-is.
+    ensures: node.url = resolved_path(node.url, config_parent_dir(node))
+    requires: is_directory(resolved_path(node.url, config_parent_dir(node)))
+
+    @guidance
+        -- Resolution is recursive: if a local path repo's own
+        -- .common-repo.yaml contains another relative local path,
+        -- it resolves from that repo's directory, not the root
+        -- consumer's directory. Each config file establishes its
+        -- own base directory for relative path resolution.
+}
+
+rule LoadLocalPathRepo {
+    -- @status: Not Implemented
+    when: FetchRepo(node)
+    requires: node.is_local
+
+    -- Read files directly from the directory on disk into a MemoryFS.
+    -- Skip git clone entirely. Skip the cache — always read fresh.
+    ensures: RepoFilesLoaded(node)
+
+    @guidance
+        -- Local path repos bypass both git transport and the disk
+        -- cache. The directory is read fresh on every pipeline
+        -- execution, so the pipeline always sees the current state
+        -- of the referenced directory.
 }
 
 rule StripConfigFiles {
@@ -541,28 +606,23 @@ rule ProcessRepository {
     )
 }
 
-deferred ApplyInclude.apply
+deferred ApplyInclude.apply    -- see: detailed/operators.allium
     -- @status: Implemented
-    -- see: detailed/operators.allium
 
-deferred ApplyExclude.apply
+deferred ApplyExclude.apply    -- see: detailed/operators.allium
     -- @status: Implemented
-    -- see: detailed/operators.allium
 
-deferred ApplyRename.apply
+deferred ApplyRename.apply    -- see: detailed/operators.allium
     -- @status: Implemented
-    -- see: detailed/operators.allium
 
-deferred ApplyTemplate.mark
+deferred ApplyTemplate.mark    -- see: detailed/operators.allium
     -- @status: Implemented
     -- Template content detection: within glob-matched files, checks for the
     -- __COMMON_REPO__ prefix to set is_template. Files containing only the
     -- legacy ${VAR} syntax are not marked as templates.
-    -- see: detailed/operators.allium
 
-deferred ValidateTools.check
+deferred ValidateTools.check    -- see: detailed/operators.allium
     -- @status: Implemented
-    -- see: detailed/operators.allium
 
 rule ResolveTemplateVariables {
     -- @status: Implemented
@@ -816,62 +876,60 @@ rule CheckUpdates {
     -- @status: Implemented
     when: CheckForUpdates(config, filters)
 
-    -- Check repos in both source and self: blocks
+    -- Check repos in both source and self: blocks.
+    -- Local path repos are skipped — they have no semver tags.
     let all_repos = config.repo_operations
     for repo in all_repos:
-        ensures: UpdateInfo.created(
-            repository: repo,
-            latest_version: latest_semver(repo),
-            breaking_changes: major_bump(repo),
-            compatible_updates: minor_or_patch_bump(repo),
-            available_versions: semver_tags(repo)
-        )
+        if not repo.target.is_local:
+            ensures: UpdateInfo.created(
+                repository: repo,
+                latest_version: latest_semver(repo),
+                breaking_changes: major_bump(repo),
+                compatible_updates: minor_or_patch_bump(repo),
+                available_versions: semver_tags(repo)
+            )
 }
 
 rule CheckSelfUpdates {
     -- @status: Implemented
     when: CheckForUpdates(config, filters)
 
-    -- Also check repos referenced inside self: blocks
+    -- Also check repos referenced inside self: blocks.
+    -- Local path repos are skipped — they have no semver tags.
     for self_op in config.self_operations:
         for inner in self_op.operations:
             if inner.kind = Repo:
-                ensures: UpdateInfo.created(
-                    repository: inner.target,
-                    latest_version: latest_semver(inner.target),
-                    breaking_changes: major_bump(inner.target),
-                    compatible_updates: minor_or_patch_bump(inner.target),
-                    available_versions: semver_tags(inner.target)
-                )
+                if not inner.target.is_local:
+                    ensures: UpdateInfo.created(
+                        repository: inner.target,
+                        latest_version: latest_semver(inner.target),
+                        breaking_changes: major_bump(inner.target),
+                        compatible_updates: minor_or_patch_bump(inner.target),
+                        available_versions: semver_tags(inner.target)
+                    )
 }
 
 -- ==========================================================================
 -- Merge Operation Semantics (deferred to detailed specs)
 -- ==========================================================================
 
-deferred YamlMergeSemantics.merge
+deferred YamlMergeSemantics.merge    -- see: detailed/merge-operations.allium
     -- @status: Implemented
-    -- see: detailed/merge-operations.allium
 
-deferred JsonMergeSemantics.merge
+deferred JsonMergeSemantics.merge    -- see: detailed/merge-operations.allium
     -- @status: Implemented
-    -- see: detailed/merge-operations.allium
 
-deferred TomlMergeSemantics.merge
+deferred TomlMergeSemantics.merge    -- see: detailed/merge-operations.allium
     -- @status: Implemented
-    -- see: detailed/merge-operations.allium
 
-deferred IniMergeSemantics.merge
+deferred IniMergeSemantics.merge    -- see: detailed/merge-operations.allium
     -- @status: Implemented
-    -- see: detailed/merge-operations.allium
 
-deferred MarkdownMergeSemantics.merge
+deferred MarkdownMergeSemantics.merge    -- see: detailed/merge-operations.allium
     -- @status: Implemented
-    -- see: detailed/merge-operations.allium
 
-deferred XmlMergeSemantics.merge
+deferred XmlMergeSemantics.merge    -- see: detailed/merge-operations.allium
     -- @status: Implemented
-    -- see: detailed/merge-operations.allium
 
 -- ==========================================================================
 -- Invariants
@@ -960,6 +1018,22 @@ invariant ValidTemplateVarNames {
         if op.kind = TemplateVars:
             for name in op.vars.keys:
                 is_identifier(name) and not contains(name, "__")
+}
+
+invariant LocalPathNoCache {
+    -- @status: Not Implemented
+    -- Local path repositories are never cached. They are read fresh
+    -- from disk on every pipeline execution. This ensures the pipeline
+    -- always sees the current state of the referenced directory.
+}
+
+invariant LocalPathResolution {
+    -- @status: Not Implemented
+    -- Relative local paths always resolve against the parent directory
+    -- of the .common-repo.yaml file that defines the reference. This
+    -- holds at all nesting depths — when a local path repo's own config
+    -- references another relative path, it resolves from that repo's
+    -- directory, not the root consumer's directory.
 }
 
 -- ==========================================================================
