@@ -2,19 +2,22 @@
 //!
 //! Coordinates all phases to provide a clean API for the complete pull
 //! operation. Both source and `self:` blocks use the same sequential
-//! pipeline (`execute_sequential_pipeline`). Operations run in YAML
+//! pipeline ([`execute_sequential_pipeline`]). Operations run in YAML
 //! declaration order. Each nested `repo:` is resolved lazily via
 //! `resolve_repo_inline`, and the sub-composite merges immediately
 //! through `phase4::integrate_sub_composite` instead of a single batch
 //! Phase 4 pass over all intermediates.
 //!
-//! The two block types differ only in starting state and finalization:
+//! Both block types start with an empty composite. They differ in how
+//! local files enter the composite and in finalization:
 //!
-//! - **`self:` blocks** start from the local working directory and write
-//!   directly after the sequential pass.
-//! - **Source blocks** start from an empty FS and run Phase 5 (local file
-//!   merge) after the sequential pass to combine the composite with local
-//!   files.
+//! - **`self:` blocks** load a read-only *source FS* from the local
+//!   working directory. `include` operators pull matching files from
+//!   the source FS into the composite (additive). Files that are never
+//!   included stay out of the composite entirely.
+//! - **Source blocks** have no separate source FS. `include` filters the
+//!   composite (destructive). Phase 5 (local file merge) runs after the
+//!   sequential pass to combine the composite with local files.
 //!
 //! [`execute_pull`] partitions the config into source and `self:` operations,
 //! runs the sequential pipeline for sources, then runs the sequential
@@ -248,15 +251,16 @@ fn resolve_repo_inline_inner(
 ///
 /// Both use [`execute_sequential_pipeline`], but differ in two ways:
 ///
-/// 1. **Starting FS** — `SelfBlock` starts from local files (local files
-///    form the base of the composite). `SourceBlock` starts from an empty
-///    FS so that consumer-level operations (include, exclude, rename) only
-///    affect upstream content. Local files are combined in Phase 5 after
-///    the sequential pass.
+/// 1. **Starting FS** — Both modes start with an empty composite. `SelfBlock`
+///    also loads a read-only *source FS* from the local working
+///    directory. `include` operators in self blocks pull from this source FS
+///    into the composite (additive). In `SourceBlock` mode there is no
+///    separate source FS; `include` filters the composite (destructive).
 ///
 /// 2. **Phase 5** — `SourceBlock` runs a Phase 5 merge to combine the
 ///    composite with local files after the sequential pass. `SelfBlock`
-///    skips this because local files were already the starting base.
+///    skips this because files enter the composite only through explicit
+///    `include` operators or upstream `repo:` integrations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PipelineMode {
     SelfBlock,
@@ -269,8 +273,10 @@ enum PipelineMode {
 /// operation is encountered, it resolves inline at that position using
 /// [`resolve_repo_inline`] and [`phase4::integrate_sub_composite`].
 ///
-/// Both `self:` and source blocks use this pipeline. See [`PipelineMode`]
-/// for the differences.
+/// Both `self:` and source blocks use this pipeline. Both start with an
+/// empty composite. In `SelfBlock` mode a separate read-only source FS
+/// is loaded from disk and `include` operators pull from it additively.
+/// See [`PipelineMode`] for full details.
 fn execute_sequential_pipeline(
     config: &Schema,
     repo_manager: &RepositoryManager,
@@ -285,14 +291,19 @@ fn execute_sequential_pipeline(
     // Build cloned_repos map for on-demand resolution
     let cloned_repos = phase2::clone_tree_repos(&repo_tree, repo_manager)?;
 
-    // Starting FS depends on pipeline mode:
-    // - SelfBlock: local files form the base. Upstream content overlays.
-    // - SourceBlock: empty FS. Consumer operations (include, exclude, rename)
-    //   affect only upstream content. Local files are combined in Phase 5.
-    let mut fs = match mode {
-        PipelineMode::SelfBlock => phase5::load_local_fs(working_dir)?,
-        PipelineMode::SourceBlock => MemoryFS::new(),
+    // Source FS: the read-only input from which include operators pull files.
+    // For self blocks this is the local working directory on disk. For
+    // source blocks the composite is populated by repo: integrations and
+    // there is no separate source FS.
+    let source_fs = match mode {
+        PipelineMode::SelfBlock => Some(phase5::load_local_fs(working_dir)?),
+        PipelineMode::SourceBlock => None,
     };
+
+    // Both modes start with an empty composite. Self blocks populate it via
+    // include (pulling from source_fs). Source blocks populate it via repo:
+    // integrations.
+    let mut fs = MemoryFS::new();
 
     let mut all_template_vars = HashMap::new();
     let mut residual_deferred_ops: Vec<Operation> = Vec::new();
@@ -311,9 +322,19 @@ fn execute_sequential_pipeline(
     for operation in config {
         match operation {
             Operation::Include { include } => {
-                let mut filtered_fs = MemoryFS::new();
-                crate::operators::include::apply(include, &fs, &mut filtered_fs)?;
-                fs = filtered_fs;
+                if let Some(ref source) = source_fs {
+                    // Self block: include is additive — pull matching files
+                    // from the read-only source FS into the composite. The
+                    // source FS is never modified, so include-after-exclude
+                    // can re-add previously excluded files.
+                    crate::operators::include::apply(include, source, &mut fs)?;
+                } else {
+                    // Source block: include filters the composite (upstream
+                    // content). Creates a new FS with only matching files.
+                    let mut filtered_fs = MemoryFS::new();
+                    crate::operators::include::apply(include, &fs, &mut filtered_fs)?;
+                    fs = filtered_fs;
+                }
             }
             Operation::Exclude { exclude } => {
                 crate::operators::exclude::apply(exclude, &mut fs)?;
@@ -395,25 +416,23 @@ fn execute_sequential_pipeline(
             | Operation::Ini { .. }
             | Operation::Markdown { .. }
             | Operation::Xml { .. } => {
-                // In source mode, the merge source and/or dest may be local
-                // files not yet in the composite. Load them from disk so the
-                // merge can reference them. This mirrors the old batch
-                // pipeline where Phase 5 loaded local files before running
-                // consumer merge operations.
-                if mode == PipelineMode::SourceBlock {
-                    for path in [
-                        operation.merge_effective_source(),
-                        operation.merge_effective_dest(),
-                    ]
-                    .into_iter()
-                    .flatten()
-                    {
-                        if !fs.exists(path) {
-                            let disk_path = working_dir.join(path);
-                            if disk_path.exists() {
-                                let content = std::fs::read(&disk_path)?;
-                                fs.add_file(path, crate::filesystem::File::new(content))?;
-                            }
+                // Merge source/dest may reference local files not yet in the
+                // composite. For source blocks, local files enter in Phase 5.
+                // For self blocks, the composite starts empty and only contains
+                // files pulled by include or integrated by repo:. In both cases,
+                // load from disk when the file is missing.
+                for path in [
+                    operation.merge_effective_source(),
+                    operation.merge_effective_dest(),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    if !fs.exists(path) {
+                        let disk_path = working_dir.join(path);
+                        if disk_path.exists() {
+                            let content = std::fs::read(&disk_path)?;
+                            fs.add_file(path, crate::filesystem::File::new(content))?;
                         }
                     }
                 }
@@ -468,6 +487,20 @@ fn execute_sequential_pipeline(
 
     // Execute residual deferred merges (dest wasn't in the FS during integration)
     for op in &residual_deferred_ops {
+        // Load merge source/dest from disk if not in composite (same
+        // rationale as the sequential-pass merge handling above).
+        for path in [op.merge_effective_source(), op.merge_effective_dest()]
+            .into_iter()
+            .flatten()
+        {
+            if !fs.exists(path) {
+                let disk_path = working_dir.join(path);
+                if disk_path.exists() {
+                    let content = std::fs::read(&disk_path)?;
+                    fs.add_file(path, crate::filesystem::File::new(content))?;
+                }
+            }
+        }
         phase4::execute_merge_operation(&mut fs, op)?;
     }
 
@@ -487,12 +520,8 @@ fn execute_sequential_pipeline(
 /// Partitions the config into source and `self:` operations, then runs
 /// each through [`execute_sequential_pipeline`]. Both use the same
 /// sequential execution model where operations fire in YAML declaration
-/// order. The only difference is starting state:
-///
-/// - Source blocks start from an empty FS and run Phase 5 (local merge)
-///   after the sequential pass.
-/// - `self:` blocks start from the local working directory and write
-///   directly.
+/// order. Both start with an empty composite. See [`PipelineMode`] for
+/// how `include` and Phase 5 differ between the two modes.
 ///
 /// If `output_path` is `None`, returns the final MemoryFS without writing to disk.
 /// If `output_path` is `Some(path)`, writes to disk and returns the MemoryFS.
@@ -1197,6 +1226,169 @@ mod tests {
             &result.merge_operations[0],
             Operation::Yaml { yaml } if yaml.source == Some("fragment.yaml".to_string())
         ));
+    }
+
+    #[test]
+    fn test_self_block_no_include_produces_empty_composite() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Create local files on disk
+        std::fs::write(working_dir.join("a.txt"), b"alpha").unwrap();
+        std::fs::write(working_dir.join("b.txt"), b"bravo").unwrap();
+
+        // Self block with no operations at all
+        let config: Schema = vec![];
+
+        let repo_manager = RepositoryManager::new(working_dir.to_path_buf());
+        let cache = RepoCache::new();
+
+        let result = execute_sequential_pipeline(
+            &config,
+            &repo_manager,
+            &cache,
+            working_dir,
+            None,
+            PipelineMode::SelfBlock,
+        )
+        .unwrap();
+
+        // Composite should be empty — no include pulled anything from the
+        // source FS into the composite.
+        assert_eq!(
+            result.files().count(),
+            0,
+            "self block with no include should produce an empty composite"
+        );
+    }
+
+    #[test]
+    fn test_self_block_include_is_additive() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Create local files
+        std::fs::write(working_dir.join("a.txt"), b"alpha").unwrap();
+        std::fs::write(working_dir.join("b.txt"), b"bravo").unwrap();
+        std::fs::write(working_dir.join("c.txt"), b"charlie").unwrap();
+
+        let repo_manager = RepositoryManager::new(working_dir.to_path_buf());
+        let cache = RepoCache::new();
+
+        // Single include: only a.txt
+        let config: Schema = vec![Operation::Include {
+            include: IncludeOp {
+                patterns: vec!["a.txt".to_string()],
+            },
+        }];
+
+        let result = execute_sequential_pipeline(
+            &config,
+            &repo_manager,
+            &cache,
+            working_dir,
+            None,
+            PipelineMode::SelfBlock,
+        )
+        .unwrap();
+
+        assert!(result.exists("a.txt"), "a.txt should be in composite");
+        assert!(!result.exists("b.txt"), "b.txt should NOT be in composite");
+        assert!(!result.exists("c.txt"), "c.txt should NOT be in composite");
+
+        // Two sequential includes: a.txt then b.txt — should be additive
+        let config_additive: Schema = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["a.txt".to_string()],
+                },
+            },
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["b.txt".to_string()],
+                },
+            },
+        ];
+
+        let result2 = execute_sequential_pipeline(
+            &config_additive,
+            &repo_manager,
+            &cache,
+            working_dir,
+            None,
+            PipelineMode::SelfBlock,
+        )
+        .unwrap();
+
+        assert!(
+            result2.exists("a.txt"),
+            "a.txt should be in composite (additive)"
+        );
+        assert!(
+            result2.exists("b.txt"),
+            "b.txt should be in composite (additive)"
+        );
+        assert!(
+            !result2.exists("c.txt"),
+            "c.txt should NOT be in composite (not included)"
+        );
+    }
+
+    #[test]
+    fn test_self_block_include_after_exclude_readds_from_source() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Create local files
+        std::fs::write(working_dir.join("a.txt"), b"alpha").unwrap();
+        std::fs::write(working_dir.join("b.txt"), b"bravo").unwrap();
+
+        let repo_manager = RepositoryManager::new(working_dir.to_path_buf());
+        let cache = RepoCache::new();
+
+        // include all → exclude a.txt → include a.txt
+        // Because include reads from the unchanged source FS (not the
+        // composite), the final include re-adds a.txt even though the
+        // exclude removed it from the composite.
+        let config: Schema = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["*".to_string()],
+                },
+            },
+            Operation::Exclude {
+                exclude: crate::config::ExcludeOp {
+                    patterns: vec!["a.txt".to_string()],
+                },
+            },
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["a.txt".to_string()],
+                },
+            },
+        ];
+
+        let result = execute_sequential_pipeline(
+            &config,
+            &repo_manager,
+            &cache,
+            working_dir,
+            None,
+            PipelineMode::SelfBlock,
+        )
+        .unwrap();
+
+        assert!(
+            result.exists("a.txt"),
+            "a.txt should be re-added from source FS after exclude"
+        );
+        assert!(result.exists("b.txt"), "b.txt should remain in composite");
     }
 
     #[test]
