@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.36.0](https://github.com/common-repo/common-repo/compare/v0.35.0...v0.36.0) (2026-04-15)
+
+
+### Features
+
+* **config:** add validate_repo_ref pass for local vs git URLs ([3fcbab1](https://github.com/common-repo/common-repo/commit/3fcbab11127736468ed574802b1fffd825572f37))
+* **config:** make RepoOp.ref optional and add is_local predicate ([7717ce9](https://github.com/common-repo/common-repo/commit/7717ce9c4988f711efd9582a659af76dceaab764))
+* **phases:** resolve local paths in discovery with threaded parent_dir ([de4838e](https://github.com/common-repo/common-repo/commit/de4838e5ebccff50077cc1b5ebcd0e8531987334))
+* **phases:** route local nodes through fetch gate, skip cache keys ([8d150e1](https://github.com/common-repo/common-repo/commit/8d150e1886654f4ba0172555339a3f20c2069a8f))
+* **repository:** gate fetch on is_local_url, route locals to loader ([72302db](https://github.com/common-repo/common-repo/commit/72302dbcf4d3f9deea852a1c3cfd6805f292fb7d))
+* **version:** skip update-check for local filesystem repos ([f1f12b7](https://github.com/common-repo/common-repo/commit/f1f12b714dbd4f2100d440aa84a5d36ca4ad5b1a))
+
+
+### Bug Fixes
+
+* **phases:** match local repos by original_url in orchestrator ([b79c67c](https://github.com/common-repo/common-repo/commit/b79c67ca5bfac5319993f3d9c353b283657a90ab))
+* **validate:** skip list_repository_tags for local filesystem repos ([950298a](https://github.com/common-repo/common-repo/commit/950298a01baa2acbd771ca9b5f593536d6cd6a65))
+
 ## [0.35.0](https://github.com/common-repo/common-repo/compare/v0.34.3...v0.35.0) (2026-04-15)
 
 
