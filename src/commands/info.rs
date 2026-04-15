@@ -146,13 +146,17 @@ fn display_info(
         } else {
             String::new()
         };
-        println!(
-            "  • {} @ {}{} {}",
-            repo.url,
-            repo.r#ref.as_deref().unwrap_or(""),
-            path_info,
-            cache_status
-        );
+        if repo.is_local() {
+            println!("  • {}{} {}", repo.url, path_info, cache_status);
+        } else {
+            println!(
+                "  • {} @ {}{} {}",
+                repo.url,
+                repo.r#ref.as_deref().unwrap_or(""),
+                path_info,
+                cache_status
+            );
+        }
     }
 
     // Display operation counts

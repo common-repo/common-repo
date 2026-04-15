@@ -47,6 +47,27 @@ directory is under active development.
 - Symbolic links are skipped. If you need content from a symlink
   target, copy the file directly.
 
+## Filtering and transformation with `with:`
+
+A local `repo:` reference accepts the same `with:` clause as a git
+reference. Use it to include, exclude, rename, or otherwise transform
+the content before it merges into the consumer.
+
+```yaml
+- repo:
+    url: ../shared-config
+    with:
+      - include:
+          - ".editorconfig"
+          - "scripts/**"
+      - rename:
+          from: "scripts/(.*)"
+          to: "tools/$1"
+```
+
+The `with:` operations run in order and produce the composite filesystem
+that the consumer sees, exactly as with a git upstream.
+
 ## Error conditions
 
 - URL points at a non-existent path: `Local path not found: <url>`
