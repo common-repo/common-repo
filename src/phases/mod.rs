@@ -132,7 +132,7 @@ impl RepoNode {
     /// haven't been through discovery yet.
     pub fn is_local(&self) -> bool {
         let s = self.original_url.as_deref().unwrap_or(self.url.as_str());
-        s.starts_with("./") || s.starts_with("../") || s.starts_with('/')
+        crate::repository::is_local_url(s)
     }
 }
 

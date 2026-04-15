@@ -344,7 +344,7 @@ fn process_config_to_node(config: &Schema, defining_config_dir: &Path) -> Result
             let canonical =
                 std::fs::canonicalize(&candidate).map_err(|e| Error::LocalPathNotFound {
                     original: repo_op.url.clone(),
-                    attempted: candidate.clone(),
+                    attempted: candidate,
                     source: e,
                 })?;
             if !canonical.is_dir() {
