@@ -156,7 +156,7 @@
     {
       "id": "delete-superseded-test",
       "name": "Delete apply_succeeds_in_inheritance_merge_delta and its now-unused copy_tree helper",
-      "status": "pending",
+      "status": "complete",
       "priority": 6,
       "blocked_by": "add-consumer-test",
       "output_file": "tests/cli_e2e_local_fs_repos.rs",
@@ -185,7 +185,7 @@
     {
       "id": "final-ci-verification",
       "name": "Final CI gate and handoff",
-      "status": "pending",
+      "status": "complete",
       "priority": 7,
       "blocked_by": "delete-superseded-test",
       "output_file": null,
@@ -214,7 +214,9 @@
     "The merge_at_intermediate_combines_base and merge_at_overlay_chains_through_intermediate tests have inferred-expected list orders and dedup behaviour. The design doc explicitly flags this as two open questions. If the first run contradicts expectations, apply the discovery-event protocol in the plan markdown Step 3 (update assertion + add Observed: comment for wrong-assumption, escalate for suspected bug).",
     "Task 3 completed in commit 32d6d45. merge_at_intermediate_combines_base required a discovery-event adjustment on first run: observed semantics are top_level_key 1.0, list_within_key [beta, fnord, alpha], and nested repo order [nested_list_beta, nested_list_alpha]. Focused verification passed and ./script/ci was green before commit.",
     "Task 4 completed in commit 6e64715. merge_at_overlay_chains_through_intermediate matched the same downstream-first accumulation direction on first run: top_level_key 1.0, list_within_key [carrot, fnord, beta, alpha], nested repo order [nested_list_carrot, nested_list_beta, nested_list_alpha]. Focused verification passed and ./script/ci was green before commit.",
-    "Task 5 is complete in the working tree. merge_at_consumer_propagates_full_chain passed on first run with the same downstream-first accumulation direction as Task 4: top_level_key 1.0, list_within_key [carrot, fnord, beta, alpha], and consumer output equal to the isolated overlay reference output. ./script/ci was green after the edit, and a full cargo nextest run --features integration-tests still showed only the expected stale apply_succeeds_in_inheritance_merge_delta failure.",
+    "Task 5 completed in commit d35c584. merge_at_consumer_propagates_full_chain passed on first run with the same downstream-first accumulation direction as Task 4: top_level_key 1.0, list_within_key [carrot, fnord, beta, alpha], and consumer output equal to the isolated overlay reference output. ./script/ci was green after the edit, and a full cargo nextest run --features integration-tests still showed only the expected stale apply_succeeds_in_inheritance_merge_delta failure.",
+    "Task 6 completed in commit 8359bca. apply_succeeds_in_inheritance_merge_delta and the now-unused copy_tree helper were removed from tests/cli_e2e_local_fs_repos.rs; cargo check --tests --features integration-tests, cargo nextest run --features integration-tests --test cli_e2e_local_fs_repos, cargo nextest run --features integration-tests, and ./script/ci all passed.",
+    "Task 7 completed with fresh final verification: cargo nextest run passed with 1094 tests run and 273 skipped, cargo nextest run --features integration-tests passed with 1367 tests run, ./script/ci exited 0, and context/current-task.json was cleared to mark the plan shipped.",
     "After any edit to cli_e2e_inheritance_merge.rs, start a fresh background ./script/test run so the baseline stays current (per CLAUDE.md Agent Session Protocol).",
     "Future work tracked in the design doc (not this plan): format fan-out to TOML/JSON/INI/XML/Markdown, array_mode append/replace coverage, symmetric consumer-contributes fixture, snapshot testing migration, regression tests for pending bugs."
   ]
