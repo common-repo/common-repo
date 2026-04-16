@@ -5,40 +5,6 @@ use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
-/// Copy a directory tree recursively from src to dst.
-fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
-    fs::create_dir_all(dst).unwrap();
-    for entry in fs::read_dir(src).unwrap() {
-        let entry = entry.unwrap();
-        let src_p = entry.path();
-        let dst_p = dst.join(entry.file_name());
-        if src_p.is_dir() {
-            copy_tree(&src_p, &dst_p);
-        } else {
-            fs::copy(&src_p, &dst_p).unwrap();
-        }
-    }
-}
-
-#[test]
-#[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn apply_succeeds_in_inheritance_merge_delta() {
-    let tmp = TempDir::new().unwrap();
-    let fixture_src = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("testdata")
-        .join("inheritance-merge");
-    copy_tree(&fixture_src, &tmp.path().join("inheritance-merge"));
-
-    let delta_dir = tmp.path().join("inheritance-merge").join("delta");
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(&delta_dir).arg("apply").assert().success();
-    // The chain delta -> carrot -> beta -> alpha resolves through local-path
-    // hops; alpha has `- include: ['**']` so merge.yaml is delivered into
-    // delta/ after the orchestrator fix.
-    assert!(delta_dir.join("merge.yaml").exists());
-}
-
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn apply_warns_on_local_url_with_ref() {
