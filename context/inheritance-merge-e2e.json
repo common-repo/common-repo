@@ -5,12 +5,12 @@
   "plan_doc": "docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md",
   "context": "Extend the inheritance-merge fixture with semantic dir names and real YAML auto-merge ops, then add a 4-test E2E matrix (one test per chain depth) in tests/cli_e2e_inheritance_merge.rs. Each test parses merge.yaml with serde_yaml and asserts on specific keys. The superseded apply_succeeds_in_inheritance_merge_delta test in tests/cli_e2e_local_fs_repos.rs is deleted at the end. Six commits total; each task below produces exactly one commit (except the final verification task).",
   "session_startup": [
-    "Run git status and git stash list — expect clean working tree on feat/inheritance-merge-e2e-20260415-0525",
-    "Run git log --oneline -5 — latest commit should be e08f594 or later",
+    "Run git status and git stash list — expect context tracking updates only on feat/inheritance-merge-e2e-20260415-0525",
+    "Run git log --oneline -5 — latest commit should be 6e64715 or later",
     "Run ./script/test with run_in_background: true to start baseline",
     "Read this file to find current task",
     "Read the design doc (docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md) and plan doc (docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md) for full context",
-    "Find first task where status=pending and blocked_by=null"
+    "Resume the first task where status=in_progress (add-consumer-test); if none, find the first task where status=pending and blocked_by=null"
   ],
   "tasks": [
     {
@@ -51,7 +51,7 @@
     {
       "id": "scaffold-test-file-with-base-noop",
       "name": "Create tests/cli_e2e_inheritance_merge.rs with helpers and apply_at_base_is_local_noop test",
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "blocked_by": "rename-and-wire-fixture",
       "output_file": "tests/cli_e2e_inheritance_merge.rs",
@@ -81,7 +81,7 @@
     {
       "id": "add-intermediate-test",
       "name": "Add merge_at_intermediate_combines_base test",
-      "status": "pending",
+      "status": "complete",
       "priority": 3,
       "blocked_by": "scaffold-test-file-with-base-noop",
       "output_file": "tests/cli_e2e_inheritance_merge.rs",
@@ -106,7 +106,7 @@
     {
       "id": "add-overlay-test",
       "name": "Add merge_at_overlay_chains_through_intermediate test",
-      "status": "pending",
+      "status": "complete",
       "priority": 4,
       "blocked_by": "add-intermediate-test",
       "output_file": "tests/cli_e2e_inheritance_merge.rs",
@@ -130,7 +130,7 @@
     {
       "id": "add-consumer-test",
       "name": "Add merge_at_consumer_propagates_full_chain test",
-      "status": "pending",
+      "status": "complete",
       "priority": 5,
       "blocked_by": "add-overlay-test",
       "output_file": "tests/cli_e2e_inheritance_merge.rs",
@@ -212,6 +212,9 @@
     "Every task except final-ci-verification produces exactly ONE commit. Task dependencies are strictly linear (blocked_by chain) because each task mutates tests/cli_e2e_inheritance_merge.rs; there is no parallelism.",
     "The rename-and-wire-fixture task intentionally leaves apply_succeeds_in_inheritance_merge_delta failing — it is deleted in delete-superseded-test. A reviewer looking at individual commits will see a transient red test from commit 1 to commit 5, then it disappears. Document this in the commit message body.",
     "The merge_at_intermediate_combines_base and merge_at_overlay_chains_through_intermediate tests have inferred-expected list orders and dedup behaviour. The design doc explicitly flags this as two open questions. If the first run contradicts expectations, apply the discovery-event protocol in the plan markdown Step 3 (update assertion + add Observed: comment for wrong-assumption, escalate for suspected bug).",
+    "Task 3 completed in commit 32d6d45. merge_at_intermediate_combines_base required a discovery-event adjustment on first run: observed semantics are top_level_key 1.0, list_within_key [beta, fnord, alpha], and nested repo order [nested_list_beta, nested_list_alpha]. Focused verification passed and ./script/ci was green before commit.",
+    "Task 4 completed in commit 6e64715. merge_at_overlay_chains_through_intermediate matched the same downstream-first accumulation direction on first run: top_level_key 1.0, list_within_key [carrot, fnord, beta, alpha], nested repo order [nested_list_carrot, nested_list_beta, nested_list_alpha]. Focused verification passed and ./script/ci was green before commit.",
+    "Task 5 is complete in the working tree. merge_at_consumer_propagates_full_chain passed on first run with the same downstream-first accumulation direction as Task 4: top_level_key 1.0, list_within_key [carrot, fnord, beta, alpha], and consumer output equal to the isolated overlay reference output. ./script/ci was green after the edit, and a full cargo nextest run --features integration-tests still showed only the expected stale apply_succeeds_in_inheritance_merge_delta failure.",
     "After any edit to cli_e2e_inheritance_merge.rs, start a fresh background ./script/test run so the baseline stays current (per CLAUDE.md Agent Session Protocol).",
     "Future work tracked in the design doc (not this plan): format fan-out to TOML/JSON/INI/XML/Markdown, array_mode append/replace coverage, symmetric consumer-contributes fixture, snapshot testing migration, regression tests for pending bugs."
   ]

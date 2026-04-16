@@ -1,15 +1,15 @@
 {
-  "task": "scaffold-test-file-with-base-noop",
+  "task": "delete-superseded-test",
   "plan": "context/inheritance-merge-e2e.json",
   "last_updated": "2026-04-15",
-  "description": "Inheritance-Merge E2E Tests: extend the inheritance-merge fixture with semantic dir names and real YAML auto-merge ops, add a 4-test E2E matrix in tests/cli_e2e_inheritance_merge.rs (one test per chain depth), and delete the superseded apply_succeeds_in_inheritance_merge_delta. 7 tasks, 6 commits. Design: docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md. Plan: docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md.",
+  "description": "Inheritance-Merge E2E Tests: Tasks 3, 4, and 5 are complete. tests/cli_e2e_inheritance_merge.rs now includes merge_at_intermediate_combines_base, merge_at_overlay_chains_through_intermediate, and merge_at_consumer_propagates_full_chain with observed downstream-first accumulation semantics (top_level_key 1.0 at intermediate, overlay, and consumer; list order [beta, fnord, alpha] at intermediate and [carrot, fnord, beta, alpha] at overlay and consumer; nested repo order downstream-first). Focused verification for the consumer test passed on first run; ./script/ci passed; a clean rerun of cargo nextest run --features integration-tests still showed only the expected stale apply_succeeds_in_inheritance_merge_delta failure. Task 6 (delete-superseded-test) is next and should remove that stale local-fs smoke test. Design: docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md. Plan: docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md.",
   "session_startup": [
-    "Run git status and git stash list — expect clean working tree on feat/inheritance-merge-e2e-20260415-0525",
+    "Run git status and git stash list — expect only context tracking updates as uncommitted changes on feat/inheritance-merge-e2e-20260415-0525",
     "Run git log --oneline -5 to orient",
     "Start ./script/test in background to establish a baseline",
     "Read context/inheritance-merge-e2e.json for the full task list",
     "Read docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md and docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md for the full design and step-by-step plan",
-    "Find first task where status=pending and blocked_by=null — should be scaffold-test-file-with-base-noop",
+    "Resume delete-superseded-test as the active task; remove the stale local-fs inheritance smoke test and any now-unused helper/imports",
     "Confirm with user before starting (fresh sessions typically want confirmation)"
   ]
 }
