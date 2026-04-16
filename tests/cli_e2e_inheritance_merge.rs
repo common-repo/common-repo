@@ -189,3 +189,48 @@ fn merge_at_overlay_chains_through_intermediate() {
         "nested_list_keys entries should accumulate overlay then intermediate then base, got {repo_names:?}"
     );
 }
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn merge_at_consumer_propagates_full_chain() {
+    let (_tmp, fixture) = stage_fixture();
+    let consumer = fixture.join("consumer");
+
+    assert!(
+        !consumer.join("merge.yaml").exists(),
+        "fixture sanity: consumer/ must not ship a merge.yaml"
+    );
+
+    // Keep the overlay reference isolated so the consumer apply starts from a
+    // pristine tree rather than an already materialized merge result.
+    let (_tmp_ref, fixture_ref) = stage_fixture();
+    let overlay_ref = fixture_ref.join("upstream-overlay");
+    apply_in(&overlay_ref);
+    let overlay_merged = read_merge_yaml(&overlay_ref);
+
+    apply_in(&consumer);
+    assert!(
+        consumer.join("merge.yaml").exists(),
+        "consumer/merge.yaml should be delivered through the chain and produced by the deferred YAML ops"
+    );
+    let consumer_merged = read_merge_yaml(&consumer);
+
+    assert_eq!(
+        consumer_merged, overlay_merged,
+        "consumer is a pure consumer with no local contribution; its merged output must equal overlay's"
+    );
+
+    let map = consumer_merged
+        .as_mapping()
+        .expect("consumer/merge.yaml should be a mapping");
+    let list = map
+        .get(serde_yaml::Value::String("list_within_key".into()))
+        .and_then(|v| v.as_sequence())
+        .expect("list_within_key should be a sequence");
+    let list_strs: Vec<&str> = list.iter().filter_map(|v| v.as_str()).collect();
+    assert_eq!(
+        list_strs,
+        vec!["carrot", "fnord", "beta", "alpha"],
+        "list_within_key should match full-chain accumulation, got {list_strs:?}"
+    );
+}
