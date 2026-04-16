@@ -1,8 +1,8 @@
 {
-  "task": "delete-superseded-test",
-  "plan": "context/inheritance-merge-e2e.json",
+  "task": null,
+  "plan": null,
   "last_updated": "2026-04-15",
-  "description": "Inheritance-Merge E2E Tests: Tasks 3, 4, and 5 are complete. tests/cli_e2e_inheritance_merge.rs now includes merge_at_intermediate_combines_base, merge_at_overlay_chains_through_intermediate, and merge_at_consumer_propagates_full_chain with observed downstream-first accumulation semantics (top_level_key 1.0 at intermediate, overlay, and consumer; list order [beta, fnord, alpha] at intermediate and [carrot, fnord, beta, alpha] at overlay and consumer; nested repo order downstream-first). Focused verification for the consumer test passed on first run; ./script/ci passed; a clean rerun of cargo nextest run --features integration-tests still showed only the expected stale apply_succeeds_in_inheritance_merge_delta failure. Task 6 (delete-superseded-test) is next and should remove that stale local-fs smoke test. Design: docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md. Plan: docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md.",
+  "description": "Inheritance-Merge E2E Tests shipped. The inheritance-merge fixture now uses semantic upstream/consumer names with deferred YAML auto-merge ops, tests/cli_e2e_inheritance_merge.rs covers base, intermediate, overlay, and consumer chain depths, the stale local-fs smoke test was removed, cargo nextest run passed, cargo nextest run --features integration-tests passed, and ./script/ci passed. Observed merge semantics are downstream-first accumulation with top_level_key 1.0 at intermediate, overlay, and consumer; list order [beta, fnord, alpha] at intermediate and [carrot, fnord, beta, alpha] at overlay and consumer; and nested repo order downstream-first. Design: docs/superpowers/specs/2026-04-15-inheritance-merge-e2e-design.md. Plan: docs/superpowers/plans/2026-04-15-inheritance-merge-e2e.md.",
   "session_startup": [
     "Run git status and git stash list — expect only context tracking updates as uncommitted changes on feat/inheritance-merge-e2e-20260415-0525",
     "Run git log --oneline -5 to orient",
