@@ -1,0 +1,3 @@
+branch_whitelist = ["main"]
+from_latest_tag = true
+tag_prefix = "v"
