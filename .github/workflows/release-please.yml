@@ -49,6 +49,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-14
             archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-13
+            archive: tar.gz
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             archive: zip
@@ -124,3 +127,80 @@ jobs:
           for file in artifacts/*; do
             gh release upload "${{ needs.release-please.outputs.tag_name }}" "$file" --clobber
           done
+
+  update-homebrew-tap:
+    needs: [release-please, upload-release-assets]
+    runs-on: ubuntu-latest
+    steps:
+      - id: authenticate
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
+          owner: common-repo
+          repositories: homebrew-tap
+
+      - name: Download macOS and Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: common-repo-*
+          merge-multiple: true
+
+      - name: Compute SHA256 checksums
+        id: checksums
+        run: |
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          get_sha() { shasum -a 256 "artifacts/common-repo-${TAG}-$1.tar.gz" | awk '{print $1}'; }
+          echo "mac_arm_sha=$(get_sha aarch64-apple-darwin)"       >> "$GITHUB_OUTPUT"
+          echo "mac_intel_sha=$(get_sha x86_64-apple-darwin)"      >> "$GITHUB_OUTPUT"
+          echo "linux_arm_sha=$(get_sha aarch64-unknown-linux-gnu)" >> "$GITHUB_OUTPUT"
+          echo "linux_intel_sha=$(get_sha x86_64-unknown-linux-gnu)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: common-repo/homebrew-tap
+          token: ${{ steps.authenticate.outputs.token }}
+          path: homebrew-tap
+
+      - name: Update cask
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          MAC_ARM_SHA: ${{ steps.checksums.outputs.mac_arm_sha }}
+          MAC_INTEL_SHA: ${{ steps.checksums.outputs.mac_intel_sha }}
+          LINUX_ARM_SHA: ${{ steps.checksums.outputs.linux_arm_sha }}
+          LINUX_INTEL_SHA: ${{ steps.checksums.outputs.linux_intel_sha }}
+        run: |
+          python3 - <<'EOF'
+          import os, re
+
+          cask = open("homebrew-tap/Casks/common-repo.rb").read()
+          version = os.environ["TAG"].lstrip("v")
+
+          cask = re.sub(r'version ".*"', f'version "{version}"', cask)
+
+          shas = {
+            "aarch64-apple-darwin":        os.environ["MAC_ARM_SHA"],
+            "x86_64-apple-darwin":         os.environ["MAC_INTEL_SHA"],
+            "aarch64-unknown-linux-gnu":   os.environ["LINUX_ARM_SHA"],
+            "x86_64-unknown-linux-gnu":    os.environ["LINUX_INTEL_SHA"],
+          }
+          for target, sha in shas.items():
+            cask = re.sub(
+              rf'(url ".*{re.escape(target)}.*"\n\s+sha256 )"[^"]*"',
+              rf'\1"{sha}"',
+              cask
+            )
+
+          open("homebrew-tap/Casks/common-repo.rb", "w").write(cask)
+          EOF
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "common-repo-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add Casks/common-repo.rb
+          git commit -m "chore: update common-repo to ${{ needs.release-please.outputs.tag_name }}"
+          git push
