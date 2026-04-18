@@ -37,7 +37,14 @@ Upstreams are pinned to git refs and cached locally. The same `.common-repo.yaml
 
 ## Install
 
-### Shell installer (recommended)
+### Homebrew (macOS and Linux)
+
+```bash
+brew tap common-repo/tap
+brew install common-repo
+```
+
+### Shell installer
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
@@ -63,7 +70,7 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 ### Platform notes
 
-- **Linux/macOS**: Shell installer auto-detects architecture (x86_64, aarch64)
+- **Linux/macOS**: Homebrew or shell installer, auto-detects architecture (x86_64, aarch64)
 - **Windows**: Use `cargo install` or download from GitHub Releases
 - **Nix**: `nix run github:common-repo/common-repo` (flake available)
 
