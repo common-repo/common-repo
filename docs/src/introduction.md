@@ -25,6 +25,11 @@ Configuration files become:
 Install common-repo:
 
 ```bash
+# Homebrew (macOS and Linux)
+brew tap common-repo/tap
+brew install common-repo
+
+# Or via shell installer
 curl -fsSL https://raw.githubusercontent.com/common-repo/common-repo/main/install.sh | sh
 ```
 
