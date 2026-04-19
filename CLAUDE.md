@@ -305,6 +305,8 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 
 **Release Pipeline** (`.github/workflows/release.yaml`): Inherited from the `common-repo/semantic-release` upstream. On push to `main`, runs CI then uses cocogitto to plan, bump, tag, and publish a GitHub Release if commits warrant one.
 
+**Release binaries** (`.github/workflows/release-binaries.yaml`): Slot-3 post-release workflow. Triggers on `release: published`; builds `common-repo` for every supported target (linux gnu/musl, aarch64 linux, aarch64 darwin, windows msvc) and uploads the archives to the release. `install.sh` and `cargo binstall` both depend on this.
+
 **Commit Linting** (`.github/workflows/conventional-commits.yaml`): Inherited from the `common-repo/conventional-commits` upstream. Validates conventional commit format in PRs using cocogitto.
 
 ## Documentation Style Guide
