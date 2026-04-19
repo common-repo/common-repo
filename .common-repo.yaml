@@ -1,0 +1,8 @@
+- repo:
+    url: https://github.com/common-repo/semantic-release
+    ref: v0.5.1
+    with:
+      - template-vars:
+          GH_APP_ID_SECRET: COMMON_REPO_BOT_CLIENT_ID
+          GH_APP_KEY_SECRET: COMMON_REPO_BOT_PRIVATE_KEY
+          GH_APP_OWNER: common-repo

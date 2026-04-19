@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  COCOGITTO_VERSION: "7.0.0"
+
+jobs:
+  ci:
+    name: CI
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yaml
+    secrets: inherit
+
+  release:
+    name: Release
+    needs: ci
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      is-release: ${{ steps.plan.outputs.is-release }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
+        with:
+          app-id: ${{ secrets.COMMON_REPO_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.COMMON_REPO_BOT_PRIVATE_KEY }}
+          owner: common-repo
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      - name: Install cocogitto
+        run: |
+          set -euo pipefail
+          asset="cocogitto-${COCOGITTO_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          url="https://github.com/cocogitto/cocogitto/releases/download/${COCOGITTO_VERSION}/${asset}"
+          tmp="$(mktemp -d)"
+          curl -fsSL -o "${tmp}/${asset}" "${url}"
+          tar -xzf "${tmp}/${asset}" -C "${tmp}"
+          sudo install -m 0755 "${tmp}"/*/cog /usr/local/bin/cog
+          cog --version
+
+      - name: Configure git identity
+        run: |
+          git config user.name  'cog-bot'
+          git config user.email 'cog-bot@users.noreply.github.com'
+
+      # Dry-run to decide whether this push warrants a release. cog exits 0 in
+      # both "bump planned" and "no bump needed" cases, distinguished by whether
+      # stdout contains a semver. A non-zero exit means a real error (dirty
+      # tree, git failure, etc.) and should fail the workflow loudly. All
+      # subsequent release steps are gated on `is-release == 'true'`.
+      - name: Plan next version
+        id: plan
+        run: |
+          set +e
+          plan_output="$(cog bump --auto --dry-run 2>&1)"
+          plan_exit=$?
+          set -e
+
+          printf '%s\n' "${plan_output}"
+
+          if [[ ${plan_exit} -ne 0 ]]; then
+            echo "::error::cog bump --dry-run exited ${plan_exit}"
+            exit "${plan_exit}"
+          fi
+
+          version="$(printf '%s' "${plan_output}" \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?' \
+            | tail -n 1 || true)"
+
+          if [[ -z "${version}" ]]; then
+            echo "::notice::No release warranted from recent commits."
+            echo "is-release=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "Planned release: v${version}"
+          {
+            echo "is-release=true"
+            echo "version=${version}"
+            echo "tag=v${version}"
+          } >> "${GITHUB_OUTPUT}"
+
+      # Runs any `pre_bump_hooks` configured in cog.toml (artifact builds,
+      # registry pushes, in-tree version stamps, etc). Hooks receive `{{version}}`
+      # as the planned version. Any files modified by hooks should be `git add`'d
+      # by the hook so they're included in the bump commit. The resulting commit
+      # + tag stay local — we push them in a controlled order below.
+      - name: Bump (commit + tag, local only)
+        if: steps.plan.outputs.is-release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: cog bump --auto
+
+      # Push the tag first so the remote has the commit SHA the release will
+      # target. Doing this before pushing the bump commit to the default branch
+      # is what lets us avoid races with VCS-driven consumers (Terraform Cloud,
+      # Argo CD, etc.) that react to commits on main and expect the artifact to
+      # already exist at the tagged version.
+      - name: Push tag
+        if: steps.plan.outputs.is-release == 'true'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: git push origin "refs/tags/${TAG}"
+
+      - name: Generate changelog
+        if: steps.plan.outputs.is-release == 'true'
+        id: changelog
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          set -euo pipefail
+          notes="$(cog changelog --at "${TAG}")"
+          {
+            echo 'notes<<COCOGITTO_NOTES_EOF'
+            printf '%s\n' "${notes}"
+            echo 'COCOGITTO_NOTES_EOF'
+          } >> "${GITHUB_OUTPUT}"
+
+      # Create the GitHub release (non-draft) and attach any files staged by
+      # pre-bump hooks in ./dist. For consumers that don't produce artifacts,
+      # ./dist won't exist and the release is created with just the changelog.
+      - name: Create GitHub release
+        if: steps.plan.outputs.is-release == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          NOTES: ${{ steps.changelog.outputs.notes }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=(dist/*)
+          shopt -u nullglob
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --notes "${NOTES}" \
+            "${assets[@]}"
+
+      - name: Update major version tag
+        if: steps.plan.outputs.is-release == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          major="v${VERSION%%.*}"
+          git tag -f "${major}"
+          git push origin "refs/tags/${major}" --force
+
+      # Final step: push the bump commit to the default branch. Anything that
+      # reacts to this commit (TF Cloud, Argo CD, webhooks) will now find the
+      # tag, the GitHub release, and any attached assets already in place.
+      - name: Push bump commit
+        if: steps.plan.outputs.is-release == 'true'
+        run: git push origin "HEAD:${{ github.ref_name }}"

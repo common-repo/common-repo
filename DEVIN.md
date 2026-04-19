@@ -166,21 +166,24 @@ pre-commit install --hook-type commit-msg
 
 ### GitHub Actions Workflows
 
-1. **CI Pipeline** (`.github/workflows/ci.yml`)
-   - Triggers on push/PR to `main`
-   - **Lint job**: Runs pre-commit checks on all files (rustfmt, clippy, conventional commits validation, etc.)
+1. **CI Pipeline** (`.github/workflows/ci.yaml`)
+   - Triggers on push/PR to `main`, and via `workflow_call` from `release.yaml`
    - **Test job**: Runs all tests with caching for cargo registry/index/build artifacts
    - **Rustfmt job**: Checks code formatting
    - **Clippy job**: Runs linting checks
-   - **Build job**: Creates release binary
+   - **MSRV / Security / Coverage jobs**: Guardrails on Rust version, advisories, coverage
 
-2. **Commit Linting** (`.github/workflows/commitlint.yml`)
+2. **Pre-commit** (`.github/workflows/pre-commit.yaml`)
+   - Inherited from `common-repo/pre-commit` upstream
+   - Runs `prek` against `.pre-commit-config.yaml` on PRs
+
+3. **Commit Linting** (`.github/workflows/conventional-commits.yaml`)
    - Validates commit messages in PRs
    - Enforces conventional commit format
 
 ## Important Notes for Development
 
-- **Lint job is required**: The CI pipeline includes a dedicated Lint job that runs pre-commit on all files. This job must pass for PRs to be merged.
+- **Pre-commit is required**: The `pre-commit.yaml` workflow runs prek on every PR. It must pass for PRs to be merged.
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.
@@ -217,7 +220,8 @@ When updating documentation files:
 │   └── integration_test.rs # Integration tests (feature-gated)
 ├── Cargo.toml             # Rust package manifest
 ├── .pre-commit-config.yaml # Pre-commit hooks configuration
-├── .commitlintrc.yml      # Commit message linting rules
+├── .common-repo.yaml      # Upstream inheritance (see common-repo/semantic-release)
+├── cog.toml               # Cocogitto semantic-release config
 ├── CLAUDE.md              # Claude Code guidance
 ├── DEVIN.md               # This file - Devin guidance
 └── README.md              # Project documentation
