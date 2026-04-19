@@ -1,6 +1,6 @@
 # common-repo
 
-[![CI](https://github.com/common-repo/common-repo/actions/workflows/ci.yml/badge.svg)](https://github.com/common-repo/common-repo/actions/workflows/ci.yml)
+[![CI](https://github.com/common-repo/common-repo/actions/workflows/ci.yaml/badge.svg)](https://github.com/common-repo/common-repo/actions/workflows/ci.yaml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE.md)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://common-repo.github.io/common-repo/)
 

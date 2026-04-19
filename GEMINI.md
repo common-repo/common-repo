@@ -192,20 +192,23 @@ Pre-commit hooks are configured in `.pre-commit-config.yaml` and will automatica
 
 ### GitHub Actions Workflows
 
-1. **CI Pipeline** (`.github/workflows/ci.yml`)
-   - Triggers on push/PR to `main`
-   - **Lint job**: Runs pre-commit checks on all files
+1. **CI Pipeline** (`.github/workflows/ci.yaml`)
+   - Triggers on push/PR to `main`, and via `workflow_call` from `release.yaml`
    - **Test job**: Runs all tests
    - **Rustfmt job**: Checks code formatting
    - **Clippy job**: Runs linting checks
-   - **Build job**: Creates release binary
+   - **MSRV / Security / Coverage jobs**: Guardrails on Rust version, advisories, coverage
 
-2. **Commit Linting** (`.github/workflows/commitlint.yml`)
+2. **Pre-commit** (`.github/workflows/pre-commit.yaml`)
+   - Inherited from `common-repo/pre-commit` upstream
+   - Runs `prek` against `.pre-commit-config.yaml` on PRs
+
+3. **Commit Linting** (`.github/workflows/conventional-commits.yaml`)
    - Validates commit messages in PRs
 
 ## Important Notes for Development
 
-- **Lint job is required**: The CI pipeline includes a dedicated Lint job that runs pre-commit on all files. This job must pass for PRs to be merged.
+- **Pre-commit is required**: The `pre-commit.yaml` workflow runs prek on every PR. It must pass for PRs to be merged.
 - **Clippy is strict**: The project treats all clippy warnings as errors (`-D warnings`). Fix all warnings before committing.
 - **Formatting is mandatory**: Code must be formatted with `cargo fmt` before commits will be accepted.
 - **Commit messages are validated**: Both pre-commit hooks and CI will reject improperly formatted commit messages.

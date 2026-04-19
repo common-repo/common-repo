@@ -299,9 +299,13 @@ Breaking changes: `feat!: description` or `BREAKING CHANGE:` in footer
 
 ## CI/CD Architecture
 
-**CI Pipeline** (`.github/workflows/ci.yml`): Lint job (pre-commit checks), Test job, Rustfmt job, Clippy job
+**CI Pipeline** (`.github/workflows/ci.yaml`): Test job, Rustfmt job, Clippy job, MSRV job, Security job, Coverage job. Also callable as a reusable workflow (`workflow_call:`) from `release.yaml`.
 
-**Commit Linting** (`.github/workflows/commitlint.yml`): Validates conventional commit format in PRs
+**Pre-commit** (`.github/workflows/pre-commit.yaml`): Inherited from the `common-repo/pre-commit` upstream. Runs prek (the Rust-based pre-commit replacement) against `.pre-commit-config.yaml` on PRs.
+
+**Release Pipeline** (`.github/workflows/release.yaml`): Inherited from the `common-repo/semantic-release` upstream. On push to `main`, runs CI then uses cocogitto to plan, bump, tag, and publish a GitHub Release if commits warrant one.
+
+**Commit Linting** (`.github/workflows/conventional-commits.yaml`): Inherited from the `common-repo/conventional-commits` upstream. Validates conventional commit format in PRs using cocogitto.
 
 ## Documentation Style Guide
 
