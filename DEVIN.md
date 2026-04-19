@@ -177,7 +177,13 @@ pre-commit install --hook-type commit-msg
    - Inherited from `common-repo/pre-commit` upstream
    - Runs `prek` against `.pre-commit-config.yaml` on PRs
 
-3. **Commit Linting** (`.github/workflows/conventional-commits.yaml`)
+3. **Release binaries** (`.github/workflows/release-binaries.yaml`)
+   - Triggers on `release: published` (Slot 3 of the semantic-release model)
+   - Matrix build across linux gnu/musl, aarch64 linux, aarch64 darwin, windows msvc
+   - Uploads archives named `common-repo-${tag}-${target}.${ext}` to the release
+   - `install.sh` and `cargo binstall` depend on these assets
+
+4. **Commit Linting** (`.github/workflows/conventional-commits.yaml`)
    - Validates commit messages in PRs
    - Enforces conventional commit format
 
