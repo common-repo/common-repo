@@ -1,0 +1,19 @@
+# Consumer-specific pre-commit workflow fragment.
+#
+# This step installs the `action-validator` binary so the local
+# action-validator pre-commit hook can run in CI. It is kept here
+# (rather than in the upstream `common-repo/pre-commit` workflow)
+# because it is specific to this repo's hook set and not generic
+# enough to ship upstream.
+#
+# Wired into `.github/workflows/pre-commit.yaml` via a `yaml` merge
+# op in `.common-repo.yaml`:
+#   path: jobs.pre-commit.steps
+#   array_mode: append
+#   position: start
+# which prepends this step to the existing steps list on every
+# `common-repo apply`.
+- name: Install action-validator
+  run: |
+    curl -sSL https://github.com/mpalmer/action-validator/releases/download/v0.6.0/action-validator_linux_amd64 -o /usr/local/bin/action-validator
+    chmod +x /usr/local/bin/action-validator
