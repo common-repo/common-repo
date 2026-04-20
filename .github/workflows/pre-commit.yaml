@@ -1,27 +1,22 @@
-# From common-repo/pre-commit
 name: Lint
-
 on:
   pull_request:
     branches:
-      - main
-  workflow_call:
-
+    - main
+  workflow_call: null
 permissions:
   contents: read
-
 concurrency:
   group: common-repo/pre-commit/lint/pre-commit-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
-
 jobs:
   pre-commit:
     name: Pre-Commit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Install action-validator
-        run: |
-          curl -sSL https://github.com/mpalmer/action-validator/releases/download/v0.6.0/action-validator_linux_amd64 -o /usr/local/bin/action-validator
-          chmod +x /usr/local/bin/action-validator
-      - uses: j178/prek-action@53276d8b0d10f8b6672aa85b4588c6921d0370cc # v2
+    - name: Install action-validator
+      run: |
+        curl -sSL https://github.com/mpalmer/action-validator/releases/download/v0.6.0/action-validator_linux_amd64 -o /usr/local/bin/action-validator
+        chmod +x /usr/local/bin/action-validator
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - uses: j178/prek-action@53276d8b0d10f8b6672aa85b4588c6921d0370cc

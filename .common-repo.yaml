@@ -6,3 +6,10 @@
           GH_APP_ID_SECRET: COMMON_REPO_BOT_CLIENT_ID
           GH_APP_KEY_SECRET: COMMON_REPO_BOT_PRIVATE_KEY
           GH_APP_OWNER: common-repo
+
+- yaml:
+    source: .common-repo/action-validator-step.yml
+    dest: .github/workflows/pre-commit.yaml
+    path: jobs.pre-commit.steps
+    array_mode: append
+    position: start
