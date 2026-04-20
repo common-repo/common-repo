@@ -215,8 +215,8 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
                     }
                 }
             }
+            // Basic validation - tools array should not be empty
             config::Operation::Tools { tools } if tools.tools.is_empty() => {
-                // Basic validation - tools array should not be empty
                 println!(
                     "{} Tools operation {} has no tools defined",
                     emoji(&out, "⚠️", "[WARN]"),
