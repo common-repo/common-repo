@@ -215,16 +215,14 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
                     }
                 }
             }
-            config::Operation::Tools { tools } => {
+            config::Operation::Tools { tools } if tools.tools.is_empty() => {
                 // Basic validation - tools array should not be empty
-                if tools.tools.is_empty() {
-                    println!(
-                        "{} Tools operation {} has no tools defined",
-                        emoji(&out, "⚠️", "[WARN]"),
-                        idx
-                    );
-                    has_warnings = true;
-                }
+                println!(
+                    "{} Tools operation {} has no tools defined",
+                    emoji(&out, "⚠️", "[WARN]"),
+                    idx
+                );
+                has_warnings = true;
             }
             // Validate merge operations (source/dest requirements, auto-merge conflicts)
             config::Operation::Yaml { yaml } => {
