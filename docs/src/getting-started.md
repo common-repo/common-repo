@@ -52,7 +52,6 @@ Available platforms:
 - Linux x86_64 (musl): `common-repo-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz`
 - Linux ARM64: `common-repo-vX.Y.Z-aarch64-unknown-linux-gnu.tar.gz`
 - macOS ARM64 (Apple Silicon): `common-repo-vX.Y.Z-aarch64-apple-darwin.tar.gz`
-- macOS x86_64 (Intel): `common-repo-vX.Y.Z-x86_64-apple-darwin.tar.gz`
 - Windows x86_64: `common-repo-vX.Y.Z-x86_64-pc-windows-msvc.zip`
 
 ### From Source

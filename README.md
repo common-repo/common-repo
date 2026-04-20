@@ -70,7 +70,8 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 ### Platform notes
 
-- **Linux/macOS**: Homebrew or shell installer, auto-detects architecture (x86_64, aarch64)
+- **Linux**: Homebrew or shell installer, auto-detects architecture (x86_64, aarch64)
+- **macOS**: Homebrew or shell installer (Apple Silicon only)
 - **Windows**: Use `cargo install` or download from GitHub Releases
 - **Nix**: `nix run github:common-repo/common-repo` (flake available)
 
