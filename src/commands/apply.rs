@@ -161,6 +161,8 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
+    use std::env;
     use std::fs;
     use tempfile::TempDir;
 
@@ -205,8 +207,17 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_default_config_path() {
-        // Test that config defaults to .common-repo.yaml
+        // Test that config defaults to .common-repo.yaml: when no config is
+        // passed and .common-repo.yaml doesn't exist in the current directory,
+        // execute() should error with a message that references the default
+        // filename. Run from a temp directory to ensure the default lookup
+        // misses, regardless of what's in the workspace root.
+        let original_dir = env::current_dir().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        env::set_current_dir(&temp_dir).unwrap();
+
         let args = ApplyArgs {
             config: None,
             output: None,
@@ -216,8 +227,12 @@ mod tests {
             no_cache: false,
         };
 
-        // This will fail because .common-repo.yaml doesn't exist in test directory
         let result = execute(args);
+
+        // Restore the working directory before asserting so a panic doesn't
+        // strand other serial tests in the temp dir.
+        env::set_current_dir(&original_dir).unwrap();
+
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
