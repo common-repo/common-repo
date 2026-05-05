@@ -187,6 +187,25 @@ pub enum InsertPosition {
     End,
 }
 
+/// Behavior when an `include`-tagged file's destination already exists
+/// in the consumer's working tree at write time.
+///
+/// `Overwrite` is the default and matches pre-`if-exists:` behavior:
+/// the include result clobbers any local content at the destination.
+/// `Preserve` skips the write so consumer-authored content survives.
+/// `Error` fails the propagation with a clear message naming the path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum IfExists {
+    /// Overwrite the destination (default, matches pre-feature behavior).
+    #[default]
+    Overwrite,
+    /// Skip the write when the destination exists in the local working tree.
+    Preserve,
+    /// Fail propagation when the destination exists in the local working tree.
+    Error,
+}
+
 /// YAML merge operator configuration
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct YamlMergeOp {
@@ -3568,5 +3587,35 @@ mod tests {
             },
         }];
         assert!(validate_repo_ref(&schema).is_ok());
+    }
+
+    #[test]
+    fn if_exists_default_is_overwrite() {
+        let value: IfExists = Default::default();
+        assert_eq!(value, IfExists::Overwrite);
+    }
+
+    #[test]
+    fn if_exists_deserializes_overwrite_lowercase() {
+        let parsed: IfExists = serde_yaml::from_str("overwrite").unwrap();
+        assert_eq!(parsed, IfExists::Overwrite);
+    }
+
+    #[test]
+    fn if_exists_deserializes_preserve_lowercase() {
+        let parsed: IfExists = serde_yaml::from_str("preserve").unwrap();
+        assert_eq!(parsed, IfExists::Preserve);
+    }
+
+    #[test]
+    fn if_exists_deserializes_error_lowercase() {
+        let parsed: IfExists = serde_yaml::from_str("error").unwrap();
+        assert_eq!(parsed, IfExists::Error);
+    }
+
+    #[test]
+    fn if_exists_rejects_invalid_value() {
+        let result: std::result::Result<IfExists, _> = serde_yaml::from_str("garbage");
+        assert!(result.is_err());
     }
 }
