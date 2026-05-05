@@ -311,7 +311,7 @@ fn execute_sequential_pipeline(
     // For self blocks this is the local working directory on disk. For
     // source blocks the composite is populated by repo: integrations and
     // there is no separate source FS.
-    let source_fs = match mode {
+    let mut source_fs = match mode {
         PipelineMode::SelfBlock => Some(phase5::load_local_fs(working_dir)?),
         PipelineMode::SourceBlock => None,
     };
@@ -496,8 +496,7 @@ fn execute_sequential_pipeline(
     let local_fs_for_filter = match mode {
         PipelineMode::SourceBlock => phase5::load_local_fs(working_dir)?,
         PipelineMode::SelfBlock => source_fs
-            .as_ref()
-            .cloned()
+            .take()
             .expect("SelfBlock mode always loads source_fs at function entry"),
     };
 
