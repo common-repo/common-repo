@@ -345,9 +345,8 @@ pub(crate) fn filter_if_exists(
     };
     let mut error_paths: Vec<String> = Vec::new();
     for path in paths {
-        let file = match composite.get_file(&path) {
-            Some(f) => f,
-            None => continue,
+        let Some(file) = composite.get_file(&path) else {
+            continue;
         };
         let disk_path = working_dir.join(&path);
         let exists_on_disk = disk_path.symlink_metadata().is_ok();
