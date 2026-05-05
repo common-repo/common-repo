@@ -346,14 +346,10 @@ pub(crate) fn filter_if_exists(
         }
     }
     if let Some(path) = error_path {
-        return Err(crate::error::Error::ConfigParse {
+        return Err(crate::error::Error::Operator {
+            operator: "include".to_string(),
             message: format!(
-                "if-exists: error — destination {} exists locally and the include op requested failure",
-                path
-            ),
-            hint: Some(
-                "Change `if-exists:` to `preserve` or `overwrite`, or remove the local file."
-                    .to_string(),
+                "if-exists: error — destination {path} exists locally and the include op requested failure.\n  hint: Change `if-exists:` to `preserve` or `overwrite`, or remove the local file."
             ),
         });
     }
@@ -453,6 +449,48 @@ mod filter_if_exists_tests {
 
         let file = composite.get_file("a.txt").unwrap();
         assert_eq!(file.content, b"from-composite");
+    }
+
+    #[test]
+    fn filter_emits_debug_log_per_skip() {
+        testing_logger::setup();
+        let mut composite = MemoryFS::new();
+        composite
+            .add_file("a.txt", tagged_file("x", IfExists::Preserve))
+            .unwrap();
+        composite
+            .add_file("b.txt", tagged_file("y", IfExists::Preserve))
+            .unwrap();
+        let mut local = MemoryFS::new();
+        local
+            .add_file("a.txt", File::from_string("local-a"))
+            .unwrap();
+        local
+            .add_file("b.txt", File::from_string("local-b"))
+            .unwrap();
+
+        filter_if_exists(&mut composite, &local).unwrap();
+
+        testing_logger::validate(|logs| {
+            let debug_logs: Vec<_> = logs
+                .iter()
+                .filter(|l| l.level == log::Level::Debug)
+                .collect();
+            assert_eq!(
+                debug_logs.len(),
+                2,
+                "expected 2 debug log lines, got {}",
+                debug_logs.len()
+            );
+            assert!(
+                debug_logs.iter().any(|l| l.body.contains("a.txt")),
+                "expected log mentioning 'a.txt'"
+            );
+            assert!(
+                debug_logs.iter().any(|l| l.body.contains("b.txt")),
+                "expected log mentioning 'b.txt'"
+            );
+        });
     }
 }
 
