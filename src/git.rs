@@ -236,6 +236,7 @@ fn add_file(
             .modified()
             .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
         is_template: false,
+        if_exists: crate::config::IfExists::Overwrite,
     };
     fs.add_file(dest, file)?;
     Ok(())
