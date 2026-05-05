@@ -1353,10 +1353,11 @@ pub fn parse_original_format(yaml_content: &str) -> Result<Schema> {
 /// absent. A malformed value (e.g. `if-exists: garbage`) is a parse
 /// error.
 fn extract_if_exists_sibling(siblings: &serde_yaml::Mapping) -> Result<IfExists> {
-    match siblings.get("if-exists") {
-        Some(value) => serde_yaml::from_value(value.clone()).map_err(Error::Yaml),
-        None => Ok(IfExists::Overwrite),
-    }
+    siblings
+        .get("if-exists")
+        .map_or(Ok(IfExists::Overwrite), |value| {
+            serde_yaml::from_value(value.clone()).map_err(Error::Yaml)
+        })
 }
 
 /// Emit [`log::warn!`] for any keys in `siblings` that are not in the
