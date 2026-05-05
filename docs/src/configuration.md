@@ -154,11 +154,25 @@ consumer's working tree at write time:
   when local content at the destination should be a hard signal that the
   consumer's setup needs attention.
 
-Example:
+"Exists" means any filesystem entry at the destination path on disk — a
+regular file, a symlink (valid or broken), or a directory. The check
+uses on-disk metadata, so it detects entries that would be invisible to
+a plain file walk.
+
+Example using `preserve`:
 
 ```yaml
 - include: [".github/workflows/ci.yaml"]
   if-exists: preserve
+```
+
+Example using `error` — choose this when the destination holds content
+that must not be silently replaced, such as production credentials
+shipped via `include:` from a template repo:
+
+```yaml
+- include: ["sensitive/config.yaml"]
+  if-exists: error
 ```
 
 `if-exists:` works the same way inside a `repo:` block's `with:` clause:
@@ -199,17 +213,22 @@ declare the merge.
 
 #### Unknown sibling keys
 
-A typo in an operator-level sibling key (for example, `if-exits:`)
-in **original-format** YAML produces a `log::warn!` at default
-visibility and is otherwise ignored. The warning is non-fatal so a
-consumer pulling from a misconfigured upstream is not hard-blocked by
-the upstream's typo.
+A typo in an operator-level sibling key (for example, `if-exits:`
+instead of `if-exists:`) does not abort propagation. Whether the typo
+is caught depends on which YAML form the config uses:
 
-The standard YAML format goes through a derived deserializer that
-silently drops unknown fields. Typos in standard-format configuration
-parse as if the unknown key were absent (so `if-exits: preserve`
-produces no warning and `if_exists` falls back to its default
-`Overwrite`).
+- **Legacy bare-mapping form** (the original parser, where the operator
+  key and its siblings are direct children of a list-entry mapping):
+  emits a `log::warn!` at default visibility naming the unknown key.
+  The key is dropped and propagation continues.
+- **Standard form** (serde's derived deserializer): silently ignores
+  unknown fields. A typo parses as if the key were absent, so
+  `if-exits: preserve` produces no warning and `if_exists` falls back
+  to its default `Overwrite`.
+
+Most consumer configs are written in the legacy bare-mapping form, so
+the warning fires for typos. Configs in standard form should be
+reviewed manually — serde will not flag unknown keys.
 
 ### `exclude` - Remove Files
 

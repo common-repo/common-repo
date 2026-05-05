@@ -374,7 +374,7 @@ pub(crate) fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ExcludeOp, IfExists, Operation, RepoOp, TemplateVars};
+    use crate::config::{ExcludeOp, IfExists, IncludeOp, Operation, RepoOp, TemplateVars};
     use crate::filesystem::MemoryFS;
     use crate::repository::{CacheOperations, GitOperations, RepositoryManager};
     use std::collections::HashMap;
@@ -2701,5 +2701,29 @@ mod tests {
             *self.cached_flag.lock().unwrap() = true;
             Ok(())
         }
+    }
+
+    #[test]
+    fn apply_operation_include_stamps_if_exists_tag() {
+        let mut fs = MemoryFS::new();
+        fs.add_file("foo.txt", crate::filesystem::File::from_string("hello"))
+            .unwrap();
+
+        let op = Operation::Include {
+            include: IncludeOp {
+                patterns: vec!["foo.txt".to_string()],
+                if_exists: IfExists::Preserve,
+            },
+            if_exists: IfExists::Preserve,
+        };
+
+        apply_operation(&mut fs, &op).unwrap();
+
+        let file = fs.get_file("foo.txt").unwrap();
+        assert_eq!(
+            file.if_exists,
+            IfExists::Preserve,
+            "apply_operation should stamp if_exists from the operation onto included files"
+        );
     }
 }

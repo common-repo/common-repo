@@ -32,6 +32,13 @@
 //!
 //! This phase produces the final, fully merged `MemoryFS`, which is an exact
 //! representation of what the output directory should look like.
+//!
+//! [`filter_if_exists`] is also part of this module's responsibility: before
+//! Phase 5 combines the composite with local files, it checks each composite
+//! entry's `if_exists` tag against the on-disk working tree. Entries tagged
+//! `preserve` are dropped from the composite when the destination already
+//! exists on disk (as a regular file, directory, or symlink). Entries tagged
+//! `error` cause the pipeline to fail with a list of all conflicting paths.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -306,37 +313,48 @@ fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> 
 ///   no longer carries a write for that path).
 /// - `IfExists::Preserve` and the path is missing locally → leave in
 ///   composite (the included file is the only source for that path).
-/// - `IfExists::Error` and the path exists locally → return an
-///   error naming the path.
+/// - `IfExists::Error` and the path exists locally → return an error
+///   listing all conflicting paths.
 /// - `IfExists::Error` and the path is missing locally → leave in
 ///   composite.
+///
+/// Existence is determined by consulting on-disk metadata via
+/// [`std::fs::symlink_metadata`] against `working_dir`, which detects
+/// regular files, directories, and symlinks (including broken ones).
+/// This is broader than checking `MemoryFS::exists`, which only sees
+/// regular files loaded into the in-memory tree.
 ///
 /// Each removal logs at debug level. Errors propagate up through the
 /// pipeline as a propagation-time failure.
 pub(crate) fn filter_if_exists(
     composite: &mut MemoryFS,
     local: &MemoryFS,
+    working_dir: &Path,
 ) -> crate::error::Result<()> {
     use crate::config::IfExists;
-    // Sort paths so that the `Error` arm reports a deterministic path
-    // (the first-by-sort-order conflicting path) and the per-file debug
-    // log lines for `Preserve` skips appear in stable order regardless
-    // of `MemoryFS`'s internal HashMap iteration order.
+    // Suppress unused-variable warning: `local` is kept for API consistency
+    // and future content-comparison use.
+    let _ = local;
+    // Sort paths so that the `Error` arm reports deterministic output and the
+    // per-file debug log lines for `Preserve` skips appear in stable order
+    // regardless of `MemoryFS`'s internal HashMap iteration order.
     let paths: Vec<std::path::PathBuf> = {
         let mut p = composite.list_files();
         p.sort();
         p
     };
-    let mut error_path: Option<String> = None;
+    let mut error_paths: Vec<String> = Vec::new();
     for path in paths {
         let file = match composite.get_file(&path) {
             Some(f) => f,
             None => continue,
         };
+        let disk_path = working_dir.join(&path);
+        let exists_on_disk = disk_path.symlink_metadata().is_ok();
         match file.if_exists {
             IfExists::Overwrite => {}
             IfExists::Preserve => {
-                if local.exists(&path) {
+                if exists_on_disk {
                     log::debug!(
                         "if-exists: preserve — skipping {} (destination exists in working dir)",
                         path.display()
@@ -345,18 +363,18 @@ pub(crate) fn filter_if_exists(
                 }
             }
             IfExists::Error => {
-                if local.exists(&path) {
-                    error_path = Some(path.to_string_lossy().into_owned());
-                    break;
+                if exists_on_disk {
+                    error_paths.push(path.to_string_lossy().into_owned());
                 }
             }
         }
     }
-    if let Some(path) = error_path {
+    if !error_paths.is_empty() {
+        let path_list = error_paths.join("\n  - ");
         return Err(crate::error::Error::Operator {
             operator: "include".to_string(),
             message: format!(
-                "if-exists: error — destination {path} exists locally and the include op requested failure.\n  hint: Change `if-exists:` to `preserve` or `overwrite`, or remove the local file."
+                "if-exists: error — destinations exist locally and the include op requested failure:\n  - {path_list}\n  hint: Change `if-exists:` to `preserve` or `overwrite`, or remove the local file(s)."
             ),
         });
     }
@@ -377,16 +395,16 @@ mod filter_if_exists_tests {
 
     #[test]
     fn filter_overwrite_is_no_op() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "from-local").unwrap();
+
         let mut composite = MemoryFS::new();
         composite
             .add_file("a.txt", tagged_file("from-composite", IfExists::Overwrite))
             .unwrap();
-        let mut local = MemoryFS::new();
-        local
-            .add_file("a.txt", File::from_string("from-local"))
-            .unwrap();
+        let local = MemoryFS::new();
 
-        filter_if_exists(&mut composite, &local).unwrap();
+        filter_if_exists(&mut composite, &local, tmp.path()).unwrap();
 
         let file = composite.get_file("a.txt").unwrap();
         assert_eq!(file.content, b"from-composite");
@@ -394,29 +412,31 @@ mod filter_if_exists_tests {
 
     #[test]
     fn filter_preserve_drops_when_local_exists() {
-        let mut composite = MemoryFS::new();
-        composite
-            .add_file("a.txt", tagged_file("from-composite", IfExists::Preserve))
-            .unwrap();
-        let mut local = MemoryFS::new();
-        local
-            .add_file("a.txt", File::from_string("from-local"))
-            .unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "from-local").unwrap();
 
-        filter_if_exists(&mut composite, &local).unwrap();
-
-        assert!(composite.get_file("a.txt").is_none());
-    }
-
-    #[test]
-    fn filter_preserve_keeps_when_local_missing() {
         let mut composite = MemoryFS::new();
         composite
             .add_file("a.txt", tagged_file("from-composite", IfExists::Preserve))
             .unwrap();
         let local = MemoryFS::new();
 
-        filter_if_exists(&mut composite, &local).unwrap();
+        filter_if_exists(&mut composite, &local, tmp.path()).unwrap();
+
+        assert!(composite.get_file("a.txt").is_none());
+    }
+
+    #[test]
+    fn filter_preserve_keeps_when_local_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+
+        let mut composite = MemoryFS::new();
+        composite
+            .add_file("a.txt", tagged_file("from-composite", IfExists::Preserve))
+            .unwrap();
+        let local = MemoryFS::new();
+
+        filter_if_exists(&mut composite, &local, tmp.path()).unwrap();
 
         let file = composite.get_file("a.txt").unwrap();
         assert_eq!(file.content, b"from-composite");
@@ -424,16 +444,16 @@ mod filter_if_exists_tests {
 
     #[test]
     fn filter_error_returns_error_when_local_exists() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "from-local").unwrap();
+
         let mut composite = MemoryFS::new();
         composite
             .add_file("a.txt", tagged_file("from-composite", IfExists::Error))
             .unwrap();
-        let mut local = MemoryFS::new();
-        local
-            .add_file("a.txt", File::from_string("from-local"))
-            .unwrap();
+        let local = MemoryFS::new();
 
-        let result = filter_if_exists(&mut composite, &local);
+        let result = filter_if_exists(&mut composite, &local, tmp.path());
 
         let err = result.expect_err("expected an error");
         let msg = format!("{}", err);
@@ -446,13 +466,15 @@ mod filter_if_exists_tests {
 
     #[test]
     fn filter_error_keeps_when_local_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+
         let mut composite = MemoryFS::new();
         composite
             .add_file("a.txt", tagged_file("from-composite", IfExists::Error))
             .unwrap();
         let local = MemoryFS::new();
 
-        filter_if_exists(&mut composite, &local).unwrap();
+        filter_if_exists(&mut composite, &local, tmp.path()).unwrap();
 
         let file = composite.get_file("a.txt").unwrap();
         assert_eq!(file.content, b"from-composite");
@@ -460,6 +482,10 @@ mod filter_if_exists_tests {
 
     #[test]
     fn filter_emits_debug_log_per_skip() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "local-a").unwrap();
+        std::fs::write(tmp.path().join("b.txt"), "local-b").unwrap();
+
         testing_logger::setup();
         let mut composite = MemoryFS::new();
         composite
@@ -468,15 +494,9 @@ mod filter_if_exists_tests {
         composite
             .add_file("b.txt", tagged_file("y", IfExists::Preserve))
             .unwrap();
-        let mut local = MemoryFS::new();
-        local
-            .add_file("a.txt", File::from_string("local-a"))
-            .unwrap();
-        local
-            .add_file("b.txt", File::from_string("local-b"))
-            .unwrap();
+        let local = MemoryFS::new();
 
-        filter_if_exists(&mut composite, &local).unwrap();
+        filter_if_exists(&mut composite, &local, tmp.path()).unwrap();
 
         testing_logger::validate(|logs| {
             let debug_logs: Vec<_> = logs
@@ -498,6 +518,74 @@ mod filter_if_exists_tests {
                 "expected log mentioning 'b.txt'"
             );
         });
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn filter_preserve_drops_when_local_is_symlink() {
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target.txt");
+        std::fs::write(&target, "target-content").unwrap();
+        let link = tmp.path().join("link.txt");
+        symlink(&target, &link).unwrap();
+
+        let mut composite = MemoryFS::new();
+        composite
+            .add_file(
+                "link.txt",
+                tagged_file("from-composite", IfExists::Preserve),
+            )
+            .unwrap();
+        let local = MemoryFS::new(); // empty — symlink not loaded by load_local_fs
+
+        filter_if_exists(&mut composite, &local, tmp.path()).unwrap();
+
+        assert!(
+            composite.get_file("link.txt").is_none(),
+            "Preserve should drop when local is a symlink"
+        );
+    }
+
+    #[test]
+    fn filter_preserve_drops_when_local_is_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir(tmp.path().join("foo")).unwrap();
+
+        let mut composite = MemoryFS::new();
+        composite
+            .add_file("foo", tagged_file("from-composite", IfExists::Preserve))
+            .unwrap();
+        let local = MemoryFS::new();
+
+        filter_if_exists(&mut composite, &local, tmp.path()).unwrap();
+
+        assert!(
+            composite.get_file("foo").is_none(),
+            "Preserve should drop when local is a directory"
+        );
+    }
+
+    #[test]
+    fn filter_error_reports_all_conflicting_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "a").unwrap();
+        std::fs::write(tmp.path().join("z.txt"), "z").unwrap();
+
+        let mut composite = MemoryFS::new();
+        composite
+            .add_file("a.txt", tagged_file("from-composite", IfExists::Error))
+            .unwrap();
+        composite
+            .add_file("z.txt", tagged_file("from-composite", IfExists::Error))
+            .unwrap();
+        let local = MemoryFS::new();
+
+        let result = filter_if_exists(&mut composite, &local, tmp.path());
+        let err = result.expect_err("expected error");
+        let msg = format!("{}", err);
+        assert!(msg.contains("a.txt"), "should mention a.txt: {msg}");
+        assert!(msg.contains("z.txt"), "should mention z.txt: {msg}");
     }
 }
 

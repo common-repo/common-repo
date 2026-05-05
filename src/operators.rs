@@ -585,6 +585,66 @@ mod tests {
         }
     }
 
+    mod tag_propagation_tests {
+        use super::*;
+        use crate::config::{IfExists, RenameMapping, RenameOp};
+        use crate::filesystem::{File, MemoryFS};
+
+        #[test]
+        fn rename_apply_preserves_if_exists_tag() {
+            let mut fs = MemoryFS::new();
+            let mut file = File::from_string("hello");
+            file.if_exists = IfExists::Preserve;
+            fs.add_file("foo.bak", file).unwrap();
+
+            let op = RenameOp {
+                mappings: vec![RenameMapping {
+                    from: r"^(.+)\.bak$".to_string(),
+                    to: "$1".to_string(),
+                }],
+            };
+            rename::apply(&op, &mut fs).unwrap();
+
+            let renamed = fs.get_file("foo").unwrap();
+            assert_eq!(
+                renamed.if_exists,
+                IfExists::Preserve,
+                "rename should preserve if_exists tag"
+            );
+            assert!(
+                fs.get_file("foo.bak").is_none(),
+                "old name should be gone after rename"
+            );
+        }
+
+        #[test]
+        fn exclude_apply_preserves_if_exists_tag_on_remaining_files() {
+            let mut fs = MemoryFS::new();
+            let mut keep = File::from_string("keep");
+            keep.if_exists = IfExists::Preserve;
+            fs.add_file("keep.txt", keep).unwrap();
+            let mut drop_file = File::from_string("drop");
+            drop_file.if_exists = IfExists::Error;
+            fs.add_file("drop.txt", drop_file).unwrap();
+
+            let op = ExcludeOp {
+                patterns: vec!["drop.txt".to_string()],
+            };
+            exclude::apply(&op, &mut fs).unwrap();
+
+            assert!(
+                fs.get_file("drop.txt").is_none(),
+                "excluded file should be removed"
+            );
+            let kept = fs.get_file("keep.txt").unwrap();
+            assert_eq!(
+                kept.if_exists,
+                IfExists::Preserve,
+                "exclude should not modify surviving files' if_exists tags"
+            );
+        }
+    }
+
     mod repo_tests {
         use super::*;
         use crate::config::{ExcludeOp, IncludeOp, RenameMapping};
@@ -1883,6 +1943,51 @@ mod template_tests {
 
         template_vars::collect(&op, &mut context).unwrap();
         assert_eq!(context.len(), 4);
+    }
+
+    #[test]
+    fn template_mark_preserves_if_exists_tag() {
+        let mut fs = MemoryFS::new();
+        let mut file = crate::filesystem::File::from_string("hello __COMMON_REPO__NAME__");
+        file.if_exists = crate::config::IfExists::Preserve;
+        fs.add_file("greet.txt", file).unwrap();
+
+        let op = crate::config::TemplateOp {
+            patterns: vec!["greet.txt".to_string()],
+        };
+        template::mark(&op, &mut fs).unwrap();
+
+        let marked = fs.get_file("greet.txt").unwrap();
+        assert_eq!(
+            marked.if_exists,
+            crate::config::IfExists::Preserve,
+            "template::mark should preserve if_exists tag"
+        );
+        assert!(marked.is_template, "file should be marked as a template");
+    }
+
+    #[test]
+    fn template_process_preserves_if_exists_tag_through_expansion() {
+        let mut fs = MemoryFS::new();
+        let mut file = crate::filesystem::File::from_string("hello __COMMON_REPO__NAME__");
+        file.if_exists = crate::config::IfExists::Preserve;
+        file.is_template = true;
+        fs.add_file("greet.txt", file).unwrap();
+
+        let mut vars = HashMap::new();
+        vars.insert("NAME".to_string(), "world".to_string());
+        template::process(&mut fs, &vars).unwrap();
+
+        let processed = fs.get_file("greet.txt").unwrap();
+        assert_eq!(
+            processed.if_exists,
+            crate::config::IfExists::Preserve,
+            "template::process should preserve if_exists tag"
+        );
+        assert_eq!(
+            processed.content, b"hello world",
+            "template should expand variables"
+        );
     }
 }
 

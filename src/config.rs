@@ -3988,4 +3988,58 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    fn convert_yaml_mapping_include_rejects_non_string_if_exists() {
+        let yaml = r#"
+- include: ["src/**"]
+  if-exists: 42
+"#;
+        let result = parse_original_format(yaml);
+        assert!(
+            result.is_err(),
+            "non-string if-exists value should error: got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn standard_format_silently_drops_unknown_sibling() {
+        testing_logger::setup();
+        let yaml = r#"
+- include: ["src/**"]
+  if-exits: preserve
+"#;
+        // Standard format goes through serde's derived path which silently
+        // drops unknown fields. Parsing succeeds with default if_exists.
+        let schema = parse(yaml).unwrap();
+        match &schema[0] {
+            Operation::Include { include, if_exists } => {
+                assert_eq!(
+                    *if_exists,
+                    IfExists::Overwrite,
+                    "default if_exists after serde-drop of typo key"
+                );
+                assert_eq!(
+                    include.if_exists,
+                    IfExists::Overwrite,
+                    "include.if_exists should also be default after normalize"
+                );
+            }
+            _ => panic!("expected Include"),
+        }
+        testing_logger::validate(|logs| {
+            let warns: Vec<_> = logs
+                .iter()
+                .filter(|l| l.level == log::Level::Warn)
+                .collect();
+            // Standard format does NOT warn — that's the documented behavior.
+            assert_eq!(
+                warns.len(),
+                0,
+                "standard format silently drops unknown siblings, no warning expected; got {:?}",
+                warns.iter().map(|l| &l.body).collect::<Vec<_>>()
+            );
+        });
+    }
 }
