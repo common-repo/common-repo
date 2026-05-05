@@ -48,6 +48,11 @@ pub struct File {
     pub modified_time: SystemTime,
     /// A flag indicating whether this file should be processed as a template.
     pub is_template: bool,
+    /// Behavior when this file's destination already exists in the
+    /// consumer's working tree at write time. Set at `include::apply`
+    /// time; flows passively through every other operator. The
+    /// `filter_if_exists` pass at the tail of the pipeline acts on it.
+    pub if_exists: crate::config::IfExists,
 }
 
 impl File {
@@ -74,6 +79,7 @@ impl File {
             permissions: 0o644, // Default to standard file permissions
             modified_time: SystemTime::now(),
             is_template: false,
+            if_exists: crate::config::IfExists::Overwrite,
         }
     }
 
@@ -791,5 +797,23 @@ mod tests {
         let source = fs.get_file("source.txt").unwrap();
         let copy = fs.get_file("nested/path/copy.txt").unwrap();
         assert_eq!(source.content, copy.content);
+    }
+}
+
+#[cfg(test)]
+mod if_exists_tests {
+    use super::*;
+    use crate::config::IfExists;
+
+    #[test]
+    fn file_new_defaults_if_exists_to_overwrite() {
+        let file = File::new(vec![1, 2, 3]);
+        assert_eq!(file.if_exists, IfExists::Overwrite);
+    }
+
+    #[test]
+    fn file_from_string_defaults_if_exists_to_overwrite() {
+        let file = File::from_string("hello");
+        assert_eq!(file.if_exists, IfExists::Overwrite);
     }
 }
