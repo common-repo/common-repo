@@ -44,6 +44,13 @@ pub(crate) mod include {
     /// copies files from the source to the target if they match the glob patterns
     /// defined in the `IncludeOp`.
     ///
+    /// Each copied file has its `if_exists` field set to `op.if_exists`,
+    /// overwriting any default on the source file. If the same path is matched
+    /// by multiple `include` operations, the last one wins because
+    /// `MemoryFS::add_file` unconditionally replaces any prior entry — so the
+    /// final tag at any path is the tag from the last `include::apply` call
+    /// that produced it.
+    ///
     /// # Arguments
     ///
     /// * `op` - The include operation configuration
