@@ -882,8 +882,8 @@ port = 8080
     mod execute_merge_operation_tests {
         use super::*;
         use crate::config::{
-            ExcludeOp, IncludeOp, InsertPosition, MarkdownMergeOp, Operation, TomlMergeOp,
-            YamlMergeOp,
+            ExcludeOp, IfExists, IncludeOp, InsertPosition, MarkdownMergeOp, Operation,
+            TomlMergeOp, YamlMergeOp,
         };
         use crate::phases::composite::execute_merge_operation;
 
@@ -984,6 +984,7 @@ port = 8080
             let operation = Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["**/*".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             };
 

@@ -452,7 +452,7 @@ pub fn clone_parallel(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ExcludeOp, IncludeOp, RepoOp};
+    use crate::config::{ExcludeOp, IfExists, IncludeOp, RepoOp};
     use crate::filesystem::MemoryFS;
     use crate::repository::{CacheOperations, GitOperations};
     use std::path::{Path, PathBuf};
@@ -604,6 +604,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Exclude {
@@ -650,6 +651,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Repo {
@@ -1187,6 +1189,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Exclude {
@@ -1215,7 +1218,9 @@ mod tests {
 
     mod extract_deferred_ops_tests {
         use super::*;
-        use crate::config::{ExcludeOp, IncludeOp, MarkdownMergeOp, Operation, YamlMergeOp};
+        use crate::config::{
+            ExcludeOp, IfExists, IncludeOp, MarkdownMergeOp, Operation, YamlMergeOp,
+        };
 
         #[test]
         fn test_extract_deferred_operations_empty_config() {
@@ -1230,6 +1235,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["*.rs".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 Operation::Exclude {
@@ -1256,6 +1262,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["*.rs".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 Operation::Yaml {
@@ -1290,6 +1297,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["**/*".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 // First deferred op
@@ -1384,6 +1392,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["*.md".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 Operation::Repo {
@@ -1448,6 +1457,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/**".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 Operation::Exclude {
@@ -1478,6 +1488,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["first".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 Operation::Exclude {
@@ -1488,6 +1499,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["third".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
             ];
@@ -1613,6 +1625,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/**".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 Operation::Template {
@@ -1659,12 +1672,13 @@ mod tests {
 
     #[test]
     fn test_extract_upstream_operations_excludes_self() {
-        use crate::config::{IncludeOp, Operation, SelfOp};
+        use crate::config::{IfExists, IncludeOp, Operation, SelfOp};
 
         let config = vec![
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/**".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Self_ {
@@ -1672,6 +1686,7 @@ mod tests {
                     operations: vec![Operation::Include {
                         include: IncludeOp {
                             patterns: vec!["**/*".to_string()],
+                            if_exists: IfExists::Overwrite,
                         },
                     }],
                 },
@@ -1685,7 +1700,7 @@ mod tests {
 
     #[test]
     fn test_process_config_to_node_keeps_self_in_operations() {
-        use crate::config::{IncludeOp, Operation, RepoOp, SelfOp};
+        use crate::config::{IfExists, IncludeOp, Operation, RepoOp, SelfOp};
 
         let config = vec![
             Operation::Repo {
@@ -1701,6 +1716,7 @@ mod tests {
                     operations: vec![Operation::Include {
                         include: IncludeOp {
                             patterns: vec!["**/*".to_string()],
+                            if_exists: IfExists::Overwrite,
                         },
                     }],
                 },

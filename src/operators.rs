@@ -269,7 +269,7 @@ pub(crate) mod repo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{RenameMapping, RenameOp};
+    use crate::config::{IfExists, RenameMapping, RenameOp};
 
     mod include_tests {
         use super::*;
@@ -291,6 +291,7 @@ mod tests {
             // Include all .rs files
             let op = IncludeOp {
                 patterns: vec!["*.rs".to_string()],
+                if_exists: IfExists::Overwrite,
             };
 
             include::apply(&op, &source, &mut target).unwrap();
@@ -316,6 +317,7 @@ mod tests {
 
             let op = IncludeOp {
                 patterns: vec!["src/*.rs".to_string(), "README.md".to_string()],
+                if_exists: IfExists::Overwrite,
             };
 
             include::apply(&op, &source, &mut target).unwrap();
@@ -745,6 +747,7 @@ mod tests {
             let operations = vec![Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             }];
 
@@ -1087,6 +1090,7 @@ mod tests {
             let operations = vec![Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/*.rs".to_string(), "tests/*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             }];
 
@@ -1115,6 +1119,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/*".to_string(), "template.txt".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 // Then rename src/ to rust/
@@ -1159,6 +1164,7 @@ mod tests {
             let operations = vec![Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             }];
 
@@ -1179,6 +1185,7 @@ mod tests {
             let operations = vec![Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["**/*".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             }];
 

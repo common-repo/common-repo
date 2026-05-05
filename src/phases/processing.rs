@@ -374,7 +374,7 @@ pub(crate) fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ExcludeOp, Operation, RepoOp, TemplateVars};
+    use crate::config::{ExcludeOp, IfExists, Operation, RepoOp, TemplateVars};
     use crate::filesystem::MemoryFS;
     use crate::repository::{CacheOperations, GitOperations, RepositoryManager};
     use std::collections::HashMap;
@@ -682,6 +682,7 @@ mod tests {
                 with: vec![Operation::Include {
                     include: crate::config::IncludeOp {
                         patterns: vec!["*.md".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 }],
             },
@@ -1139,7 +1140,7 @@ mod tests {
 
     mod cache_key_tests {
         use super::*;
-        use crate::config::{ExcludeOp, IncludeOp, RenameMapping, RenameOp, TemplateOp};
+        use crate::config::{ExcludeOp, IfExists, IncludeOp, RenameMapping, RenameOp, TemplateOp};
         use crate::phases::RepoNode;
 
         #[test]
@@ -1278,6 +1279,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/**".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 Operation::Rename {
@@ -1679,9 +1681,9 @@ mod tests {
     mod apply_operation_tests {
         use super::*;
         use crate::config::{
-            ExcludeOp, IncludeOp, IniMergeOp, InsertPosition, JsonMergeOp, MarkdownMergeOp,
-            RenameMapping, RenameOp, TemplateOp, TemplateVars, TomlMergeOp, Tool, ToolsOp,
-            YamlMergeOp,
+            ExcludeOp, IfExists, IncludeOp, IniMergeOp, InsertPosition, JsonMergeOp,
+            MarkdownMergeOp, RenameMapping, RenameOp, TemplateOp, TemplateVars, TomlMergeOp, Tool,
+            ToolsOp, YamlMergeOp,
         };
         use crate::filesystem::MemoryFS;
 
@@ -1700,6 +1702,7 @@ mod tests {
             let operation = Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/**".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             };
             apply_operation(&mut fs, &operation).expect("should not error");
@@ -2420,7 +2423,7 @@ mod tests {
     mod process_cloned_repo_tests {
         use super::*;
         use crate::cache::RepoCache;
-        use crate::config::IncludeOp;
+        use crate::config::{IfExists, IncludeOp};
         use crate::phases::ClonedRepo;
 
         #[test]
@@ -2462,6 +2465,7 @@ mod tests {
                 vec![Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/**".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 }],
             );
