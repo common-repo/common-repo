@@ -358,7 +358,10 @@ pub(crate) fn filter_if_exists(
                         "if-exists: preserve — skipping {} (destination exists in working dir)",
                         path.display()
                     );
-                    composite.remove_file(&path)?;
+                    // `get_file` confirmed existence above; `remove_file`
+                    // returns `Result<Option<File>>` but the inner `Result`
+                    // is always `Ok` — the implementation is infallible.
+                    let _ = composite.remove_file(&path);
                 }
             }
             IfExists::Error => {
