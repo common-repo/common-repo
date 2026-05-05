@@ -463,13 +463,51 @@ fn execute_sequential_pipeline(
         }
     }
 
+    // Execute residual deferred merges (dest wasn't in the FS during integration).
+    // These run before the filter pass so merge results carry the default
+    // Overwrite tag and are not inadvertently dropped.
+    for op in &residual_deferred_ops {
+        // Load merge source/dest from disk if not in composite (same
+        // rationale as the sequential-pass merge handling above).
+        for path in [op.merge_effective_source(), op.merge_effective_dest()]
+            .into_iter()
+            .flatten()
+        {
+            if !fs.exists(path) {
+                let disk_path = working_dir.join(path);
+                if disk_path.exists() {
+                    let content = std::fs::read(&disk_path)?;
+                    fs.add_file(path, crate::filesystem::File::new(content))?;
+                }
+            }
+        }
+        phase4::execute_merge_operation(&mut fs, op)?;
+    }
+
+    // Process templates with all collected variables.
+    // Runs before the filter pass so template-expanded files carry the
+    // correct if_exists tag when the filter inspects them.
+    crate::operators::template::process(&mut fs, &all_template_vars)?;
+
+    // Load the local FS once for both the filter pass and the source-mode
+    // overlay below. In self-block mode the source FS already loaded at the
+    // top of this function is the local FS, so reuse it rather than re-reading
+    // from disk.
+    let local_fs_for_filter = match mode {
+        PipelineMode::SourceBlock => phase5::load_local_fs(working_dir)?,
+        PipelineMode::SelfBlock => source_fs.as_ref().cloned().unwrap_or_default(),
+    };
+
+    // Filter pass: drop composite entries whose if_exists tag says to
+    // preserve or error-on-conflict when the local file already exists.
+    phase5::filter_if_exists(&mut fs, &local_fs_for_filter)?;
+
     // Source blocks: Phase 5 — combine composite with local files.
     // Local files that are not in the composite are preserved. Composite
     // files win for shared paths (CompositePrecedence invariant). Auto-merge
     // targets use format-aware merging instead of overwriting.
     if mode == PipelineMode::SourceBlock {
-        let local_fs = phase5::load_local_fs(working_dir)?;
-        let mut combined = local_fs;
+        let mut combined = local_fs_for_filter;
         // Overlay composite on top of local files, with auto-merge awareness
         phase4::merge_composite_with_auto_merge(
             &mut combined,
@@ -502,28 +540,6 @@ fn execute_sequential_pipeline(
 
         fs = combined;
     }
-
-    // Execute residual deferred merges (dest wasn't in the FS during integration)
-    for op in &residual_deferred_ops {
-        // Load merge source/dest from disk if not in composite (same
-        // rationale as the sequential-pass merge handling above).
-        for path in [op.merge_effective_source(), op.merge_effective_dest()]
-            .into_iter()
-            .flatten()
-        {
-            if !fs.exists(path) {
-                let disk_path = working_dir.join(path);
-                if disk_path.exists() {
-                    let content = std::fs::read(&disk_path)?;
-                    fs.add_file(path, crate::filesystem::File::new(content))?;
-                }
-            }
-        }
-        phase4::execute_merge_operation(&mut fs, op)?;
-    }
-
-    // Process templates with all collected variables
-    crate::operators::template::process(&mut fs, &all_template_vars)?;
 
     // Phase 6: Write to disk (if output path provided)
     if let Some(output) = output_path {
@@ -1498,6 +1514,58 @@ mod tests {
         assert_eq!(
             result.template_vars.get("CHILD_VAR").unwrap(),
             "child_value"
+        );
+    }
+
+    #[test]
+    fn execute_sequential_pipeline_self_block_filter_if_exists_preserve() {
+        use crate::cache::RepoCache;
+        use crate::config::{IfExists, IncludeOp, Operation};
+        use crate::repository::RepositoryManager;
+        use std::fs;
+        use tempfile::TempDir;
+
+        let working_dir = TempDir::new().unwrap();
+        let output_dir = TempDir::new().unwrap();
+        let working = working_dir.path();
+        let output = output_dir.path();
+
+        // Local file the consumer wrote — the self-block include copies it
+        // into the composite with if_exists: Preserve. The filter should then
+        // detect that the file exists locally and drop it from the composite,
+        // so Phase 6 writes nothing for a.txt to the output directory.
+        fs::write(working.join("a.txt"), b"local-content").unwrap();
+
+        let config: Vec<Operation> = vec![Operation::Include {
+            include: IncludeOp {
+                patterns: vec!["a.txt".to_string()],
+                if_exists: IfExists::Preserve,
+            },
+            if_exists: IfExists::Preserve,
+        }];
+
+        let repo_manager = RepositoryManager::new(working.to_path_buf());
+        let cache = RepoCache::new();
+
+        // Run the self-block pipeline directly (private fn, accessible via
+        // super::* in this test module).
+        execute_sequential_pipeline(
+            &config,
+            &repo_manager,
+            &cache,
+            working,
+            Some(output),
+            PipelineMode::SelfBlock,
+        )
+        .unwrap();
+
+        // The local working-dir file is intact.
+        assert_eq!(fs::read(working.join("a.txt")).unwrap(), b"local-content");
+        // The filter dropped a.txt from the composite before Phase 6 ran,
+        // so nothing was written to the output directory.
+        assert!(
+            !output.join("a.txt").exists(),
+            "a.txt should not be written when if_exists: Preserve and file exists locally"
         );
     }
 }
