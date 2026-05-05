@@ -139,6 +139,78 @@ Add files from the current repository to the output based on glob patterns.
 - `.*` - Hidden files (dotfiles) at root
 - `.*/**/*` - All files in hidden directories
 
+#### `if-exists:` — control over destination collisions
+
+The optional `if-exists:` sibling key on an `include:` operator chooses what
+happens when an included file's destination already exists in the
+consumer's working tree at write time:
+
+- `overwrite` (default): the include result clobbers any local content at
+  the destination. Equivalent to omitting `if-exists:`.
+- `preserve`: skip the write so the consumer's content survives. Useful
+  when an upstream ships a sensible-default file the consumer is free to
+  customise (for example, a stub CI workflow).
+- `error`: fail propagation with a clear error naming the path. Useful
+  when local content at the destination should be a hard signal that the
+  consumer's setup needs attention.
+
+Example:
+
+```yaml
+- include: [".github/workflows/ci.yaml"]
+  if-exists: preserve
+```
+
+`if-exists:` works the same way inside a `repo:` block's `with:` clause:
+
+```yaml
+- repo:
+    url: https://github.com/common-repo/semantic-release
+    ref: v1.0.0
+    with:
+      - include: ["**"]
+        if-exists: preserve
+```
+
+#### Last-op-wins
+
+Multiple operators on the same path follow last-op-wins by **execution
+order**. A later non-deferred operator (including the `Overwrite`-tagged
+output of a merge operator) replaces an earlier `Preserve` tag at the
+same destination.
+
+#### Interaction with upstream `auto-merge:`
+
+`if-exists: preserve` does **not** opt out of an upstream `auto-merge:`
+declaration. Auto-merge operations are deferred — they run at the
+residual stage, after the consumer's sequential pass. The merge produces
+a fresh file with the default `Overwrite` tag at the destination,
+clobbering any preceding `Preserve` tag.
+
+A consumer-side `exclude:` likewise does not suppress an upstream
+`auto-merge:`. The exclude removes the file from the composite, but the
+deferred merge captures a snapshot of the upstream file at integration
+time and merges that snapshot into the local file regardless.
+
+The reliable way to avoid an upstream `auto-merge:` for a particular
+file is to remove the merge declaration upstream — either by working
+with the upstream maintainer, or by depending on a fork that does not
+declare the merge.
+
+#### Unknown sibling keys
+
+A typo in an operator-level sibling key (for example, `if-exits:`)
+in **original-format** YAML produces a `log::warn!` at default
+visibility and is otherwise ignored. The warning is non-fatal so a
+consumer pulling from a misconfigured upstream is not hard-blocked by
+the upstream's typo.
+
+The standard YAML format goes through a derived deserializer that
+silently drops unknown fields. Typos in standard-format configuration
+parse as if the unknown key were absent (so `if-exits: preserve`
+produces no warning and `if_exists` falls back to its default
+`Overwrite`).
+
 ### `exclude` - Remove Files
 
 Remove files from the in-memory filesystem based on glob patterns.
