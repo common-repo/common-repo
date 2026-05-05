@@ -337,7 +337,7 @@ fn execute_sequential_pipeline(
     // Sequential pass: walk operations in declaration order
     for operation in config {
         match operation {
-            Operation::Include { include } => {
+            Operation::Include { include, .. } => {
                 if let Some(ref source) = source_fs {
                     // Self block: include is additive — pull matching files
                     // from the read-only source FS into the composite. The
@@ -594,6 +594,7 @@ mod tests {
                     patterns: vec!["src/**".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Self_ {
                 self_: SelfOp {
@@ -602,6 +603,7 @@ mod tests {
                             patterns: vec!["**/*".to_string()],
                             if_exists: IfExists::Overwrite,
                         },
+                        if_exists: IfExists::Overwrite,
                     }],
                 },
             },
@@ -620,6 +622,7 @@ mod tests {
                 patterns: vec!["**/*".to_string()],
                 if_exists: IfExists::Overwrite,
             },
+            if_exists: IfExists::Overwrite,
         }];
 
         let (self_ops, source_ops) = partition_self_operations(&config);
@@ -734,6 +737,7 @@ mod tests {
                             patterns: vec!["a/**".to_string()],
                             if_exists: IfExists::Overwrite,
                         },
+                        if_exists: IfExists::Overwrite,
                     }],
                 },
             },
@@ -742,6 +746,7 @@ mod tests {
                     patterns: vec!["src/**".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Self_ {
                 self_: SelfOp {
@@ -750,6 +755,7 @@ mod tests {
                             patterns: vec!["b/**".to_string()],
                             if_exists: IfExists::Overwrite,
                         },
+                        if_exists: IfExists::Overwrite,
                     }],
                 },
             },
@@ -1007,6 +1013,7 @@ mod tests {
                     patterns: vec!["src/**".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             }],
         );
 
@@ -1097,6 +1104,7 @@ mod tests {
                         patterns: vec!["src/**".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 // Second: repo: integrates child files into the FS
                 Operation::Repo {
@@ -1311,6 +1319,7 @@ mod tests {
                 patterns: vec!["a.txt".to_string()],
                 if_exists: IfExists::Overwrite,
             },
+            if_exists: IfExists::Overwrite,
         }];
 
         let result = execute_sequential_pipeline(
@@ -1334,12 +1343,14 @@ mod tests {
                     patterns: vec!["a.txt".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["b.txt".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
         ];
 
@@ -1391,6 +1402,7 @@ mod tests {
                     patterns: vec!["*".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Exclude {
                 exclude: crate::config::ExcludeOp {
@@ -1402,6 +1414,7 @@ mod tests {
                     patterns: vec!["a.txt".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
         ];
 

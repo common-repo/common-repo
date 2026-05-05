@@ -1053,7 +1053,16 @@ pub enum Operation {
     /// configurations.
     Repo { repo: RepoOp },
     /// Include a set of files in the final output.
-    Include { include: IncludeOp },
+    ///
+    /// `if_exists` is captured at the variant level for the standard YAML
+    /// format (`include: [...]` with `if-exists:` as a sibling key); a
+    /// post-parse normalize step copies it into `IncludeOp.if_exists`,
+    /// which is the canonical location consumers read from.
+    Include {
+        include: IncludeOp,
+        #[serde(default, rename = "if-exists")]
+        if_exists: IfExists,
+    },
     /// Exclude a set of files from the final output.
     Exclude { exclude: ExcludeOp },
     /// Mark a set of files as templates to be processed for variable
@@ -1396,6 +1405,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Include {
                 include: IncludeOp { patterns, if_exists: IfExists::Overwrite },
+                if_exists: IfExists::Overwrite,
             })
         }
         "exclude" => {
@@ -1582,7 +1592,7 @@ mod tests {
         }
 
         match &schema[1] {
-            Operation::Include { include } => {
+            Operation::Include { include, .. } => {
                 assert_eq!(include.patterns, vec!["**/*", "*.md"]);
             }
             _ => panic!("Expected Include operation"),
@@ -1736,7 +1746,7 @@ mod tests {
         }
 
         match &schema[1] {
-            Operation::Include { include } => {
+            Operation::Include { include, .. } => {
                 assert_eq!(include.patterns, vec!["**/*.md", "docs/**"]);
             }
             _ => panic!("Expected Include operation"),
@@ -1837,7 +1847,7 @@ mod tests {
         let schema = parse(include_yaml).expect("Failed to parse include example from schema.yaml");
         assert_eq!(schema.len(), 1);
         match &schema[0] {
-            Operation::Include { include } => {
+            Operation::Include { include, .. } => {
                 assert_eq!(include.patterns, vec!["**/*", ".*/**/*", ".gitignore"]);
             }
             _ => panic!("Expected Include operation"),
@@ -2081,7 +2091,7 @@ mod tests {
 
                 // Check include in with clause (original format)
                 match &repo.with[0] {
-                    Operation::Include { include } => {
+                    Operation::Include { include, .. } => {
                         assert_eq!(include.patterns, vec![".*"]);
                     }
                     _ => panic!("Expected Include operation"),
@@ -2120,7 +2130,7 @@ mod tests {
 
         // Check include operation (original format)
         match &schema[1] {
-            Operation::Include { include } => {
+            Operation::Include { include, .. } => {
                 assert_eq!(include.patterns, vec!["src/**", "tests/**"]);
             }
             _ => panic!("Expected Include operation"),
@@ -3028,6 +3038,7 @@ mod tests {
                     patterns: vec!["*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             };
             assert!(!op.is_deferred());
         }
@@ -3436,6 +3447,7 @@ mod tests {
                         patterns: vec!["src/**".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
             ];
             let upstream_deferred_ops: Vec<Operation> = vec![];
@@ -3686,5 +3698,40 @@ mod tests {
             vec!["src/**".to_string(), "*.md".to_string()]
         );
         assert_eq!(parsed.if_exists, IfExists::Overwrite); // because Serialize never emitted if_exists
+    }
+
+    #[test]
+    fn operation_include_variant_captures_if_exists_sibling() {
+        let yaml = r#"
+- include: ["src/**"]
+  if-exists: preserve
+"#;
+        let schema: Schema = serde_yaml::from_str(yaml).unwrap();
+        match &schema[0] {
+            Operation::Include { if_exists, .. } => {
+                assert_eq!(*if_exists, IfExists::Preserve);
+            }
+            _ => panic!("expected Operation::Include"),
+        }
+    }
+
+    // Cross-task test: full normalize lands in Task 5. Until then, the variant
+    // captures the sibling but `IncludeOp.if_exists` stays Overwrite.
+    #[ignore = "blocked on Task 5 normalize: variant captures sibling, IncludeOp does not yet"]
+    #[test]
+    fn operation_include_parses_with_if_exists_sibling_standard_format() {
+        let yaml = r#"
+- include: ["src/**"]
+  if-exists: preserve
+"#;
+        let schema: Schema = parse(yaml).unwrap();
+        assert_eq!(schema.len(), 1);
+        match &schema[0] {
+            Operation::Include { include, .. } => {
+                assert_eq!(include.patterns, vec!["src/**".to_string()]);
+                assert_eq!(include.if_exists, IfExists::Preserve);
+            }
+            _ => panic!("expected Operation::Include"),
+        }
     }
 }

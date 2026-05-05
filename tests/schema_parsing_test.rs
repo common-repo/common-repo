@@ -48,7 +48,7 @@ fn test_schema_parsing(path: &Path) -> datatest_stable::Result<()> {
                     path.display()
                 );
             }
-            common_repo::config::Operation::Include { include } => {
+            common_repo::config::Operation::Include { include, .. } => {
                 assert!(
                     !include.patterns.is_empty(),
                     "Include operation {} in {} has no patterns",

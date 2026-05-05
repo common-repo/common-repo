@@ -196,7 +196,7 @@ pub(crate) mod repo {
     pub(crate) fn apply_with_clause(operations: &[Operation], fs: &mut MemoryFS) -> Result<()> {
         for operation in operations {
             match operation {
-                Operation::Include { include } => {
+                Operation::Include { include, .. } => {
                     // In a `with:` clause, include filters the filesystem to keep only
                     // files that match the patterns. This is different from the regular
                     // include operator which copies files from source to target.
@@ -749,6 +749,7 @@ mod tests {
                     patterns: vec!["src/*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             }];
 
             repo::apply_with_clause(&operations, &mut fs).unwrap();
@@ -1092,6 +1093,7 @@ mod tests {
                     patterns: vec!["src/*.rs".to_string(), "tests/*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             }];
 
             repo::apply_with_clause(&operations, &mut fs).unwrap();
@@ -1121,6 +1123,7 @@ mod tests {
                         patterns: vec!["src/*".to_string(), "template.txt".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 // Then rename src/ to rust/
                 Operation::Rename {
@@ -1166,6 +1169,7 @@ mod tests {
                     patterns: vec!["*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             }];
 
             repo::apply_with_clause(&operations, &mut fs).unwrap();
@@ -1187,6 +1191,7 @@ mod tests {
                     patterns: vec!["**/*".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             }];
 
             repo::apply_with_clause(&operations, &mut fs).unwrap();

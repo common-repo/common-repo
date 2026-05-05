@@ -606,6 +606,7 @@ mod tests {
                     patterns: vec!["*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Exclude {
                 exclude: ExcludeOp {
@@ -653,6 +654,7 @@ mod tests {
                     patterns: vec!["*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Repo {
                 repo: RepoOp {
@@ -1191,6 +1193,7 @@ mod tests {
                     patterns: vec!["*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Exclude {
                 exclude: ExcludeOp {
@@ -1237,6 +1240,7 @@ mod tests {
                         patterns: vec!["*.rs".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 Operation::Exclude {
                     exclude: ExcludeOp {
@@ -1264,6 +1268,7 @@ mod tests {
                         patterns: vec!["*.rs".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 Operation::Yaml {
                     yaml: YamlMergeOp {
@@ -1299,6 +1304,7 @@ mod tests {
                         patterns: vec!["**/*".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 // First deferred op
                 Operation::Yaml {
@@ -1394,6 +1400,7 @@ mod tests {
                         patterns: vec!["*.md".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 Operation::Repo {
                     repo: RepoOp {
@@ -1407,7 +1414,7 @@ mod tests {
             let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 1);
             match &result[0] {
-                Operation::Include { include } => {
+                Operation::Include { include, .. } => {
                     assert_eq!(include.patterns, vec!["*.md".to_string()]);
                 }
                 _ => panic!("Expected Include operation"),
@@ -1459,6 +1466,7 @@ mod tests {
                         patterns: vec!["src/**".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 Operation::Exclude {
                     exclude: ExcludeOp {
@@ -1490,6 +1498,7 @@ mod tests {
                         patterns: vec!["first".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 Operation::Exclude {
                     exclude: ExcludeOp {
@@ -1501,13 +1510,14 @@ mod tests {
                         patterns: vec!["third".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
             ];
             let result = extract_upstream_operations(&config);
             assert_eq!(result.len(), 3);
             // Verify order is preserved
             match &result[0] {
-                Operation::Include { include } => {
+                Operation::Include { include, .. } => {
                     assert_eq!(include.patterns[0], "first");
                 }
                 _ => panic!("Expected Include"),
@@ -1519,7 +1529,7 @@ mod tests {
                 _ => panic!("Expected Exclude"),
             }
             match &result[2] {
-                Operation::Include { include } => {
+                Operation::Include { include, .. } => {
                     assert_eq!(include.patterns[0], "third");
                 }
                 _ => panic!("Expected Include"),
@@ -1627,6 +1637,7 @@ mod tests {
                         patterns: vec!["src/**".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 Operation::Template {
                     template: TemplateOp {
@@ -1680,6 +1691,7 @@ mod tests {
                     patterns: vec!["src/**".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Self_ {
                 self_: SelfOp {
@@ -1688,6 +1700,7 @@ mod tests {
                             patterns: vec!["**/*".to_string()],
                             if_exists: IfExists::Overwrite,
                         },
+                        if_exists: IfExists::Overwrite,
                     }],
                 },
             },
@@ -1718,6 +1731,7 @@ mod tests {
                             patterns: vec!["**/*".to_string()],
                             if_exists: IfExists::Overwrite,
                         },
+                        if_exists: IfExists::Overwrite,
                     }],
                 },
             },

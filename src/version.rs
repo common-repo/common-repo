@@ -448,6 +448,7 @@ mod tests {
                     patterns: vec!["*.md".to_string()],
                     if_exists: crate::config::IfExists::Overwrite,
                 },
+                if_exists: crate::config::IfExists::Overwrite,
             },
         ];
 
