@@ -58,8 +58,9 @@ pub(crate) mod include {
 
             for path in matching_files {
                 if let Some(file) = source.get_file(&path) {
-                    // Clone the file to add to target
-                    target.add_file(&path, file.clone())?;
+                    let mut file = file.clone();
+                    file.if_exists = op.if_exists;
+                    target.add_file(&path, file)?;
                 }
             }
         }
@@ -325,6 +326,65 @@ mod tests {
             assert!(target.exists("src/main.rs"));
             assert!(!target.exists("tests/test.rs"));
             assert!(target.exists("README.md"));
+        }
+    }
+
+    mod include_apply_tests {
+        use super::*;
+        use crate::config::{IfExists, IncludeOp};
+        use crate::filesystem::{File, MemoryFS};
+
+        #[test]
+        fn include_apply_default_overwrite_tags_files() {
+            let mut source = MemoryFS::new();
+            source
+                .add_file("foo.txt", File::from_string("hello"))
+                .unwrap();
+            let op = IncludeOp {
+                patterns: vec!["foo.txt".to_string()],
+                if_exists: IfExists::Overwrite,
+            };
+            let mut target = MemoryFS::new();
+            include::apply(&op, &source, &mut target).unwrap();
+            let file = target.get_file("foo.txt").unwrap();
+            assert_eq!(file.if_exists, IfExists::Overwrite);
+        }
+
+        #[test]
+        fn include_apply_preserve_tags_files() {
+            let mut source = MemoryFS::new();
+            source
+                .add_file("foo.txt", File::from_string("hello"))
+                .unwrap();
+            let op = IncludeOp {
+                patterns: vec!["foo.txt".to_string()],
+                if_exists: IfExists::Preserve,
+            };
+            let mut target = MemoryFS::new();
+            include::apply(&op, &source, &mut target).unwrap();
+            let file = target.get_file("foo.txt").unwrap();
+            assert_eq!(file.if_exists, IfExists::Preserve);
+        }
+
+        #[test]
+        fn include_apply_last_op_wins_on_same_path() {
+            let mut source = MemoryFS::new();
+            source
+                .add_file("foo.txt", File::from_string("hello"))
+                .unwrap();
+            let op_first = IncludeOp {
+                patterns: vec!["foo.txt".to_string()],
+                if_exists: IfExists::Preserve,
+            };
+            let op_second = IncludeOp {
+                patterns: vec!["foo.txt".to_string()],
+                if_exists: IfExists::Overwrite,
+            };
+            let mut target = MemoryFS::new();
+            include::apply(&op_first, &source, &mut target).unwrap();
+            include::apply(&op_second, &source, &mut target).unwrap();
+            let file = target.get_file("foo.txt").unwrap();
+            assert_eq!(file.if_exists, IfExists::Overwrite);
         }
     }
 
