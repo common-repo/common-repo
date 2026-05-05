@@ -1359,6 +1359,24 @@ fn extract_if_exists_sibling(siblings: &serde_yaml::Mapping) -> Result<IfExists>
     }
 }
 
+/// Emit [`log::warn!`] for any keys in `siblings` that are not in the
+/// allow-list `recognized`. Used at the operator-dispatch layer only —
+/// inner-struct fields (e.g. `RepoOp.url`) are not currently subject to
+/// this warning.
+fn warn_unknown_siblings(op_type: &str, siblings: &serde_yaml::Mapping, recognized: &[&str]) {
+    for (key, _) in siblings.iter() {
+        if let Some(key_str) = key.as_str() {
+            if !recognized.contains(&key_str) {
+                log::warn!(
+                    "unknown key '{}' in {} operation, ignoring",
+                    key_str,
+                    op_type
+                );
+            }
+        }
+    }
+}
+
 /// Convert a YAML mapping to an Operation (handles original format)
 fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operation> {
     let mut iter = map.into_iter();
@@ -1382,6 +1400,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
 
     match op_type.as_str() {
         "repo" => {
+            warn_unknown_siblings("repo", &siblings, &[]);
             // Special handling for repo operations since they may contain 'with' operations
             // that are also in the original format
             let mut repo_map = match value {
@@ -1450,6 +1469,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             })
         }
         "include" => {
+            warn_unknown_siblings("include", &siblings, &["if-exists"]);
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             let if_exists = extract_if_exists_sibling(&siblings)?;
             Ok(Operation::Include {
@@ -1461,18 +1481,21 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             })
         }
         "exclude" => {
+            warn_unknown_siblings("exclude", &siblings, &[]);
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Exclude {
                 exclude: ExcludeOp { patterns },
             })
         }
         "template" => {
+            warn_unknown_siblings("template", &siblings, &[]);
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Template {
                 template: TemplateOp { patterns },
             })
         }
         "rename" => {
+            warn_unknown_siblings("rename", &siblings, &[]);
             // Try parsing as the current format first (Vec<RenameMapping>)
             match serde_yaml::from_value::<Vec<RenameMapping>>(value.clone()) {
                 Ok(mappings) => Ok(Operation::Rename {
@@ -1503,6 +1526,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             }
         }
         "tools" => {
+            warn_unknown_siblings("tools", &siblings, &[]);
             // Try parsing as the current format first (Vec<Tool>)
             match serde_yaml::from_value::<Vec<Tool>>(value.clone()) {
                 Ok(tools) => Ok(Operation::Tools {
@@ -1534,6 +1558,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             }
         }
         "template-vars" => {
+            warn_unknown_siblings("template-vars", &siblings, &[]);
             // Try parsing as the current format first (TemplateVars with vars field)
             match serde_yaml::from_value::<TemplateVars>(value.clone()) {
                 Ok(template_vars) => Ok(Operation::TemplateVars { template_vars }),
@@ -1549,30 +1574,37 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             }
         }
         "yaml" => {
+            warn_unknown_siblings("yaml", &siblings, &[]);
             let yaml: YamlMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Yaml { yaml })
         }
         "json" => {
+            warn_unknown_siblings("json", &siblings, &[]);
             let json: JsonMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Json { json })
         }
         "toml" => {
+            warn_unknown_siblings("toml", &siblings, &[]);
             let toml: TomlMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Toml { toml })
         }
         "ini" => {
+            warn_unknown_siblings("ini", &siblings, &[]);
             let ini: IniMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Ini { ini })
         }
         "markdown" => {
+            warn_unknown_siblings("markdown", &siblings, &[]);
             let markdown: MarkdownMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Markdown { markdown })
         }
         "xml" => {
+            warn_unknown_siblings("xml", &siblings, &[]);
             let xml: XmlMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Xml { xml })
         }
         "self" => {
+            warn_unknown_siblings("self", &siblings, &[]);
             // Self operations contain a sub-list of operations
             match value {
                 serde_yaml::Value::Sequence(seq) => {
@@ -3885,5 +3917,75 @@ mod tests {
         } else {
             panic!("expected Self_");
         }
+    }
+
+    #[test]
+    fn convert_yaml_mapping_include_warns_on_unknown_sibling() {
+        testing_logger::setup();
+        let yaml = r#"
+- include: ["src/**"]
+  if-exits: preserve
+"#;
+        // Parse succeeds — warning is non-fatal.
+        let schema = parse_original_format(yaml).unwrap();
+        match &schema[0] {
+            Operation::Include { include, if_exists } => {
+                assert_eq!(include.patterns, vec!["src/**".to_string()]);
+                assert_eq!(*if_exists, IfExists::Overwrite);
+                assert_eq!(include.if_exists, IfExists::Overwrite);
+            }
+            _ => panic!("expected Operation::Include"),
+        }
+        testing_logger::validate(|captured_logs| {
+            let warnings: Vec<_> = captured_logs
+                .iter()
+                .filter(|l| l.level == log::Level::Warn)
+                .collect();
+            assert_eq!(
+                warnings.len(),
+                1,
+                "expected exactly one warning, got {} warnings",
+                warnings.len()
+            );
+            assert!(
+                warnings[0].body.contains("if-exits"),
+                "warning body: {}",
+                warnings[0].body
+            );
+            assert!(
+                warnings[0].body.contains("include"),
+                "warning body: {}",
+                warnings[0].body
+            );
+        });
+    }
+
+    #[test]
+    fn convert_yaml_mapping_repo_warns_on_operator_level_if_exists() {
+        testing_logger::setup();
+        let yaml = r#"
+- repo:
+    url: https://example.com/foo
+    ref: main
+  if-exists: preserve
+"#;
+        // Parse succeeds — warning is non-fatal.
+        // (`if-exists:` on a repo operator at the operator level is
+        // unrecognized; spec decision #2 keeps the field on `IncludeOp` only.)
+        let schema = parse_original_format(yaml).unwrap();
+        assert!(matches!(&schema[0], Operation::Repo { .. }));
+        testing_logger::validate(|captured_logs| {
+            let warnings: Vec<_> = captured_logs
+                .iter()
+                .filter(|l| l.level == log::Level::Warn)
+                .collect();
+            assert!(
+                warnings
+                    .iter()
+                    .any(|w| w.body.contains("if-exists") && w.body.contains("repo")),
+                "expected warning about 'if-exists' on 'repo'; got {} warnings",
+                warnings.len()
+            );
+        });
     }
 }
