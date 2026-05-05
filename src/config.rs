@@ -1400,7 +1400,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
 
     match op_type.as_str() {
         "repo" => {
-            warn_unknown_siblings("repo", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             // Special handling for repo operations since they may contain 'with' operations
             // that are also in the original format
             let mut repo_map = match value {
@@ -1469,7 +1469,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             })
         }
         "include" => {
-            warn_unknown_siblings("include", &siblings, &["if-exists"]);
+            warn_unknown_siblings(&op_type, &siblings, &["if-exists"]);
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             let if_exists = extract_if_exists_sibling(&siblings)?;
             Ok(Operation::Include {
@@ -1481,21 +1481,21 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             })
         }
         "exclude" => {
-            warn_unknown_siblings("exclude", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Exclude {
                 exclude: ExcludeOp { patterns },
             })
         }
         "template" => {
-            warn_unknown_siblings("template", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Template {
                 template: TemplateOp { patterns },
             })
         }
         "rename" => {
-            warn_unknown_siblings("rename", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             // Try parsing as the current format first (Vec<RenameMapping>)
             match serde_yaml::from_value::<Vec<RenameMapping>>(value.clone()) {
                 Ok(mappings) => Ok(Operation::Rename {
@@ -1526,7 +1526,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             }
         }
         "tools" => {
-            warn_unknown_siblings("tools", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             // Try parsing as the current format first (Vec<Tool>)
             match serde_yaml::from_value::<Vec<Tool>>(value.clone()) {
                 Ok(tools) => Ok(Operation::Tools {
@@ -1558,7 +1558,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             }
         }
         "template-vars" => {
-            warn_unknown_siblings("template-vars", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             // Try parsing as the current format first (TemplateVars with vars field)
             match serde_yaml::from_value::<TemplateVars>(value.clone()) {
                 Ok(template_vars) => Ok(Operation::TemplateVars { template_vars }),
@@ -1574,37 +1574,37 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
             }
         }
         "yaml" => {
-            warn_unknown_siblings("yaml", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let yaml: YamlMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Yaml { yaml })
         }
         "json" => {
-            warn_unknown_siblings("json", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let json: JsonMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Json { json })
         }
         "toml" => {
-            warn_unknown_siblings("toml", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let toml: TomlMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Toml { toml })
         }
         "ini" => {
-            warn_unknown_siblings("ini", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let ini: IniMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Ini { ini })
         }
         "markdown" => {
-            warn_unknown_siblings("markdown", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let markdown: MarkdownMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Markdown { markdown })
         }
         "xml" => {
-            warn_unknown_siblings("xml", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             let xml: XmlMergeOp = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Xml { xml })
         }
         "self" => {
-            warn_unknown_siblings("self", &siblings, &[]);
+            warn_unknown_siblings(&op_type, &siblings, &[]);
             // Self operations contain a sub-list of operations
             match value {
                 serde_yaml::Value::Sequence(seq) => {
