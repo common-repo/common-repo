@@ -263,7 +263,7 @@ fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> 
             Operation::Exclude { exclude } => {
                 operators::exclude::apply(exclude, final_fs)?;
             }
-            Operation::Include { include } => {
+            Operation::Include { include, .. } => {
                 // include::apply copies matching files into a new FS rather than
                 // removing non-matching files, so we replace the entire FS with
                 // the filtered result.
@@ -703,6 +703,7 @@ mod tests {
                 patterns: vec!["*.txt".to_string()],
                 if_exists: IfExists::Overwrite,
             },
+            if_exists: IfExists::Overwrite,
         }];
 
         let final_fs = execute(&composite_fs, &local_config, working_dir, &[]).unwrap();
@@ -894,6 +895,7 @@ mod tests {
                     patterns: vec!["src/**".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             // Step 2: Merge fragment into config (both survived the include)
             Operation::Json {

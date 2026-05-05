@@ -187,7 +187,7 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
                     }
                 }
             }
-            config::Operation::Include { include } => {
+            config::Operation::Include { include, .. } => {
                 // Validate glob patterns
                 for pattern in &include.patterns {
                     if let Err(e) = glob::Pattern::new(pattern) {

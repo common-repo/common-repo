@@ -986,6 +986,7 @@ port = 8080
                     patterns: vec!["**/*".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             };
 
             let result = execute_merge_operation(&mut fs, &operation);

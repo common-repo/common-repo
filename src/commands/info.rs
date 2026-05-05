@@ -265,6 +265,7 @@ mod tests {
                     patterns: vec!["*.rs".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
             Operation::Exclude {
                 exclude: ExcludeOp {
@@ -276,6 +277,7 @@ mod tests {
                     patterns: vec!["*.md".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             },
         ];
 

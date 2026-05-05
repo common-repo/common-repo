@@ -314,7 +314,7 @@ fn remove_source_config_files(fs: &mut MemoryFS) {
 /// Apply a single operation to a filesystem
 pub(crate) fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
     match operation {
-        Operation::Include { include } => {
+        Operation::Include { include, .. } => {
             // For include operations, create a new filtered filesystem
             let mut filtered_fs = MemoryFS::new();
             operators::include::apply(include, fs, &mut filtered_fs)?;
@@ -684,6 +684,7 @@ mod tests {
                         patterns: vec!["*.md".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 }],
             },
         }];
@@ -1281,6 +1282,7 @@ mod tests {
                         patterns: vec!["src/**".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 },
                 Operation::Rename {
                     rename: RenameOp {
@@ -1704,6 +1706,7 @@ mod tests {
                     patterns: vec!["src/**".to_string()],
                     if_exists: IfExists::Overwrite,
                 },
+                if_exists: IfExists::Overwrite,
             };
             apply_operation(&mut fs, &operation).expect("should not error");
             // After include, only matching files should exist
@@ -2467,6 +2470,7 @@ mod tests {
                         patterns: vec!["src/**".to_string()],
                         if_exists: IfExists::Overwrite,
                     },
+                    if_exists: IfExists::Overwrite,
                 }],
             );
 
