@@ -313,7 +313,6 @@ fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> 
 ///
 /// Each removal logs at debug level. Errors propagate up through the
 /// pipeline as a propagation-time failure.
-#[allow(dead_code)]
 pub(crate) fn filter_if_exists(
     composite: &mut MemoryFS,
     local: &MemoryFS,
