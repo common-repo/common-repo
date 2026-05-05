@@ -582,7 +582,7 @@ pub fn execute_pull(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{IncludeOp, Operation, SelfOp};
+    use crate::config::{IfExists, IncludeOp, Operation, SelfOp};
     use crate::phases::ClonedRepo;
     use std::collections::HashMap;
 
@@ -592,6 +592,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/**".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Self_ {
@@ -599,6 +600,7 @@ mod tests {
                     operations: vec![Operation::Include {
                         include: IncludeOp {
                             patterns: vec!["**/*".to_string()],
+                            if_exists: IfExists::Overwrite,
                         },
                     }],
                 },
@@ -616,6 +618,7 @@ mod tests {
         let config = vec![Operation::Include {
             include: IncludeOp {
                 patterns: vec!["**/*".to_string()],
+                if_exists: IfExists::Overwrite,
             },
         }];
 
@@ -729,6 +732,7 @@ mod tests {
                     operations: vec![Operation::Include {
                         include: IncludeOp {
                             patterns: vec!["a/**".to_string()],
+                            if_exists: IfExists::Overwrite,
                         },
                     }],
                 },
@@ -736,6 +740,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/**".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Self_ {
@@ -743,6 +748,7 @@ mod tests {
                     operations: vec![Operation::Include {
                         include: IncludeOp {
                             patterns: vec!["b/**".to_string()],
+                            if_exists: IfExists::Overwrite,
                         },
                     }],
                 },
@@ -999,6 +1005,7 @@ mod tests {
             vec![Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/**".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             }],
         );
@@ -1088,6 +1095,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/**".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
                 // Second: repo: integrates child files into the FS
@@ -1301,6 +1309,7 @@ mod tests {
         let config: Schema = vec![Operation::Include {
             include: IncludeOp {
                 patterns: vec!["a.txt".to_string()],
+                if_exists: IfExists::Overwrite,
             },
         }];
 
@@ -1323,11 +1332,13 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["a.txt".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["b.txt".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
         ];
@@ -1378,6 +1389,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Exclude {
@@ -1388,6 +1400,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["a.txt".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
         ];

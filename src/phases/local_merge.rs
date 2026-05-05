@@ -300,7 +300,7 @@ fn apply_consumer_operations(final_fs: &mut MemoryFS, local_config: &Schema) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ExcludeOp, IncludeOp, JsonMergeOp, RenameMapping, RenameOp};
+    use crate::config::{ExcludeOp, IfExists, IncludeOp, JsonMergeOp, RenameMapping, RenameOp};
     use tempfile::TempDir;
 
     #[test]
@@ -701,6 +701,7 @@ mod tests {
         let local_config = vec![Operation::Include {
             include: IncludeOp {
                 patterns: vec!["*.txt".to_string()],
+                if_exists: IfExists::Overwrite,
             },
         }];
 
@@ -891,6 +892,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/**".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             // Step 2: Merge fragment into config (both survived the include)

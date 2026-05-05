@@ -245,7 +245,7 @@ struct OperationCounts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_repo::config::{ExcludeOp, IncludeOp, Operation, RepoOp};
+    use common_repo::config::{ExcludeOp, IfExists, IncludeOp, Operation, RepoOp};
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -263,6 +263,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
             Operation::Exclude {
@@ -273,6 +274,7 @@ mod tests {
             Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*.md".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             },
         ];

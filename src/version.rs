@@ -446,6 +446,7 @@ mod tests {
             crate::config::Operation::Include {
                 include: crate::config::IncludeOp {
                     patterns: vec!["*.md".to_string()],
+                    if_exists: crate::config::IfExists::Overwrite,
                 },
             },
         ];

@@ -101,17 +101,47 @@ impl RepoOp {
 
 /// Include operator configuration
 ///
-/// Deserializes directly from a list of patterns:
+/// Deserializes from a list of patterns:
 /// ```yaml
 /// - include:
 ///     - "**/*"
 ///     - "*.md"
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(transparent)]
+///
+/// The `if_exists` field is populated at the operator-dispatch level
+/// (either via the `Operation::Include` variant's `if-exists:` sibling
+/// in the standard format, or directly by `convert_yaml_mapping_to_operation`
+/// in the original format). It is not deserialized from this struct's
+/// wire form, which remains a bare list of patterns for backward
+/// compatibility.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IncludeOp {
     /// A list of glob patterns specifying the files to include.
     pub patterns: Vec<String>,
+    /// Behavior when the destination of an included file exists locally.
+    pub if_exists: IfExists,
+}
+
+impl<'de> serde::Deserialize<'de> for IncludeOp {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let patterns: Vec<String> = Vec::deserialize(deserializer)?;
+        Ok(IncludeOp {
+            patterns,
+            if_exists: IfExists::Overwrite,
+        })
+    }
+}
+
+impl serde::Serialize for IncludeOp {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.patterns.serialize(serializer)
+    }
 }
 
 /// Exclude operator configuration
@@ -1365,7 +1395,7 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
         "include" => {
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
             Ok(Operation::Include {
-                include: IncludeOp { patterns },
+                include: IncludeOp { patterns, if_exists: IfExists::Overwrite },
             })
         }
         "exclude" => {
@@ -2996,6 +3026,7 @@ mod tests {
             let op = Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["*.rs".to_string()],
+                    if_exists: IfExists::Overwrite,
                 },
             };
             assert!(!op.is_deferred());
@@ -3403,6 +3434,7 @@ mod tests {
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/**".to_string()],
+                        if_exists: IfExists::Overwrite,
                     },
                 },
             ];
@@ -3617,5 +3649,26 @@ mod tests {
     fn if_exists_rejects_invalid_value() {
         let result: std::result::Result<IfExists, _> = serde_yaml::from_str("garbage");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn include_op_default_if_exists_is_overwrite() {
+        let op = IncludeOp {
+            patterns: vec!["src/**".to_string()],
+            if_exists: IfExists::Overwrite,
+        };
+        assert_eq!(op.if_exists, IfExists::Overwrite);
+        assert_eq!(op.patterns, vec!["src/**".to_string()]);
+    }
+
+    #[test]
+    fn include_op_parses_bare_list_form() {
+        let yaml = r#"
+- "src/**"
+- "*.md"
+"#;
+        let op: IncludeOp = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(op.patterns, vec!["src/**".to_string(), "*.md".to_string()]);
+        assert_eq!(op.if_exists, IfExists::Overwrite);
     }
 }
