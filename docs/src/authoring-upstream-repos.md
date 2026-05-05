@@ -170,7 +170,7 @@ Upstream repository config files (`.common-repo.yaml` and `.commonrepo.yaml`) ar
 
 ## Upstream-Declared Merge Behavior
 
-By default, files from upstream repositories overwrite files in consumer repositories. However, upstream authors often know best how their files should integrate. The **defer** mechanism allows upstream repos to declare merge behavior that automatically applies when consumers inherit from them.
+By default, files from upstream repositories overwrite files in consumer repositories. Upstream repos can declare `if-exists: preserve` on `include:` operators so consumers automatically keep their local version of a file without needing to fork or add an override in their own config. However, upstream authors often know best how their files should integrate. The **defer** mechanism allows upstream repos to declare merge behavior that automatically applies when consumers inherit from them.
 
 ### When to Use Upstream-Declared Merges
 

@@ -503,7 +503,7 @@ fn execute_sequential_pipeline(
 
     // Filter pass: drop composite entries whose if_exists tag says to
     // preserve or error-on-conflict when the local file already exists.
-    phase5::filter_if_exists(&mut fs, &local_fs_for_filter)?;
+    phase5::filter_if_exists(&mut fs, &local_fs_for_filter, working_dir)?;
 
     // Source blocks: Phase 5 — combine composite with local files.
     // Local files that are not in the composite are preserved. Composite
