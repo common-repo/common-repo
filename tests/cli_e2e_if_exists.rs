@@ -221,3 +221,52 @@ fn if_exists_unknown_sibling_warns_not_errors() {
         "local"
     );
 }
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn if_exists_preserve_ci_yaml_stub_round_trip() {
+    let tmp = TempDir::new().unwrap();
+    let upstream = tmp.path().join("upstream");
+    fs::create_dir(&upstream).unwrap();
+    write_local(
+        &upstream,
+        ".common-repo.yaml",
+        "- include: ['.github/workflows/ci.yaml']\n",
+    );
+    write_local(
+        &upstream,
+        ".github/workflows/ci.yaml",
+        "# upstream stub\nname: CI\n",
+    );
+
+    let consumer = tmp.path().join("consumer");
+    fs::create_dir(&consumer).unwrap();
+    write_local(
+        &consumer,
+        ".common-repo.yaml",
+        "- repo:\n    url: ../upstream\n    with:\n      - include: ['.github/workflows/ci.yaml']\n        if-exists: preserve\n",
+    );
+
+    // First propagation: consumer has no local ci.yaml — upstream's stub is written.
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(&consumer).arg("apply").assert().success();
+    assert_eq!(
+        fs::read_to_string(consumer.join(".github/workflows/ci.yaml")).unwrap(),
+        "# upstream stub\nname: CI\n"
+    );
+
+    // Consumer customizes the file.
+    write_local(
+        &consumer,
+        ".github/workflows/ci.yaml",
+        "# consumer customized\nname: CustomCI\n",
+    );
+
+    // Second propagation: consumer's modification is preserved verbatim.
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(&consumer).arg("apply").assert().success();
+    assert_eq!(
+        fs::read_to_string(consumer.join(".github/workflows/ci.yaml")).unwrap(),
+        "# consumer customized\nname: CustomCI\n"
+    );
+}
