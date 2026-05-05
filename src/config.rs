@@ -1368,9 +1368,16 @@ fn warn_unknown_siblings(op_type: &str, siblings: &serde_yaml::Mapping, recogniz
     for (key, _) in siblings {
         if let Some(key_str) = key.as_str() {
             if !recognized.contains(&key_str) {
+                // Sanitize control characters (newlines, ANSI escapes, etc.)
+                // so that a malicious or malformed YAML key cannot inject fake
+                // log lines or corrupt terminal output.
+                let key_display: String = key_str
+                    .chars()
+                    .map(|c| if c.is_control() { '\u{FFFD}' } else { c })
+                    .collect();
                 log::warn!(
                     "unknown key '{}' in {} operation, ignoring",
-                    key_str,
+                    key_display,
                     op_type
                 );
             }
@@ -3956,6 +3963,38 @@ mod tests {
             assert!(
                 warnings[0].body.contains("include"),
                 "warning body: {}",
+                warnings[0].body
+            );
+        });
+    }
+
+    #[test]
+    fn convert_yaml_mapping_warns_on_unknown_sibling_with_newline() {
+        // A YAML key containing a newline must not appear literally in the log
+        // message — the sanitizer should replace it with U+FFFD.
+        testing_logger::setup();
+        // Construct a YAML mapping directly so the key can contain a literal
+        // newline without going through the YAML parser's string escaping.
+        let mut siblings = serde_yaml::Mapping::new();
+        siblings.insert(
+            serde_yaml::Value::String("if-exits\nFAKE".to_string()),
+            serde_yaml::Value::String("preserve".to_string()),
+        );
+        warn_unknown_siblings("include", &siblings, &["if-exists"]);
+        testing_logger::validate(|captured_logs| {
+            let warnings: Vec<_> = captured_logs
+                .iter()
+                .filter(|l| l.level == log::Level::Warn)
+                .collect();
+            assert_eq!(warnings.len(), 1, "expected one warning");
+            assert!(
+                !warnings[0].body.contains('\n'),
+                "warning body must not contain a literal newline: {:?}",
+                warnings[0].body
+            );
+            assert!(
+                warnings[0].body.contains('\u{FFFD}'),
+                "warning body should contain replacement character: {:?}",
                 warnings[0].body
             );
         });
