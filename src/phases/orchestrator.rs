@@ -495,7 +495,10 @@ fn execute_sequential_pipeline(
     // from disk.
     let local_fs_for_filter = match mode {
         PipelineMode::SourceBlock => phase5::load_local_fs(working_dir)?,
-        PipelineMode::SelfBlock => source_fs.as_ref().cloned().unwrap_or_default(),
+        PipelineMode::SelfBlock => source_fs
+            .as_ref()
+            .cloned()
+            .expect("SelfBlock mode always loads source_fs at function entry"),
     };
 
     // Filter pass: drop composite entries whose if_exists tag says to
