@@ -1217,6 +1217,32 @@ pub fn check_merge_provenance(
 /// The operations are executed in the order they are defined in the file.
 pub type Schema = Vec<Operation>;
 
+/// After deserialization, copy each `Operation::Include` variant's
+/// `if_exists` into its inner `IncludeOp.if_exists`. Recurses into
+/// `Operation::Repo`'s `with:` clauses and `Operation::Self_`'s
+/// inner operations.
+///
+/// The variant field is the wire-format capture point (it sees the
+/// sibling key in standard-format YAML); the inner `IncludeOp.if_exists`
+/// is the canonical location every downstream consumer (`include::apply`,
+/// `filter_if_exists`, etc.) reads from.
+fn normalize_include_if_exists(schema: &mut Schema) {
+    for op in schema.iter_mut() {
+        match op {
+            Operation::Include { include, if_exists } => {
+                include.if_exists = *if_exists;
+            }
+            Operation::Repo { repo } => {
+                normalize_include_if_exists(&mut repo.with);
+            }
+            Operation::Self_ { self_ } => {
+                normalize_include_if_exists(&mut self_.operations);
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Parses a YAML string into a `Schema`.
 ///
 /// This function supports both the current, more structured format and the
@@ -1225,13 +1251,14 @@ pub type Schema = Vec<Operation>;
 /// to the original format parser.
 pub fn parse(yaml_content: &str) -> Result<Schema> {
     // First try parsing as the current format
-    let schema = match serde_yaml::from_str::<Schema>(yaml_content) {
+    let mut schema = match serde_yaml::from_str::<Schema>(yaml_content) {
         Ok(schema) => schema,
         Err(_) => {
             // If that fails, try parsing as the original user-friendly format
             parse_original_format(yaml_content)?
         }
     };
+    normalize_include_if_exists(&mut schema);
     validate_self_operations(&schema)?;
     validate_repo_ref(&schema)?;
     Ok(schema)
@@ -3800,9 +3827,7 @@ mod tests {
         }
     }
 
-    // Cross-task test: full normalize lands in Task 5. Until then, the variant
-    // captures the sibling but `IncludeOp.if_exists` stays Overwrite.
-    #[ignore = "blocked on Task 5 normalize: variant captures sibling, IncludeOp does not yet"]
+    // Cross-task test: full normalize lands in Task 5.
     #[test]
     fn operation_include_parses_with_if_exists_sibling_standard_format() {
         let yaml = r#"
@@ -3817,6 +3842,49 @@ mod tests {
                 assert_eq!(include.if_exists, IfExists::Preserve);
             }
             _ => panic!("expected Operation::Include"),
+        }
+    }
+
+    #[test]
+    fn normalize_recurses_into_repo_with() {
+        let yaml = r#"
+- repo:
+    url: https://example.com/foo
+    ref: main
+    with:
+      - include: ["**"]
+        if-exists: preserve
+"#;
+        let schema = parse(yaml).unwrap();
+        if let Operation::Repo { repo } = &schema[0] {
+            if let Operation::Include { include, if_exists } = &repo.with[0] {
+                assert_eq!(*if_exists, IfExists::Preserve);
+                assert_eq!(include.if_exists, IfExists::Preserve);
+            } else {
+                panic!("expected Include in with");
+            }
+        } else {
+            panic!("expected Repo");
+        }
+    }
+
+    #[test]
+    fn normalize_recurses_into_self_block() {
+        let yaml = r#"
+- self:
+  - include: ["*.bak"]
+    if-exists: preserve
+"#;
+        let schema = parse(yaml).unwrap();
+        if let Operation::Self_ { self_ } = &schema[0] {
+            if let Operation::Include { include, if_exists } = &self_.operations[0] {
+                assert_eq!(*if_exists, IfExists::Preserve);
+                assert_eq!(include.if_exists, IfExists::Preserve);
+            } else {
+                panic!("expected Include in self");
+            }
+        } else {
+            panic!("expected Self_");
         }
     }
 }
