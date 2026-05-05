@@ -318,7 +318,15 @@ pub(crate) fn filter_if_exists(
     local: &MemoryFS,
 ) -> crate::error::Result<()> {
     use crate::config::IfExists;
-    let paths: Vec<std::path::PathBuf> = composite.list_files();
+    // Sort paths so that the `Error` arm reports a deterministic path
+    // (the first-by-sort-order conflicting path) and the per-file debug
+    // log lines for `Preserve` skips appear in stable order regardless
+    // of `MemoryFS`'s internal HashMap iteration order.
+    let paths: Vec<std::path::PathBuf> = {
+        let mut p = composite.list_files();
+        p.sort();
+        p
+    };
     let mut error_path: Option<String> = None;
     for path in paths {
         let file = match composite.get_file(&path) {
