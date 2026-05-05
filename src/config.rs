@@ -108,15 +108,14 @@ impl RepoOp {
 ///     - "*.md"
 /// ```
 ///
-/// The `if_exists` field is populated at the operator-dispatch level —
-/// presently via the `Operation::Include` variant's `if-exists:` sibling
-/// in the standard format. The original-format parser
-/// (`convert_yaml_mapping_to_operation`) currently always emits
-/// `Overwrite`; a follow-up will extend it to read the sibling key, and a
-/// post-parse normalize step will copy the variant value into this field
-/// so all downstream code reads from one canonical location. The field is
-/// not deserialized from this struct's wire form, which remains a bare
-/// list of patterns for backward compatibility.
+/// The `if_exists` field is the canonical location for downstream
+/// consumers. After [`parse`], it always reflects the correct value: the
+/// original-format parser (`convert_yaml_mapping_to_operation`) writes it
+/// directly, and the standard-format path writes it via the post-parse
+/// `normalize_include_if_exists` step that copies from the
+/// `Operation::Include` variant's `if_exists` field. The field is not
+/// deserialized from this struct's wire form, which remains a bare list
+/// of patterns for backward compatibility.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IncludeOp {
     /// A list of glob patterns specifying the files to include.
