@@ -3671,4 +3671,20 @@ mod tests {
         assert_eq!(op.patterns, vec!["src/**".to_string(), "*.md".to_string()]);
         assert_eq!(op.if_exists, IfExists::Overwrite);
     }
+
+    #[test]
+    fn include_op_serializes_to_bare_list() {
+        let op = IncludeOp {
+            patterns: vec!["src/**".to_string(), "*.md".to_string()],
+            if_exists: IfExists::Preserve, // intentionally non-default to prove if_exists is NOT serialized
+        };
+        let yaml = serde_yaml::to_string(&op).unwrap();
+        // Round-trip: parse it back and confirm we get a bare list (and if_exists drops back to Overwrite default)
+        let parsed: IncludeOp = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(
+            parsed.patterns,
+            vec!["src/**".to_string(), "*.md".to_string()]
+        );
+        assert_eq!(parsed.if_exists, IfExists::Overwrite); // because Serialize never emitted if_exists
+    }
 }
