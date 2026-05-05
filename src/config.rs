@@ -1323,6 +1323,18 @@ pub fn parse_original_format(yaml_content: &str) -> Result<Schema> {
 }
 
 /// Convert a YAML mapping to an Operation (handles original format)
+/// Extracts the `if-exists:` value from the operator-level sibling
+/// mapping. Returns `IfExists::Overwrite` (the default) when the key is
+/// absent. A malformed value (e.g. `if-exists: garbage`) is a parse
+/// error.
+fn extract_if_exists_sibling(siblings: &serde_yaml::Mapping) -> Result<IfExists> {
+    let key = serde_yaml::Value::String("if-exists".to_string());
+    match siblings.get(&key) {
+        Some(value) => serde_yaml::from_value(value.clone()).map_err(Error::Yaml),
+        None => Ok(IfExists::Overwrite),
+    }
+}
+
 fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operation> {
     let mut iter = map.into_iter();
     let (key, value) = iter.next().ok_or_else(|| Error::ConfigParse {
@@ -1330,12 +1342,20 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
         hint: None,
     })?;
 
-    let op_type = key.as_str().ok_or_else(|| Error::ConfigParse {
-        message: "Operation key must be string".to_string(),
-        hint: None,
-    })?;
+    let op_type = key
+        .as_str()
+        .ok_or_else(|| Error::ConfigParse {
+            message: "Operation key must be string".to_string(),
+            hint: None,
+        })?
+        .to_string();
 
-    match op_type {
+    // Collect remaining sibling keys so individual op arms can read them
+    // (e.g. `if-exists:` on `include:`) and so unknown siblings can be
+    // warned on (see Task 6).
+    let siblings: serde_yaml::Mapping = iter.collect();
+
+    match op_type.as_str() {
         "repo" => {
             // Special handling for repo operations since they may contain 'with' operations
             // that are also in the original format
@@ -1406,9 +1426,13 @@ fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operati
         }
         "include" => {
             let patterns: Vec<String> = serde_yaml::from_value(value).map_err(Error::Yaml)?;
+            let if_exists = extract_if_exists_sibling(&siblings)?;
             Ok(Operation::Include {
-                include: IncludeOp { patterns, if_exists: IfExists::Overwrite },
-                if_exists: IfExists::Overwrite,
+                include: IncludeOp {
+                    patterns,
+                    if_exists,
+                },
+                if_exists,
             })
         }
         "exclude" => {
@@ -3715,6 +3739,61 @@ mod tests {
                 assert_eq!(*if_exists, IfExists::Preserve);
             }
             _ => panic!("expected Operation::Include"),
+        }
+    }
+
+    #[test]
+    fn convert_yaml_mapping_include_reads_if_exists_sibling() {
+        let yaml = r#"
+- include: ["src/**"]
+  if-exists: preserve
+"#;
+        let schema = parse_original_format(yaml).unwrap();
+        match &schema[0] {
+            Operation::Include { include, if_exists } => {
+                assert_eq!(include.patterns, vec!["src/**".to_string()]);
+                assert_eq!(*if_exists, IfExists::Preserve);
+                assert_eq!(include.if_exists, IfExists::Preserve);
+            }
+            _ => panic!("expected Operation::Include"),
+        }
+    }
+
+    #[test]
+    fn convert_yaml_mapping_include_rejects_invalid_if_exists() {
+        let yaml = r#"
+- include: ["src/**"]
+  if-exists: garbage
+"#;
+        let result = parse_original_format(yaml);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn convert_yaml_mapping_include_reads_if_exists_overwrite() {
+        let yaml = r#"
+- include: ["src/**"]
+  if-exists: overwrite
+"#;
+        let schema = parse_original_format(yaml).unwrap();
+        if let Operation::Include { if_exists, .. } = &schema[0] {
+            assert_eq!(*if_exists, IfExists::Overwrite);
+        } else {
+            panic!("expected Operation::Include");
+        }
+    }
+
+    #[test]
+    fn convert_yaml_mapping_include_reads_if_exists_error() {
+        let yaml = r#"
+- include: ["src/**"]
+  if-exists: error
+"#;
+        let schema = parse_original_format(yaml).unwrap();
+        if let Operation::Include { if_exists, .. } = &schema[0] {
+            assert_eq!(*if_exists, IfExists::Error);
+        } else {
+            panic!("expected Operation::Include");
         }
     }
 
