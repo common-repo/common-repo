@@ -1322,19 +1322,18 @@ pub fn parse_original_format(yaml_content: &str) -> Result<Schema> {
     Ok(operations)
 }
 
-/// Convert a YAML mapping to an Operation (handles original format)
 /// Extracts the `if-exists:` value from the operator-level sibling
 /// mapping. Returns `IfExists::Overwrite` (the default) when the key is
 /// absent. A malformed value (e.g. `if-exists: garbage`) is a parse
 /// error.
 fn extract_if_exists_sibling(siblings: &serde_yaml::Mapping) -> Result<IfExists> {
-    let key = serde_yaml::Value::String("if-exists".to_string());
-    match siblings.get(&key) {
+    match siblings.get("if-exists") {
         Some(value) => serde_yaml::from_value(value.clone()).map_err(Error::Yaml),
         None => Ok(IfExists::Overwrite),
     }
 }
 
+/// Convert a YAML mapping to an Operation (handles original format)
 fn convert_yaml_mapping_to_operation(map: serde_yaml::Mapping) -> Result<Operation> {
     let mut iter = map.into_iter();
     let (key, value) = iter.next().ok_or_else(|| Error::ConfigParse {
@@ -3776,10 +3775,12 @@ mod tests {
   if-exists: overwrite
 "#;
         let schema = parse_original_format(yaml).unwrap();
-        if let Operation::Include { if_exists, .. } = &schema[0] {
-            assert_eq!(*if_exists, IfExists::Overwrite);
-        } else {
-            panic!("expected Operation::Include");
+        match &schema[0] {
+            Operation::Include { include, if_exists } => {
+                assert_eq!(*if_exists, IfExists::Overwrite);
+                assert_eq!(include.if_exists, IfExists::Overwrite);
+            }
+            _ => panic!("expected Operation::Include"),
         }
     }
 
@@ -3790,10 +3791,12 @@ mod tests {
   if-exists: error
 "#;
         let schema = parse_original_format(yaml).unwrap();
-        if let Operation::Include { if_exists, .. } = &schema[0] {
-            assert_eq!(*if_exists, IfExists::Error);
-        } else {
-            panic!("expected Operation::Include");
+        match &schema[0] {
+            Operation::Include { include, if_exists } => {
+                assert_eq!(*if_exists, IfExists::Error);
+                assert_eq!(include.if_exists, IfExists::Error);
+            }
+            _ => panic!("expected Operation::Include"),
         }
     }
 
