@@ -31,6 +31,7 @@
 //! pipeline, as it allows each phase to operate on a consistent and isolated
 //! view of the filesystem.
 
+use crate::config::IfExists;
 use crate::error::{Error, Result};
 use glob::Pattern;
 use std::collections::HashMap;
@@ -52,7 +53,7 @@ pub struct File {
     /// consumer's working tree at write time. Set at `include::apply`
     /// time; flows passively through every other operator. The
     /// `filter_if_exists` pass at the tail of the pipeline acts on it.
-    pub if_exists: crate::config::IfExists,
+    pub if_exists: IfExists,
 }
 
 impl File {
@@ -79,7 +80,7 @@ impl File {
             permissions: 0o644, // Default to standard file permissions
             modified_time: SystemTime::now(),
             is_template: false,
-            if_exists: crate::config::IfExists::Overwrite,
+            if_exists: IfExists::Overwrite,
         }
     }
 
@@ -803,7 +804,6 @@ mod tests {
 #[cfg(test)]
 mod if_exists_tests {
     use super::*;
-    use crate::config::IfExists;
 
     #[test]
     fn file_new_defaults_if_exists_to_overwrite() {
