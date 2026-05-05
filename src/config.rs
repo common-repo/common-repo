@@ -1365,7 +1365,7 @@ fn extract_if_exists_sibling(siblings: &serde_yaml::Mapping) -> Result<IfExists>
 /// inner-struct fields (e.g. `RepoOp.url`) are not currently subject to
 /// this warning.
 fn warn_unknown_siblings(op_type: &str, siblings: &serde_yaml::Mapping, recognized: &[&str]) {
-    for (key, _) in siblings.iter() {
+    for (key, _) in siblings {
         if let Some(key_str) = key.as_str() {
             if !recognized.contains(&key_str) {
                 log::warn!(
