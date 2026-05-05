@@ -96,7 +96,9 @@ install-with: [apt-get, brew, platform]
 upstream:
   - url: https://github.com/shakefu/commonrepo
     ref: v1.1.0
-    overwrite: false  # TBD if this should be implemented
+    # The v1 `overwrite: false` note is implemented in v2 as the
+    # `if-exists:` field on `include:` operators. See the v2
+    # Configuration Reference for details.
     include: [.*]
     exclude: [.gitignore]
     rename: [{".*\\.md": "docs/$1"}]
