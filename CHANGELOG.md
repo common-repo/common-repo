@@ -1,5 +1,7 @@
 # Changelog
 
+- - -
+
 ## [0.36.0](https://github.com/common-repo/common-repo/compare/v0.35.0...v0.36.0) (2026-04-15)
 
 
