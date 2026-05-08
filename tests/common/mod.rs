@@ -24,6 +24,9 @@ use std::env;
 use std::path::Path;
 use std::process::Command;
 
+#[allow(dead_code)]
+pub mod expected_fixture;
+
 /// Re-export commonly used test dependencies for convenience.
 #[allow(unused_imports)]
 pub mod prelude {
