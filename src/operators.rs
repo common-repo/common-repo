@@ -32,6 +32,7 @@ use crate::error::Result;
 use crate::filesystem::MemoryFS;
 use crate::path::regex_rename;
 use crate::repository::RepositoryManager;
+use log::trace;
 use std::path::Path;
 
 /// Include operator - adds files matching glob patterns to the filesystem
@@ -62,11 +63,27 @@ pub(crate) mod include {
     pub(crate) fn apply(op: &IncludeOp, source: &MemoryFS, target: &mut MemoryFS) -> Result<()> {
         for pattern in &op.patterns {
             let matching_files = source.list_files_glob(pattern)?;
+            trace!(
+                "include: pattern={} matched {} files",
+                pattern,
+                matching_files.len(),
+            );
 
             for path in matching_files {
                 if let Some(file) = source.get_file(&path) {
                     let mut file = file.clone();
                     file.if_exists = op.if_exists;
+                    let already = target.exists(&path);
+                    trace!(
+                        "include: + {} ({} bytes){}",
+                        path.display(),
+                        file.content.len(),
+                        if already {
+                            " [overwrites existing]"
+                        } else {
+                            ""
+                        },
+                    );
                     target.add_file(&path, file)?;
                 }
             }
@@ -95,8 +112,14 @@ pub(crate) mod exclude {
     pub(crate) fn apply(op: &ExcludeOp, target: &mut MemoryFS) -> Result<()> {
         for pattern in &op.patterns {
             let matching_files = target.list_files_glob(pattern)?;
+            trace!(
+                "exclude: pattern={} matched {} files",
+                pattern,
+                matching_files.len(),
+            );
 
             for path in matching_files {
+                trace!("exclude: - {}", path.display());
                 target.remove_file(&path)?;
             }
         }
@@ -144,6 +167,13 @@ pub(crate) mod rename {
 
             // Perform the renames
             for (old_path, new_path) in files_to_rename {
+                trace!(
+                    "rename: {} -> {}  (regex: {} -> {})",
+                    old_path.display(),
+                    new_path.display(),
+                    from_pattern,
+                    to_pattern,
+                );
                 target.rename_file(&old_path, &new_path)?;
             }
         }

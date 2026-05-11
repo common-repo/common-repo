@@ -23,7 +23,7 @@
 //! apply_yaml_merge_operation(&mut fs, &op)?;
 //! ```
 
-use log::warn;
+use log::{trace, warn};
 use serde_yaml::Value as YamlValue;
 
 use super::{read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment};
@@ -326,6 +326,18 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
     op.validate()?;
     let source_path = op.get_source().expect("source validated");
     let dest_path = op.get_dest().expect("dest validated");
+
+    trace!(
+        "yaml merge: source={}, dest={}, mode={:?}, position={:?}, path={:?}, auto_merge={}, source_in_fs={}, dest_in_fs={}",
+        source_path,
+        dest_path,
+        op.array_mode,
+        op.position,
+        op.path,
+        op.auto_merge.is_some(),
+        fs.exists(source_path),
+        fs.exists(dest_path),
+    );
 
     // MissingSourceAutoMerge: auto-merge where neither side has the file -> warn and skip
     if op.auto_merge.is_some() && !fs.exists(source_path) && !fs.exists(dest_path) {
