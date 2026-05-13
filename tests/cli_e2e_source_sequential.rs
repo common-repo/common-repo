@@ -224,28 +224,35 @@ fn test_source_exclude_between_repos() {
 // Spec: SequentialOperationExecution — include between repos in source block
 // =========================================================================
 
-/// An include between two repo: entries in a source block should filter
-/// the composite at that point without affecting the second repo.
+/// An include between two `repo:` entries in a source block is additive —
+/// it pulls matching files from the source FS (the consumer's local
+/// working directory) into the composite at that position without
+/// removing files inherited from the preceding `repo:` and without
+/// affecting the second `repo:` integration.
 ///
 /// Setup:
-/// - upstream_a provides `keep.txt` and `drop.txt`
+/// - upstream_a provides `keep.txt` and `from_a.txt`
 /// - upstream_b provides `from_b.txt`
-/// - Consumer source block: repo: A → include keep.txt → repo: B
+/// - Consumer source block: repo: A → include local.txt → repo: B
+/// - Consumer working directory has a local `local.txt` that the include
+///   pulls into the composite
 ///
-/// Sequential: A integrates (keep.txt + drop.txt) → include filters to
-/// keep.txt only → B integrates from_b.txt. Final FS: keep.txt + from_b.txt.
-///
-/// Batch: all repos composite, then include runs as post-processing,
-/// removing both drop.txt AND from_b.txt (only keep.txt survives).
+/// Spec-compliant additive sequential: A integrates (keep.txt +
+/// from_a.txt) → include additively pulls local.txt from the consumer's
+/// local working directory → B integrates from_b.txt. Final FS:
+/// keep.txt + from_a.txt + local.txt + from_b.txt.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_source_include_between_repos() {
+fn test_source_include_between_repos_is_additive() {
     let upstream_a = assert_fs::TempDir::new().unwrap();
     init_test_git_repo(
         &upstream_a,
         &[
             ("keep.txt", "kept from A\n"),
-            ("drop.txt", "should be dropped by include\n"),
+            (
+                "from_a.txt",
+                "also from A — must survive the additive include\n",
+            ),
             (".common-repo.yaml", "- include: [\"**\"]\n"),
         ],
         Some("v1.0.0"),
@@ -264,6 +271,10 @@ fn test_source_include_between_repos() {
     .unwrap();
 
     let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child("local.txt")
+        .write_str("from consumer's local working directory\n")
+        .unwrap();
     let url_a = format!("file://{}", upstream_a.path().display());
     let url_b = format!("file://{}", upstream_b.path().display());
 
@@ -272,7 +283,7 @@ fn test_source_include_between_repos() {
     url: "{}"
     ref: v1.0.0
 - include:
-    - "keep.txt"
+    - "local.txt"
 - repo:
     url: "{}"
     ref: v1.0.0
@@ -290,23 +301,29 @@ fn test_source_include_between_repos() {
         .assert()
         .success();
 
-    // Sequential: include filters after A, before B integrates
+    // Files inherited from upstream A must survive the additive include —
+    // include does not filter the composite, it only adds matching files
+    // pulled from the source FS (consumer's local working directory).
     assert!(
         consumer.path().join("keep.txt").exists(),
-        "keep.txt should survive the include filter"
+        "keep.txt should survive the additive include between repos"
     );
     assert!(
-        !consumer.path().join("drop.txt").exists(),
-        "drop.txt should be removed by the include filter between repos"
+        consumer.path().join("from_a.txt").exists(),
+        "from_a.txt should survive the additive include between repos"
     );
 
-    // from_b.txt enters AFTER the include filter, so it should survive
-    let from_b = consumer.path().join("from_b.txt");
+    // The include pulls `local.txt` from the consumer's working directory
+    // into the composite at its declaration position.
     assert!(
-        from_b.exists(),
-        "from_b.txt should exist (repo B integrates after include filter).\n\
-         Under batch model, include runs after all repos composite and \
-         removes from_b.txt because it doesn't match the include pattern."
+        consumer.path().join("local.txt").exists(),
+        "local.txt should be pulled into the composite by the additive include"
+    );
+
+    // Files from the second repo integrate after the include, unaffected.
+    assert!(
+        consumer.path().join("from_b.txt").exists(),
+        "from_b.txt should exist — repo B integrates after the include"
     );
 }
 
