@@ -1,5 +1,6 @@
 - repo:
     url: ../upstream-intermediate
+- include: ['**']
 - yaml:
     auto-merge: merge.yaml
     array_mode: append_unique

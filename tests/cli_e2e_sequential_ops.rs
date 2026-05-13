@@ -19,7 +19,10 @@ fn test_sequential_merge_then_exclude_via_cli() {
     let upstream = assert_fs::TempDir::new().unwrap();
     init_test_git_repo(
         &upstream,
-        &[("fragment.json", r#"{"from_upstream": true}"#)],
+        &[
+            (".common-repo.yaml", "- include: ['**']\n"),
+            ("fragment.json", r#"{"from_upstream": true}"#),
+        ],
         None,
     )
     .unwrap();
@@ -74,6 +77,7 @@ fn test_sequential_rename_then_merge_via_cli() {
     init_test_git_repo(
         &upstream,
         &[
+            (".common-repo.yaml", "- include: ['**']\n"),
             ("src/config.json", r#"{"upstream": true}"#),
             ("src/fragment.json", r#"{"extra": true}"#),
         ],

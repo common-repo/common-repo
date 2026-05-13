@@ -197,6 +197,7 @@ fn test_upstream_exclude_operator_respected() {
             (
                 ".common-repo.yaml",
                 r#"# Upstream excludes internal files
+- include: ['**']
 - exclude:
     - "internal/**"
     - "secret.txt"
@@ -260,13 +261,15 @@ fn test_upstream_exclude_operator_respected() {
 
 /// Test that operation order is: upstream ops first, then consumer's with: clause.
 ///
-/// Consumer's `with:` clause should further filter files from the upstream's exposed set.
-/// This test verifies that even when consumer uses a broad include, only upstream's
-/// exposed files are available.
+/// Consumer's `with:` clause appends operations after the upstream's. This test
+/// verifies that the consumer's with: ops apply on top of the upstream's by
+/// having the upstream include `public/**` and the consumer add an `exclude`
+/// in its with: clause — the exclude must remove a file that the upstream had
+/// already included.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_operation_order_upstream_then_consumer() {
-    // Create upstream repository that only exposes public/ directory
+    // Upstream only exposes public/ directory
     let upstream_repo = assert_fs::TempDir::new().unwrap();
     init_test_git_repo(
         &upstream_repo,
@@ -282,18 +285,18 @@ fn test_operation_order_upstream_then_consumer() {
             ("public/data.json", "Public data\n"),
             (
                 "private/secret.txt",
-                "Private - should NOT be available to consumer\n",
+                "Private - never exposed by upstream\n",
             ),
             (
                 "internal/notes.md",
-                "Internal - should NOT be available to consumer\n",
+                "Internal - never exposed by upstream\n",
             ),
         ],
         None,
     )
     .unwrap();
 
-    // Consumer uses broad include - but should only get upstream's exposed files
+    // Consumer appends an exclude via with: to drop one of the exposed files
     let consumer = assert_fs::TempDir::new().unwrap();
     let upstream_url = format!("file://{}", upstream_repo.path().display());
 
@@ -304,8 +307,7 @@ fn test_operation_order_upstream_then_consumer() {
     url: "{}"
     ref: main
     with:
-      # Consumer asks for ALL files - but should only get upstream's exposed set
-      - include: ["**/*"]
+      - exclude: ["public/data.json"]
 "#,
             upstream_url
         ))
@@ -319,16 +321,18 @@ fn test_operation_order_upstream_then_consumer() {
         .assert()
         .success();
 
-    // Files in upstream's include SHOULD be copied
+    // Upstream-exposed file not touched by the consumer's with: clause is kept
     consumer
         .child("public/readme.txt")
         .assert(predicate::path::exists());
+
+    // Consumer's with: exclude ran after the upstream's include and removed
+    // this file from the composite — proves the operation order
     consumer
         .child("public/data.json")
-        .assert(predicate::path::exists());
+        .assert(predicate::path::missing());
 
-    // Files NOT in upstream's include should NOT be available to consumer
-    // even though consumer's with: would match them
+    // Upstream never included these so they should not exist regardless
     consumer
         .child("private/secret.txt")
         .assert(predicate::path::missing());
@@ -355,6 +359,7 @@ fn test_upstream_rename_operator_respected() {
             (
                 ".common-repo.yaml",
                 r#"# Upstream renames template files
+- include: ['**']
 - rename:
     - from: "templates/(.*)\\.template"
       to: "$1"
@@ -638,7 +643,8 @@ fn test_ls_respects_upstream_declared_excludes() {
         &[
             (
                 ".common-repo.yaml",
-                r#"- exclude:
+                r#"- include: ['**']
+- exclude:
     - "go.mod"
     - "go.sum"
     - "cmd/**"
@@ -716,6 +722,7 @@ fn test_ls_respects_consumer_top_level_excludes() {
     init_test_git_repo(
         &upstream_repo,
         &[
+            (".common-repo.yaml", "- include: ['**']\n"),
             ("lib/utils.go", "package lib\n"),
             ("README.md", "# Test\n"),
             ("Makefile", "all:\n"),
@@ -778,6 +785,7 @@ fn test_ls_respects_consumer_with_clause_excludes() {
     init_test_git_repo(
         &upstream_repo,
         &[
+            (".common-repo.yaml", "- include: ['**']\n"),
             ("lib/utils.go", "package lib\n"),
             ("README.md", "# Test\n"),
             ("LICENSE", "MIT\n"),
