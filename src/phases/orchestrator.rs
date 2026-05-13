@@ -8,16 +8,18 @@
 //! through `phase4::integrate_sub_composite` instead of a single batch
 //! Phase 4 pass over all intermediates.
 //!
-//! Both block types start with an empty composite. They differ in how
-//! local files enter the composite and in finalization:
+//! Both block types start with an empty composite and load a read-only
+//! *source FS* from the local working directory. `include` operators
+//! pull matching files from the source FS into the composite (additive)
+//! — files already in the composite are never removed by an `include`.
+//! The two modes differ only in finalization:
 //!
-//! - **`self:` blocks** load a read-only *source FS* from the local
-//!   working directory. `include` operators pull matching files from
-//!   the source FS into the composite (additive). Files that are never
-//!   included stay out of the composite entirely.
-//! - **Source blocks** have no separate source FS. `include` filters the
-//!   composite (destructive). Phase 5 (local file merge) runs after the
-//!   sequential pass to combine the composite with local files.
+//! - **`self:` blocks** populate the composite exclusively through
+//!   explicit `include` operators and upstream `repo:` integrations.
+//!   Files that are never included stay out of the composite entirely.
+//! - **Source blocks** run a Phase 5 merge after the sequential pass to
+//!   combine the composite with local files (composite wins for shared
+//!   paths).
 //!
 //! [`execute_pull`] partitions the config into source and `self:` operations,
 //! runs the sequential pipeline for sources, then runs the sequential
@@ -26,14 +28,65 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use log::warn;
+use log::{debug, trace, warn};
 
 use super::{phase1, phase2, phase4, phase5, phase6, ClonedRepo, IntermediateFS};
 use crate::cache::RepoCache;
-use crate::config::{Operation, RepoOp, Schema, SelfOp};
+use crate::config::{IncludeOp, Operation, RepoOp, Schema, SelfOp};
 use crate::error::Result;
 use crate::filesystem::MemoryFS;
 use crate::repository::RepositoryManager;
+
+/// Apply an include operation with the auto-merge × include rule.
+///
+/// Before pulling files from `source_fs`, snapshot every tagged path that
+/// already exists in the composite. Run the normal include pass. For each
+/// snapshot whose composite content was overwritten by the include, run a
+/// format-aware merge using the *incoming* content (now at the path) as the
+/// merge target and the *pre-include* content as the merge source. The
+/// direction reflects the design's rule that source-position content (what
+/// was already in the composite, typically from an upstream `repo:`
+/// integration) wins scalar conflicts while target-position content
+/// (incoming, typically the consumer's local file) keeps its sequence order
+/// with unique items from the source appended.
+fn apply_include_with_auto_merge(
+    include: &IncludeOp,
+    source_fs: &MemoryFS,
+    fs: &mut MemoryFS,
+    auto_merge_targets: &HashMap<String, Operation>,
+) -> Result<()> {
+    let mut snapshots: HashMap<String, crate::filesystem::File> = HashMap::new();
+    for path in auto_merge_targets.keys() {
+        if let Some(file) = fs.get_file(path) {
+            snapshots.insert(path.clone(), file.clone());
+        }
+    }
+
+    crate::operators::include::apply(include, source_fs, fs)?;
+
+    for (path, snapshot) in &snapshots {
+        let Some(current) = fs.get_file(path) else {
+            continue;
+        };
+        if current.content == snapshot.content {
+            continue;
+        }
+        let auto_merge_op = auto_merge_targets
+            .get(path)
+            .expect("snapshot key was iterated from auto_merge_targets");
+        let temp_path = format!(".__common_repo_auto_merge_existing__{}", path);
+        fs.add_file(&temp_path, snapshot.clone())?;
+        let explicit_op = phase4::make_explicit_merge_op(auto_merge_op, &temp_path, path);
+        trace!(
+            "auto-merge × include: merging existing into incoming for {}",
+            path
+        );
+        phase4::execute_merge_operation(fs, &explicit_op)?;
+        fs.remove_file(&temp_path)?;
+    }
+
+    Ok(())
+}
 
 /// Match a [`ClonedRepo`] against an [`Operation::Repo`] entry.
 ///
@@ -132,7 +185,11 @@ fn resolve_repo_inline_inner(
     let mut template_vars = phase2::collect_template_vars(&cloned.operations)?;
     let mut merge_operations = phase2::collect_merge_operations(&cloned.operations);
 
-    let mut fs = cloned.fs.clone();
+    // Per the operators spec, the composite starts empty and the source FS
+    // is the upstream's read-only clone working directory. Files enter the
+    // composite only via explicit `include` operators or nested `repo:`
+    // integrations.
+    let mut fs = MemoryFS::new();
     // Track auto-merge targets across nested repos so cross-upstream
     // auto-merges accumulate correctly (e.g., when a chained upstream
     // also declares auto-merge for the same file).
@@ -203,8 +260,23 @@ fn resolve_repo_inline_inner(
                     );
                 }
             }
+            Operation::Include { include, .. } => {
+                // Source FS for include operators in this nested upstream
+                // pipeline is the read-only clone working directory. include
+                // pulls from the source additively into `fs`, never wiping
+                // files added by preceding `repo:` integrations. Tagged
+                // paths that already exist in the composite trigger the
+                // auto-merge × include rule (format-aware merge instead of
+                // overwrite).
+                apply_include_with_auto_merge(
+                    include,
+                    &cloned.fs,
+                    &mut fs,
+                    &accumulated_auto_merge_targets,
+                )?;
+            }
             other => {
-                phase2::apply_operation(&mut fs, other)?;
+                phase2::apply_operation(&mut fs, &cloned.fs, other)?;
             }
         }
     }
@@ -265,18 +337,18 @@ fn resolve_repo_inline_inner(
 /// Whether the sequential pipeline is running for a `self:` block or a
 /// source block.
 ///
-/// Both use [`execute_sequential_pipeline`], but differ in two ways:
+/// Both use [`execute_sequential_pipeline`], start with an empty
+/// composite, and load a read-only *source FS* from the local working
+/// directory at function entry. `include` operators in either mode pull
+/// matching files from the source FS into the composite additively. The
+/// modes differ only in finalization:
 ///
-/// 1. **Starting FS** — Both modes start with an empty composite. `SelfBlock`
-///    also loads a read-only *source FS* from the local working
-///    directory. `include` operators in self blocks pull from this source FS
-///    into the composite (additive). In `SourceBlock` mode there is no
-///    separate source FS; `include` filters the composite (destructive).
-///
-/// 2. **Phase 5** — `SourceBlock` runs a Phase 5 merge to combine the
-///    composite with local files after the sequential pass. `SelfBlock`
-///    skips this because files enter the composite only through explicit
-///    `include` operators or upstream `repo:` integrations.
+/// - **`SourceBlock`** runs a Phase 5 merge after the sequential pass to
+///   combine the composite with local files (composite wins for shared
+///   paths).
+/// - **`SelfBlock`** skips Phase 5 because files enter the composite
+///   only through explicit `include` operators or upstream `repo:`
+///   integrations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PipelineMode {
     SelfBlock,
@@ -290,8 +362,8 @@ enum PipelineMode {
 /// [`resolve_repo_inline`] and [`phase4::integrate_sub_composite`].
 ///
 /// Both `self:` and source blocks use this pipeline. Both start with an
-/// empty composite. In `SelfBlock` mode a separate read-only source FS
-/// is loaded from disk and `include` operators pull from it additively.
+/// empty composite and load a read-only source FS from the local working
+/// directory; `include` operators pull from this source FS additively.
 /// See [`PipelineMode`] for full details.
 fn execute_sequential_pipeline(
     config: &Schema,
@@ -307,18 +379,16 @@ fn execute_sequential_pipeline(
     // Build cloned_repos map for on-demand resolution
     let cloned_repos = phase2::clone_tree_repos(&repo_tree, repo_manager)?;
 
-    // Source FS: the read-only input from which include operators pull files.
-    // For self blocks this is the local working directory on disk. For
-    // source blocks the composite is populated by repo: integrations and
-    // there is no separate source FS.
-    let mut source_fs = match mode {
-        PipelineMode::SelfBlock => Some(phase5::load_local_fs(working_dir)?),
-        PipelineMode::SourceBlock => None,
-    };
+    // Source FS: the read-only input from which include operators pull
+    // files. Per the operators spec, this is the local working directory
+    // on disk for both self and source blocks. include operators pull
+    // matching files from this read-only source into the composite without
+    // touching files already there.
+    let mut source_fs = Some(phase5::load_local_fs(working_dir)?);
 
-    // Both modes start with an empty composite. Self blocks populate it via
-    // include (pulling from source_fs). Source blocks populate it via repo:
-    // integrations.
+    // Both modes start with an empty composite. Self blocks populate it
+    // via include (pulling from source_fs). Source blocks populate it via
+    // repo: integrations and additive include operators.
     let mut fs = MemoryFS::new();
 
     let mut all_template_vars = HashMap::new();
@@ -334,31 +404,66 @@ fn execute_sequential_pipeline(
     // during the sequential pass.
     let mut auto_merge_snapshots: HashMap<String, crate::filesystem::File> = HashMap::new();
 
+    debug!(
+        "pipeline start: mode={:?}, working_dir={}, ops={}, source_fs_files={}",
+        mode,
+        working_dir.display(),
+        config.len(),
+        source_fs.as_ref().map(|s| s.len()).unwrap_or(0),
+    );
+
     // Sequential pass: walk operations in declaration order
     for operation in config {
         match operation {
             Operation::Include { include, .. } => {
-                if let Some(ref source) = source_fs {
-                    // Self block: include is additive — pull matching files
-                    // from the read-only source FS into the composite. The
-                    // source FS is never modified, so include-after-exclude
-                    // can re-add previously excluded files.
-                    crate::operators::include::apply(include, source, &mut fs)?;
-                } else {
-                    // Source block: include filters the composite (upstream
-                    // content). Creates a new FS with only matching files.
-                    let mut filtered_fs = MemoryFS::new();
-                    crate::operators::include::apply(include, &fs, &mut filtered_fs)?;
-                    fs = filtered_fs;
-                }
+                // include is additive — pull matching files from the
+                // read-only source FS into the composite. The source FS
+                // is never modified, so include-after-exclude can re-add
+                // previously excluded files. Tagged paths (auto-merge)
+                // that already exist in the composite are merged with
+                // the incoming content instead of being overwritten.
+                let source = source_fs
+                    .as_ref()
+                    .expect("source_fs is loaded at function entry for both pipeline modes");
+                debug!(
+                    "op include: patterns={:?}, source_fs_files={}, composite_before={}",
+                    include.patterns,
+                    source.len(),
+                    fs.len(),
+                );
+                apply_include_with_auto_merge(
+                    include,
+                    source,
+                    &mut fs,
+                    &accumulated_auto_merge_targets,
+                )?;
+                trace!("op include: composite_after={}", fs.len());
             }
             Operation::Exclude { exclude } => {
+                debug!(
+                    "op exclude: patterns={:?}, composite_before={}",
+                    exclude.patterns,
+                    fs.len(),
+                );
                 crate::operators::exclude::apply(exclude, &mut fs)?;
+                trace!("op exclude: composite_after={}", fs.len());
             }
             Operation::Rename { rename } => {
+                debug!(
+                    "op rename: mappings={}, composite_before={}",
+                    rename.mappings.len(),
+                    fs.len(),
+                );
                 crate::operators::rename::apply(rename, &mut fs)?;
+                trace!("op rename: composite_after={}", fs.len());
             }
             Operation::Repo { repo } => {
+                debug!(
+                    "op repo: url={}, ref={}, composite_before={}",
+                    repo.url,
+                    repo.r#ref.as_deref().unwrap_or(""),
+                    fs.len(),
+                );
                 // Phase 1 enriches each repo node with upstream filtering +
                 // deferred ops, so the cloned_repos key differs from the raw
                 // (url, ref, with) on the Operation::Repo. Look up via
@@ -383,6 +488,13 @@ fn execute_sequential_pipeline(
 
                 if let Some(cloned) = cloned {
                     let sub_composite = resolve_repo_inline(cloned, &cloned_repos, cache)?;
+                    debug!(
+                        "op repo: sub_composite resolved for {} — files={}, merge_ops={}, template_vars={}",
+                        repo.url,
+                        sub_composite.fs.len(),
+                        sub_composite.merge_operations.len(),
+                        sub_composite.template_vars.len(),
+                    );
 
                     // In source mode, snapshot auto-merge source files BEFORE
                     // integration. These snapshots survive subsequent consumer
@@ -392,6 +504,12 @@ fn execute_sequential_pipeline(
                         for op in &sub_composite.merge_operations {
                             if let Some(path) = phase4::get_auto_merge_path(op) {
                                 if let Some(file) = sub_composite.fs.get_file(path) {
+                                    trace!(
+                                        "op repo: snapshot auto-merge target {} ({} bytes) from {}",
+                                        path,
+                                        file.content.len(),
+                                        repo.url,
+                                    );
                                     auto_merge_snapshots.insert(path.to_string(), file.clone());
                                 }
                             }
@@ -403,6 +521,12 @@ fn execute_sequential_pipeline(
                         &sub_composite,
                         &mut accumulated_auto_merge_targets,
                     )?;
+                    debug!(
+                        "op repo: integrated {}; composite_after={}, deferred_residual={}",
+                        repo.url,
+                        fs.len(),
+                        residual.len(),
+                    );
                     residual_deferred_ops.extend(residual);
 
                     // Upstream template vars fill in defaults but do not
@@ -434,6 +558,22 @@ fn execute_sequential_pipeline(
             | Operation::Ini { .. }
             | Operation::Markdown { .. }
             | Operation::Xml { .. } => {
+                let kind = match operation {
+                    Operation::Yaml { .. } => "yaml",
+                    Operation::Json { .. } => "json",
+                    Operation::Toml { .. } => "toml",
+                    Operation::Ini { .. } => "ini",
+                    Operation::Markdown { .. } => "markdown",
+                    Operation::Xml { .. } => "xml",
+                    _ => "unknown",
+                };
+                debug!(
+                    "op merge: kind={}, source={:?}, dest={:?}, composite_before={}",
+                    kind,
+                    operation.merge_effective_source(),
+                    operation.merge_effective_dest(),
+                    fs.len(),
+                );
                 // Merge source/dest may reference local files not yet in the
                 // composite. For source blocks, local files enter in Phase 5.
                 // For self blocks, the composite starts empty and only contains
@@ -450,6 +590,11 @@ fn execute_sequential_pipeline(
                         let disk_path = working_dir.join(path);
                         if disk_path.exists() {
                             let content = std::fs::read(&disk_path)?;
+                            trace!(
+                                "op merge: pre-load from disk {} ({} bytes)",
+                                path,
+                                content.len(),
+                            );
                             fs.add_file(path, crate::filesystem::File::new(content))?;
                         }
                     }
@@ -489,16 +634,12 @@ fn execute_sequential_pipeline(
     // correct if_exists tag when the filter inspects them.
     crate::operators::template::process(&mut fs, &all_template_vars)?;
 
-    // Load the local FS once for both the filter pass and the source-mode
-    // overlay below. In self-block mode the source FS already loaded at the
-    // top of this function is the local FS, so reuse it rather than re-reading
-    // from disk.
-    let local_fs_for_filter = match mode {
-        PipelineMode::SourceBlock => phase5::load_local_fs(working_dir)?,
-        PipelineMode::SelfBlock => source_fs
-            .take()
-            .expect("SelfBlock mode always loads source_fs at function entry"),
-    };
+    // The source FS loaded at function entry is the local working directory
+    // on disk for both pipeline modes. Reuse it for the filter pass and the
+    // source-mode overlay rather than re-reading from disk.
+    let local_fs_for_filter = source_fs
+        .take()
+        .expect("source_fs is loaded at function entry for both pipeline modes");
 
     // Filter pass: drop composite entries whose if_exists tag says to
     // preserve or error-on-conflict when the local file already exists.
@@ -603,6 +744,20 @@ mod tests {
     use crate::config::{IfExists, IncludeOp, Operation, SelfOp};
     use crate::phases::ClonedRepo;
     use std::collections::HashMap;
+
+    /// Build an `Operation::Include` that pulls every file from the source
+    /// FS into the composite. Mirrors the `- include: ['**']` line that
+    /// most real-world `.common-repo.yaml` files declare to bring all
+    /// upstream files into scope.
+    fn include_all_op() -> Operation {
+        Operation::Include {
+            include: IncludeOp {
+                patterns: vec!["**".to_string()],
+                if_exists: IfExists::Overwrite,
+            },
+            if_exists: IfExists::Overwrite,
+        }
+    }
 
     #[test]
     fn test_partition_self_operations() {
@@ -792,17 +947,20 @@ mod tests {
 
         let cache = RepoCache::new();
 
-        // Child repo: has a single file
+        // Child repo: has a single file. Declares `include: ['**']` so
+        // its file enters the spec-compliant empty-start composite.
         let mut child_fs = MemoryFS::new();
         child_fs.add_file_string("child.txt", "from child").unwrap();
         let child_cloned = ClonedRepo::new(
             child_fs,
             "https://github.com/test/child.git".to_string(),
             "main".to_string(),
-            vec![], // no operations on child
+            vec![include_all_op()],
         );
 
-        // Parent repo: has its own file + a repo: op referencing child
+        // Parent repo: has its own file + a repo: op referencing child.
+        // `include: ['**']` brings parent's local file in; the `repo:`
+        // integrates child's composite afterward.
         let mut parent_fs = MemoryFS::new();
         parent_fs
             .add_file_string("parent.txt", "from parent")
@@ -811,14 +969,17 @@ mod tests {
             parent_fs,
             "https://github.com/test/parent.git".to_string(),
             "main".to_string(),
-            vec![Operation::Repo {
-                repo: RepoOp {
-                    url: "https://github.com/test/child.git".to_string(),
-                    r#ref: Some("main".to_string()),
-                    path: None,
-                    with: vec![], // matches child's operations
+            vec![
+                include_all_op(),
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "https://github.com/test/child.git".to_string(),
+                        r#ref: Some("main".to_string()),
+                        path: None,
+                        with: vec![include_all_op()],
+                    },
                 },
-            }],
+            ],
         );
 
         // Put child in the cloned_repos map so recursive lookup works
@@ -845,7 +1006,8 @@ mod tests {
 
         let cache = RepoCache::new();
 
-        // Grandchild: single file
+        // Grandchild: single file. Declares `include: ['**']` so its file
+        // enters the spec-compliant empty-start composite.
         let mut grandchild_fs = MemoryFS::new();
         grandchild_fs
             .add_file_string("deep.txt", "from grandchild")
@@ -854,48 +1016,54 @@ mod tests {
             grandchild_fs,
             "https://github.com/test/grandchild.git".to_string(),
             "v1".to_string(),
-            vec![],
+            vec![include_all_op()],
         );
 
-        // Child: has its own file + repo: op referencing grandchild
+        // Child: has its own file + repo: op referencing grandchild.
         let mut child_fs = MemoryFS::new();
         child_fs.add_file_string("mid.txt", "from child").unwrap();
         let child = ClonedRepo::new(
             child_fs,
             "https://github.com/test/child.git".to_string(),
             "main".to_string(),
-            vec![Operation::Repo {
-                repo: RepoOp {
-                    url: "https://github.com/test/grandchild.git".to_string(),
-                    r#ref: Some("v1".to_string()),
-                    path: None,
-                    with: vec![],
+            vec![
+                include_all_op(),
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "https://github.com/test/grandchild.git".to_string(),
+                        r#ref: Some("v1".to_string()),
+                        path: None,
+                        with: vec![],
+                    },
                 },
-            }],
+            ],
         );
 
-        // Parent: has its own file + repo: op referencing child
+        // Parent: has its own file + repo: op referencing child.
         let mut parent_fs = MemoryFS::new();
         parent_fs.add_file_string("top.txt", "from parent").unwrap();
         let parent = ClonedRepo::new(
             parent_fs,
             "https://github.com/test/parent.git".to_string(),
             "main".to_string(),
-            vec![Operation::Repo {
-                repo: RepoOp {
-                    url: "https://github.com/test/child.git".to_string(),
-                    r#ref: Some("main".to_string()),
-                    path: None,
-                    with: vec![Operation::Repo {
-                        repo: RepoOp {
-                            url: "https://github.com/test/grandchild.git".to_string(),
-                            r#ref: Some("v1".to_string()),
-                            path: None,
-                            with: vec![],
-                        },
-                    }],
+            vec![
+                include_all_op(),
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "https://github.com/test/child.git".to_string(),
+                        r#ref: Some("main".to_string()),
+                        path: None,
+                        with: vec![Operation::Repo {
+                            repo: RepoOp {
+                                url: "https://github.com/test/grandchild.git".to_string(),
+                                r#ref: Some("v1".to_string()),
+                                path: None,
+                                with: vec![],
+                            },
+                        }],
+                    },
                 },
-            }],
+            ],
         );
 
         let mut cloned_repos = HashMap::new();
@@ -917,7 +1085,8 @@ mod tests {
 
         let cache = RepoCache::new();
 
-        // Sub-repo has only its own files
+        // Sub-repo has only its own files. Declares `include: ['**']` so
+        // its file enters the spec-compliant empty-start composite.
         let mut fs = MemoryFS::new();
         fs.add_file_string("sub.txt", "sub content").unwrap();
 
@@ -925,7 +1094,7 @@ mod tests {
             fs,
             "https://github.com/test/sub.git".to_string(),
             "main".to_string(),
-            vec![],
+            vec![include_all_op()],
         );
 
         let cloned_repos = HashMap::new();
@@ -1060,19 +1229,23 @@ mod tests {
         let mut fs = MemoryFS::new();
         fs.add_file_string("parent.txt", "from parent").unwrap();
 
-        // Parent references a repo that does NOT exist in cloned_repos
+        // Parent references a repo that does NOT exist in cloned_repos.
+        // `include: ['**']` brings parent's local file into the composite.
         let cloned = ClonedRepo::new(
             fs,
             "https://github.com/test/parent.git".to_string(),
             "main".to_string(),
-            vec![Operation::Repo {
-                repo: RepoOp {
-                    url: "https://github.com/test/nonexistent.git".to_string(),
-                    r#ref: Some("main".to_string()),
-                    path: None,
-                    with: vec![],
+            vec![
+                include_all_op(),
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "https://github.com/test/nonexistent.git".to_string(),
+                        r#ref: Some("main".to_string()),
+                        path: None,
+                        with: vec![],
+                    },
                 },
-            }],
+            ],
         );
 
         let cloned_repos = HashMap::new();
@@ -1091,7 +1264,8 @@ mod tests {
 
         let cache = RepoCache::new();
 
-        // Child repo provides two files
+        // Child repo provides two files. `include: ['**']` brings them
+        // into child's spec-compliant empty-start composite.
         let mut child_fs = MemoryFS::new();
         child_fs.add_file_string("keep.txt", "keep me").unwrap();
         child_fs.add_file_string("remove.txt", "remove me").unwrap();
@@ -1099,24 +1273,32 @@ mod tests {
             child_fs,
             "https://github.com/test/child.git".to_string(),
             "main".to_string(),
-            vec![],
+            vec![include_all_op()],
         );
 
-        // Parent: include src/** → repo: child → exclude remove.txt
-        // The exclude fires AFTER the repo: integrates child's files
+        // Parent: include ** → include src/** → repo: child → exclude remove.txt.
+        // Each include is an additive pull from the parent's source FS;
+        // the second include pattern is redundant with the first but
+        // demonstrates that re-adding does not affect the composite.
+        // Exclude removes remove.txt after `repo:` integrates the child.
         let mut parent_fs = MemoryFS::new();
         parent_fs
             .add_file_string("src/code.rs", "fn main() {}")
             .unwrap();
         parent_fs
-            .add_file_string("other.txt", "should be filtered")
+            .add_file_string("other.txt", "additive include must not remove this")
             .unwrap();
         let parent = ClonedRepo::new(
             parent_fs,
             "https://github.com/test/parent.git".to_string(),
             "main".to_string(),
             vec![
-                // First: include limits parent to src/**
+                // First: include all pulls every file from the parent's
+                // source FS into the composite.
+                include_all_op(),
+                // Second: a narrower include targeting src/** is additive
+                // and a no-op — files already in the composite from the
+                // previous include stay; non-matching files are unaffected.
                 Operation::Include {
                     include: IncludeOp {
                         patterns: vec!["src/**".to_string()],
@@ -1124,7 +1306,7 @@ mod tests {
                     },
                     if_exists: IfExists::Overwrite,
                 },
-                // Second: repo: integrates child files into the FS
+                // Third: repo: integrates child files into the FS.
                 Operation::Repo {
                     repo: RepoOp {
                         url: "https://github.com/test/child.git".to_string(),
@@ -1133,7 +1315,7 @@ mod tests {
                         with: vec![],
                     },
                 },
-                // Third: exclude removes remove.txt (which came from child)
+                // Fourth: exclude removes remove.txt (which came from child).
                 Operation::Exclude {
                     exclude: ExcludeOp {
                         patterns: vec!["remove.txt".to_string()],
@@ -1147,13 +1329,17 @@ mod tests {
 
         let result = resolve_repo_inline(&parent, &cloned_repos, &cache).unwrap();
 
-        // src/code.rs: survived include
+        // src/code.rs: pulled by include_all from parent's source FS.
         assert!(result.fs.exists("src/code.rs"));
-        // keep.txt: came from child, survived exclude
+        // keep.txt: came from child, survived exclude.
         assert!(result.fs.exists("keep.txt"));
-        // other.txt: filtered out by include
-        assert!(!result.fs.exists("other.txt"));
-        // remove.txt: came from child but removed by exclude
+        // other.txt: present — additive include does not remove
+        // non-matching files already in the composite.
+        assert!(
+            result.fs.exists("other.txt"),
+            "other.txt was already in the composite; additive include must not remove it"
+        );
+        // remove.txt: came from child but removed by exclude.
         assert!(!result.fs.exists("remove.txt"));
     }
 
@@ -1172,21 +1358,24 @@ mod tests {
             fs_a,
             "https://github.com/test/a.git".to_string(),
             "main".to_string(),
-            vec![Operation::Repo {
-                repo: RepoOp {
-                    url: "https://github.com/test/b.git".to_string(),
-                    r#ref: Some("main".to_string()),
-                    path: None,
-                    with: vec![Operation::Repo {
-                        repo: RepoOp {
-                            url: "https://github.com/test/a.git".to_string(),
-                            r#ref: Some("main".to_string()),
-                            path: None,
-                            with: vec![],
-                        },
-                    }],
+            vec![
+                include_all_op(),
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "https://github.com/test/b.git".to_string(),
+                        r#ref: Some("main".to_string()),
+                        path: None,
+                        with: vec![Operation::Repo {
+                            repo: RepoOp {
+                                url: "https://github.com/test/a.git".to_string(),
+                                r#ref: Some("main".to_string()),
+                                path: None,
+                                with: vec![],
+                            },
+                        }],
+                    },
                 },
-            }],
+            ],
         );
 
         let mut fs_b = MemoryFS::new();
@@ -1196,14 +1385,17 @@ mod tests {
             "https://github.com/test/b.git".to_string(),
             "main".to_string(),
             // B's operations reference A (cycle)
-            vec![Operation::Repo {
-                repo: RepoOp {
-                    url: "https://github.com/test/a.git".to_string(),
-                    r#ref: Some("main".to_string()),
-                    path: None,
-                    with: vec![],
+            vec![
+                include_all_op(),
+                Operation::Repo {
+                    repo: RepoOp {
+                        url: "https://github.com/test/a.git".to_string(),
+                        r#ref: Some("main".to_string()),
+                        path: None,
+                        with: vec![],
+                    },
                 },
-            }],
+            ],
         );
 
         let mut cloned_repos = HashMap::new();

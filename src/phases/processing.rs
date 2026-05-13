@@ -103,9 +103,13 @@ pub fn process_cloned_repo(cloned: &ClonedRepo, cache: &RepoCache) -> Result<Int
 
     if let Some(key) = cache_key {
         let fs = cache.get_or_process(key, || -> Result<MemoryFS> {
-            let mut fs = cloned.fs.clone();
+            // Per the operators spec, the composite starts empty and the
+            // source FS is the upstream's read-only clone working
+            // directory. Files enter the composite only via explicit
+            // `include` operators (or upstream `repo:` integrations).
+            let mut fs = MemoryFS::new();
             for operation in &cloned.operations {
-                apply_operation(&mut fs, operation)?;
+                apply_operation(&mut fs, &cloned.fs, operation)?;
             }
             Ok(fs)
         })?;
@@ -120,10 +124,11 @@ pub fn process_cloned_repo(cloned: &ClonedRepo, cache: &RepoCache) -> Result<Int
     }
 
     // Fallback for edge cases (should not normally happen since ClonedRepo
-    // excludes the local root)
-    let mut fs = cloned.fs.clone();
+    // excludes the local root). Same semantics as the cached path: empty
+    // composite, source FS = the upstream's clone working directory.
+    let mut fs = MemoryFS::new();
     for operation in &cloned.operations {
-        apply_operation(&mut fs, operation)?;
+        apply_operation(&mut fs, &cloned.fs, operation)?;
     }
 
     Ok(IntermediateFS::new_with_vars_and_merges(
@@ -218,8 +223,11 @@ fn process_single_repo(
             let mut fs = repo_manager.fetch_repository(&node.url, &node.ref_)?;
             // Remove upstream repo's config files so they don't get copied to consumers
             remove_source_config_files(&mut fs);
+            // Source FS for include operators is the cleaned working
+            // directory snapshot before any operations modify it.
+            let source_fs = fs.clone();
             for operation in &node.operations {
-                apply_operation(&mut fs, operation)?;
+                apply_operation(&mut fs, &source_fs, operation)?;
             }
             Ok(fs)
         })?;
@@ -235,8 +243,9 @@ fn process_single_repo(
 
     // Local repository: process directly without caching
     let mut fs = MemoryFS::new();
+    let source_fs = MemoryFS::new();
     for operation in &node.operations {
-        apply_operation(&mut fs, operation)?;
+        apply_operation(&mut fs, &source_fs, operation)?;
     }
 
     Ok(IntermediateFS::new_with_vars_and_merges(
@@ -312,15 +321,18 @@ fn remove_source_config_files(fs: &mut MemoryFS) {
 }
 
 /// Apply a single operation to a filesystem
-pub(crate) fn apply_operation(fs: &mut MemoryFS, operation: &Operation) -> Result<()> {
+pub(crate) fn apply_operation(
+    fs: &mut MemoryFS,
+    source_fs: &MemoryFS,
+    operation: &Operation,
+) -> Result<()> {
     match operation {
         Operation::Include { include, .. } => {
-            // For include operations, create a new filtered filesystem
-            let mut filtered_fs = MemoryFS::new();
-            operators::include::apply(include, fs, &mut filtered_fs)?;
-            // Replace the current filesystem with the filtered one
-            *fs = filtered_fs;
-            Ok(())
+            // include is additive — pull files matching the glob patterns
+            // from the read-only source FS into the composite. Files
+            // already in the composite that do not match the patterns are
+            // left alone.
+            operators::include::apply(include, source_fs, fs)
         }
         Operation::Exclude { exclude } => operators::exclude::apply(exclude, fs),
         Operation::Rename { rename } => operators::rename::apply(rename, fs),
@@ -560,11 +572,23 @@ mod tests {
 
         let cache = RepoCache::new();
 
-        let operations = vec![Operation::Exclude {
-            exclude: ExcludeOp {
-                patterns: vec!["*.tmp".to_string()],
+        // Empty-start composite per the operators spec: include pulls
+        // every file from the upstream's source FS into the composite,
+        // then exclude removes the matching ones.
+        let operations = vec![
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["**".to_string()],
+                    if_exists: IfExists::Overwrite,
+                },
+                if_exists: IfExists::Overwrite,
             },
-        }];
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec!["*.tmp".to_string()],
+                },
+            },
+        ];
 
         let child1 = RepoNode::new(
             "https://example.com/repo.git".to_string(),
@@ -1699,8 +1723,16 @@ mod tests {
         }
 
         #[test]
-        fn test_apply_operation_include() {
-            let mut fs = create_test_fs();
+        fn test_apply_operation_include_is_additive() {
+            // include is additive: it pulls files matching the glob
+            // patterns from the source FS into the composite. Files
+            // already in the composite are left alone, regardless of
+            // whether the patterns match them.
+            let source_fs = create_test_fs();
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("pre-existing.txt", "already in composite")
+                .unwrap();
+
             let operation = Operation::Include {
                 include: IncludeOp {
                     patterns: vec!["src/**".to_string()],
@@ -1708,12 +1740,19 @@ mod tests {
                 },
                 if_exists: IfExists::Overwrite,
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
-            // After include, only matching files should exist
+            apply_operation(&mut fs, &source_fs, &operation).expect("should not error");
+
+            // Files matching the pattern are pulled from the source FS.
             assert!(fs.exists("src/main.rs"));
             assert!(fs.exists("src/lib.rs"));
+            // Files not matching the pattern are not pulled from the source FS.
             assert!(!fs.exists("test.tmp"));
             assert!(!fs.exists("README.md"));
+            // Files already in the composite survive — include never removes.
+            assert!(
+                fs.exists("pre-existing.txt"),
+                "include is additive — pre-existing composite files must survive"
+            );
         }
 
         #[test]
@@ -1724,7 +1763,7 @@ mod tests {
                     patterns: vec!["*.tmp".to_string()],
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert!(fs.exists("src/main.rs"));
             assert!(fs.exists("README.md"));
             assert!(!fs.exists("test.tmp"));
@@ -1741,7 +1780,7 @@ mod tests {
                     }],
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert!(fs.exists("GUIDE.md"));
             assert!(!fs.exists("README.md"));
         }
@@ -1759,7 +1798,7 @@ mod tests {
                     with: vec![],
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert_eq!(original_count, fs.list_files().len());
         }
 
@@ -1773,7 +1812,7 @@ mod tests {
             let operation = Operation::TemplateVars {
                 template_vars: TemplateVars { vars },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert_eq!(original_count, fs.list_files().len());
         }
 
@@ -1785,7 +1824,7 @@ mod tests {
                     patterns: vec!["*.md".to_string()],
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             // The template operator marks files in the filesystem metadata
             // Check that the file still exists
             assert!(fs.exists("README.md"));
@@ -1803,7 +1842,7 @@ mod tests {
                     ..Default::default()
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert_eq!(original_count, fs.list_files().len());
         }
 
@@ -1818,7 +1857,7 @@ mod tests {
                     ..Default::default()
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert_eq!(original_count, fs.list_files().len());
         }
 
@@ -1834,7 +1873,7 @@ mod tests {
                     ..Default::default()
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert_eq!(original_count, fs.list_files().len());
         }
 
@@ -1849,7 +1888,7 @@ mod tests {
                     ..Default::default()
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert_eq!(original_count, fs.list_files().len());
         }
 
@@ -1867,7 +1906,7 @@ mod tests {
                     ..Default::default()
                 },
             };
-            apply_operation(&mut fs, &operation).expect("should not error");
+            apply_operation(&mut fs, &MemoryFS::new(), &operation).expect("should not error");
             assert_eq!(original_count, fs.list_files().len());
         }
 
@@ -1884,7 +1923,7 @@ mod tests {
                 },
             };
             // This should succeed since 'sh' is available
-            let result = apply_operation(&mut fs, &operation);
+            let result = apply_operation(&mut fs, &MemoryFS::new(), &operation);
             // Note: This may fail in some environments, which is OK for testing
             // The important thing is that the operation is attempted
             let _ = result;
@@ -2431,6 +2470,10 @@ mod tests {
 
         #[test]
         fn applies_exclude_operation() {
+            // Per the operators spec, the upstream pipeline starts with
+            // an empty composite. `include: ['**']` pulls every file from
+            // the upstream's source FS into the composite; `exclude: …`
+            // then removes the matching ones.
             let mut fs = MemoryFS::new();
             fs.add_file_string("keep.txt", "important").unwrap();
             fs.add_file_string("temp.tmp", "remove me").unwrap();
@@ -2439,11 +2482,20 @@ mod tests {
                 fs,
                 "https://example.com/repo.git".to_string(),
                 "main".to_string(),
-                vec![Operation::Exclude {
-                    exclude: ExcludeOp {
-                        patterns: vec!["*.tmp".to_string()],
+                vec![
+                    Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["**".to_string()],
+                            if_exists: IfExists::Overwrite,
+                        },
+                        if_exists: IfExists::Overwrite,
                     },
-                }],
+                    Operation::Exclude {
+                        exclude: ExcludeOp {
+                            patterns: vec!["*.tmp".to_string()],
+                        },
+                    },
+                ],
             );
 
             let cache = RepoCache::new();
@@ -2456,7 +2508,12 @@ mod tests {
         }
 
         #[test]
-        fn applies_include_operation() {
+        fn include_operation_is_additive_in_upstream_pipeline() {
+            // process_cloned_repo runs the upstream's pipeline with an
+            // empty composite and the upstream's read-only clone working
+            // directory as the source FS. Each `include:` pulls matching
+            // files from the source FS into the composite; subsequent
+            // includes never remove files already in the composite.
             let mut fs = MemoryFS::new();
             fs.add_file_string("src/main.rs", "fn main() {}").unwrap();
             fs.add_file_string("README.md", "readme").unwrap();
@@ -2465,20 +2522,36 @@ mod tests {
                 fs,
                 "https://example.com/repo.git".to_string(),
                 "main".to_string(),
-                vec![Operation::Include {
-                    include: IncludeOp {
-                        patterns: vec!["src/**".to_string()],
+                vec![
+                    // First include pulls README.md into the composite.
+                    Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["README.md".to_string()],
+                            if_exists: IfExists::Overwrite,
+                        },
                         if_exists: IfExists::Overwrite,
                     },
-                    if_exists: IfExists::Overwrite,
-                }],
+                    // Second include pulls src/** files. Additive: README.md
+                    // — already in the composite — is left alone.
+                    Operation::Include {
+                        include: IncludeOp {
+                            patterns: vec!["src/**".to_string()],
+                            if_exists: IfExists::Overwrite,
+                        },
+                        if_exists: IfExists::Overwrite,
+                    },
+                ],
             );
 
             let cache = RepoCache::new();
             let result = process_cloned_repo(&cloned, &cache).expect("process_cloned_repo");
 
+            // Both files pulled by the two includes are present.
             assert!(result.fs.exists("src/main.rs"));
-            assert!(!result.fs.exists("README.md"));
+            assert!(
+                result.fs.exists("README.md"),
+                "additive include must not remove files added by a previous include"
+            );
         }
 
         #[test]
@@ -2580,11 +2653,23 @@ mod tests {
                 Box::new(MockCacheOps::new(cached_flag.clone())),
             );
 
-            let operations = vec![Operation::Exclude {
-                exclude: ExcludeOp {
-                    patterns: vec!["*.tmp".to_string()],
+            // Empty-start composite per the operators spec: include
+            // pulls every file from the upstream's source FS into the
+            // composite, then exclude removes the matching ones.
+            let operations = vec![
+                Operation::Include {
+                    include: IncludeOp {
+                        patterns: vec!["**".to_string()],
+                        if_exists: IfExists::Overwrite,
+                    },
+                    if_exists: IfExists::Overwrite,
                 },
-            }];
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["*.tmp".to_string()],
+                    },
+                },
+            ];
 
             let child = RepoNode::new(
                 "https://example.com/repo.git".to_string(),
@@ -2705,9 +2790,11 @@ mod tests {
 
     #[test]
     fn apply_operation_include_stamps_if_exists_tag() {
-        let mut fs = MemoryFS::new();
-        fs.add_file("foo.txt", crate::filesystem::File::from_string("hello"))
+        let mut source_fs = MemoryFS::new();
+        source_fs
+            .add_file("foo.txt", crate::filesystem::File::from_string("hello"))
             .unwrap();
+        let mut fs = MemoryFS::new();
 
         let op = Operation::Include {
             include: IncludeOp {
@@ -2717,7 +2804,7 @@ mod tests {
             if_exists: IfExists::Preserve,
         };
 
-        apply_operation(&mut fs, &op).unwrap();
+        apply_operation(&mut fs, &source_fs, &op).unwrap();
 
         let file = fs.get_file("foo.txt").unwrap();
         assert_eq!(
