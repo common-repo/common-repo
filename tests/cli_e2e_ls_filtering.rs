@@ -36,7 +36,8 @@ fn test_ls_respects_source_declared_excludes() {
         &[
             (
                 ".common-repo.yaml",
-                r#"- exclude:
+                r#"- include: ['**']
+- exclude:
     - "internal/**"
     - "go.mod"
 "#,
@@ -152,6 +153,7 @@ fn test_ls_respects_consumer_with_excludes() {
     init_test_git_repo(
         &source_repo,
         &[
+            (".common-repo.yaml", "- include: ['**']\n"),
             ("README.md", "# Readme\n"),
             ("config.yaml", "key: value\n"),
             ("settings.yaml", "debug: false\n"),
@@ -210,6 +212,7 @@ fn test_ls_respects_consumer_toplevel_excludes() {
     init_test_git_repo(
         &source_repo,
         &[
+            (".common-repo.yaml", "- include: ['**']\n"),
             ("README.md", "# Readme\n"),
             ("src/app.go", "package main\n"),
             ("tests/app_test.go", "package main\n"),
@@ -332,7 +335,8 @@ fn test_apply_respects_source_declared_excludes() {
         &[
             (
                 ".common-repo.yaml",
-                r#"- exclude:
+                r#"- include: ['**']
+- exclude:
     - "README.md"
 "#,
             ),
@@ -402,7 +406,8 @@ fn test_source_rename_plus_exclude_interaction() {
         &[
             (
                 ".common-repo.yaml",
-                r#"- rename:
+                r#"- include: ['**']
+- rename:
     - from: "templates/(.*)"
       to: "$1"
 - exclude:
@@ -498,7 +503,8 @@ fn test_layered_source_and_consumer_excludes() {
         &[
             (
                 ".common-repo.yaml",
-                r#"- exclude:
+                r#"- include: ['**']
+- exclude:
     - "go.mod"
 "#,
             ),
@@ -579,7 +585,8 @@ fn test_ls_count_respects_excludes() {
         &[
             (
                 ".common-repo.yaml",
-                r#"- exclude:
+                r#"- include: ['**']
+- exclude:
     - "internal/**"
     - "go.mod"
     - "go.sum"
