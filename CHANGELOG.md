@@ -1,6 +1,85 @@
 # Changelog
 
 - - -
+## v0.37.0 - 2026-05-14
+#### Features
+- (**ci**) add Slot-3 release-binaries workflow - (4d87788) - Jacob Alheid
+- (**ci**) migrate release pipeline to semantic-release upstream - (c5abe1d) - Jacob Alheid
+- (**config**) warn on unknown sibling keys at operator-dispatch layer - (7d5aee4) - Jacob Alheid
+- (**config**) normalize if-exists from variant to IncludeOp post-parse - (79c8c51) - Jacob Alheid
+- (**config**) parse if-exists sibling on include in original format - (b4b1550) - Jacob Alheid
+- (**config**) capture if-exists sibling on Operation::Include variant - (553020e) - Jacob Alheid
+- (**config**) add if_exists field to IncludeOp - (7647719) - Jacob Alheid
+- (**config**) add IfExists enum for if-exists field - (9f98b7f) - Jacob Alheid
+- (**filesystem**) add if_exists tag to File - (5b9f8f6) - Jacob Alheid
+- (**observability**) trace logs for include/exclude/rename and yaml merge entry - (566c2e5) - Jacob Alheid, *Claude Opus 4.7 (1M context)*
+- (**operators**) stamp if_exists tag on files in include::apply - (5a66d16) - Jacob Alheid
+- (**phases**) additive include and auto-merge × include rule for empty-start composite - (f9d3ccd) - Jacob Alheid
+- (**phases**) wire filter_if_exists into execute_sequential_pipeline - (1b6aba1) - Jacob Alheid
+- (**phases**) add filter_if_exists pass on the composite - (2b18f5f) - Jacob Alheid
+#### Bug Fixes
+- (**ci**) port update-homebrew-tap job to release-binaries.yaml - (7e33e07) - Jacob Alheid
+- (**ci**) merge action-validator install into inherited pre-commit workflow - (46f13e8) - Jacob Alheid
+- (**ci**) resolve failing checks on PR 319 - (96a199b) - Jacob Alheid
+- (**config**) sanitize control chars in unknown-sibling log warning - (4014e17) - Jacob Alheid
+- (**phases**) sort filter_if_exists paths for deterministic error reporting - (39fee54) - Jacob Alheid
+- (**phases**) use Error::Operator for if-exists error and add log test - (95f7480) - Jacob Alheid
+#### Performance Improvements
+- (**phases**) move source_fs into local_fs_for_filter in SelfBlock mode - (38ac54c) - Jacob Alheid
+#### Documentation
+- (**changelog**) add - - - separator to make cocogitto happy - (da611cc) - Jacob Alheid
+- (**config**) update IncludeOp if_exists comment for normalize landing - (e422047) - Jacob Alheid
+- (**config**) clarify IncludeOp.if_exists population status - (ea63389) - Jacob Alheid
+- (**configuration**) add if-exists subsection to include operator - (d1b87c8) - Jacob Alheid
+- (**context**) add source-block-include-additive design and context notes - (8016819) - Jacob Alheid
+- (**if-exists**) clarify exists semantics, format warnings, and cross-references - (52626de) - Jacob Alheid
+- (**operators**) document if_exists tag stamping in include::apply - (6bb2d2e) - Jacob Alheid
+- (**schema**) replace v1 overwrite TBD note with if-exists pointer - (42592ee) - Jacob Alheid
+- add homebrew installation - (7adc157) - Josh Reichardt
+#### Tests
+- (**config**) add IncludeOp Serialize round-trip test - (3e92c83) - Jacob Alheid
+- (**e2e**) add include-additive-simple regression fixture - (e18536d) - Jacob Alheid
+- (**e2e**) update source-sequential tests for additive include semantics - (24bc976) - Jacob Alheid
+- (**e2e**) update upstream fixtures and op-order test for additive include - (b9a6fb2) - Jacob Alheid
+- (**e2e**) remove superseded apply_succeeds_in_inheritance_merge_delta - (d047dde) - Jacob Alheid
+- (**e2e**) add consumer-level full-chain propagation test - (0540174) - Jacob Alheid
+- (**e2e**) add overlay-level merge test chaining through intermediate - (177d290) - Jacob Alheid
+- (**e2e**) add intermediate-level merge test to inheritance-merge suite - (0befcbe) - Jacob Alheid
+- (**e2e**) scaffold cli_e2e_inheritance_merge with base no-op test - (9afbc33) - Jacob Alheid
+- (**fixtures**) add three-tier-merge byte-exact apply fixture - (89ca45a) - Jacob Alheid, *Claude Opus 4.7 (1M context)*
+- (**fixtures**) byte-exact apply runner for `<name>.expected/` tests - (4618e60) - Jacob Alheid, *Claude Opus 4.7 (1M context)*
+- (**fixtures**) rename inheritance-merge dirs and add YAML auto-merge ops - (e28739b) - Jacob Alheid
+- (**if-exists**) add ci.yaml stub round-trip e2e test - (e277a05) - Jacob Alheid
+- (**if-exists**) add integration tests for pipeline interactions - (8f5773b) - Jacob Alheid
+#### Build system
+- added cog.toml - (9f3759d) - Jacob Alheid
+#### Continuous Integration
+- publish homebrew update - (dfacd61) - Josh Reichardt
+#### Refactoring
+- (**config**) drop explicit .iter() in warn_unknown_siblings - (ba202a3) - Jacob Alheid
+- (**config**) use map_or in extract_if_exists_sibling - (3639099) - Jacob Alheid
+- (**config**) pass op_type variable to warn_unknown_siblings - (3092ddf) - Jacob Alheid
+- (**config**) tighten if-exists parser tests and fix doc comment - (84c071f) - Jacob Alheid
+- (**filesystem**) use top-of-file IfExists import - (335c1e3) - Jacob Alheid
+- (**phases**) drop infallible Result on filter_if_exists remove - (bc5bf3e) - Jacob Alheid
+- (**phases**) use let-else in filter_if_exists - (03328a5) - Jacob Alheid
+- (**phases**) make SelfBlock source_fs invariant explicit - (1b33677) - Jacob Alheid
+#### Miscellaneous Chores
+- (**context**) clear stale inheritance-merge handoff - (ebb6763) - Jacob Alheid
+- (**context**) close out inheritance-merge e2e plan - (7d983ec) - Jacob Alheid
+- (**context**) advance inheritance-merge E2E plan to scaffold task - (24a32fd) - Jacob Alheid
+- (**context**) archive superseded init-apply-bug investigation - (e08f594) - Jacob Alheid
+- (**context**) clear stale stash and reset current-task after local-fs-repos ship - (2cbe932) - Jacob Alheid
+- (**context**) archive stale performance-review plan - (df1a3b5) - Jacob Alheid
+- (**context**) archive completed github-action-impl-plan - (125f616) - Jacob Alheid
+- (**context**) archive completed ls-exclude-bug plan - (90952c4) - Jacob Alheid
+- (**context**) add post-local-fs-repos cleanup plan and set as current task - (9a33393) - Jacob Alheid
+- (**homebrew**) change to formula, remove apple intel config - (99780cc) - Josh Reichardt
+- remove stale .mcp.json - (67ffe6e) - Jacob Alheid
+- make lints/checks happy - (d242c08) - Josh Reichardt
+
+- - -
+
 
 ## [0.36.0](https://github.com/common-repo/common-repo/compare/v0.35.0...v0.36.0) (2026-04-15)
 
