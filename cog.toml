@@ -1,2 +1,25 @@
 tag_prefix = "v"
 ignore_merge_commits = true
+
+# Pre-bump hooks run after `cog bump` plans the next version but before it
+# creates the bump commit. `{{version}}` is the planned version.
+#
+# These keep the Cargo manifests and lockfile in sync with the tag cocogitto
+# is about to create. Without them, the release commit changes only
+# CHANGELOG.md and the published crate version drifts from the tag — which
+# also means release-binaries.yaml builds artifacts whose `--version` output
+# disagrees with the tarball filename.
+#
+# The version field is inherited workspace-wide via `[workspace.package]` in
+# Cargo.toml, so `cargo set-version` only edits a single line. `cargo check`
+# regenerates Cargo.lock with the new version. The explicit `git add` matches
+# the convention documented in the release workflow's bump step.
+#
+# `cargo set-version` is provided by the third-party `cargo-edit` crate; the
+# release workflow installs it via a consumer-specific fragment injected by
+# `.common-repo.yaml` into `jobs.release.steps`.
+pre_bump_hooks = [
+    "cargo set-version {{version}}",
+    "cargo check --release",
+    "git add Cargo.toml xtask/Cargo.toml Cargo.lock",
+]
