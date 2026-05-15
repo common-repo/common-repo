@@ -1,0 +1,29 @@
+# Consumer-specific release workflow fragment.
+#
+# Installs the Rust toolchain and `cargo-edit` (which provides
+# `cargo set-version`) so the `pre_bump_hooks` in `cog.toml` can:
+#   1. `cargo set-version {{version}}` — update [workspace.package].version
+#   2. `cargo check --release`         — resync Cargo.lock
+#   3. `git add ...`                   — stage manifests + lockfile
+#
+# Without these steps the upstream release job has no cargo on PATH and
+# the bump commit would land with CHANGELOG.md changes only, leaving
+# Cargo.toml / Cargo.lock stuck at the previous version. That would also
+# make release-binaries.yaml build artifacts whose `--version` output
+# disagrees with the tarball filename.
+#
+# Wired into `.github/workflows/release.yaml` via a `yaml` merge op in
+# `.common-repo.yaml`:
+#   path: jobs.release.steps
+#   array_mode: append
+#   position: start
+# which prepends these steps to the upstream release job's step list on
+# every `common-repo apply`. Order within the job doesn't matter beyond
+# "before `cog bump --auto`" — `position: start` satisfies that trivially.
+- name: Install Rust
+  uses: dtolnay/rust-toolchain@stable
+
+- name: Install cargo-edit
+  uses: taiki-e/install-action@v2
+  with:
+    tool: cargo-edit

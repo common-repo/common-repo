@@ -13,3 +13,10 @@
     path: jobs.pre-commit.steps
     array_mode: append
     position: start
+
+- yaml:
+    source: .common-repo/release-rust-toolchain.yml
+    dest: .github/workflows/release.yaml
+    path: jobs.release.steps
+    array_mode: append
+    position: start

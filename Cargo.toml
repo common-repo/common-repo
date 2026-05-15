@@ -1,9 +1,15 @@
 [workspace]
 members = [".", "xtask"]
 
+# Shared package metadata. Workspace members opt in via `field.workspace = true`
+# (see `version` below). Keeps the release version in exactly one place so
+# `cargo set-version` in the cog pre-bump hook only has to touch this block.
+[workspace.package]
+version = "0.37.0"
+
 [package]
 name = "common-repo"
-version = "0.37.0"
+version.workspace = true
 edition = "2021"
 rust-version = "1.85.0"
 license = "AGPL-3.0-or-later"
