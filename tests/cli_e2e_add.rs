@@ -34,7 +34,7 @@ fn test_add_quiet_creates_config() {
         "url: https://github.com/rust-lang/rust-clippy",
     ));
     config_file.assert(predicate::str::contains("ref:"));
-    config_file.assert(predicate::str::contains("- include:"));
+    config_file.assert(predicate::str::contains("- include:").not());
 }
 
 #[test]
