@@ -1,6 +1,17 @@
 # Changelog
 
 - - -
+## v0.37.1 - 2026-06-05
+#### Bug Fixes
+- stop init and add from generating a spurious catch-all include - (d9863d9) - Jacob Alheid
+#### Continuous Integration
+- install cargo-edit in release job for cog set-version hook - (84216f3) - Jacob Alheid
+#### Miscellaneous Chores
+- (**release**) hook cargo set-version into cog bump pre-bump - (4c667b0) - Jacob Alheid
+- ignore .claude/scheduled_tasks.lock runtime artifact - (44caed5) - Jacob Alheid
+
+- - -
+
 ## v0.37.0 - 2026-05-14
 #### Features
 - (**ci**) add Slot-3 release-binaries workflow - (4d87788) - Jacob Alheid
