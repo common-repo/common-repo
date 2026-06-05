@@ -29,3 +29,6 @@ docs/superpowers
 
 # Worktrees
 .worktrees/
+
+# Claude Code runtime artifacts
+.claude/scheduled_tasks.lock
