@@ -233,8 +233,8 @@ fn test_interactive_full_url_with_semver() {
     );
     assert!(content.contains("ref:"), "Should have a ref field");
     assert!(
-        content.contains("- include:"),
-        "Should have include patterns"
+        !content.contains("- include:"),
+        "Should not emit a catch-all include block"
     );
 }
 
