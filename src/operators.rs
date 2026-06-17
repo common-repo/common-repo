@@ -1619,15 +1619,6 @@ pub(crate) mod template {
                 // Process variable substitution
                 let processed_content = substitute_variables(&content, vars)?;
 
-                // Emit migration warning if file still contains legacy ${VAR} syntax
-                if processed_content.contains("${") {
-                    eprintln!(
-                        "warning: file \"{}\" contains ${{VAR}} syntax which is no longer \
-                         interpreted as a template variable. Use __COMMON_REPO__VAR__ instead.",
-                        path.display()
-                    );
-                }
-
                 // Update the file content
                 file.content = processed_content.into_bytes();
                 file.is_template = false; // Mark as processed
@@ -1882,7 +1873,7 @@ mod template_tests {
     }
 
     #[test]
-    fn test_template_process_emits_migration_warning_for_legacy_syntax() {
+    fn test_template_process_leaves_legacy_dollar_brace_untouched() {
         let mut fs = MemoryFS::new();
         fs.add_file_string(
             "mixed.txt",
@@ -1898,7 +1889,8 @@ mod template_tests {
         let mut vars = HashMap::new();
         vars.insert("NAME".to_string(), "World".to_string());
 
-        // Should succeed (warning goes to stderr, not an error)
+        // Legacy ${VAR} syntax is no longer interpreted; it passes through
+        // unchanged while the current __COMMON_REPO__ syntax is substituted.
         template::process(&mut fs, &vars).unwrap();
 
         let file = fs.get_file("mixed.txt").unwrap();
