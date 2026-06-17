@@ -199,11 +199,8 @@ pub(crate) fn load_local_fs(working_dir: &Path) -> Result<MemoryFS> {
             continue;
         }
 
-        // Read file content
-        let content = std::fs::read(file_path)?;
-
-        // Add to filesystem with relative path
-        local_fs.add_file(relative_path, File::new(content))?;
+        // Read file content and metadata (preserves permissions)
+        local_fs.add_file(relative_path, File::from_path(file_path)?)?;
     }
 
     Ok(local_fs)
@@ -908,6 +905,45 @@ mod tests {
         assert!(!local_fs.exists("Thumbs.db"));
         assert!(!local_fs.exists("._resource"));
         assert!(local_fs.exists("real.txt"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_phase5_load_local_fs_preserves_executable_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        let working_dir = temp_dir.path();
+
+        // Create a regular file (0o644) and an executable script (0o755)
+        std::fs::write(working_dir.join("readme.txt"), b"hello").unwrap();
+        std::fs::write(working_dir.join("install.sh"), b"#!/bin/sh\necho ok").unwrap();
+        std::fs::set_permissions(
+            working_dir.join("install.sh"),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+
+        std::fs::create_dir_all(working_dir.join("script")).unwrap();
+        std::fs::write(working_dir.join("script/ci"), b"#!/bin/sh\nrun ci").unwrap();
+        std::fs::set_permissions(
+            working_dir.join("script/ci"),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+
+        let local_fs = load_local_fs(working_dir).unwrap();
+
+        // Regular file keeps default permissions
+        let readme = local_fs.get_file("readme.txt").unwrap();
+        assert_eq!(readme.permissions & 0o777, 0o644);
+
+        // Executable files preserve their executable bit
+        let install = local_fs.get_file("install.sh").unwrap();
+        assert_eq!(install.permissions & 0o777, 0o755);
+
+        let ci = local_fs.get_file("script/ci").unwrap();
+        assert_eq!(ci.permissions & 0o777, 0o755);
     }
 
     #[test]

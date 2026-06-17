@@ -589,13 +589,13 @@ fn execute_sequential_pipeline(
                     if !fs.exists(path) {
                         let disk_path = working_dir.join(path);
                         if disk_path.exists() {
-                            let content = std::fs::read(&disk_path)?;
+                            let file = crate::filesystem::File::from_path(&disk_path)?;
                             trace!(
                                 "op merge: pre-load from disk {} ({} bytes)",
                                 path,
-                                content.len(),
+                                file.content.len(),
                             );
-                            fs.add_file(path, crate::filesystem::File::new(content))?;
+                            fs.add_file(path, file)?;
                         }
                     }
                 }
@@ -621,8 +621,7 @@ fn execute_sequential_pipeline(
             if !fs.exists(path) {
                 let disk_path = working_dir.join(path);
                 if disk_path.exists() {
-                    let content = std::fs::read(&disk_path)?;
-                    fs.add_file(path, crate::filesystem::File::new(content))?;
+                    fs.add_file(path, crate::filesystem::File::from_path(&disk_path)?)?;
                 }
             }
         }

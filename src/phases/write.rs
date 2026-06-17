@@ -202,6 +202,41 @@ mod tests {
         assert!(fs::read_dir(output_path).unwrap().next().is_none());
     }
 
+    /// Round-trip test: an executable file on disk is loaded via
+    /// `load_local_fs`, written back through the write phase, and
+    /// retains its executable bit. This is the regression test for
+    /// GitHub issue #318.
+    #[test]
+    #[cfg(unix)]
+    fn test_phase6_round_trip_preserves_executable_bit() {
+        use crate::phases::local_merge::load_local_fs;
+
+        let source_dir = TempDir::new().unwrap();
+        let output_dir = TempDir::new().unwrap();
+
+        // Seed the source directory with an executable script
+        let script_path = source_dir.path().join("install.sh");
+        fs::write(&script_path, "#!/bin/sh\necho ok").unwrap();
+        fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755)).unwrap();
+
+        // Also add a regular file for contrast
+        fs::write(source_dir.path().join("readme.txt"), "hello").unwrap();
+
+        // Load → write round-trip
+        let loaded = load_local_fs(source_dir.path()).unwrap();
+        execute(&loaded, output_dir.path()).unwrap();
+
+        // Executable bit must survive the round-trip
+        let written_script = output_dir.path().join("install.sh");
+        let mode = fs::metadata(&written_script).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o755);
+
+        // Regular file stays 0o644
+        let written_readme = output_dir.path().join("readme.txt");
+        let readme_mode = fs::metadata(&written_readme).unwrap().permissions().mode();
+        assert_eq!(readme_mode & 0o777, 0o644);
+    }
+
     #[test]
     fn test_phase6_overwrite_existing_file() {
         let temp_dir = TempDir::new().unwrap();
