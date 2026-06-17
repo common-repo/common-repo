@@ -38,6 +38,23 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+/// Read the Unix permission mode from a file's metadata.
+///
+/// Returns the full `mode()` on Unix and falls back to `0o644` on
+/// other platforms.
+fn permission_mode_from_metadata(metadata: &std::fs::Metadata) -> u32 {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        metadata.permissions().mode()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = metadata;
+        0o644
+    }
+}
+
 /// Represents a file with content and metadata
 #[derive(Debug, Clone)]
 pub struct File {
@@ -82,6 +99,28 @@ impl File {
             is_template: false,
             if_exists: IfExists::Overwrite,
         }
+    }
+
+    /// Creates a new `File` by reading content and metadata from a path on
+    /// disk.
+    ///
+    /// The file's permissions and modification time are taken from the
+    /// filesystem metadata so that executable bits (and other mode bits) are
+    /// preserved through the pipeline.
+    pub fn from_path(path: &Path) -> Result<Self> {
+        let content = std::fs::read(path).map_err(|e| Error::Filesystem {
+            message: format!("Failed to read '{}': {}", path.display(), e),
+        })?;
+        let metadata = std::fs::metadata(path).map_err(|e| Error::Filesystem {
+            message: format!("Failed to read metadata for '{}': {}", path.display(), e),
+        })?;
+        Ok(Self {
+            content,
+            permissions: permission_mode_from_metadata(&metadata),
+            modified_time: metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH),
+            is_template: false,
+            if_exists: IfExists::Overwrite,
+        })
     }
 
     /// Creates a new `File` from a string slice.
@@ -348,6 +387,34 @@ mod tests {
         assert_eq!(file.content, content);
         assert_eq!(file.size(), 5);
         assert_eq!(file.permissions, 0o644);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_file_from_path_preserves_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+
+        let script = temp_dir.path().join("run.sh");
+        std::fs::write(&script, "#!/bin/sh\ntrue").unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let file = File::from_path(&script).unwrap();
+        assert_eq!(file.content, b"#!/bin/sh\ntrue");
+        assert_eq!(file.permissions & 0o777, 0o755);
+    }
+
+    #[test]
+    fn test_file_from_path_reads_content() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+
+        let txt = temp_dir.path().join("data.txt");
+        std::fs::write(&txt, "hello").unwrap();
+
+        let file = File::from_path(&txt).unwrap();
+        assert_eq!(file.content, b"hello");
+        assert_eq!(file.permissions & 0o777, 0o644);
     }
 
     #[test]

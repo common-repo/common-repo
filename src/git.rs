@@ -197,9 +197,9 @@ fn load_directory_with_filter(
                     if remapped_path.as_os_str().is_empty() {
                         continue;
                     }
-                    add_file(fs, &path, remapped_path, &entry)?;
+                    add_file(fs, &path, remapped_path)?;
                 } else {
-                    add_file(fs, &path, relative_path, &entry)?;
+                    add_file(fs, &path, relative_path)?;
                 }
             }
         }
@@ -210,35 +210,8 @@ fn load_directory_with_filter(
     Ok(fs)
 }
 
-fn add_file(
-    fs: &mut MemoryFS,
-    abs_path: &Path,
-    dest: &Path,
-    entry: &fs::DirEntry,
-) -> Result<(), Error> {
-    let content = fs::read(abs_path)?;
-    let metadata = entry.metadata()?;
-    let permissions = {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            metadata.permissions().mode()
-        }
-        #[cfg(not(unix))]
-        {
-            0o644
-        }
-    };
-    let file = File {
-        content,
-        permissions,
-        modified_time: metadata
-            .modified()
-            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
-        is_template: false,
-        if_exists: crate::config::IfExists::Overwrite,
-    };
-    fs.add_file(dest, file)?;
+fn add_file(fs: &mut MemoryFS, abs_path: &Path, dest: &Path) -> Result<(), Error> {
+    fs.add_file(dest, File::from_path(abs_path)?)?;
     Ok(())
 }
 
