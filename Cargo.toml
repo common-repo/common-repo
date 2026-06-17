@@ -5,7 +5,7 @@ members = [".", "xtask"]
 # (see `version` below). Keeps the release version in exactly one place so
 # `cargo set-version` in the cog pre-bump hook only has to touch this block.
 [workspace.package]
-version = "0.37.1"
+version = "0.37.2"
 
 [package]
 name = "common-repo"

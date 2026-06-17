@@ -1,6 +1,12 @@
 # Changelog
 
 - - -
+## v0.37.2 - 2026-06-17
+#### Bug Fixes
+- remove legacy ${VAR} migration warning that flagged GitHub Actions syntax - (6149a6d) - Jacob Alheid
+
+- - -
+
 ## v0.37.1 - 2026-06-05
 #### Bug Fixes
 - stop init and add from generating a spurious catch-all include - (d9863d9) - Jacob Alheid
