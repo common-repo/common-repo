@@ -1,6 +1,12 @@
 # Changelog
 
 - - -
+## v0.37.3 - 2026-06-17
+#### Bug Fixes
+- preserve file permissions when loading local files during apply - (5d508d9) - Jacob Alheid
+
+- - -
+
 ## v0.37.2 - 2026-06-17
 #### Bug Fixes
 - remove legacy ${VAR} migration warning that flagged GitHub Actions syntax - (6149a6d) - Jacob Alheid
