@@ -111,7 +111,7 @@ fn fetch_version_info(url: &str) -> (String, Vec<String>) {
     match git::list_tags(url) {
         Ok(tags) => {
             let semver_tags = version::filter_semver_tags(&tags);
-            if let Some((latest_tag, parsed_version)) = find_latest_version(&semver_tags) {
+            if let Some((latest_tag, parsed_version)) = version::find_latest_version(&semver_tags) {
                 println!("found {}", latest_tag);
 
                 let mut warnings = Vec::new();
@@ -155,25 +155,6 @@ fn fetch_version_info(url: &str) -> (String, Vec<String>) {
             )
         }
     }
-}
-
-/// Find the latest semantic version from a list of tags.
-fn find_latest_version(tags: &[String]) -> Option<(String, semver::Version)> {
-    let mut latest: Option<(String, semver::Version)> = None;
-
-    for tag in tags {
-        if let Some(version) = git::parse_semver_tag(tag) {
-            if let Some((_, ref latest_ver)) = latest {
-                if version > *latest_ver {
-                    latest = Some((tag.clone(), version));
-                }
-            } else {
-                latest = Some((tag.clone(), version));
-            }
-        }
-    }
-
-    latest
 }
 
 /// Create a minimal configuration file with a single repository.
@@ -254,48 +235,6 @@ mod tests {
             normalize_repo_url("http://example.com/repo"),
             "http://example.com/repo"
         );
-    }
-
-    #[test]
-    fn test_find_latest_version() {
-        let tags = vec![
-            "v1.0.0".to_string(),
-            "v2.0.0".to_string(),
-            "v1.5.0".to_string(),
-        ];
-        let result = find_latest_version(&tags);
-        assert!(result.is_some());
-        let (tag, _) = result.unwrap();
-        assert_eq!(tag, "v2.0.0");
-    }
-
-    #[test]
-    fn test_find_latest_version_empty() {
-        let tags: Vec<String> = vec![];
-        let result = find_latest_version(&tags);
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_find_latest_version_no_semver() {
-        let tags = vec!["main".to_string(), "develop".to_string()];
-        let result = find_latest_version(&tags);
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_find_latest_version_zero_major() {
-        let tags = vec![
-            "v0.1.0".to_string(),
-            "v0.5.0".to_string(),
-            "v0.2.3".to_string(),
-        ];
-        let result = find_latest_version(&tags);
-        assert!(result.is_some());
-        let (tag, version) = result.unwrap();
-        assert_eq!(tag, "v0.5.0");
-        assert_eq!(version.major, 0);
-        assert_eq!(version.minor, 5);
     }
 
     #[test]
