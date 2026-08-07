@@ -15,6 +15,10 @@
 //!
 //! 3.  **Semantic Version Filtering**: The list of tags is filtered to include
 //!     only those that conform to the semantic versioning (semver) specification.
+//!     Tag parsing goes through [`crate::git::parse_semver_tag`], and
+//!     [`find_latest_version`] is the single selection path shared with the
+//!     `init` and `add` commands, so every code path agrees on which tag is
+//!     latest.
 //!
 //! 4.  **Version Comparison**: If the current `ref` for a repository is also a
 //!     valid semantic version, it is compared against the latest available
@@ -41,6 +45,7 @@
 
 use crate::config::{RepoOp, Schema};
 use crate::error::Result;
+use crate::git::parse_semver_tag;
 use crate::repository::RepositoryManager;
 use semver::Version;
 
@@ -168,35 +173,33 @@ pub fn check_repo_updates(repo: &RepoOp, repo_manager: &RepositoryManager) -> Re
     let semver_tags = filter_semver_tags(&tags);
 
     // Parse current ref if it's a semantic version
-    let current_version = extract_semver_from_ref(current_ref);
+    let current_version = parse_semver_tag(current_ref);
 
     let mut latest_version = None;
     let mut breaking_changes = false;
     let mut compatible_updates = false;
 
-    if let Some(current_ver_str) = current_version {
-        if let Ok(current_ver) = Version::parse(&current_ver_str) {
-            // Find the latest version
-            if let Some((latest_tag, latest_ver)) = find_latest_version(&semver_tags) {
-                latest_version = Some(latest_tag.clone());
+    if let Some(current_ver) = current_version {
+        // Find the latest version
+        if let Some((latest_tag, latest_ver)) = find_latest_version(&semver_tags) {
+            latest_version = Some(latest_tag.clone());
 
-                // Compare versions
-                match latest_ver.cmp(&current_ver) {
-                    std::cmp::Ordering::Greater => {
-                        // Latest is newer, check if it's a breaking change
-                        if latest_ver.major > current_ver.major {
-                            breaking_changes = true;
-                        } else {
-                            compatible_updates = true;
-                        }
+            // Compare versions
+            match latest_ver.cmp(&current_ver) {
+                std::cmp::Ordering::Greater => {
+                    // Latest is newer, check if it's a breaking change
+                    if latest_ver.major > current_ver.major {
+                        breaking_changes = true;
+                    } else {
+                        compatible_updates = true;
                     }
-                    std::cmp::Ordering::Equal => {
-                        // Same version, no updates
-                    }
-                    std::cmp::Ordering::Less => {
-                        // Current is newer than latest? This shouldn't happen
-                        // but we'll treat it as no updates
-                    }
+                }
+                std::cmp::Ordering::Equal => {
+                    // Same version, no updates
+                }
+                std::cmp::Ordering::Less => {
+                    // Current is newer than latest? This shouldn't happen
+                    // but we'll treat it as no updates
                 }
             }
         }
@@ -214,7 +217,7 @@ pub fn check_repo_updates(repo: &RepoOp, repo_manager: &RepositoryManager) -> Re
 
 /// Compare two refs to determine update relationship
 pub fn compare_refs(current: &str, available: &[String]) -> Result<(bool, bool)> {
-    let current_version = extract_semver_from_ref(current).and_then(|v| Version::parse(&v).ok());
+    let current_version = parse_semver_tag(current);
 
     if let Some(current_ver) = current_version {
         if let Some((_, latest_ver)) = find_latest_version(available) {
@@ -238,47 +241,42 @@ pub fn compare_refs(current: &str, available: &[String]) -> Result<(bool, bool)>
 /// Filter git tags to semantic versions only
 pub fn filter_semver_tags(tags: &[String]) -> Vec<String> {
     tags.iter()
-        .filter_map(|tag| {
-            extract_semver_from_ref(tag)
-                .and_then(|v| Version::parse(&v).ok())
-                .map(|_| tag.clone())
-        })
+        .filter(|tag| parse_semver_tag(tag).is_some())
+        .cloned()
         .collect()
 }
 
-/// Extract semantic version string from a git reference (tag or ref)
-fn extract_semver_from_ref(ref_str: &str) -> Option<String> {
-    // Common patterns: v1.2.3, 1.2.3, refs/tags/v1.2.3, refs/tags/1.2.3
-
-    // Strip refs/tags/ prefix if present
-    let tag = ref_str.strip_prefix("refs/tags/").unwrap_or(ref_str);
-
-    // Try to extract semantic version
-    if let Some(version_str) = tag.strip_prefix('v') {
-        // Has 'v' prefix
-        Version::parse(version_str)
-            .ok()
-            .map(|_| version_str.to_string())
-    } else {
-        // No 'v' prefix
-        Version::parse(tag).ok().map(|_| tag.to_string())
-    }
-}
-
-/// Find the latest version from a list of semantic version tags
-fn find_latest_version(tags: &[String]) -> Option<(String, Version)> {
+/// Find the latest semantic version from a list of git tags.
+///
+/// Tags are parsed with [`crate::git::parse_semver_tag`], so every tag format
+/// that function understands (`v1.2.3`, `1.2.3`, `component-v1.2.3`,
+/// `refs/tags/v1.2.3`) is considered here. Tags that are not semantic versions
+/// are ignored, and `None` is returned when no tag parses.
+///
+/// The returned tuple pairs the original tag string with its parsed version, so
+/// callers can pin a config to the tag as it exists on the remote.
+///
+/// # Examples
+///
+/// ```
+/// use common_repo::version::find_latest_version;
+///
+/// let tags = vec!["v1.0.0".to_string(), "v2.0.0".to_string()];
+/// let (tag, version) = find_latest_version(&tags).unwrap();
+/// assert_eq!(tag, "v2.0.0");
+/// assert_eq!(version.major, 2);
+/// ```
+pub fn find_latest_version(tags: &[String]) -> Option<(String, Version)> {
     let mut latest: Option<(String, Version)> = None;
 
     for tag in tags {
-        if let Some(version_str) = extract_semver_from_ref(tag) {
-            if let Ok(version) = Version::parse(&version_str) {
-                if let Some((_, ref mut latest_ver)) = latest {
-                    if version > *latest_ver {
-                        latest = Some((tag.clone(), version));
-                    }
-                } else {
+        if let Some(version) = parse_semver_tag(tag) {
+            if let Some((_, ref latest_ver)) = latest {
+                if version > *latest_ver {
                     latest = Some((tag.clone(), version));
                 }
+            } else {
+                latest = Some((tag.clone(), version));
             }
         }
     }
@@ -350,22 +348,6 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_semver_from_ref() {
-        assert_eq!(extract_semver_from_ref("v1.2.3"), Some("1.2.3".to_string()));
-        assert_eq!(extract_semver_from_ref("1.2.3"), Some("1.2.3".to_string()));
-        assert_eq!(
-            extract_semver_from_ref("refs/tags/v1.2.3"),
-            Some("1.2.3".to_string())
-        );
-        assert_eq!(
-            extract_semver_from_ref("refs/tags/1.2.3"),
-            Some("1.2.3".to_string())
-        );
-        assert_eq!(extract_semver_from_ref("main"), None);
-        assert_eq!(extract_semver_from_ref("v1.2"), None); // Invalid semver
-    }
-
-    #[test]
     fn test_filter_semver_tags() {
         let tags = vec![
             "v1.0.0".to_string(),
@@ -380,6 +362,18 @@ mod tests {
     }
 
     #[test]
+    fn test_filter_semver_tags_component_prefixed() {
+        let tags = vec![
+            "release-v2.0.0".to_string(),
+            "refs/tags/v1.0.0".to_string(),
+            "main".to_string(),
+        ];
+
+        let filtered = filter_semver_tags(&tags);
+        assert_eq!(filtered, vec!["release-v2.0.0", "refs/tags/v1.0.0"]);
+    }
+
+    #[test]
     fn test_find_latest_version() {
         let tags = vec![
             "v1.0.0".to_string(),
@@ -391,6 +385,67 @@ mod tests {
         let (latest_tag, latest_ver) = find_latest_version(&tags).unwrap();
         assert_eq!(latest_tag, "v2.0.0");
         assert_eq!(latest_ver, Version::parse("2.0.0").unwrap());
+    }
+
+    #[test]
+    fn test_find_latest_version_empty() {
+        let tags: Vec<String> = vec![];
+        assert!(find_latest_version(&tags).is_none());
+    }
+
+    #[test]
+    fn test_find_latest_version_no_semver() {
+        let tags = vec!["main".to_string(), "develop".to_string()];
+        assert!(find_latest_version(&tags).is_none());
+    }
+
+    #[test]
+    fn test_find_latest_version_zero_major() {
+        // 0.x.x versions are valid semver and should be returned
+        let tags = vec![
+            "v0.1.0".to_string(),
+            "v0.5.0".to_string(),
+            "v0.2.3".to_string(),
+        ];
+
+        let (latest_tag, latest_ver) = find_latest_version(&tags).unwrap();
+        assert_eq!(latest_tag, "v0.5.0");
+        assert_eq!(latest_ver, Version::parse("0.5.0").unwrap());
+    }
+
+    #[test]
+    fn test_find_latest_version_mixed_zero_and_stable() {
+        // Stable versions should be preferred over 0.x.x
+        let tags = vec![
+            "v0.9.9".to_string(),
+            "v1.0.0".to_string(),
+            "v0.10.0".to_string(),
+        ];
+
+        let (latest_tag, latest_ver) = find_latest_version(&tags).unwrap();
+        assert_eq!(latest_tag, "v1.0.0");
+        assert_eq!(latest_ver, Version::parse("1.0.0").unwrap());
+    }
+
+    #[test]
+    fn test_find_latest_version_component_prefixed_tag() {
+        let tags = vec!["v1.0.0".to_string(), "release-v2.0.0".to_string()];
+
+        let (latest_tag, latest_ver) = find_latest_version(&tags).unwrap();
+        assert_eq!(latest_tag, "release-v2.0.0");
+        assert_eq!(latest_ver, Version::parse("2.0.0").unwrap());
+    }
+
+    #[test]
+    fn test_find_latest_version_fully_qualified_ref() {
+        let tags = vec![
+            "refs/tags/v1.2.3".to_string(),
+            "refs/tags/1.0.0".to_string(),
+        ];
+
+        let (latest_tag, latest_ver) = find_latest_version(&tags).unwrap();
+        assert_eq!(latest_tag, "refs/tags/v1.2.3");
+        assert_eq!(latest_ver, Version::parse("1.2.3").unwrap());
     }
 
     #[test]

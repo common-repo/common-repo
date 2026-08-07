@@ -339,8 +339,9 @@ pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
 /// Parses a Git tag string into a `semver::Version`.
 ///
 /// This function is designed to handle common tag formats, such as `v1.2.3`
-/// and `1.2.3`. It will return `None` if the tag does not conform to a
-/// semantic versioning format.
+/// and `1.2.3`. Fully qualified references (`refs/tags/v1.2.3`) and
+/// component-prefixed tags (`my-component-v1.2.3`) are also accepted. It will
+/// return `None` if the tag does not conform to a semantic versioning format.
 ///
 /// # Examples
 ///
@@ -360,6 +361,12 @@ pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
 ///     Some(Version::parse("2.1.3").unwrap())
 /// );
 ///
+/// // Fully qualified reference
+/// assert_eq!(
+///     parse_semver_tag("refs/tags/v1.0.0"),
+///     Some(Version::parse("1.0.0").unwrap())
+/// );
+///
 /// // Pre-release versions
 /// assert_eq!(
 ///     parse_semver_tag("v1.0.0-alpha"),
@@ -370,6 +377,9 @@ pub fn list_tags(url: &str) -> Result<Vec<String>, Error> {
 /// assert_eq!(parse_semver_tag("not-a-version"), None);
 /// ```
 pub fn parse_semver_tag(tag: &str) -> Option<Version> {
+    // Accept fully qualified refs alongside bare tag names
+    let tag = tag.strip_prefix("refs/tags/").unwrap_or(tag);
+
     // Common tag formats: v1.0.0, 1.0.0, v1.0, 1.0
     let version_str = if let Some(stripped) = tag.strip_prefix('v') {
         stripped
@@ -485,6 +495,23 @@ mod tests {
             Some(Version::parse("1.0.0").unwrap())
         );
         assert_eq!(parse_semver_tag("invalid"), None);
+    }
+
+    #[test]
+    fn test_parse_semver_tag_fully_qualified_ref() {
+        assert_eq!(
+            parse_semver_tag("refs/tags/v1.2.3"),
+            Some(Version::parse("1.2.3").unwrap())
+        );
+        assert_eq!(
+            parse_semver_tag("refs/tags/1.2.3"),
+            Some(Version::parse("1.2.3").unwrap())
+        );
+        assert_eq!(
+            parse_semver_tag("refs/tags/release-v2.0.0"),
+            Some(Version::parse("2.0.0").unwrap())
+        );
+        assert_eq!(parse_semver_tag("refs/heads/main"), None);
     }
 
     #[test]
