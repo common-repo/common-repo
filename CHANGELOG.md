@@ -1,6 +1,16 @@
 # Changelog
 
 - - -
+## v0.37.4 - 2026-08-12
+#### Bug Fixes
+- (**version**) reconcile latest-tag selection onto a single parser - (8fbd4c7) - Claude, *Claude Opus 5*
+#### Build system
+- (**deps**) bump serial_test to 3.5.0 to drop scc (RUSTSEC-2026-0205) - (5949223) - Claude, *Claude Opus 5*
+- (**deps**) bump anyhow to 1.0.104 for RUSTSEC-2026-0190 - (e30e5a1) - Claude, *Claude Opus 5*
+- (**deps**) bump crossbeam-epoch to 0.9.20 for RUSTSEC-2026-0204 - (0297252) - Claude, *Claude Opus 5*
+
+- - -
+
 ## v0.37.3 - 2026-06-17
 #### Bug Fixes
 - preserve file permissions when loading local files during apply - (5d508d9) - Jacob Alheid
