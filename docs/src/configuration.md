@@ -126,18 +126,22 @@ Add files from the current repository to the output based on glob patterns.
 
 ```yaml
 - include:
-    - "**/*"           # All files
-    - ".*"             # Hidden files at root
-    - ".*/**/*"        # All files in hidden directories
+    - "**/*"           # Every file, dotfiles included
+    - "src/**"         # Everything under src/
+    - "*.toml"         # All .toml files at any depth
 ```
 
 #### Patterns
 
-- `**/*` - All files recursively
-- `*.rs` - All Rust files in current directory
+Patterns match against each file's full relative path. `*` matches any characters, including `/`, and patterns match dotfiles, so `**/*` matches every file — `.gitignore` and `.github/workflows/ci.yml` included — with no extra dotfile patterns.
+
+- `**/*` - Every file at any depth, dotfiles included
+- `*` and `**` - Same as `**/*`
+- `*.rs` - All Rust files at any depth (`*` crosses `/`)
 - `src/**/*.rs` - All Rust files under src/
-- `.*` - Hidden files (dotfiles) at root
-- `.*/**/*` - All files in hidden directories
+- `.github/**` - Everything under `.github/`
+
+`*/**` matches only files at least one directory deep; a top-level file such as `README.md` does not match. Use `**/*` to match every file.
 
 #### `if-exists:` — control over destination collisions
 
@@ -400,8 +404,7 @@ This is useful when a repository is both a source (providing shared configuratio
 
 # Source API — what consumers get
 - include:
-    - "src/**"
-    - "src/.*"
+    - "src/**"         # matches dotfiles under src/ too
 - template:
     - "src/.github/workflows/release.yaml"
 - template-vars:

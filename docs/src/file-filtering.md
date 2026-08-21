@@ -24,17 +24,24 @@ Or at the top level for local files:
 
 ## Pattern Syntax
 
-Patterns use glob syntax:
+Patterns use glob syntax, matched against each file's full relative path (for example, `src/main.rs` or `.github/workflows/ci.yml`). The matcher differs from shell globbing in two ways:
+
+- `*` matches any sequence of characters, including `/`. The pattern `*.rs` matches `src/main.rs`, not only top-level `.rs` files.
+- Patterns match dotfiles. `*` and `**` match names that start with `.`, so `**/*` matches `.gitignore` and `.github/workflows/ci.yml` without any extra patterns.
 
 | Pattern | Matches |
 |---------|---------|
-| `*` | Any filename in current directory |
-| `**` | Any path (recursive) |
-| `*.rs` | All `.rs` files in current directory |
-| `**/*.rs` | All `.rs` files recursively |
-| `src/**` | Everything under `src/` |
-| `.*` | Hidden files at root |
-| `.*/**` | Everything in hidden directories |
+| `**/*` | Every file at any depth, dotfiles included |
+| `*` | Same as `**/*`, because `*` crosses `/` |
+| `**` | Same as `**/*` |
+| `*.rs` | All `.rs` files at any depth |
+| `**/*.rs` | All `.rs` files at any depth (`**` matches zero or more directories, so top-level `.rs` files match too) |
+| `src/**` | Everything under `src/`, dotfiles included |
+| `.github/**` | Everything under `.github/` |
+
+Prefer `**/*` when you want every file.
+
+`*/**` is not an "every file" pattern. The `/` between `*` and `**` is literal, so the pattern matches only files at least one directory deep — a top-level file such as `README.md` does not match.
 
 ## Order of Operations
 
@@ -83,17 +90,17 @@ Pull everything except test and example files:
 
 ### Include Hidden Files from Upstream Repos
 
-Dotfiles and hidden directories require explicit patterns:
+Broad patterns already match dotfiles. `**/*` matches top-level dotfiles such as `.gitignore` and files inside hidden directories such as `.github/workflows/ci.yml`, so separate `.*` or `.*/**` patterns add nothing:
 
 ```yaml
 - repo:
     url: https://github.com/your-org/dotfiles
     ref: v1.0.0
     with:
-      - include:
-          - ".*"        # .gitignore, .editorconfig, etc.
-          - ".*/**"     # .github/*, .vscode/*, etc.
+      - include: ["**/*"]   # matches dotfiles and hidden directories too
 ```
+
+To pull only hidden files, use a pattern with a literal leading dot. `.github/**` matches everything under `.github/`, and `.*` matches every path whose first character is a dot, including files inside those hidden directories.
 
 > **Note:** This applies to files from upstream repositories. Local project
 > dotfiles (e.g., `.editorconfig`, `.pre-commit-config.yaml`) are loaded
@@ -169,4 +176,4 @@ common-repo ls -l
 
 **Too many files?** Add exclude patterns to filter out unwanted files.
 
-**Hidden files missing from upstream?** Remember to explicitly include `.*` and `.*/**` patterns in the upstream repo's `with:` block. Local project dotfiles are loaded automatically.
+**Hidden files missing from upstream?** Check the `include` patterns applied to the upstream repo. Broad patterns such as `**/*` already match dotfiles, so no separate dotfile pattern is needed; a narrow pattern such as `src/**` matches dotfiles only when they are under `src/`. Local project dotfiles are loaded automatically.

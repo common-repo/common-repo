@@ -32,11 +32,11 @@ The original v1 schema from [commonrepo](https://github.com/shakefu/commonrepo).
 
 # include opts-in files and folders based on globbing patterns
 include:
-  # Everything
+  # Everything, dotfiles included
   - "**/*"
-  # Every hidden file
+  # Hidden files (redundant with "**/*")
   - .*
-  # Every hidden directory
+  # Hidden directories (redundant with "**/*")
   - .*/**/*
   # Everything in the files/ directory
   - files/**/*
