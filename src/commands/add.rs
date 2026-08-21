@@ -175,8 +175,21 @@ fn create_minimal_config(config_path: &Path, url: &str, version: &str) -> Result
 }
 
 /// Append a repository entry to an existing configuration file.
+///
+/// The new `- repo:` entry is inserted immediately before the first *top-level*
+/// `- include:` sequence entry, so repository declarations stay ahead of the
+/// include filter. Only a line that starts with `- include:` at column zero
+/// counts as an anchor. An indented `- include:` nested inside another entry
+/// (for example under `- self:`) belongs to that entry, and `- include:` text
+/// inside a comment or a quoted scalar is not a sequence entry at all; both are
+/// ignored. When the file has no top-level `- include:` anchor, the entry is
+/// appended after the existing content.
+///
+/// On both paths the entry is separated from its neighbours by exactly one blank
+/// line, whatever line breaks the surrounding text already had. Existing
+/// comments and formatting are otherwise left untouched.
 fn append_repo_to_config(config_path: &Path, url: &str, version: &str) -> Result<()> {
-    let mut content = fs::read_to_string(config_path)?;
+    let content = fs::read_to_string(config_path)?;
 
     // Find where to insert the new repo entry (before include section or at end)
     let new_entry = format!(
@@ -188,16 +201,60 @@ fn append_repo_to_config(config_path: &Path, url: &str, version: &str) -> Result
         url, version
     );
 
-    // Try to insert before the include section if it exists
-    if let Some(include_pos) = content.find("- include:") {
-        content.insert_str(include_pos, &new_entry);
-    } else {
-        // Append at end
-        content.push_str(&new_entry);
+    let updated = match find_top_level_include(&content) {
+        // Insert before a top-level include entry when one exists, keeping one
+        // blank line between the new entry and the include entry.
+        Some(include_pos) => {
+            let (before, after) = content.split_at(include_pos);
+            let mut updated = entry_appended_to(before, &new_entry);
+            updated.push('\n');
+            updated.push_str(after);
+            updated
+        }
+        // Otherwise append at the end of the file.
+        None => entry_appended_to(&content, &new_entry),
+    };
+
+    fs::write(config_path, updated)?;
+    Ok(())
+}
+
+/// Join `entry` onto `base`, separated by exactly one blank line.
+///
+/// Trailing line breaks on `base` are normalized first, so the entry neither
+/// joins onto an unterminated last line nor adds a second blank line after one
+/// that is already there. An empty `base` yields the entry with no leading blank
+/// line, keeping the file from starting with one.
+fn entry_appended_to(base: &str, entry: &str) -> String {
+    let base = base.trim_end_matches(['\n', '\r']);
+    if base.is_empty() {
+        return entry.trim_start_matches('\n').to_string();
     }
 
-    fs::write(config_path, content)?;
-    Ok(())
+    let mut result = String::with_capacity(base.len() + entry.len() + 1);
+    result.push_str(base);
+    result.push('\n');
+    result.push_str(entry);
+    result
+}
+
+/// Find the byte offset of the first top-level `- include:` sequence entry.
+///
+/// A top-level entry begins at column zero, so the scan is line-anchored rather
+/// than a substring search. Indented `- include:` lines belong to an enclosing
+/// entry (such as `- self:`) and are not valid anchors. The same rule excludes
+/// `- include:` text inside a comment or a quoted scalar: a comment line starts
+/// with `#`, and YAML requires a scalar's continuation lines to be indented, so
+/// neither can begin a line at column zero.
+fn find_top_level_include(content: &str) -> Option<usize> {
+    let mut offset = 0;
+    for line in content.split_inclusive('\n') {
+        if line.starts_with("- include:") {
+            return Some(offset);
+        }
+        offset += line.len();
+    }
+    None
 }
 
 #[cfg(test)]
@@ -278,6 +335,195 @@ mod tests {
         assert!(content.contains("ref: v2.0.0"));
         // Include should still be present
         assert!(content.contains("- include:"));
+    }
+
+    #[test]
+    fn test_append_repo_to_config_ignores_nested_include() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".common-repo.yaml");
+
+        // A nested `- include:` under `- self:` is not a top-level anchor.
+        let initial_config = concat!(
+            "# Local consumption - apply our own source files to this repo\n",
+            "- self:\n",
+            "  - include: [\"src/**\"]\n",
+            "  - template: [\"src/.github/workflows/release.yaml\"]\n",
+            "  - template-vars:\n",
+            "      GH_APP_ID_SECRET: COMMON_REPO_BOT_CLIENT_ID\n",
+        );
+        fs::write(&config_path, initial_config).unwrap();
+
+        append_repo_to_config(&config_path, "https://github.com/org/repo2", "v2.0.0").unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        let expected = String::from(concat!(
+            "# Local consumption - apply our own source files to this repo\n",
+            "- self:\n",
+            "  - include: [\"src/**\"]\n",
+            "  - template: [\"src/.github/workflows/release.yaml\"]\n",
+            "  - template-vars:\n",
+            "      GH_APP_ID_SECRET: COMMON_REPO_BOT_CLIENT_ID\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo2\n",
+            "    ref: v2.0.0\n",
+        ));
+        assert_eq!(content, expected);
+
+        // The rewritten file must still load through the project config loader.
+        common_repo::config::from_file(&config_path).unwrap();
+    }
+
+    #[test]
+    fn test_append_repo_to_config_without_trailing_newline() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".common-repo.yaml");
+
+        // Last line is unterminated: the new entry must not join onto it.
+        let initial_config = concat!(
+            "# common-repo configuration\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0",
+        );
+        fs::write(&config_path, initial_config).unwrap();
+
+        append_repo_to_config(&config_path, "https://github.com/org/repo2", "v2.0.0").unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        let expected = String::from(concat!(
+            "# common-repo configuration\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo2\n",
+            "    ref: v2.0.0\n",
+        ));
+        assert_eq!(content, expected);
+
+        common_repo::config::from_file(&config_path).unwrap();
+    }
+
+    #[test]
+    fn test_append_repo_to_config_with_trailing_blank_line() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".common-repo.yaml");
+
+        // File already ends in a blank line: separation must stay one blank line.
+        let initial_config = concat!(
+            "# common-repo configuration\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0\n",
+            "\n",
+        );
+        fs::write(&config_path, initial_config).unwrap();
+
+        append_repo_to_config(&config_path, "https://github.com/org/repo2", "v2.0.0").unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        let expected = String::from(concat!(
+            "# common-repo configuration\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo2\n",
+            "    ref: v2.0.0\n",
+        ));
+        assert_eq!(content, expected);
+
+        common_repo::config::from_file(&config_path).unwrap();
+    }
+
+    #[test]
+    fn test_append_repo_to_config_ignores_commented_include() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".common-repo.yaml");
+
+        // `- include:` inside a comment or a quoted string is not an anchor.
+        let initial_config = concat!(
+            "# common-repo configuration\n",
+            "# - include: [\"**/*\"]\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0\n",
+            "\n",
+            "- template-vars:\n",
+            "    NOTE: \"- include: is quoted here\"\n",
+        );
+        fs::write(&config_path, initial_config).unwrap();
+
+        append_repo_to_config(&config_path, "https://github.com/org/repo2", "v2.0.0").unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        let expected = String::from(concat!(
+            "# common-repo configuration\n",
+            "# - include: [\"**/*\"]\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0\n",
+            "\n",
+            "- template-vars:\n",
+            "    NOTE: \"- include: is quoted here\"\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo2\n",
+            "    ref: v2.0.0\n",
+        ));
+        assert_eq!(content, expected);
+
+        common_repo::config::from_file(&config_path).unwrap();
+    }
+
+    #[test]
+    fn test_append_repo_to_config_anchor_insert_spacing() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".common-repo.yaml");
+
+        // Content before the anchor already ends in a blank line: the inserted
+        // entry gets exactly one blank line on each side of it.
+        let initial_config = concat!(
+            "# common-repo configuration\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0\n",
+            "\n",
+            "- include:\n",
+            "    - \"**/*\"\n",
+        );
+        fs::write(&config_path, initial_config).unwrap();
+
+        append_repo_to_config(&config_path, "https://github.com/org/repo2", "v2.0.0").unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        let expected = String::from(concat!(
+            "# common-repo configuration\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo1\n",
+            "    ref: v1.0.0\n",
+            "\n",
+            "- repo:\n",
+            "    url: https://github.com/org/repo2\n",
+            "    ref: v2.0.0\n",
+            "\n",
+            "- include:\n",
+            "    - \"**/*\"\n",
+        ));
+        assert_eq!(content, expected);
+
+        common_repo::config::from_file(&config_path).unwrap();
     }
 
     #[test]
