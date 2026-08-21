@@ -75,7 +75,7 @@ common-repo add --yes your-org/shared-configs
 
 #### Behavior
 
-- If `.common-repo.yaml` exists: appends the new repository entry (before an existing `include` section if present, otherwise at the end of the file)
+- If `.common-repo.yaml` exists: appends the new repository entry (before an existing top-level `include` entry if present, otherwise at the end of the file). An indented `include` nested inside another entry, such as under `self`, is not used as an insertion point
 - If no config exists: prompts for confirmation to create a minimal config (use `--yes` to skip prompt)
 - Automatically fetches and uses the latest semver tag, or falls back to `main` if no tags found
 - Warns when adding repositories with only 0.x.x versions (unstable API)

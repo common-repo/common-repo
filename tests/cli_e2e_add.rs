@@ -80,6 +80,49 @@ fn test_add_to_existing_config() {
 
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_add_to_config_with_nested_include() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config_file = temp.child(".common-repo.yaml");
+
+    // The only `- include:` here is nested under `- self:`, so it must not be
+    // used as an insertion anchor (issue #293).
+    config_file
+        .write_str(
+            r#"# Local consumption - apply our own source files to this repo
+- self:
+  - include: ["src/**"]
+  - template: ["src/.github/workflows/release.yaml"]
+  - template-vars:
+      GH_APP_ID_SECRET: COMMON_REPO_BOT_CLIENT_ID
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(temp.path())
+        .arg("add")
+        .arg("rust-lang/rust-clippy")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("✅ Added"));
+
+    let content = std::fs::read_to_string(config_file.path()).unwrap();
+
+    // The `- self:` entry keeps its children contiguous.
+    assert!(content.contains(
+        "- self:\n  - include: [\"src/**\"]\n  - template: [\"src/.github/workflows/release.yaml\"]\n"
+    ));
+    // The new entry lands at column zero after the existing entry.
+    assert!(content.contains("\n- repo:\n    url: https://github.com/rust-lang/rust-clippy\n"));
+
+    // The rewritten file is valid YAML and loads through the config parser.
+    serde_yaml::from_str::<serde_yaml::Value>(&content).unwrap();
+    common_repo::config::from_file(config_file.path()).unwrap();
+}
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn test_add_github_shorthand_expansion() {
     let temp = assert_fs::TempDir::new().unwrap();
 
