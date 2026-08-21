@@ -1,6 +1,12 @@
 # Changelog
 
 - - -
+## v0.37.5 - 2026-08-21
+#### Bug Fixes
+- (**add**) anchor repo insertion to top-level include entries - (6ff3278) - Jacob Alheid
+
+- - -
+
 ## v0.37.4 - 2026-08-12
 #### Bug Fixes
 - (**version**) reconcile latest-tag selection onto a single parser - (8fbd4c7) - Claude, *Claude Opus 5*
