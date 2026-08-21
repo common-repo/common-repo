@@ -78,8 +78,7 @@ Operations inside a `self:` block run in an isolated pipeline. Their output is w
 
 # Source API — what consumers inherit
 - include:
-    - "src/**"
-    - "src/.*"
+    - "src/**"         # matches dotfiles under src/ too
 - rename:
     - from: "^src/(.*)$"
       to: "$1"
@@ -344,7 +343,7 @@ Consumers can pick specific concerns:
 
 ### Dotfiles and Hidden Files
 
-Dotfiles from upstream repos require explicit `include` patterns (e.g., `.*` and `.*/**`) to be pulled into the consumer's output. Structure them naturally in the upstream repo:
+Broad `include` patterns match dotfiles. `**/*` matches `.gitignore` and files inside hidden directories such as `.github/workflows/ci.yml`, so no separate dotfile patterns are needed. Structure them naturally in the upstream repo:
 
 ```
 upstream-repo/

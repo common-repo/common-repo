@@ -274,10 +274,10 @@ Malformed glob pattern in `include`, `exclude`, or other operators.
    ```yaml
    # Correct patterns
    - include:
-       - "**/*.rs"      # All .rs files recursively
+       - "**/*.rs"      # All .rs files at any depth
        - "src/**/*"     # All files under src/
-       - "*.md"         # .md files in root only
-       - ".*"           # Hidden files in root
+       - "*.md"         # All .md files at any depth (* also crosses /)
+       - ".*"           # Paths that start with a dot
 
    # Invalid patterns
    - include:
