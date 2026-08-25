@@ -16,28 +16,13 @@ use std::process::Command;
 use rexpect::session::{spawn_command, PtySession};
 use tempfile::TempDir;
 
-/// Get the path to the `common-repo` binary.
+/// Get the path to the `common-repo` binary built by cargo for this test run.
+///
+/// Cargo sets `CARGO_BIN_EXE_common-repo` for integration tests to the binary
+/// compiled from the current source, so tests never pick up a stale prebuilt
+/// binary left in `target/release` or `target/debug`.
 fn get_binary_path() -> std::path::PathBuf {
-    // First try the release binary
-    let release_path = std::path::Path::new("target/release/common-repo");
-    if release_path.exists() {
-        return release_path.to_path_buf();
-    }
-
-    // Fall back to debug binary
-    let debug_path = std::path::Path::new("target/debug/common-repo");
-    if debug_path.exists() {
-        return debug_path.to_path_buf();
-    }
-
-    // Build the binary if neither exists
-    let status = Command::new("cargo")
-        .args(["build", "--bin", "common-repo"])
-        .status()
-        .expect("Failed to build binary");
-    assert!(status.success(), "Failed to build common-repo binary");
-
-    debug_path.to_path_buf()
+    std::path::PathBuf::from(env!("CARGO_BIN_EXE_common-repo"))
 }
 
 /// Create a new PTY session running `common-repo init -i` in the given directory.
