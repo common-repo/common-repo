@@ -1,0 +1,8 @@
+- repo:
+    url: __FIXTURE__/conf
+- repo:
+    url: __FIXTURE__/sibling-a
+- repo:
+    url: __FIXTURE__/sibling-b
+- template-vars:
+    log_level: warn
