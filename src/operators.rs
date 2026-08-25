@@ -27,10 +27,13 @@
 //! - **`tools`**: Validates that required command-line tools are installed and
 //!   meet version constraints.
 
-use crate::config::{ExcludeOp, IncludeOp, Operation, RenameOp, RepoOp};
+use crate::config::{ExcludeOp, IncludeOp, RenameOp};
+#[cfg(test)]
+use crate::config::{Operation, RepoOp};
 use crate::error::Result;
 use crate::filesystem::MemoryFS;
 use crate::path::regex_rename;
+#[cfg(test)]
 use crate::repository::RepositoryManager;
 use log::trace;
 use std::path::Path;
@@ -183,6 +186,12 @@ pub(crate) mod rename {
 }
 
 /// Repo operator - pulls files from inherited repositories
+///
+/// Compiled for tests only. The production pipeline fetches repositories in
+/// Phase 2 (`crate::phases::processing`) and applies `with:` operations
+/// through `apply_operation` there; this module covers the same behavior in
+/// unit tests.
+#[cfg(test)]
 pub(crate) mod repo {
     use super::*;
 
@@ -200,8 +209,6 @@ pub(crate) mod repo {
     ///
     /// # Returns
     /// Result containing the processed MemoryFS with repository contents
-    // Used in tests; available for future use as part of operator API
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn apply(op: &RepoOp, repo_manager: &RepositoryManager) -> Result<MemoryFS> {
         // Fetch the repository with optional path filtering
         let mut fs = repo_manager.fetch_repository_with_path(
@@ -229,8 +236,9 @@ pub(crate) mod repo {
     ///
     /// # Returns
     /// Result indicating success or failure
-    // Used in tests; available for future use as part of operator API
-    #[cfg_attr(not(test), allow(dead_code))]
+    ///
+    /// Keep the accepted operation set in step with
+    /// `crate::phases::processing::apply_operation`.
     pub(crate) fn apply_with_clause(operations: &[Operation], fs: &mut MemoryFS) -> Result<()> {
         for operation in operations {
             match operation {
@@ -274,21 +282,21 @@ pub(crate) mod repo {
                         message: "Repo operations not allowed in 'with:' clauses".to_string(),
                     });
                 }
-                // Merge and template_vars operations don't make sense in `with:` clauses
-                // - Merge operators work during composition phase, not during repo loading
-                // - TemplateVars need to be collected globally across all repos
-                Operation::TemplateVars { .. }
-                | Operation::Yaml { .. }
+                // Template variables in `with:` clauses are collected globally in
+                // Phase 2 (`phases::processing::collect_template_vars`), so there is
+                // nothing to apply to the filesystem here.
+                Operation::TemplateVars { .. } => {}
+                // Merge operators work during the composition phase, not during
+                // repo loading, so they are not supported in `with:` clauses.
+                Operation::Yaml { .. }
                 | Operation::Json { .. }
                 | Operation::Toml { .. }
                 | Operation::Ini { .. }
                 | Operation::Markdown { .. }
                 | Operation::Xml { .. } => {
                     return Err(crate::error::Error::Operator {
-                        operator: "merge/template_vars".to_string(),
-                        message:
-                            "Merge and template_vars operations not supported in 'with:' clauses"
-                                .to_string(),
+                        operator: "merge".to_string(),
+                        message: "Merge operations not supported in 'with:' clauses".to_string(),
                     });
                 }
                 Operation::Self_ { .. } => {
@@ -1155,17 +1163,32 @@ mod tests {
         }
 
         #[test]
+        fn test_apply_with_clause_template_vars_is_noop() {
+            // Production collects `with: template-vars` globally in Phase 2
+            // (see `phases::processing::collect_template_vars`), so applying
+            // one here must succeed and leave the filesystem untouched.
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("test.txt", "test").unwrap();
+
+            let mut vars = std::collections::HashMap::new();
+            vars.insert("log_level".to_string(), "warn".to_string());
+            let operations = vec![Operation::TemplateVars {
+                template_vars: crate::config::TemplateVars { vars },
+            }];
+
+            repo::apply_with_clause(&operations, &mut fs).unwrap();
+
+            assert_eq!(fs.list_files(), vec![std::path::PathBuf::from("test.txt")]);
+            assert_eq!(fs.get_file("test.txt").unwrap().content, b"test".to_vec());
+        }
+
+        #[test]
         fn test_apply_with_clause_unsupported_operations() {
             let mut fs = MemoryFS::new();
             fs.add_file_string("test.txt", "test").unwrap();
 
             // Test operations that are not supported in with: clauses
             let unsupported_ops = vec![
-                Operation::TemplateVars {
-                    template_vars: crate::config::TemplateVars {
-                        vars: std::collections::HashMap::new(),
-                    },
-                },
                 Operation::Yaml {
                     yaml: crate::config::YamlMergeOp {
                         source: Some("s.yaml".to_string()),
