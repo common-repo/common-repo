@@ -324,37 +324,59 @@ Variables cascade through the inheritance tree. When the same variable is
 defined in more than one place, the value is chosen by these rules, highest
 precedence first:
 
-1. A repo's own `template-vars` blocks win over anything it inherits from
-   its `repo:` entries, no matter where the blocks appear in its config
-   file. For an upstream repo, "own" includes the `with:` operations a
-   consumer appends to it.
-2. Among sibling `repo:` entries at the same level, the one declared later
-   wins.
-3. A nearer level in the chain beats a more distant ancestor. Ancestor
-   values only fill in variables nothing nearer defines.
+1. **Own blocks.** A repo's own `template-vars` blocks win over anything it
+   inherits from its `repo:` entries, no matter where the blocks appear in
+   its config file. For an upstream repo, "own" includes the `with:`
+   operations a consumer appends to it, and those `with:` values beat the
+   upstream's own `template-vars` blocks because they are applied after
+   them.
+2. **Later sibling.** Among sibling `repo:` entries at the same level, the
+   one declared later wins. This compares each sibling's whole resolved
+   result, so a value a later sibling inherits from its own ancestor still
+   beats an earlier sibling's own value.
+3. **Earlier sibling.** An earlier sibling's values apply wherever no later
+   sibling defines them.
+4. **Ancestor gap-fill.** Within one `repo:` entry's chain, a nearer level
+   beats a more distant one; ancestor values only fill in variables nothing
+   nearer defines.
 
 ```yaml
 # Consumer's .common-repo.yaml
 - repo:
     url: https://github.com/org/base-a
     ref: v1.0.0
-    # base-a sets log_level: info and region: us-east
+    # base-a sets log_level: info, region: us-east, and timeout: "30"
 - repo:
     url: https://github.com/org/base-b
     ref: v2.0.0
-    # base-b sets log_level: debug
+    # base-b sets log_level: debug and inherits timeout: "60" from base-c
 - template-vars:
     region: eu-west
 ```
 
-Here `log_level` renders as `debug` because `base-b` is the later sibling,
-and `region` renders as `eu-west` because the consumer's own block wins even
-though it comes after both `repo:` entries. To restore an earlier sibling's
-value, re-declare it in your own `template-vars`:
+Here `log_level` renders as `debug` because `base-b` is the later sibling.
+`timeout` renders as `60` for the same reason: `base-b` inherited it from
+its own ancestor `base-c`, and a later sibling's whole resolved result beats
+an earlier sibling's own value. `region` renders as `eu-west` because the
+consumer's own block wins even though it comes after both `repo:` entries.
+To restore an earlier sibling's value, re-declare it in your own
+`template-vars`:
 
 ```yaml
 - template-vars:
     log_level: info   # take base-a's value back over base-b's
+```
+
+Values passed to an upstream through `with:` count as that upstream's own
+blocks and beat the ones in its config file:
+
+```yaml
+- repo:
+    url: https://github.com/org/base-a
+    ref: v1.0.0
+    with:
+      - template-vars:
+          log_level: warn   # beats base-a's own log_level: info
 ```
 
 ### `tools` - Validate Required Tools
