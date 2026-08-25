@@ -1,0 +1,3 @@
+- template-vars:
+    log_level: error
+    region: ap-south

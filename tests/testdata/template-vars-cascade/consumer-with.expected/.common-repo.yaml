@@ -1,0 +1,6 @@
+- repo:
+    url: __FIXTURE__/middle
+    with:
+      - template-vars:
+          log_level: trace
+          region: ap-northeast

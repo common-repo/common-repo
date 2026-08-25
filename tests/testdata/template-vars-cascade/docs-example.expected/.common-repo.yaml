@@ -1,0 +1,8 @@
+- repo:
+    url: __FIXTURE__/base-a
+    # base-a sets log_level: info, region: us-east, and timeout: "30"
+- repo:
+    url: __FIXTURE__/base-b
+    # base-b sets log_level: debug and inherits timeout: "60" from base-c
+- template-vars:
+    region: eu-west

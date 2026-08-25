@@ -1,0 +1,6 @@
+- repo:
+    url: __FIXTURE__/conf
+- repo:
+    url: __FIXTURE__/sibling-a
+- repo:
+    url: __FIXTURE__/base-b
