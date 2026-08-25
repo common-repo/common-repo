@@ -1008,3 +1008,462 @@ fn test_consumer_top_level_template_vars_override_upstream_defaults() {
         content
     );
 }
+
+// =============================================================================
+// Bug #347: Ancestor template-vars must not overwrite nearer repo's vars
+// =============================================================================
+
+/// Test that a middle repo's `template-vars` override its child's defaults.
+///
+/// Chain: consumer -> B -> C. C declares `VAR: c-default` and `ONLY_C: c-only`
+/// with a template that renders both. B references C and sets
+/// `VAR: b-override`. The nearer repo (B) must win for `VAR`, while C's
+/// `ONLY_C` still fills the gap.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_middle_repo_template_vars_override_child_defaults() {
+    // C: the deepest repo, declares defaults and a template
+    let repo_c = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_c,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "c.txt"
+- template:
+    - "c.txt"
+- template-vars:
+    VAR: c-default
+    ONLY_C: c-only
+"#,
+            ),
+            (
+                "c.txt",
+                "var: __COMMON_REPO__VAR__\nonly_c: __COMMON_REPO__ONLY_C__\n",
+            ),
+        ],
+        None,
+    )
+    .unwrap();
+    let c_url = format!("file://{}", repo_c.path().display());
+
+    // B: references C and overrides VAR
+    let repo_b = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_b,
+        &[(
+            ".common-repo.yaml",
+            &format!(
+                r#"- repo:
+    url: "{}"
+    ref: main
+- template-vars:
+    VAR: b-override
+"#,
+                c_url
+            ),
+        )],
+        None,
+    )
+    .unwrap();
+    let b_url = format!("file://{}", repo_b.path().display());
+
+    // Consumer: references B only
+    let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+"#,
+            b_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    let rendered = consumer.child("c.txt");
+    rendered.assert(predicate::path::exists());
+    let content = std::fs::read_to_string(rendered.path()).unwrap();
+
+    // The nearer repo (B) wins over C's default
+    assert!(
+        content.contains("var: b-override"),
+        "B's template-vars should override C's default.\n\
+         Expected 'var: b-override' but got:\n{}",
+        content
+    );
+
+    // C's var that B does not define still fills the gap
+    assert!(
+        content.contains("only_c: c-only"),
+        "C's non-overridden template-vars should be preserved.\n\
+         Expected 'only_c: c-only' but got:\n{}",
+        content
+    );
+}
+
+/// Test that a consumer's `with:` template-vars win over a chained child's defaults.
+///
+/// Chain: consumer -> B -> C. C declares `VAR: c-default` with a template
+/// rendering it. B references C without overriding `VAR`. The consumer sets
+/// `VAR: with-override` on its `repo: B` via `with:`. The consumer's value
+/// must reach the rendered file.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_consumer_with_template_vars_override_chained_child_defaults() {
+    // C: the deepest repo, declares the default and a template
+    let repo_c = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_c,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "c.txt"
+- template:
+    - "c.txt"
+- template-vars:
+    VAR: c-default
+"#,
+            ),
+            ("c.txt", "var: __COMMON_REPO__VAR__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let c_url = format!("file://{}", repo_c.path().display());
+
+    // B: references C, does not touch VAR
+    let repo_b = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_b,
+        &[(
+            ".common-repo.yaml",
+            &format!(
+                r#"- repo:
+    url: "{}"
+    ref: main
+"#,
+                c_url
+            ),
+        )],
+        None,
+    )
+    .unwrap();
+    let b_url = format!("file://{}", repo_b.path().display());
+
+    // Consumer: references B and overrides VAR via with:
+    let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+    with:
+      - template-vars:
+          VAR: with-override
+"#,
+            b_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    let rendered = consumer.child("c.txt");
+    rendered.assert(predicate::path::exists());
+    let content = std::fs::read_to_string(rendered.path()).unwrap();
+
+    assert!(
+        content.contains("var: with-override"),
+        "Consumer's with: template-vars should override the chained child's default.\n\
+         Expected 'var: with-override' but got:\n{}",
+        content
+    );
+}
+
+/// Test that a chained child's defaults render when nobody overrides them.
+///
+/// Chain: consumer -> B -> C. C declares `VAR: c-default` with a template
+/// rendering it. Neither B nor the consumer defines `VAR`, so C's default
+/// must fill the gap.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_chained_child_template_var_defaults_fill_gaps() {
+    // C: the deepest repo, declares the default and a template
+    let repo_c = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_c,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "c.txt"
+- template:
+    - "c.txt"
+- template-vars:
+    VAR: c-default
+"#,
+            ),
+            ("c.txt", "var: __COMMON_REPO__VAR__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let c_url = format!("file://{}", repo_c.path().display());
+
+    // B: references C, does not define VAR
+    let repo_b = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_b,
+        &[(
+            ".common-repo.yaml",
+            &format!(
+                r#"- repo:
+    url: "{}"
+    ref: main
+"#,
+                c_url
+            ),
+        )],
+        None,
+    )
+    .unwrap();
+    let b_url = format!("file://{}", repo_b.path().display());
+
+    // Consumer: references B, does not define VAR
+    let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+"#,
+            b_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    let rendered = consumer.child("c.txt");
+    rendered.assert(predicate::path::exists());
+    let content = std::fs::read_to_string(rendered.path()).unwrap();
+
+    assert!(
+        content.contains("var: c-default"),
+        "Chained child's template-vars default should fill the gap.\n\
+         Expected 'var: c-default' but got:\n{}",
+        content
+    );
+}
+
+// =============================================================================
+// Sibling precedence: later `repo:` entry wins among inherited template-vars
+// =============================================================================
+
+/// Test that among sibling `repo:` entries, the later one's template-vars win.
+///
+/// Consumer references B2 then D. Both define `SIB` (B2: `from-B2`,
+/// D: `from-D`) and each ships its own template rendering it. Because D is
+/// declared later, both rendered files must contain `sib: from-D`.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_later_sibling_repo_template_vars_win() {
+    let repo_b2 = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_b2,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "b2.txt"
+- template:
+    - "b2.txt"
+- template-vars:
+    SIB: from-B2
+"#,
+            ),
+            ("b2.txt", "sib: __COMMON_REPO__SIB__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let b2_url = format!("file://{}", repo_b2.path().display());
+
+    let repo_d = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_d,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "d.txt"
+- template:
+    - "d.txt"
+- template-vars:
+    SIB: from-D
+"#,
+            ),
+            ("d.txt", "sib: __COMMON_REPO__SIB__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let d_url = format!("file://{}", repo_d.path().display());
+
+    // Consumer: B2 first, D second
+    let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+- repo:
+    url: "{}"
+    ref: main
+"#,
+            b2_url, d_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    let b2_content = std::fs::read_to_string(consumer.child("b2.txt").path()).unwrap();
+    let d_content = std::fs::read_to_string(consumer.child("d.txt").path()).unwrap();
+
+    // The later sibling (D) wins for SIB in both rendered files
+    assert!(
+        b2_content.contains("sib: from-D"),
+        "Later sibling's template-vars should win in B2's template.\n\
+         Expected 'sib: from-D' but got:\n{}",
+        b2_content
+    );
+    assert!(
+        d_content.contains("sib: from-D"),
+        "Later sibling's template-vars should win in D's template.\n\
+         Expected 'sib: from-D' but got:\n{}",
+        d_content
+    );
+}
+
+/// Test that a consumer's own template-vars beat every sibling `repo:` entry.
+///
+/// The consumer declares `SIB: consumer` before two sibling repos that both
+/// define `SIB`. A consumer's own vars win regardless of position, so the
+/// rendered files must contain `sib: consumer`, not the later sibling's value.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_consumer_template_vars_before_sibling_repos_win() {
+    let repo_b2 = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_b2,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "b2.txt"
+- template:
+    - "b2.txt"
+- template-vars:
+    SIB: from-B2
+"#,
+            ),
+            ("b2.txt", "sib: __COMMON_REPO__SIB__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let b2_url = format!("file://{}", repo_b2.path().display());
+
+    let repo_d = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_d,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "d.txt"
+- template:
+    - "d.txt"
+- template-vars:
+    SIB: from-D
+"#,
+            ),
+            ("d.txt", "sib: __COMMON_REPO__SIB__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let d_url = format!("file://{}", repo_d.path().display());
+
+    // Consumer: own template-vars first, then B2, then D
+    let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- template-vars:
+    SIB: consumer
+- repo:
+    url: "{}"
+    ref: main
+- repo:
+    url: "{}"
+    ref: main
+"#,
+            b2_url, d_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    let b2_content = std::fs::read_to_string(consumer.child("b2.txt").path()).unwrap();
+    let d_content = std::fs::read_to_string(consumer.child("d.txt").path()).unwrap();
+
+    assert!(
+        b2_content.contains("sib: consumer"),
+        "Consumer's own template-vars should win in B2's template.\n\
+         Expected 'sib: consumer' but got:\n{}",
+        b2_content
+    );
+    assert!(
+        d_content.contains("sib: consumer"),
+        "Consumer's own template-vars should win in D's template.\n\
+         Expected 'sib: consumer' but got:\n{}",
+        d_content
+    );
+}

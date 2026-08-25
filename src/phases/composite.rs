@@ -14,12 +14,17 @@
 //!
 //! ## Process
 //!
-//! 1.  **Variable Consolidation**: The template variables from all
-//!     `IntermediateFS` instances are collected into a single, unified set.
-//!     If the same variable is defined in multiple repositories, the value
-//!     from the repository that appears later in the `OperationOrder` takes
-//!     precedence (i.e., a "last-write-wins" strategy). This is consistent
-//!     with how file merging works.
+//! 1.  **Variable Consolidation**: Template variables from every level of
+//!     the tree are combined into a single set. On conflict the precedence
+//!     is, highest first: a repo's own `template-vars` blocks (including
+//!     consumer `with:` ops appended to an upstream), then the later of two
+//!     sibling `repo:` entries at the same level, then the earlier sibling,
+//!     then values from deeper ancestors. The production implementation
+//!     lives in [`super::orchestrator::execute_sequential_pipeline`] (the
+//!     consumer level) and [`super::orchestrator::resolve_repo_inline`]
+//!     (nested levels). The [`execute`] function in this module is the
+//!     retired batch path, kept for unit tests only; it applies a plain
+//!     last-write-wins over the `OperationOrder`.
 //!
 //! 2.  **Template Processing**: Once the variables are consolidated, each
 //!     `IntermediateFS`'s underlying `MemoryFS` is processed for templates

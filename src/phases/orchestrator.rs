@@ -150,7 +150,15 @@ pub fn partition_self_operations(config: &Schema) -> (Vec<SelfOp>, Schema) {
 /// An [`IntermediateFS`] whose `fs` field is the sub-composite, whose
 /// `merge_operations` includes both this repo's deferred merges and any
 /// propagated from nested `repo:` resolutions, and whose `template_vars`
-/// includes vars from nested repos (last-write-wins).
+/// combines this repo's vars with those from nested repos. Precedence on
+/// conflict, highest first:
+///
+/// 1. This repo's own `template-vars` blocks (including consumer `with:`
+///    ops appended in Phase 1), regardless of where they appear in the file.
+/// 2. Among nested `repo:` entries and tree children, the one declared later
+///    in operation order.
+/// 3. Values from deeper ancestors, which only fill in keys nothing nearer
+///    defines.
 pub(crate) fn resolve_repo_inline(
     cloned: &ClonedRepo,
     cloned_repos: &HashMap<String, ClonedRepo>,
@@ -182,7 +190,12 @@ fn resolve_repo_inline_inner(
     // Slow path: operations contain repo: references or this node has tree
     // children (repos discovered from the upstream .common-repo.yaml).
     // Process sequentially so repo: ops fire at their declaration position.
-    let mut template_vars = phase2::collect_template_vars(&cloned.operations)?;
+    // This repo's own template vars (its `template-vars` blocks plus any
+    // consumer `with:` ops appended in Phase 1). Inherited vars from nested
+    // repos and tree children are collected separately and overlaid by the
+    // own vars at the end, so own vars win regardless of position.
+    let own_template_vars = phase2::collect_template_vars(&cloned.operations)?;
+    let mut inherited_template_vars: HashMap<String, String> = HashMap::new();
     let mut merge_operations = phase2::collect_merge_operations(&cloned.operations);
 
     // Per the operators spec, the composite starts empty and the source FS
@@ -251,7 +264,9 @@ fn resolve_repo_inline_inner(
                     merge_operations.extend(nested_result.merge_operations);
                     merge_operations.extend(residual);
 
-                    template_vars.extend(nested_result.template_vars);
+                    // Later nested sibling wins among inherited vars. This
+                    // repo's own vars are overlaid after the loop.
+                    inherited_template_vars.extend(nested_result.template_vars);
                 } else {
                     warn!(
                         "Nested repo: reference not found in cloned repos, skipping: {}@{}",
@@ -316,7 +331,9 @@ fn resolve_repo_inline_inner(
 
             merge_operations.extend(child_result.merge_operations);
             merge_operations.extend(residual);
-            template_vars.extend(child_result.template_vars);
+            // Later tree child wins among inherited vars. This repo's own
+            // vars are overlaid after the loop.
+            inherited_template_vars.extend(child_result.template_vars);
         } else {
             warn!(
                 "Tree child not found in cloned repos, skipping: {}",
@@ -324,6 +341,10 @@ fn resolve_repo_inline_inner(
             );
         }
     }
+
+    // Final precedence: own vars > later sibling > earlier sibling.
+    let mut template_vars = inherited_template_vars;
+    template_vars.extend(own_template_vars);
 
     Ok(IntermediateFS::new_with_vars_and_merges(
         fs,
@@ -391,7 +412,13 @@ fn execute_sequential_pipeline(
     // repo: integrations and additive include operators.
     let mut fs = MemoryFS::new();
 
-    let mut all_template_vars = HashMap::new();
+    // Template vars are kept in two maps until the loop ends. `own_template_vars`
+    // holds this level's own `template-vars` blocks; `inherited_template_vars`
+    // holds vars from `repo:` integrations, extended in operation order so a
+    // later sibling overwrites an earlier one. Own vars are laid over the
+    // inherited set after the loop, so they win regardless of position.
+    let mut own_template_vars = HashMap::new();
+    let mut inherited_template_vars = HashMap::new();
     let mut residual_deferred_ops: Vec<Operation> = Vec::new();
     // Accumulate auto-merge targets across all repo integrations so that a
     // later repo can trigger format-aware merge for a file declared by an
@@ -529,15 +556,10 @@ fn execute_sequential_pipeline(
                     );
                     residual_deferred_ops.extend(residual);
 
-                    // Upstream template vars fill in defaults but do not
-                    // overwrite consumer-level vars already set by a preceding
-                    // template-vars operation. This matches the old batch
-                    // pipeline where Phase 4 processed repos in post-order
-                    // (children before parents, local root last) and the local
-                    // root's consumer vars were the final write.
-                    for (key, value) in sub_composite.template_vars {
-                        all_template_vars.entry(key).or_insert(value);
-                    }
+                    // Later sibling wins among inherited vars. Own vars
+                    // (consumer `template-vars` blocks) are overlaid after
+                    // the loop, so they beat every inherited value.
+                    inherited_template_vars.extend(sub_composite.template_vars);
                 } else {
                     warn!(
                         "Repo reference not found in cloned repos, skipping: {}@{}",
@@ -550,7 +572,7 @@ fn execute_sequential_pipeline(
                 crate::operators::template::mark(template, &mut fs)?;
             }
             Operation::TemplateVars { template_vars } => {
-                crate::operators::template_vars::collect(template_vars, &mut all_template_vars)?;
+                crate::operators::template_vars::collect(template_vars, &mut own_template_vars)?;
             }
             Operation::Yaml { .. }
             | Operation::Json { .. }
@@ -627,6 +649,10 @@ fn execute_sequential_pipeline(
         }
         phase4::execute_merge_operation(&mut fs, op)?;
     }
+
+    // Final precedence: own vars > later sibling > earlier sibling.
+    let mut all_template_vars = inherited_template_vars;
+    all_template_vars.extend(own_template_vars);
 
     // Process templates with all collected variables.
     // Runs before the filter pass so template-expanded files carry the
@@ -1653,9 +1679,11 @@ mod tests {
         let cache = RepoCache::new();
 
         // The child's template-vars operation (same in with: and in ClonedRepo
-        // so the lookup key matches)
+        // so the lookup key matches). SHARED_VAR conflicts with the parent's
+        // declaration; CHILD_VAR is child-only.
         let mut child_vars = HashMap::new();
         child_vars.insert("CHILD_VAR".to_string(), "child_value".to_string());
+        child_vars.insert("SHARED_VAR".to_string(), "child_value".to_string());
         let child_tv_op = Operation::TemplateVars {
             template_vars: TemplateVars {
                 vars: child_vars.clone(),
@@ -1671,10 +1699,12 @@ mod tests {
             vec![child_tv_op.clone()],
         );
 
-        // Parent defines its own template vars + references child with
-        // matching with: ops so the key lookup succeeds
+        // Parent defines its own template vars (including SHARED_VAR, which
+        // must win over the child's) + references child with matching with:
+        // ops so the key lookup succeeds
         let mut parent_vars = HashMap::new();
         parent_vars.insert("PARENT_VAR".to_string(), "parent_value".to_string());
+        parent_vars.insert("SHARED_VAR".to_string(), "parent_value".to_string());
         let parent = ClonedRepo::new(
             MemoryFS::new(),
             "https://github.com/test/parent.git".to_string(),
@@ -1708,6 +1738,81 @@ mod tests {
             result.template_vars.get("CHILD_VAR").unwrap(),
             "child_value"
         );
+        // On conflict, the nearer repo (parent) wins over the nested child
+        assert_eq!(
+            result.template_vars.get("SHARED_VAR").unwrap(),
+            "parent_value"
+        );
+    }
+
+    #[test]
+    fn test_resolve_repo_inline_later_nested_sibling_wins() {
+        use crate::cache::RepoCache;
+        use crate::config::{RepoOp, TemplateVars};
+        use crate::filesystem::MemoryFS;
+
+        let cache = RepoCache::new();
+
+        // Two nested children both define SIB; child1 also defines OWN
+        // (which the parent overrides). Neither defines PARENT_ONLY.
+        let mk_child = |url: &str, vars: &[(&str, &str)]| {
+            let mut map = HashMap::new();
+            for (k, v) in vars {
+                map.insert(k.to_string(), v.to_string());
+            }
+            let tv_op = Operation::TemplateVars {
+                template_vars: TemplateVars { vars: map },
+            };
+            let cloned = ClonedRepo::new(
+                MemoryFS::new(),
+                url.to_string(),
+                "main".to_string(),
+                vec![tv_op.clone()],
+            );
+            let repo_op = Operation::Repo {
+                repo: RepoOp {
+                    url: url.to_string(),
+                    r#ref: Some("main".to_string()),
+                    path: None,
+                    with: vec![tv_op],
+                },
+            };
+            (cloned, repo_op)
+        };
+
+        let (child1, child1_op) = mk_child(
+            "https://github.com/test/child1.git",
+            &[("SIB", "one"), ("OWN", "child1_value")],
+        );
+        let (child2, child2_op) = mk_child("https://github.com/test/child2.git", &[("SIB", "two")]);
+
+        let mut parent_vars = HashMap::new();
+        parent_vars.insert("OWN".to_string(), "parent_value".to_string());
+        let parent = ClonedRepo::new(
+            MemoryFS::new(),
+            "https://github.com/test/parent.git".to_string(),
+            "main".to_string(),
+            vec![
+                child1_op,
+                child2_op,
+                // Parent's own vars declared AFTER the nested repos; they
+                // must still win over both children.
+                Operation::TemplateVars {
+                    template_vars: TemplateVars { vars: parent_vars },
+                },
+            ],
+        );
+
+        let mut cloned_repos = HashMap::new();
+        cloned_repos.insert(child1.node_key(), child1);
+        cloned_repos.insert(child2.node_key(), child2);
+
+        let result = resolve_repo_inline(&parent, &cloned_repos, &cache).unwrap();
+
+        // Later nested sibling wins for SIB
+        assert_eq!(result.template_vars.get("SIB").unwrap(), "two");
+        // Parent's own var beats both children
+        assert_eq!(result.template_vars.get("OWN").unwrap(), "parent_value");
     }
 
     #[test]
