@@ -1467,3 +1467,207 @@ fn test_consumer_template_vars_before_sibling_repos_win() {
         d_content
     );
 }
+
+// =============================================================================
+// Same upstream referenced twice with different `with:` operations
+// =============================================================================
+
+/// Test that two `repo:` entries for the same URL and ref resolve separately.
+///
+/// Phase 1 stores each entry as its own cloned repo (the key includes the
+/// `with:` operations). The pipeline must resolve each entry to its own
+/// clone rather than the first URL/ref match. The first entry excludes
+/// `d.txt` and sets `VAR: first`; the second excludes `e.txt` and sets
+/// `VAR: second`. Both `d.txt` and `e.txt` must land in the consumer (each
+/// entry contributes the file the other excluded), and the later entry's
+/// `VAR` must win in the rendered template.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_same_upstream_twice_with_different_with_ops_resolves_each_entry() {
+    let upstream = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &upstream,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "c.txt"
+    - "d.txt"
+    - "e.txt"
+- template:
+    - "c.txt"
+- template-vars:
+    VAR: u-default
+"#,
+            ),
+            ("c.txt", "var: __COMMON_REPO__VAR__\n"),
+            ("d.txt", "d\n"),
+            ("e.txt", "e\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let upstream_url = format!("file://{}", upstream.path().display());
+
+    let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{0}"
+    ref: main
+    with:
+      - exclude:
+          - "d.txt"
+      - template-vars:
+          VAR: first
+- repo:
+    url: "{0}"
+    ref: main
+    with:
+      - exclude:
+          - "e.txt"
+      - template-vars:
+          VAR: second
+"#,
+            upstream_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    // Each entry contributes the file the other excluded. If both entries
+    // resolved to the same clone, one of these would be missing.
+    consumer.child("d.txt").assert(predicate::path::exists());
+    consumer.child("e.txt").assert(predicate::path::exists());
+
+    let content = std::fs::read_to_string(consumer.child("c.txt").path()).unwrap();
+    assert!(
+        content.contains("var: second"),
+        "Later entry's with: template-vars should win.\n\
+         Expected 'var: second' but got:\n{}",
+        content
+    );
+}
+
+// =============================================================================
+// Sibling precedence across a nested chain: later sibling's ancestors win too
+// =============================================================================
+
+/// Test that a later sibling's whole resolved result wins, ancestors included.
+///
+/// Consumer references D (defines `VAR: d`) then B. B references C (defines
+/// `VAR: c`) and does not define `VAR` itself. Precedence is flattened
+/// operation order with the last `template-vars` block winning, so B's
+/// resolved vars (which carry C's `VAR: c`) overwrite D's. Both rendered
+/// templates must contain `var: c`.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_later_sibling_chain_ancestor_template_vars_win_over_earlier_sibling() {
+    let repo_c = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_c,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "c.txt"
+- template:
+    - "c.txt"
+- template-vars:
+    VAR: c
+"#,
+            ),
+            ("c.txt", "var: __COMMON_REPO__VAR__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let c_url = format!("file://{}", repo_c.path().display());
+
+    // B: references C, does not define VAR
+    let repo_b = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_b,
+        &[(
+            ".common-repo.yaml",
+            &format!(
+                r#"- repo:
+    url: "{}"
+    ref: main
+"#,
+                c_url
+            ),
+        )],
+        None,
+    )
+    .unwrap();
+    let b_url = format!("file://{}", repo_b.path().display());
+
+    let repo_d = assert_fs::TempDir::new().unwrap();
+    init_test_git_repo(
+        &repo_d,
+        &[
+            (
+                ".common-repo.yaml",
+                r#"- include:
+    - "d.txt"
+- template:
+    - "d.txt"
+- template-vars:
+    VAR: d
+"#,
+            ),
+            ("d.txt", "var: __COMMON_REPO__VAR__\n"),
+        ],
+        None,
+    )
+    .unwrap();
+    let d_url = format!("file://{}", repo_d.path().display());
+
+    // Consumer: D first, then B (whose chain carries C's VAR)
+    let consumer = assert_fs::TempDir::new().unwrap();
+    consumer
+        .child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"- repo:
+    url: "{}"
+    ref: main
+- repo:
+    url: "{}"
+    ref: main
+"#,
+            d_url, b_url
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+
+    cmd.current_dir(consumer.path())
+        .arg("apply")
+        .arg("--verbose")
+        .assert()
+        .success();
+
+    let d_content = std::fs::read_to_string(consumer.child("d.txt").path()).unwrap();
+    let c_content = std::fs::read_to_string(consumer.child("c.txt").path()).unwrap();
+
+    assert!(
+        d_content.contains("var: c"),
+        "Later sibling chain's ancestor value should win in D's template.\n\
+         Expected 'var: c' but got:\n{}",
+        d_content
+    );
+    assert!(
+        c_content.contains("var: c"),
+        "Later sibling chain's ancestor value should win in C's template.\n\
+         Expected 'var: c' but got:\n{}",
+        c_content
+    );
+}
