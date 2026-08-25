@@ -102,6 +102,48 @@ fn match_cloned_repo_to_op(cloned: &ClonedRepo, repo: &RepoOp) -> bool {
     }
 }
 
+/// Resolve a top-level `repo:` operation to its [`ClonedRepo`].
+///
+/// `root_child_key` is the exact `cloned_repos` key of the tree child that
+/// Phase 1 discovery built for this operation. Sibling `repo:` entries with
+/// the same URL and ref but different `with:` operations are stored as
+/// separate entries, so the exact key is the only lookup that tells them
+/// apart. When the key is absent or unknown, falls back to scanning by URL
+/// and ref via [`match_cloned_repo_to_op`].
+fn lookup_root_repo<'a>(
+    repo: &RepoOp,
+    root_child_key: Option<&str>,
+    cloned_repos: &'a HashMap<String, ClonedRepo>,
+) -> Option<&'a ClonedRepo> {
+    if let Some(key) = root_child_key {
+        match cloned_repos.get(key) {
+            Some(cloned) if match_cloned_repo_to_op(cloned, repo) => return Some(cloned),
+            _ => debug!(
+                "Tree child key {} did not resolve {}@{}; falling back to URL/ref scan",
+                key,
+                repo.url,
+                repo.r#ref.as_deref().unwrap_or("")
+            ),
+        }
+    }
+
+    let candidates: Vec<_> = cloned_repos
+        .values()
+        .filter(|c| match_cloned_repo_to_op(c, repo))
+        .collect();
+
+    if candidates.len() > 1 {
+        warn!(
+            "Multiple cloned repos match {}@{} ({} candidates); using first match",
+            repo.url,
+            repo.r#ref.as_deref().unwrap_or(""),
+            candidates.len()
+        );
+    }
+
+    candidates.into_iter().next()
+}
+
 /// Partition a config into self operations and source operations.
 ///
 /// Self operations run in an isolated pipeline. Source operations
@@ -400,6 +442,12 @@ fn execute_sequential_pipeline(
     // Build cloned_repos map for on-demand resolution
     let cloned_repos = phase2::clone_tree_repos(&repo_tree, repo_manager)?;
 
+    // Top-level `repo:` operations correspond one-to-one, in declaration
+    // order, with the root node's children built by Phase 1 discovery. Each
+    // child's node key is the exact `cloned_repos` key for that entry, which
+    // is what tells apart sibling entries sharing a URL and ref.
+    let mut root_children = repo_tree.root.children.iter();
+
     // Source FS: the read-only input from which include operators pull
     // files. Per the operators spec, this is the local working directory
     // on disk for both self and source blocks. include operators pull
@@ -493,25 +541,10 @@ fn execute_sequential_pipeline(
                 );
                 // Phase 1 enriches each repo node with upstream filtering +
                 // deferred ops, so the cloned_repos key differs from the raw
-                // (url, ref, with) on the Operation::Repo. Look up via
-                // match_cloned_repo_to_op, which handles both git repos
-                // (by url+ref) and local repos (by original_url). If multiple
-                // candidates match, take the first and warn.
-                let candidates: Vec<_> = cloned_repos
-                    .values()
-                    .filter(|c| match_cloned_repo_to_op(c, repo))
-                    .collect();
-
-                if candidates.len() > 1 {
-                    warn!(
-                        "Multiple cloned repos match {}@{} ({} candidates); using first match",
-                        repo.url,
-                        repo.r#ref.as_deref().unwrap_or(""),
-                        candidates.len()
-                    );
-                }
-
-                let cloned = candidates.into_iter().next();
+                // (url, ref, with) on the Operation::Repo. Resolve through
+                // the matching root tree child instead; see lookup_root_repo.
+                let root_child_key = root_children.next().map(|c| c.node_key());
+                let cloned = lookup_root_repo(repo, root_child_key.as_deref(), &cloned_repos);
 
                 if let Some(cloned) = cloned {
                     let sub_composite = resolve_repo_inline(cloned, &cloned_repos, cache)?;
@@ -1743,6 +1776,54 @@ mod tests {
             result.template_vars.get("SHARED_VAR").unwrap(),
             "parent_value"
         );
+    }
+
+    #[test]
+    fn test_lookup_root_repo_uses_exact_tree_child_key() {
+        use crate::config::{RepoOp, TemplateVars};
+        use crate::filesystem::MemoryFS;
+
+        // Two consumer `repo:` entries for the same URL/ref with different
+        // `with:` template-vars. Phase 1 stores them as separate ClonedRepo
+        // entries (the node key includes the ops), and the lookup must
+        // resolve each entry to its own ClonedRepo, not the first URL match.
+        let mk = |val: &str| {
+            let mut vars = HashMap::new();
+            vars.insert("VAR".to_string(), val.to_string());
+            let tv_op = Operation::TemplateVars {
+                template_vars: TemplateVars { vars },
+            };
+            let cloned = ClonedRepo::new(
+                MemoryFS::new(),
+                "https://github.com/test/same.git".to_string(),
+                "main".to_string(),
+                vec![tv_op.clone()],
+            );
+            let op = RepoOp {
+                url: "https://github.com/test/same.git".to_string(),
+                r#ref: Some("main".to_string()),
+                path: None,
+                with: vec![tv_op],
+            };
+            (cloned, op)
+        };
+        let (first, first_op) = mk("first");
+        let (second, second_op) = mk("second");
+        let first_key = first.node_key();
+        let second_key = second.node_key();
+        assert_ne!(first_key, second_key);
+
+        let mut cloned_repos = HashMap::new();
+        cloned_repos.insert(first_key.clone(), first);
+        cloned_repos.insert(second_key.clone(), second);
+
+        // A URL/ref scan would return the same (arbitrary) entry for both
+        // ops, so at least one of these two assertions fails under a scan.
+        let resolved_first = lookup_root_repo(&first_op, Some(&first_key), &cloned_repos).unwrap();
+        assert_eq!(resolved_first.node_key(), first_key);
+        let resolved_second =
+            lookup_root_repo(&second_op, Some(&second_key), &cloned_repos).unwrap();
+        assert_eq!(resolved_second.node_key(), second_key);
     }
 
     #[test]
