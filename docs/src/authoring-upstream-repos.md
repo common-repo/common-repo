@@ -411,7 +411,10 @@ Include a README section or separate file listing available variables:
 
 ### Variable Overrides
 
-Child repos can override variables defined by their parents:
+Child repos can override variables defined by their parents. A repo's own
+`template-vars` always win over inherited values, and when two sibling
+`repo:` entries define the same variable the later one wins (see
+[Variable Cascading](configuration.md#variable-cascading)):
 
 ```yaml
 # Consumer's .common-repo.yaml

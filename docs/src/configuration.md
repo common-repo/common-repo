@@ -320,16 +320,41 @@ Define variables for template substitution. Values are literal strings.
 
 #### Variable Cascading
 
-Variables cascade through the inheritance tree. Child repos can override ancestor variables:
+Variables cascade through the inheritance tree. When the same variable is
+defined in more than one place, the value is chosen by these rules, highest
+precedence first:
+
+1. A repo's own `template-vars` blocks win over anything it inherits from
+   its `repo:` entries, no matter where the blocks appear in its config
+   file. For an upstream repo, "own" includes the `with:` operations a
+   consumer appends to it.
+2. Among sibling `repo:` entries at the same level, the one declared later
+   wins.
+3. A nearer level in the chain beats a more distant ancestor. Ancestor
+   values only fill in variables nothing nearer defines.
 
 ```yaml
-# In parent repo
+# Consumer's .common-repo.yaml
+- repo:
+    url: https://github.com/org/base-a
+    ref: v1.0.0
+    # base-a sets log_level: info and region: us-east
+- repo:
+    url: https://github.com/org/base-b
+    ref: v2.0.0
+    # base-b sets log_level: debug
 - template-vars:
-    log_level: info
+    region: eu-west
+```
 
-# In child repo (overrides parent)
+Here `log_level` renders as `debug` because `base-b` is the later sibling,
+and `region` renders as `eu-west` because the consumer's own block wins even
+though it comes after both `repo:` entries. To restore an earlier sibling's
+value, re-declare it in your own `template-vars`:
+
+```yaml
 - template-vars:
-    log_level: debug
+    log_level: info   # take base-a's value back over base-b's
 ```
 
 ### `tools` - Validate Required Tools
