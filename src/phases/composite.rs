@@ -6,7 +6,7 @@
 //! calculated in Phase 3.
 //!
 //! The sequential `self:` pipeline merges one sub-composite at a time using
-//! [`integrate_sub_composite`] instead of calling [`execute`] over the full
+//! [`integrate_sub_composite`] instead of calling `execute` over the full
 //! intermediate map. That path applies the same auto-merge rules as the batch
 //! merge: when the incoming sub-composite declares auto-merge for a path that
 //! already exists in the parent, content is merged in a format-aware way
@@ -14,12 +14,33 @@
 //!
 //! ## Process
 //!
-//! 1.  **Variable Consolidation**: The template variables from all
-//!     `IntermediateFS` instances are collected into a single, unified set.
-//!     If the same variable is defined in multiple repositories, the value
-//!     from the repository that appears later in the `OperationOrder` takes
-//!     precedence (i.e., a "last-write-wins" strategy). This is consistent
-//!     with how file merging works.
+//! 1.  **Variable Consolidation**: Template variables from every level of
+//!     the tree are combined into a single set. On conflict the precedence
+//!     is, highest first:
+//!     - **Own blocks**: a repo's own `template-vars` blocks, no matter
+//!       where they appear in its config file. For an upstream, "own"
+//!       includes the `with:` operations a consumer appends to it, and
+//!       those beat the upstream's own blocks because they are applied
+//!       after them.
+//!     - **Later sibling**: the later of two sibling `repo:` entries at the
+//!       same level, compared by each sibling's whole resolved result, so a
+//!       value a later sibling inherits from its own ancestor beats an
+//!       earlier sibling's own value.
+//!     - **Earlier sibling**: applies wherever no later sibling defines the
+//!       variable.
+//!     - **Ancestor gap-fill**: within one `repo:` entry's chain, a nearer
+//!       level beats a more distant one; ancestors only fill in variables
+//!       nothing nearer defines.
+//!
+//!     The user-facing description of these tiers is the "Variable
+//!     Cascading" section of `docs/src/configuration.md`
+//!     (`docs/src/configuration.md#variable-cascading`); keep the two in
+//!     sync. The production implementation lives in
+//!     [`super::orchestrator::execute_sequential_pipeline`] (the consumer
+//!     level) and [`super::orchestrator::resolve_repo_inline`] (nested
+//!     levels). The `execute` function in this module is the retired batch
+//!     path, compiled for tests only; it applies a plain last-write-wins
+//!     over the `OperationOrder`.
 //!
 //! 2.  **Template Processing**: Once the variables are consolidated, each
 //!     `IntermediateFS`'s underlying `MemoryFS` is processed for templates
@@ -42,7 +63,9 @@
 
 use std::collections::HashMap;
 
-use super::{IntermediateFS, OperationOrder};
+use super::IntermediateFS;
+#[cfg(test)]
+use super::OperationOrder;
 use crate::config::Operation;
 use crate::error::{Error, Result};
 use crate::filesystem::MemoryFS;
@@ -53,9 +76,9 @@ use crate::filesystem::MemoryFS;
 /// by first processing all templates with a unified set of variables and
 /// then merging the resulting filesystems in the correct order.
 ///
-/// Used by unit tests; the production pipeline now uses the sequential
+/// Compiled for tests only. The production pipeline uses the sequential
 /// model via [`super::orchestrator::execute_sequential_pipeline`].
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn execute(
     order: &OperationOrder,
     intermediate_fss: &HashMap<String, IntermediateFS>,
@@ -138,9 +161,9 @@ fn merge_filesystem(target_fs: &mut MemoryFS, source_fs: &MemoryFS) -> Result<()
 /// Returns a map from target file path to the corresponding Operation,
 /// for operations that have `auto_merge` set.
 ///
-/// Only collects non-explicitly-deferred ops. Used by the batch pipeline
-/// (Phase 4) where `defer: true` ops are reserved for Phase 5.
-#[allow(dead_code)]
+/// Only collects non-explicitly-deferred ops. Used by the test-only batch
+/// pipeline (`execute`) where `defer: true` ops are reserved for Phase 5.
+#[cfg(test)]
 fn collect_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
     let mut targets = HashMap::new();
     for op in ops {

@@ -1,0 +1,6 @@
+- repo:
+    url: __FIXTURE__/middle
+- template-vars:
+    log_level: warn
+- template-vars:
+    log_level: error

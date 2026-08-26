@@ -1,0 +1,2 @@
+- template-vars:
+    timeout: "60"

@@ -1,0 +1,5 @@
+- template-vars:
+    log_level: warn
+    region: eu-central
+- repo:
+    url: __FIXTURE__/middle

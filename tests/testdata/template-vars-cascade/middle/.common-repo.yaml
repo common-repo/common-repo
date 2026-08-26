@@ -1,0 +1,4 @@
+- repo:
+    url: ../base-a
+- template-vars:
+    log_level: debug

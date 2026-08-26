@@ -1,0 +1,8 @@
+- include:
+    - settings.conf
+- template:
+    - settings.conf
+- template-vars:
+    log_level: info
+    timeout: "30"
+    region: us-east
