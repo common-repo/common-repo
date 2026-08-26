@@ -558,7 +558,7 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
 | `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
-| `append` | No | false | Deprecated: use `array_mode: append` instead |
+| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append` and `append_unique` modes) |
 
 *Either `source`+`dest` or `auto-merge` is required
 
@@ -569,6 +569,9 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `replace` | Replace destination array with source array (default) |
 | `append` | Append source items to the end of destination array |
 | `append_unique` | Append only items not already in destination array |
+
+`position: start` inserts source items at the front of the destination array
+instead of the end. It only affects the `append` and `append_unique` modes.
 
 #### Examples
 
@@ -595,7 +598,7 @@ The `path` option in merge operators supports multiple notations for navigating 
     source: extra-items.yml
     dest: config.yml
     path: items
-    append: true
+    array_mode: append
 ```
 
 **Add jobs to CI workflow:**
@@ -605,7 +608,7 @@ The `path` option in merge operators supports multiple notations for navigating 
     source: ci-jobs.yml
     dest: .github/workflows/ci.yml
     path: jobs
-    append: true
+    array_mode: append
 ```
 
 ### `json` - Merge JSON Files
@@ -626,8 +629,8 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Dot-notation path to merge at |
-| `append` | No | false | Append to arrays instead of replace |
-| `position` | No | - | Where to append: `start` or `end` (only used when `append: true`) |
+| `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
+| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append` and `append_unique` modes) |
 
 *Either `source`+`dest` or `auto-merge` is required
 
@@ -647,7 +650,7 @@ The `path` option in merge operators supports multiple notations for navigating 
     source: scripts.json
     dest: package.json
     path: scripts
-    append: true
+    array_mode: append
     position: start
 ```
 
@@ -678,7 +681,7 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
 | `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
-| `append` | No | false | Deprecated: use `array_mode: append` instead |
+| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append` and `append_unique` modes) |
 | `preserve-comments` | No | false | Keep comments in output |
 
 *Either `source`+`dest` or `auto-merge` is required
@@ -915,5 +918,5 @@ Here's a complete configuration showing multiple operators:
     source: ci-jobs.yml
     dest: .github/workflows/ci.yml
     path: jobs
-    append: true
+    array_mode: append
 ```
