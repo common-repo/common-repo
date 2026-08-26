@@ -1,6 +1,21 @@
 # Changelog
 
 - - -
+## v0.37.6 - 2026-08-26
+#### Bug Fixes
+- (**template-vars**) resolve sibling repo entries by exact node key - (0f056e2) - Jacob Alheid
+- (**template-vars**) let nearer repo override ancestor defaults in inheritance chains - (54e3477) - Jacob Alheid
+#### Documentation
+- (**filtering**) correct glob pattern semantics and remove redundant dotfile patterns - (15bb9fa) - Jacob Alheid
+- (**template-vars**) document with: precedence and sibling result semantics - (e6e2801) - Jacob Alheid
+#### Tests
+- (**init**) use CARGO_BIN_EXE for interactive e2e binary path - (b111d21) - Jacob Alheid
+- (**template-vars**) add expected-fixture for inheritance cascade precedence - (6a320c5) - Jacob Alheid
+#### Refactoring
+- (**phases**) gate retired batch path and repo operator behind cfg(test) - (81b97db) - Jacob Alheid
+
+- - -
+
 ## v0.37.5 - 2026-08-21
 #### Bug Fixes
 - (**add**) anchor repo insertion to top-level include entries - (6ff3278) - Jacob Alheid
