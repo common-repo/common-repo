@@ -2,7 +2,9 @@
 //!
 //! This module implements the `apply` subcommand, which is the primary command
 //! for the `common-repo` tool. It orchestrates the entire multi-phase process
-//! of fetching, processing, and merging repository configurations.
+//! of fetching, processing, and merging repository configurations, then
+//! writes the files that reach the working directory (the `self:` output
+//! when `self:` is present).
 //!
 //! ## Execution Flow
 //!
@@ -121,7 +123,7 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
     let repo_cache = RepoCache::new();
 
     // Execute the 6-phase pipeline
-    let result = orchestrator::execute_pull(
+    let result = orchestrator::execute_pull_outcome(
         &config,
         &repo_manager,
         &repo_cache,
@@ -134,13 +136,13 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
     );
 
     match result {
-        Ok(final_fs) => {
+        Ok(outcome) => {
             let duration = start_time.elapsed();
 
             log::info!("✅ Applied successfully in {:.2}s", duration.as_secs_f64());
 
             // Report statistics
-            let file_count = final_fs.len();
+            let file_count = outcome.local_output().len();
             if file_count > 0 {
                 log::info!("   {} files processed", file_count);
 

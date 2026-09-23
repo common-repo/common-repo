@@ -407,7 +407,9 @@ This operator validates but does not install tools. Warnings are issued for miss
 
 ### `self` - Local-Only Operations
 
-Run a sub-pipeline of operations that apply only to the local repository. Files produced by `self:` blocks are written to disk but never appear in the composite filesystem that downstream consumers see.
+Run a sub-pipeline of operations that apply only to the local repository. Files produced by `self:` blocks are written to the working directory but never appear in the composite filesystem that downstream consumers see.
+
+When a config has one or more `self:` blocks, `apply` writes only the `self:` output to the working directory. The top-level operations define the source API for consumers; their output is not written locally. When a config has no `self:` block, `apply` writes the top-level output to the working directory.
 
 This is useful when a repository is both a source (providing shared configuration to consumers) and wants to consume from its own upstream repos.
 
@@ -423,8 +425,8 @@ This is useful when a repository is both a source (providing shared configuratio
 #### How It Works
 
 1. The orchestrator partitions `self:` blocks from the rest of the config
-2. The source pipeline runs first (producing the composite filesystem for consumers)
-3. Each `self:` block runs as an independent pipeline afterward
+2. The source pipeline builds the composite filesystem for consumers in memory. When the config has a `self:` block, this composite is not written to disk
+3. Each `self:` block runs as an independent pipeline. It loads the working directory as it is on disk and does not see source pipeline output. When `apply` writes to the working directory (the default), this includes the output of earlier `self:` blocks. With `--output`, `diff`, or `ls`, it does not.
 4. Output from `self:` blocks is written to the working directory but excluded from what consumers inherit
 
 #### Rules
@@ -433,7 +435,9 @@ This is useful when a repository is both a source (providing shared configuratio
 - `self:` blocks cannot be nested (no `self:` inside `self:`)
 - `self:` blocks are stripped when a repo is consumed as an upstream — consumers never see them
 - Any operation valid at the top level can appear inside `self:` (repo, include, exclude, rename, template, merge operators, etc.)
-- A `self:` block needs at least one `repo:` to populate its composite filesystem. Without a `repo:`, the composite is empty and filtering operators like `include`/`exclude`/`rename` have nothing to operate on.
+- A `self:` block populates its composite filesystem through `include` (which pulls matching files from the local working directory) and/or `repo:`. Without one of these, the composite is empty and `exclude`/`rename` have nothing to operate on.
+- When a config has a `self:` block, the top-level output is not written locally. An upstream that wants its own `src/**` files in its working directory must include them inside `self:` (for example `- include: ["src/**"]` followed by the `rename` inside `self:`), as `common-repo/upstream` does.
+- `diff` compares the working directory against the files that `apply` would write: the `self:` output when a `self:` block is present. `ls` lists the source composite.
 
 #### Example: Source Repo That Consumes Upstream Tooling
 
@@ -442,6 +446,11 @@ This is useful when a repository is both a source (providing shared configuratio
 
 # Self operations — local only, consumers don't see these
 - self:
+    - include:
+        - "src/**"     # apply this repo's own files locally
+    - rename:
+        - from: "^src/(.*)$"
+          to: "$1"
     - repo:
         url: https://github.com/org/ci-tooling
         ref: v2.0.0
@@ -449,7 +458,7 @@ This is useful when a repository is both a source (providing shared configuratio
         - ".releaserc.yaml"
         - "commitlint.config.cjs"
 
-# Source API — what consumers get
+# Source API — what consumers get; not written to this repo's working directory
 - include:
     - "src/**"         # matches dotfiles under src/ too
 - template:
@@ -461,7 +470,7 @@ This is useful when a repository is both a source (providing shared configuratio
       to: "$1"
 ```
 
-In this example, the repo pulls CI tooling for its own use via `self:`, while consumers only see the files exposed by `include`, `template`, `template-vars`, and `rename`.
+In this example, the repo applies its own `src/**` files locally and pulls CI tooling for its own use via `self:`. Consumers only see the files exposed by the top-level `include`, `template`, `template-vars`, and `rename`. Because the config has a `self:` block, `apply` does not write the top-level output to the working directory.
 
 For a detailed guide on using `self:` when authoring upstream repositories, see [Authoring Upstream Repositories](authoring-upstream-repos.md#using-self-for-local-consumption).
 
@@ -832,7 +841,7 @@ Operations execute in the order they appear in the configuration file. For inher
 
 This means later operations can override earlier ones, and child repos can customize what they inherit from ancestors.
 
-`self:` blocks execute after the source pipeline completes, in declaration order. Each `self:` block runs as an independent sequential pipeline: operations fire in YAML declaration order, and `repo:` operations resolve inline at their declaration position. The pipeline starts with local files loaded from the working directory. Because local files are loaded first, filter operators (`include`, `exclude`, `rename`) can transform the local file set before a `repo:` integrates upstream content.
+`self:` blocks execute after the source pipeline builds the source composite in memory, in declaration order. When a `self:` block is present, the source composite is not written to disk; only the `self:` output is. Each `self:` block runs as an independent sequential pipeline: operations fire in YAML declaration order, and `repo:` operations resolve inline at their declaration position. The pipeline starts with local files loaded from the working directory as it is on disk. When `apply` writes to the working directory (the default), this includes the output of earlier `self:` blocks. With `--output`, `diff`, or `ls`, it does not. Because local files are loaded first, filter operators (`include`, `exclude`, `rename`) can transform the local file set before a `repo:` integrates upstream content.
 
 ### Example Order
 
@@ -855,26 +864,31 @@ Here's a complete configuration showing multiple operators:
 ```yaml
 # .common-repo.yaml
 
-# Inherit base Rust CLI configuration
-- repo:
-    url: https://github.com/common-repo/rust-cli
-    ref: v2.0.0
-    with:
-      - include: ["**/*"]
-      - exclude: [".git/**", "target/**"]
-
-# Inherit pre-commit configuration
-- repo:
-    url: https://github.com/common-repo/pre-commit-rust
-    ref: v1.5.0
-    with:
-      - include: [".pre-commit-config.yaml"]
-
-# Consume shared tooling for this repo only (not exposed to consumers)
+# Local consumption — what this repo uses for itself.
+# Consumers never see these operations.
 - self:
+    # Inherit base Rust CLI configuration
+    - repo:
+        url: https://github.com/common-repo/rust-cli
+        ref: v2.0.0
+        with:
+          - include: ["**/*"]
+          - exclude: [".git/**", "target/**"]
+
+    # Inherit pre-commit configuration
+    - repo:
+        url: https://github.com/common-repo/pre-commit-rust
+        ref: v1.5.0
+        with:
+          - include: [".pre-commit-config.yaml"]
+
+    # Consume shared tooling
     - repo:
         url: https://github.com/common-repo/shared-tooling
         ref: v1.0.0
+
+# Source API — what consumers inherit.
+# With a self: block present, this output is not written to this repo's working directory.
 
 # Include local files
 - include:

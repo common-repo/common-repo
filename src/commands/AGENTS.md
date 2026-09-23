@@ -1,7 +1,7 @@
 # CLI commands
 
 - `add.rs`, `init.rs`: create or extend `.common-repo.yaml`.
-- `apply.rs`, `diff.rs`, `ls.rs`: compute/apply output, preview differences, or list affected files.
+- `apply.rs`, `diff.rs`, `ls.rs`: write or preview what `apply` writes (`PullOutcome::local_output`), or list the source composite (`ls` is not what `apply` writes when `self:` is present).
 - `check.rs`, `validate.rs`, `tree.rs`, `info.rs`: validate, inspect updates/tree/configuration.
 - `update.rs`, `cache.rs`: refresh repository refs and manage cache.
 - `completions.rs`: shell completion generation.

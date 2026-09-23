@@ -84,6 +84,8 @@ common-repo add --yes your-org/shared-configs
 
 Apply the `.common-repo.yaml` configuration to your repository. This runs the full 6-phase pipeline: discover repos, clone, process, merge, and write files.
 
+When the config has one or more `self:` blocks, `apply` writes only the `self:` output to the working directory. The top-level output is built in memory for consumers but is not written. See [`self`](configuration.md#self---local-only-operations).
+
 ```bash
 common-repo apply [OPTIONS]
 ```
@@ -234,7 +236,7 @@ common-repo completions elvish >> ~/.elvish/rc.elv
 
 ### `diff` - Preview Changes
 
-Show differences between current files and what the configuration would produce.
+Show differences between current files and what `apply` would write. When the config has a `self:` block, this is the `self:` output.
 
 ```bash
 common-repo diff [OPTIONS]
@@ -379,7 +381,7 @@ Shows:
 
 ### `ls` - List Files
 
-List files that would be created or modified by the configuration.
+List the files in the source composite filesystem that the configuration builds: the top-level operations' output overlaid on the local working directory. When the config has a `self:` block, this is not the set of files `apply` writes (that is the `self:` output).
 
 ```bash
 common-repo ls [OPTIONS]

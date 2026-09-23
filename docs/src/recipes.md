@@ -124,8 +124,14 @@ An upstream repo that provides shared configuration to consumers, while also pul
 ```yaml
 # .common-repo.yaml in an upstream repo
 
-# Pull tooling for this repo only — consumers never see this
+# Local consumption — apply this repo's own files and pull tooling
+# for this repo only. Consumers never see these operations.
 - self:
+    - include:
+        - "configs/**"
+    - rename:
+        - from: "^configs/(.*)$"
+          to: "$1"
     - repo:
         url: https://github.com/org/release-tooling
         ref: v3.0.0
@@ -136,7 +142,7 @@ An upstream repo that provides shared configuration to consumers, while also pul
         - ".releaserc.yaml"
         - "commitlint.config.cjs"
 
-# Source API — what consumers inherit
+# Source API — what consumers inherit; not written to this repo's working directory
 - include:
     - "configs/**"
     - ".github/**"
@@ -149,7 +155,7 @@ An upstream repo that provides shared configuration to consumers, while also pul
       to: "$1"
 ```
 
-Without `self:`, the release tooling and CI base files would leak into every consumer that inherits from this repo. See [Authoring Upstream Repositories](authoring-upstream-repos.md#using-self-for-local-consumption) for more details.
+Without `self:`, the release tooling and CI base files would leak into every consumer that inherits from this repo. Because the config has a `self:` block, `apply` writes only the `self:` output to the working directory; the top-level source API is not written locally. See [Authoring Upstream Repositories](authoring-upstream-repos.md#using-self-for-local-consumption) for more details.
 
 ## CI/CD Patterns
 

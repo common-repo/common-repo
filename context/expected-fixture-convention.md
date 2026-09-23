@@ -13,6 +13,11 @@ A fixture root contains zero or more sibling directories whose names end in
 
 - `<name>.expected/.common-repo.yaml` — the input config.
 - `<name>.expected/<rel-path>` — every file the apply must produce, byte-exact.
+- `<name>.input/` (optional sibling) — files seeded into the tempdir before
+  apply runs. Relative paths are preserved. Use this to model a pristine
+  working directory (for example, an upstream's own `src/**` files).
+  `<name>.input/` MUST NOT contain `.common-repo.yaml`; the config lives in
+  `<name>.expected/` and the runner fails if the input directory has one.
 
 Other siblings of the fixture root (typically the upstream definitions being
 inherited) are referenced from the input config via the `__FIXTURE__`
@@ -33,6 +38,8 @@ tests/testdata/some-fixture/
     .common-repo.yaml
     merge.yaml
     .github/workflows/ci.yaml         ← any path under .expected/ is checked
+  consumer.input/                     ← optional: seeded before apply
+    src/README.md
 ```
 
 `upstream-base/` here exists only as a consumable upstream — apply is never
@@ -52,14 +59,20 @@ The runner discovers every `*.expected/` directly under `fixture_root` and,
 for each:
 
 1. Creates a fresh tempdir.
-2. Reads `<name>.expected/.common-repo.yaml`, replaces every literal
+2. If `<name>.input/` exists, copies all its files into the tempdir with
+   relative paths preserved.
+3. Reads `<name>.expected/.common-repo.yaml`, replaces every literal
    `__FIXTURE__` with the canonicalized absolute path of `fixture_root`,
    writes the result into the tempdir.
-3. Runs `common-repo apply` in the tempdir. Failure of apply fails the test.
-4. Walks `<name>.expected/` and asserts every file is byte-identical to the
+4. Runs `common-repo apply` in the tempdir. Failure of apply fails the test.
+5. Walks `<name>.expected/` and asserts every file is byte-identical to the
    corresponding tempdir file. Missing files fail with a clear message.
-5. Walks the tempdir and fails if any file outside the expected set was
+6. Walks the tempdir and fails if any file outside the expected set was
    produced. Catches over-creation.
+
+The runner compares the whole tempdir. A file seeded from `<name>.input/`
+that survives apply must also be listed in `<name>.expected/`, or step 6
+reports it as unexpected.
 
 `.git/` and `.common-repo-cache/` are ignored on both sides. The input
 `.common-repo.yaml` is excluded from byte comparison because the runner
