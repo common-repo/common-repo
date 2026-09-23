@@ -1,11 +1,14 @@
 //! # Ls Command Implementation
 //!
-//! This module implements the `ls` subcommand, which lists the files that would
-//! be created or modified when applying a `.common-repo.yaml` configuration.
+//! This module implements the `ls` subcommand, which lists the files in the
+//! source composite that a `.common-repo.yaml` configuration builds: the
+//! top-level operations' output overlaid on the local working directory.
+//! When `self:` is present this is not the set of files `apply` writes.
 //!
 //! ## Functionality
 //!
-//! - **File Listing**: Shows all files that would result from applying the configuration
+//! - **File Listing**: Shows all files in the source composite that the
+//!   configuration builds
 //! - **Pattern Filtering**: Supports glob patterns to filter the output
 //! - **Detailed Output**: Optional long format showing file sizes and permissions
 //! - **Sorting**: Files can be sorted by name, size, or path
@@ -23,7 +26,7 @@ use common_repo::defaults::DEFAULT_CONFIG_FILENAME;
 use common_repo::phases::orchestrator;
 use common_repo::repository::RepositoryManager;
 
-/// List files that would be created/modified by the configuration
+/// List files in the source composite that the configuration builds
 #[derive(Args, Debug)]
 pub struct LsArgs {
     /// Path to the .common-repo.yaml configuration file.

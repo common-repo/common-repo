@@ -1,13 +1,13 @@
 //! # Diff Command Implementation
 //!
-//! This module implements the `diff` subcommand, which shows the differences
-//! between the current working directory and what would result from applying
-//! the `.common-repo.yaml` configuration.
+//! This module implements the `diff` subcommand, which compares the working
+//! directory against the files `apply` would write (the `self:` output when
+//! `self:` is present, else the source result).
 //!
 //! ## Functionality
 //!
-//! - **Change Detection**: Compares the composite filesystem (after applying
-//!   the configuration) with the current working directory
+//! - **Change Detection**: Compares the files `apply` would write with the
+//!   current working directory
 //! - **Change Categories**: Shows files that would be added, modified, or deleted
 //! - **Exit Codes**: Returns 0 if no changes would occur, 1 if changes exist
 //!
@@ -73,8 +73,8 @@ pub struct Change {
 /// Execute the `diff` command.
 ///
 /// This function handles the logic for the `diff` subcommand. It runs phases 1-5
-/// of the pipeline to build the final filesystem, then compares it against the
-/// working directory to show what changes would be made.
+/// of the pipeline, then compares the working directory against the files
+/// `apply` would write to show what changes would be made.
 ///
 /// Returns `Ok(())` with exit code 0 if no changes, exit code 1 if changes exist.
 pub fn execute(args: DiffArgs) -> Result<()> {
@@ -108,7 +108,7 @@ pub fn execute(args: DiffArgs) -> Result<()> {
         .unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
 
     // Execute phases 1-5 (skip phase 6 - writing to disk)
-    let final_fs = orchestrator::execute_pull(
+    let outcome = orchestrator::execute_pull_outcome(
         &schema,
         &repo_manager,
         &repo_cache,
@@ -118,7 +118,7 @@ pub fn execute(args: DiffArgs) -> Result<()> {
     .map_err(|e| anyhow::anyhow!("Failed to process configuration: {}", e))?;
 
     // Compare filesystems and collect changes
-    let changes = compute_changes(&final_fs, &working_dir)?;
+    let changes = compute_changes(outcome.local_output(), &working_dir)?;
 
     // Display results
     if changes.is_empty() {

@@ -428,6 +428,9 @@ rule SelfOperatorPartition {
     --     used as an upstream (filtering ops, deferred merges, repo children)
     --   - self operations are invisible to consumers and apply only to
     --     the defining repo's working directory
+    -- Write visibility also differs: when self_ops.count > 0, only the
+    -- self pipelines write to the working directory. The source final
+    -- FS stays in memory (for ls and for consumers). See WriteToDisk.
     let self_ops = config.self_operations
     let source_ops = config.source_operations
 
@@ -443,8 +446,16 @@ rule ExecuteSelfPipeline {
     -- Each self: block's inner operations run through
     -- execute_sequential_pipeline — the same code path used by source
     -- blocks. Output is written to the working directory.
-    for self_op in self_ops:
+    --
+    -- Each self pipeline loads the working directory as it is on disk.
+    -- When apply writes to the working directory (the default), this
+    -- includes the output of earlier self: blocks. With --output, diff,
+    -- or ls, nothing is written between blocks, so it does not. A self
+    -- pipeline never sees source pipeline output, because the source
+    -- final FS is not written when self_ops.count > 0 (see WriteToDisk).
+    for self_op in self_ops in declaration_order:
         ensures: SelfPipelineExecuted(self_op)
+        ensures: FilesWritten(self_op.final_fs)
 
     @guidance
         -- Both self: and source blocks call the same sequential pipeline
@@ -862,7 +873,13 @@ rule ApplyDeferredMerges {
 rule WriteToDisk {
     -- @status: Implemented
     when: FinalFSReady(final_fs, config)
+    requires: config.self_operations.count = 0
 
+    -- The source final FS is written only when the config has no self:
+    -- operations. When one or more self: blocks exist, only the self
+    -- pipelines write (see ExecuteSelfPipeline). The source final FS is
+    -- still built in memory: ls lists it, and consumers inherit from it.
+    --
     -- Iterate all files in the final filesystem.
     -- Create parent directories and write file content.
     ensures: FilesWritten(final_fs)
@@ -950,10 +967,14 @@ invariant SelfIsolation {
     -- with its own MemoryFS. The code path is identical; the state is
     -- isolated.
     --
-    -- Note: self and source pipelines share the on-disk working directory.
-    -- The source pipeline's write output is visible to the self pipeline's
-    -- local file loading. This is intentional — self pipelines operate on
-    -- the current state of the working directory.
+    -- Note: self and source pipelines read the same on-disk working
+    -- directory, but only one of them writes to it. When the config has
+    -- self: blocks, the source final FS is not written (see WriteToDisk),
+    -- so source pipeline output is never visible to a self pipeline's
+    -- local file loading. Each self pipeline loads the working directory
+    -- as it is on disk. When apply writes to the working directory (the
+    -- default), this includes the output of earlier self: blocks. With
+    -- --output, diff, or ls, it does not.
 }
 
 invariant CompositePrecedence {

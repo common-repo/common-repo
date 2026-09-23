@@ -21,9 +21,19 @@
 //!   combine the composite with local files (composite wins for shared
 //!   paths).
 //!
-//! [`execute_pull`] partitions the config into source and `self:` operations,
-//! runs the sequential pipeline for sources, then runs the sequential
-//! pipeline for each `self:` block.
+//! [`execute_pull_outcome`] partitions the config into source and `self:`
+//! operations, runs the sequential pipeline for sources, then runs the
+//! sequential pipeline for each `self:` block. Only one of the two results
+//! is written to disk: when a config has one or more `self:` blocks, only
+//! the `self:` output is written and the source result is built in memory
+//! only (it is what `ls` lists). Without a `self:` block, the source result
+//! is written. [`execute_pull`] is the same operation returning just the
+//! source result.
+//!
+//! Note that the source result is the Phase 5 overlay of the working
+//! directory's local files with the source composite, so it is a superset
+//! of what consumers inherit: consumers run this repo's source operations
+//! against the cloned repo, never against this working directory.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -750,16 +760,8 @@ fn execute_sequential_pipeline(
     Ok(fs)
 }
 
-/// Execute the complete pull operation.
-///
-/// Partitions the config into source and `self:` operations, then runs
-/// each through [`execute_sequential_pipeline`]. Both use the same
-/// sequential execution model where operations fire in YAML declaration
-/// order. Both start with an empty composite. See [`PipelineMode`] for
-/// how `include` and Phase 5 differ between the two modes.
-///
-/// If `output_path` is `None`, returns the final MemoryFS without writing to disk.
-/// If `output_path` is `Some(path)`, writes to disk and returns the MemoryFS.
+/// Same as [`execute_pull_outcome`] but returns only [`PullOutcome::composite`],
+/// the source composite (not necessarily what was written).
 pub fn execute_pull(
     config: &Schema,
     repo_manager: &RepositoryManager,
@@ -767,23 +769,86 @@ pub fn execute_pull(
     working_dir: &Path,
     output_path: Option<&Path>,
 ) -> Result<MemoryFS> {
+    execute_pull_outcome(config, repo_manager, cache, working_dir, output_path)
+        .map(|outcome| outcome.composite)
+}
+
+/// Result of [`execute_pull_outcome`].
+#[derive(Debug)]
+pub struct PullOutcome {
+    /// The source pipeline result: local files overlaid with the source
+    /// composite (Phase 5). This is what `ls` lists. It is a superset of
+    /// what consumers inherit, because consumers run the source operations
+    /// against the cloned repo, not against this working directory.
+    pub composite: MemoryFS,
+    /// The combined output of all `self:` blocks, in declaration order
+    /// (a later block wins for shared paths). `None` when the config has
+    /// no `self:` block.
+    pub self_output: Option<MemoryFS>,
+}
+
+impl PullOutcome {
+    /// The files that `apply` writes to the working directory.
+    ///
+    /// This is the single write rule: when the config has one or more
+    /// `self:` blocks, only their combined output is written and the source
+    /// result is built in memory only (it is what `ls` lists). Without a
+    /// `self:` block, the source result is written.
+    pub fn local_output(&self) -> &MemoryFS {
+        self.self_output.as_ref().unwrap_or(&self.composite)
+    }
+}
+
+/// Execute the complete pull operation and return both pipeline results.
+///
+/// Partitions the config into source and `self:` operations, then runs
+/// each through [`execute_sequential_pipeline`]. Both use the same
+/// sequential execution model where operations fire in YAML declaration
+/// order and both start with an empty composite; see [`PipelineMode`] for
+/// how `include` and Phase 5 differ between the two modes.
+///
+/// Which result reaches `output_path` is described on
+/// [`PullOutcome::local_output`]. If `output_path` is `None`, nothing is
+/// written.
+pub fn execute_pull_outcome(
+    config: &Schema,
+    repo_manager: &RepositoryManager,
+    cache: &RepoCache,
+    working_dir: &Path,
+    output_path: Option<&Path>,
+) -> Result<PullOutcome> {
     // Partition self: operations from source operations
     let (self_ops, source_config) = partition_self_operations(config);
 
+    let source_output_path = output_path.filter(|_| self_ops.is_empty());
+    debug!(
+        "source output: {}; self_blocks={}, top_level_ops={}",
+        if self_ops.is_empty() {
+            "written"
+        } else {
+            "in-memory only"
+        },
+        self_ops.len(),
+        source_config.len()
+    );
+
     // Run the source pipeline using the sequential model so operations
     // execute in YAML declaration order (same code path as self: blocks).
-    let final_fs = execute_sequential_pipeline(
+    let composite = execute_sequential_pipeline(
         &source_config,
         repo_manager,
         cache,
         working_dir,
-        output_path,
+        source_output_path,
         PipelineMode::SourceBlock,
     )?;
 
-    // Run self: pipelines using the same sequential execution model.
+    // Run self: pipelines using the same sequential execution model. Each
+    // block writes its own output; the combined result is returned so
+    // callers can report what reached the working directory.
+    let mut self_output: Option<MemoryFS> = None;
     for self_op in &self_ops {
-        execute_sequential_pipeline(
+        let block_fs = execute_sequential_pipeline(
             &self_op.operations,
             repo_manager,
             cache,
@@ -791,9 +856,15 @@ pub fn execute_pull(
             output_path,
             PipelineMode::SelfBlock,
         )?;
+        self_output
+            .get_or_insert_with(MemoryFS::new)
+            .extend(block_fs);
     }
 
-    Ok(final_fs)
+    Ok(PullOutcome {
+        composite,
+        self_output,
+    })
 }
 
 #[cfg(test)]
@@ -802,19 +873,15 @@ mod tests {
     use crate::config::{IfExists, IncludeOp, Operation, SelfOp};
     use crate::phases::ClonedRepo;
     use std::collections::HashMap;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
 
     /// Build an `Operation::Include` that pulls every file from the source
     /// FS into the composite. Mirrors the `- include: ['**']` line that
     /// most real-world `.common-repo.yaml` files declare to bring all
     /// upstream files into scope.
     fn include_all_op() -> Operation {
-        Operation::Include {
-            include: IncludeOp {
-                patterns: vec!["**".to_string()],
-                if_exists: IfExists::Overwrite,
-            },
-            if_exists: IfExists::Overwrite,
-        }
+        include_op(&["**"])
     }
 
     #[test]
@@ -875,7 +942,6 @@ mod tests {
         use crate::filesystem::MemoryFS;
         use crate::phases::{IntermediateFS, OperationOrder};
         use std::collections::HashMap;
-        use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
@@ -1532,8 +1598,6 @@ mod tests {
 
     #[test]
     fn test_self_block_no_include_produces_empty_composite() {
-        use tempfile::TempDir;
-
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
@@ -1568,8 +1632,6 @@ mod tests {
 
     #[test]
     fn test_self_block_include_is_additive() {
-        use tempfile::TempDir;
-
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
@@ -1648,8 +1710,6 @@ mod tests {
 
     #[test]
     fn test_self_block_include_after_exclude_readds_from_source() {
-        use tempfile::TempDir;
-
         let temp_dir = TempDir::new().unwrap();
         let working_dir = temp_dir.path();
 
@@ -1902,7 +1962,6 @@ mod tests {
         use crate::config::{IfExists, IncludeOp, Operation};
         use crate::repository::RepositoryManager;
         use std::fs;
-        use tempfile::TempDir;
 
         let working_dir = TempDir::new().unwrap();
         let output_dir = TempDir::new().unwrap();
@@ -1946,5 +2005,224 @@ mod tests {
             !output.join("a.txt").exists(),
             "a.txt should not be written when if_exists: Preserve and file exists locally"
         );
+    }
+
+    /// Build an include operation over the given patterns with
+    /// `if_exists: Overwrite`.
+    fn include_op(patterns: &[&str]) -> Operation {
+        Operation::Include {
+            include: IncludeOp {
+                patterns: patterns.iter().map(|p| p.to_string()).collect(),
+                if_exists: IfExists::Overwrite,
+            },
+            if_exists: IfExists::Overwrite,
+        }
+    }
+
+    /// Build a `self:` block from the given operations.
+    fn self_op(operations: Vec<Operation>) -> Operation {
+        Operation::Self_ {
+            self_: SelfOp { operations },
+        }
+    }
+
+    /// Build a single-mapping rename operation.
+    fn rename_op(from: &str, to: &str) -> Operation {
+        Operation::Rename {
+            rename: crate::config::RenameOp {
+                mappings: vec![crate::config::RenameMapping {
+                    from: from.to_string(),
+                    to: to.to_string(),
+                }],
+            },
+        }
+    }
+
+    /// Top-level source API operations for the issue #361 scenario: pull
+    /// `src/**` into the composite and strip the `src/` prefix.
+    fn source_api_ops() -> Vec<Operation> {
+        vec![include_op(&["src/**"]), rename_op("^src/(.*)$", "$1")]
+    }
+
+    /// Seed a working directory with the issue #361 layout: `src/test.txt`
+    /// (selected by the source API) and `keep.txt` (selected by `self:`).
+    fn seed_issue_361_working_dir(working: &Path) {
+        std::fs::create_dir_all(working.join("src")).unwrap();
+        std::fs::write(working.join("src/test.txt"), b"local source file").unwrap();
+        std::fs::write(working.join("keep.txt"), b"keep me").unwrap();
+    }
+
+    /// Build a [`RepositoryManager`] over a throwaway cache root. The
+    /// returned [`TempDir`] keeps that root alive for the manager's lifetime.
+    fn throwaway_repo_manager() -> (TempDir, RepositoryManager) {
+        let cache_root = TempDir::new().unwrap();
+        let repo_manager = RepositoryManager::new(cache_root.path().to_path_buf());
+        (cache_root, repo_manager)
+    }
+
+    /// Run [`execute_pull_outcome`] with a throwaway cache root.
+    fn run_outcome(config: &Schema, working: &Path, output: Option<&Path>) -> PullOutcome {
+        let (_cache_root, repo_manager) = throwaway_repo_manager();
+        let cache = RepoCache::new();
+        execute_pull_outcome(config, &repo_manager, &cache, working, output).unwrap()
+    }
+
+    #[test]
+    fn execute_pull_with_self_block_writes_only_self_output() {
+        let working_dir = TempDir::new().unwrap();
+        let output_dir = TempDir::new().unwrap();
+        let working = working_dir.path();
+        let output = output_dir.path();
+        seed_issue_361_working_dir(working);
+
+        let mut config: Schema = vec![self_op(vec![include_op(&["keep.txt"])])];
+        config.extend(source_api_ops());
+
+        let outcome = run_outcome(&config, working, Some(output));
+
+        // Only the self: block output reaches the output directory.
+        assert!(
+            output.join("keep.txt").exists(),
+            "self: output must be written"
+        );
+        assert!(
+            !output.join("test.txt").exists(),
+            "source API output (renamed test.txt) must not be written locally"
+        );
+        assert!(
+            !output.join("src/test.txt").exists(),
+            "source API input path must not be written locally"
+        );
+
+        let self_output = outcome
+            .self_output
+            .as_ref()
+            .expect("self_output is Some when a self: block is present");
+        assert_eq!(self_output.list_files(), vec![PathBuf::from("keep.txt")]);
+
+        // The source composite is still built in memory for consumers.
+        assert!(outcome.composite.exists("test.txt"));
+
+        // local_output() is the self output.
+        assert!(outcome.local_output().exists("keep.txt"));
+        assert!(!outcome.local_output().exists("test.txt"));
+
+        // The backward-compatible wrapper returns the source composite.
+        let (_cache_root, repo_manager) = throwaway_repo_manager();
+        let cache = RepoCache::new();
+        let composite = execute_pull(&config, &repo_manager, &cache, working, None).unwrap();
+        assert!(
+            composite.exists("test.txt"),
+            "execute_pull returns the source composite, not the self: output"
+        );
+    }
+
+    #[test]
+    fn execute_pull_without_self_block_writes_source_output() {
+        let working_dir = TempDir::new().unwrap();
+        let output_dir = TempDir::new().unwrap();
+        let working = working_dir.path();
+        let output = output_dir.path();
+        seed_issue_361_working_dir(working);
+
+        let config: Schema = source_api_ops();
+
+        let outcome = run_outcome(&config, working, Some(output));
+
+        // Without self: the source result is written, as before.
+        assert_eq!(
+            std::fs::read(output.join("test.txt")).unwrap(),
+            b"local source file",
+            "source output must be written when no self: block is present"
+        );
+        assert_eq!(
+            std::fs::read(output.join("keep.txt")).unwrap(),
+            b"keep me",
+            "local files not touched by the source API are preserved on disk"
+        );
+        assert!(outcome.self_output.is_none());
+        assert!(outcome.local_output().exists("test.txt"));
+    }
+
+    #[test]
+    fn execute_pull_multiple_self_blocks_combine_in_order() {
+        let working_dir = TempDir::new().unwrap();
+        let output_dir = TempDir::new().unwrap();
+        let working = working_dir.path();
+        let output = output_dir.path();
+        seed_issue_361_working_dir(working);
+        std::fs::write(working.join("a.txt"), b"alpha").unwrap();
+        std::fs::write(working.join("b.txt"), b"bravo").unwrap();
+
+        // Block 1 produces a.txt with "alpha". Block 2 produces a.txt too,
+        // with "bravo" (b.txt renamed to a.txt). The later block wins.
+        let mut config: Schema = vec![
+            self_op(vec![include_op(&["a.txt"])]),
+            self_op(vec![
+                include_op(&["b.txt"]),
+                rename_op("^b\\.txt$", "a.txt"),
+            ]),
+        ];
+        config.extend(source_api_ops());
+
+        let outcome = run_outcome(&config, working, Some(output));
+
+        let self_output = outcome
+            .self_output
+            .as_ref()
+            .expect("self_output is Some when self: blocks are present");
+        assert_eq!(
+            self_output.list_files(),
+            vec![PathBuf::from("a.txt")],
+            "self_output combines every self: block by path"
+        );
+        assert_eq!(
+            self_output.get_file("a.txt").unwrap().content,
+            b"bravo",
+            "the later self: block wins for a shared path in self_output"
+        );
+        assert_eq!(
+            std::fs::read(output.join("a.txt")).unwrap(),
+            b"bravo",
+            "the later self: block wins for a shared path on disk"
+        );
+        assert!(
+            !output.join("test.txt").exists(),
+            "a file only the top-level include selects must not be written"
+        );
+    }
+
+    #[test]
+    fn execute_pull_self_block_sees_earlier_self_output_on_disk() {
+        let working_dir = TempDir::new().unwrap();
+        let working = working_dir.path();
+        std::fs::write(working.join("a.txt"), b"alpha").unwrap();
+
+        // Block 1 writes b.txt (a.txt renamed) to the working directory.
+        // Block 2 can only produce c.txt if it loads that freshly written
+        // b.txt from disk when its pipeline starts.
+        let config: Schema = vec![
+            self_op(vec![
+                include_op(&["a.txt"]),
+                rename_op("^a\\.txt$", "b.txt"),
+            ]),
+            self_op(vec![
+                include_op(&["b.txt"]),
+                rename_op("^b\\.txt$", "c.txt"),
+            ]),
+        ];
+
+        // Output path is the working directory itself, as `apply` uses it.
+        let outcome = run_outcome(&config, working, Some(working));
+
+        assert_eq!(
+            std::fs::read(working.join("c.txt")).unwrap(),
+            b"alpha",
+            "block 2 must see block 1's written b.txt and rename it to c.txt"
+        );
+        let self_output = outcome.self_output.as_ref().unwrap();
+        let mut files = self_output.list_files();
+        files.sort();
+        assert_eq!(files, vec![PathBuf::from("b.txt"), PathBuf::from("c.txt")]);
     }
 }

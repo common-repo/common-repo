@@ -1,0 +1,6 @@
+- self:
+    - repo:
+        url: __FIXTURE__/tooling
+- include: ["src/**"]
+- rename:
+    - "^src/(.*)$": "$1"

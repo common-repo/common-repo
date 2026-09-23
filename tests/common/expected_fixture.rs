@@ -7,6 +7,17 @@
 //! input and the byte-exact files that `common-repo apply` should produce when
 //! run against that config.
 //!
+//! An optional sibling `<name>.input/` directory (for example `local.input/`
+//! next to `local.expected/`) seeds the working directory before apply runs.
+//! Every file under it is copied into the tempdir at the same relative path.
+//! Use it to model files the consumer already has on disk. Seeded files
+//! that apply leaves in place must also appear under `<name>.expected/`,
+//! because the final tree is compared in full. `<name>.input/` must not
+//! contain `.common-repo.yaml`: the input config always lives in
+//! `<name>.expected/`, and the runner panics if it finds one in `.input/`.
+//! `.git/` and `.common-repo-cache/` under `<name>.input/` are not seeded
+//! (they are ignored prefixes).
+//!
 //! Other siblings of the fixture root (typically used as upstreams) are
 //! referenced from the input config via the `__FIXTURE__` placeholder. The
 //! runner substitutes it with the absolute path of the fixture root before
@@ -17,13 +28,15 @@
 //! For each `<name>.expected/`:
 //!
 //! 1. Create a fresh tempdir.
-//! 2. Read `<name>.expected/.common-repo.yaml`, substitute `__FIXTURE__` with
+//! 2. If `<name>.input/` exists, copy every file in it into the tempdir,
+//!    preserving relative paths.
+//! 3. Read `<name>.expected/.common-repo.yaml`, substitute `__FIXTURE__` with
 //!    the absolute fixture-root path, write the result to the tempdir.
-//! 3. Run `common-repo apply` in the tempdir.
-//! 4. Walk `<name>.expected/` (excluding `.common-repo.yaml`, which we
+//! 4. Run `common-repo apply` in the tempdir.
+//! 5. Walk `<name>.expected/` (excluding `.common-repo.yaml`, which we
 //!    templated and is allowed to differ) and assert every file is
 //!    byte-identical to the corresponding file in the tempdir.
-//! 5. Walk the tempdir and fail if any file outside the expected set was
+//! 6. Walk the tempdir and fail if any file outside the expected set was
 //!    produced (catches over-creation).
 //!
 //! `.git/` and `.common-repo-cache/` paths are ignored on both sides.
@@ -36,7 +49,7 @@ use assert_cmd::cargo::cargo_bin_cmd;
 use tempfile::TempDir;
 
 const FIXTURE_PLACEHOLDER: &str = "__FIXTURE__";
-const CONFIG_FILE: &str = ".common-repo.yaml";
+pub const CONFIG_FILE: &str = ".common-repo.yaml";
 const IGNORED_PREFIXES: &[&str] = &[".git/", ".common-repo-cache/"];
 
 /// Discover every `<name>.expected/` directory directly under `fixture_root`,
@@ -81,12 +94,59 @@ fn discover_expected_dirs(fixture_root: &Path) -> Vec<PathBuf> {
 
 fn run_one(fixture_root: &Path, expected_dir: &Path) {
     let temp = TempDir::new().expect("failed to create tempdir");
+    seed_input_files(expected_dir, temp.path());
     write_templated_config(fixture_root, expected_dir, temp.path());
 
     let mut cmd = cargo_bin_cmd!("common-repo");
     cmd.current_dir(temp.path()).arg("apply").assert().success();
 
     assert_tree_matches(temp.path(), expected_dir);
+}
+
+/// Copy every file of the optional sibling `<name>.input/` directory into
+/// `dest_dir`, preserving relative paths. `<name>` is `expected_dir` with its
+/// `.expected` suffix replaced by `.input`. A missing `.input/` directory is
+/// not an error: the case simply starts from an empty working directory.
+///
+/// Panics if `.input/` contains `.common-repo.yaml`; the config belongs in
+/// `<name>.expected/`.
+///
+/// Unit tests for this helper live in `tests/cli_e2e_expected_fixture.rs`
+/// so they compile into one test binary rather than every crate that
+/// declares `mod common;`.
+pub fn seed_input_files(expected_dir: &Path, dest_dir: &Path) {
+    let Some(input_dir) = input_dir_for(expected_dir).filter(|d| d.is_dir()) else {
+        return;
+    };
+    let paths = collect_relative_paths(&input_dir);
+    assert!(
+        !paths.contains(Path::new(CONFIG_FILE)),
+        "{} must not contain {CONFIG_FILE}: the input config lives in {}",
+        input_dir.display(),
+        expected_dir.display()
+    );
+    for rel in paths {
+        let src = input_dir.join(&rel);
+        let dest = dest_dir.join(&rel);
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)
+                .unwrap_or_else(|e| panic!("failed to create {}: {e}", parent.display()));
+        }
+        fs::copy(&src, &dest).unwrap_or_else(|e| {
+            panic!(
+                "failed to copy input file {} to {}: {e}",
+                src.display(),
+                dest.display()
+            )
+        });
+    }
+}
+
+/// Resolve the `<name>.input/` sibling of a `<name>.expected/` directory.
+fn input_dir_for(expected_dir: &Path) -> Option<PathBuf> {
+    let name = expected_dir.file_name()?.to_str()?;
+    let stem = name.strip_suffix(".expected")?;
+    Some(expected_dir.with_file_name(format!("{stem}.input")))
 }
 
 fn write_templated_config(fixture_root: &Path, expected_dir: &Path, dest_dir: &Path) {
@@ -162,7 +222,7 @@ fn assert_tree_matches(actual_dir: &Path, expected_dir: &Path) {
     }
 }
 
-fn collect_relative_paths(root: &Path) -> BTreeSet<PathBuf> {
+pub fn collect_relative_paths(root: &Path) -> BTreeSet<PathBuf> {
     let mut out = BTreeSet::new();
     walk(root, root, &mut out);
     out

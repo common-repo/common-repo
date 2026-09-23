@@ -368,6 +368,14 @@ impl MemoryFS {
         }
     }
 
+    /// Moves every file of `other` into this filesystem, consuming `other`.
+    ///
+    /// Like [`merge`](Self::merge), a file in `other` overwrites a file at the
+    /// same path in `self`, but entries are moved instead of cloned.
+    pub fn extend(&mut self, other: MemoryFS) {
+        self.files.extend(other.files);
+    }
+
     /// Returns an iterator over the `(path, file)` pairs in the filesystem.
     pub fn files(&self) -> impl Iterator<Item = (&PathBuf, &File)> {
         self.files.iter()
@@ -664,6 +672,29 @@ mod tests {
             String::from_utf8(file2.content.clone()).unwrap(),
             "content2"
         );
+    }
+
+    #[test]
+    fn test_memory_fs_extend_moves_entries_later_wins() {
+        let mut fs1 = MemoryFS::new();
+        fs1.add_file_string("file1.txt", "content1").unwrap();
+        fs1.add_file_string("only1.txt", "keep").unwrap();
+
+        let mut fs2 = MemoryFS::new();
+        let mut overwritten = File::from_string("overwritten");
+        overwritten.permissions = 0o755;
+        fs2.add_file("file1.txt", overwritten).unwrap();
+        fs2.add_file_string("file2.txt", "content2").unwrap();
+
+        fs1.extend(fs2);
+
+        assert_eq!(fs1.len(), 3);
+        assert_eq!(fs1.get_file("only1.txt").unwrap().content, b"keep");
+        assert_eq!(fs1.get_file("file2.txt").unwrap().content, b"content2");
+
+        let file1 = fs1.get_file("file1.txt").unwrap();
+        assert_eq!(file1.content, b"overwritten");
+        assert_eq!(file1.permissions, 0o755);
     }
 
     #[test]

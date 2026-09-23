@@ -64,19 +64,26 @@ An upstream repo often needs to consume tooling from *its own* upstreams — CI 
 
 Operations inside a `self:` block run in an isolated pipeline. Their output is written to the local working directory but never enters the composite filesystem that consumers see. This lets a single `.common-repo.yaml` define both what the repo provides (its source API) and what it consumes locally.
 
+When a config has one or more `self:` blocks, `apply` writes only the `self:` output to the working directory. The top-level operations define the source API for consumers; their output is not written locally. An upstream that wants its own `src/**` files in its working directory must include them inside `self:`, as `common-repo/upstream` does:
+
 ```yaml
 # .common-repo.yaml for an upstream repo
 
-# Local consumption — pull tooling for this repo's own use.
-# Consumers never see these operations.
+# Local consumption — apply this repo's own files and pull tooling
+# for this repo's own use. Consumers never see these operations.
 - self:
+    - include:
+        - "src/**"
+    - rename:
+        - from: "^src/(.*)$"
+          to: "$1"
     - repo:
         url: https://github.com/org/ci-tooling
         ref: v2.0.0
     - exclude:
         - ".releaserc.yaml"
 
-# Source API — what consumers inherit
+# Source API — what consumers inherit; not written to this repo's working directory
 - include:
     - "src/**"         # matches dotfiles under src/ too
 - rename:
@@ -90,10 +97,11 @@ Without `self:`, this repo would need a separate mechanism to pull its own tooli
 
 - `self:` blocks are stripped when a consumer inherits from this repo — consumers never see them
 - Any operator can appear inside `self:` (repo, include, exclude, rename, merge operators, etc.)
-- A `self:` block needs at least one `repo:` to populate its composite filesystem — without one, filtering operators like `include`/`exclude`/`rename` have nothing to operate on
+- A `self:` block populates its composite filesystem through `include` (which pulls matching files from the local working directory) and/or `repo:` — without one of these, `exclude`/`rename` have nothing to operate on
 - Multiple `self:` blocks are allowed; each runs as an independent pipeline
 - `self:` blocks cannot be nested
-- The source pipeline runs first, then each `self:` block runs afterward as an independent pipeline invocation
+- The source pipeline builds the source composite in memory first. When a `self:` block is present, this composite is not written to disk. Each `self:` block then runs as an independent pipeline invocation and loads the working directory as it is on disk. When `apply` writes to the working directory (the default), this includes the output of earlier `self:` blocks. With `--output`, `diff`, or `ls`, it does not.
+- `diff` compares the working directory against the files that `apply` would write (the `self:` output when a `self:` block is present); `ls` lists the source composite
 
 See the [Configuration Reference](configuration.md#self---local-only-operations) for the full operator specification.
 
