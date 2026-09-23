@@ -1,6 +1,16 @@
 # Changelog
 
 - - -
+## v0.37.7 - 2026-09-23
+#### Bug Fixes
+- <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>(**orchestrator**) write only self: output when a self: block is present - (ab521b0) - Jacob Alheid
+- (**self**) address review panel findings for #365 - (3f3e549) - Jacob Alheid
+#### Documentation
+- add semantic agent indexes and Claude pointers - (d0886ff) - Jacob Alheid
+- document position for yaml/json/toml merges and drop removed append field - (c6ad4b3) - jathanism
+
+- - -
+
 ## v0.37.6 - 2026-08-26
 #### Bug Fixes
 - (**template-vars**) resolve sibling repo entries by exact node key - (0f056e2) - Jacob Alheid
