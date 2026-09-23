@@ -438,6 +438,7 @@ This is useful when a repository is both a source (providing shared configuratio
 - A `self:` block populates its composite filesystem through `include` (which pulls matching files from the local working directory) and/or `repo:`. Without one of these, the composite is empty and `exclude`/`rename` have nothing to operate on.
 - When a config has a `self:` block, the top-level output is not written locally. An upstream that wants its own `src/**` files in its working directory must include them inside `self:` (for example `- include: ["src/**"]` followed by the `rename` inside `self:`), as `common-repo/upstream` does.
 - `diff` compares the working directory against the files that `apply` would write: the `self:` output when a `self:` block is present. `ls` lists the source composite.
+- Files that earlier versions wrote to the working directory from top-level operations are not removed by `apply`; delete them by hand if they are no longer wanted.
 
 #### Example: Source Repo That Consumes Upstream Tooling
 
@@ -451,7 +452,7 @@ This is useful when a repository is both a source (providing shared configuratio
     - rename:
         - from: "^src/(.*)$"
           to: "$1"
-    - repo:
+    - repo:            # later operations win on shared paths
         url: https://github.com/org/ci-tooling
         ref: v2.0.0
     - exclude:
@@ -859,36 +860,25 @@ Processing order: C -> A -> D -> B -> local
 
 ## Complete Example
 
-Here's a complete configuration showing multiple operators:
+Here's a complete configuration showing multiple operators. It is an ordinary consumer config: every operation is at top level and all output is written locally. For an upstream repo that also consumes its own tooling, see [`self`](#self---local-only-operations).
 
 ```yaml
 # .common-repo.yaml
 
-# Local consumption — what this repo uses for itself.
-# Consumers never see these operations.
-- self:
-    # Inherit base Rust CLI configuration
-    - repo:
-        url: https://github.com/common-repo/rust-cli
-        ref: v2.0.0
-        with:
-          - include: ["**/*"]
-          - exclude: [".git/**", "target/**"]
+# Inherit base Rust CLI configuration
+- repo:
+    url: https://github.com/common-repo/rust-cli
+    ref: v2.0.0
+    with:
+      - include: ["**/*"]
+      - exclude: [".git/**", "target/**"]
 
-    # Inherit pre-commit configuration
-    - repo:
-        url: https://github.com/common-repo/pre-commit-rust
-        ref: v1.5.0
-        with:
-          - include: [".pre-commit-config.yaml"]
-
-    # Consume shared tooling
-    - repo:
-        url: https://github.com/common-repo/shared-tooling
-        ref: v1.0.0
-
-# Source API — what consumers inherit.
-# With a self: block present, this output is not written to this repo's working directory.
+# Inherit pre-commit configuration
+- repo:
+    url: https://github.com/common-repo/pre-commit-rust
+    ref: v1.5.0
+    with:
+      - include: [".pre-commit-config.yaml"]
 
 # Include local files
 - include:

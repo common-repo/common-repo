@@ -82,7 +82,7 @@ enum Commands {
     /// Show information about a repository or the current configuration
     Info(commands::info::InfoArgs),
 
-    /// List files that would be created/modified by the configuration
+    /// List files in the source composite built by the configuration
     Ls(commands::ls::LsArgs),
 
     /// Validate a .common-repo.yaml configuration file

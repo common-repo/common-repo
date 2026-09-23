@@ -15,7 +15,7 @@ Commands:
   init         Initialize a new .common-repo.yaml configuration file
   update       Update repository refs to newer versions
   info         Show information about a repository or the current configuration
-  ls           List files that would be created/modified by the configuration
+  ls           List files in the source composite built by the configuration
   validate     Validate a .common-repo.yaml configuration file
   cache        Manage repository cache
   tree         Display the repository inheritance tree

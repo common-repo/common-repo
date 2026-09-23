@@ -291,3 +291,94 @@ fn test_diff_empty_config_no_changes() {
         .success()
         .stdout(predicate::str::contains("No changes detected"));
 }
+
+/// Seed a working directory with `src/test.txt` and a sibling local upstream
+/// (`.common-repo.yaml` including everything, plus `tool.txt`). Returns the
+/// working directory, the upstream directory, and the upstream's absolute
+/// path as a string for use in a `repo:` URL.
+fn self_block_fixture() -> (assert_fs::TempDir, assert_fs::TempDir, String) {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("src/test.txt")
+        .write_str("local source file\n")
+        .unwrap();
+
+    let upstream = assert_fs::TempDir::new().unwrap();
+    upstream
+        .child(".common-repo.yaml")
+        .write_str("- include: ['**']\n")
+        .unwrap();
+    upstream
+        .child("tool.txt")
+        .write_str("tool from self upstream\n")
+        .unwrap();
+
+    let upstream_path = upstream
+        .path()
+        .canonicalize()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    (temp, upstream, upstream_path)
+}
+
+/// With a `self:` block, `diff` compares against the `self:` output only:
+/// the source API's renamed `test.txt` must not appear as a change.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_diff_with_self_block_reports_only_self_output() {
+    let (temp, _upstream, upstream_path) = self_block_fixture();
+
+    temp.child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"
+- self:
+    - repo:
+        url: {upstream_path}
+- include: ["src/**"]
+- rename:
+    - "^src/(.*)$": "$1"
+"#
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
+        .arg("diff")
+        .arg("--working-dir")
+        .arg(temp.path())
+        .assert()
+        .code(1) // Changes detected
+        .stdout(predicate::str::contains("Files to add:"))
+        .stdout(predicate::str::contains("+ tool.txt"))
+        .stdout(predicate::str::contains("test.txt").not());
+}
+
+/// Without a `self:` block, `diff` compares against the source result, so
+/// the renamed `test.txt` is reported (unchanged behavior).
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_diff_without_self_block_reports_source_output() {
+    let (temp, _upstream, _upstream_path) = self_block_fixture();
+
+    temp.child(".common-repo.yaml")
+        .write_str(
+            r#"
+- include: ["src/**"]
+- rename:
+    - "^src/(.*)$": "$1"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
+        .arg("diff")
+        .arg("--working-dir")
+        .arg(temp.path())
+        .assert()
+        .code(1) // Changes detected
+        .stdout(predicate::str::contains("Files to add:"))
+        .stdout(predicate::str::contains("+ test.txt"))
+        .stdout(predicate::str::contains("tool.txt").not());
+}

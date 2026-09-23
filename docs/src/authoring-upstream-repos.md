@@ -64,7 +64,7 @@ An upstream repo often needs to consume tooling from *its own* upstreams — CI 
 
 Operations inside a `self:` block run in an isolated pipeline. Their output is written to the local working directory but never enters the composite filesystem that consumers see. This lets a single `.common-repo.yaml` define both what the repo provides (its source API) and what it consumes locally.
 
-When a config has one or more `self:` blocks, `apply` writes only the `self:` output to the working directory. The top-level operations define the source API for consumers; their output is not written locally. An upstream that wants its own `src/**` files in its working directory must include them inside `self:`, as `common-repo/upstream` does:
+When a config has one or more `self:` blocks, `apply` writes only the `self:` output to the working directory. The top-level operations define the source API for consumers; their output is not written locally. Files that earlier versions wrote to the working directory from top-level operations are not removed by `apply`; delete them by hand if they are no longer wanted. An upstream that wants its own `src/**` files in its working directory must include them inside `self:`, as `common-repo/upstream` does:
 
 ```yaml
 # .common-repo.yaml for an upstream repo
@@ -77,7 +77,7 @@ When a config has one or more `self:` blocks, `apply` writes only the `self:` ou
     - rename:
         - from: "^src/(.*)$"
           to: "$1"
-    - repo:
+    - repo:            # later operations win on shared paths
         url: https://github.com/org/ci-tooling
         ref: v2.0.0
     - exclude:
