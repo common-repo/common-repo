@@ -173,7 +173,7 @@ pub fn execute(args: LsArgs) -> Result<()> {
     }
 
     if files.is_empty() {
-        println!("No files would be created or modified.");
+        println!("No files in the source composite.");
         return Ok(());
     }
 

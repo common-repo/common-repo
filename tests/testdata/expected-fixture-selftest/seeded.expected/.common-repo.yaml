@@ -1,3 +1,2 @@
 - repo:
     url: __FIXTURE__/source
-- include: ["hello.txt"]

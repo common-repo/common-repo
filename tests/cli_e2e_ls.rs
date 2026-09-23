@@ -15,7 +15,7 @@ fn test_ls_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "List files that would be created/modified",
+            "List files in the source composite built by the configuration",
         ));
 }
 
@@ -170,7 +170,7 @@ fn test_ls_empty_result() {
         .arg(fixture.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("No files would be created"));
+        .stdout(predicate::str::contains("No files in the source composite"));
 }
 
 #[test]

@@ -180,6 +180,8 @@ Resolution is depth-first post-order: ancestors are applied before their parents
 - include: ["src/**"]  # only this is visible to consumers
 ```
 
+When a config has a `self:` block, `apply` writes only the `self:` output; the top-level operations define the source API and are not written locally.
+
 ## Updates
 
 ```bash

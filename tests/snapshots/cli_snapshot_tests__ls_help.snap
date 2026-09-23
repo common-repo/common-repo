@@ -2,7 +2,7 @@
 source: tests/cli_snapshot_tests.rs
 expression: normalized
 ---
-List files that would be created/modified by the configuration
+List files in the source composite built by the configuration
 
 Usage: common-repo ls [OPTIONS]
 

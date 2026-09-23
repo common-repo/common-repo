@@ -150,6 +150,9 @@ pub fn execute(args: ApplyArgs) -> Result<()> {
                     log::info!("   Files written to: {}", output_dir.display());
                 }
             }
+            if outcome.self_output.is_some() {
+                log::info!("   self: block present: only self: output is written; top-level output is kept in memory");
+            }
 
             Ok(())
         }

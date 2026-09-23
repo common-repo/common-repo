@@ -434,3 +434,100 @@ fn test_apply_nested_repo_inheritance_invalid() {
         .failure()
         .stderr(predicate::str::contains("clone").or(predicate::str::contains("Git")));
 }
+
+/// Seed a working directory with `src/test.txt` and a sibling local upstream
+/// (`.common-repo.yaml` including everything, plus `tool.txt`). Returns the
+/// working directory, the upstream directory, and the upstream's absolute
+/// path as a string for use in a `repo:` URL.
+fn self_block_fixture() -> (assert_fs::TempDir, assert_fs::TempDir, String) {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("src/test.txt")
+        .write_str("local source file\n")
+        .unwrap();
+
+    let upstream = assert_fs::TempDir::new().unwrap();
+    upstream
+        .child(".common-repo.yaml")
+        .write_str("- include: ['**']\n")
+        .unwrap();
+    upstream
+        .child("tool.txt")
+        .write_str("tool from self upstream\n")
+        .unwrap();
+
+    let upstream_path = upstream
+        .path()
+        .canonicalize()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    (temp, upstream, upstream_path)
+}
+
+/// With a `self:` block, `apply` tells the user that only the `self:` output
+/// is written, in both normal and dry-run mode.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_apply_with_self_block_reports_self_output_only() {
+    let (temp, _upstream, upstream_path) = self_block_fixture();
+
+    temp.child(".common-repo.yaml")
+        .write_str(&format!(
+            r#"
+- self:
+    - repo:
+        url: {upstream_path}
+- include: ["src/**"]
+- rename:
+    - "^src/(.*)$": "$1"
+"#
+        ))
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
+        .arg("apply")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("self: block present"));
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
+        .arg("apply")
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Applied successfully"))
+        .stderr(predicate::str::contains("self: block present"));
+
+    temp.child("tool.txt").assert(predicate::path::exists());
+    temp.child("test.txt").assert(predicate::path::missing());
+}
+
+/// Without a `self:` block, `apply` does not print the `self:` note.
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn test_apply_without_self_block_has_no_self_note() {
+    let (temp, _upstream, _upstream_path) = self_block_fixture();
+
+    temp.child(".common-repo.yaml")
+        .write_str(
+            r#"
+- include: ["src/**"]
+- rename:
+    - "^src/(.*)$": "$1"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(temp.path())
+        .arg("apply")
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Applied successfully"))
+        .stderr(predicate::str::contains("self: block present").not());
+
+    temp.child("test.txt").assert(predicate::path::exists());
+}
