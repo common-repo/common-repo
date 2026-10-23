@@ -25,7 +25,7 @@ The repository has been set up and is ready to use. All dependencies are install
 ### Prerequisites
 
 - Rust: Stable channel (automatically managed via `rust-toolchain.toml`)
-- cargo-nextest: Required for running tests (see CLAUDE.md for setup instructions)
+- cargo-nextest: Required for running tests (see AGENTS.md for setup instructions)
 - prek: Recommended for pre-commit hooks (Rust-based, faster than Python pre-commit)
   - Install from GitHub: `cargo install --git https://github.com/j178/prek`
   - Alternative: pre-commit (Python-based, works as fallback)
@@ -100,7 +100,7 @@ SKIP_NETWORK_TESTS=1 cargo test --features integration-tests
 - **Run integration tests before major changes** - they verify real-world functionality
 - **Integration tests are disabled by default** to avoid network dependencies
 - **All tests must pass** for CI/CD to succeed (both unit and integration tests)
-- See CLAUDE.md for canonical test counts and coverage targets
+- See AGENTS.md for canonical test counts and coverage targets
 
 ### Code Quality
 
@@ -202,7 +202,7 @@ When updating documentation files:
 - Do not write specific numbers that will change, like line counts or percentages
 - Do not write specific call outs of line numbers, since they will change over time
 - When you are done modifying a document, review it for consistency and accuracy
-- See CLAUDE.md for canonical test counts, coverage targets, and tooling guidance
+- See AGENTS.md for canonical test counts, coverage targets, and tooling guidance
 
 ## Project Structure
 
@@ -228,7 +228,7 @@ When updating documentation files:
 ├── .pre-commit-config.yaml # Pre-commit hooks configuration
 ├── .common-repo.yaml      # Upstream inheritance (see common-repo/semantic-release)
 ├── cog.toml               # Cocogitto semantic-release config
-├── CLAUDE.md              # Claude Code guidance
+├── AGENTS.md              # Agent guidance (read natively by Claude Code)
 ├── DEVIN.md               # This file - Devin guidance
 └── README.md              # Project documentation
 ```
@@ -332,4 +332,4 @@ cargo test -- --nocapture
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [Pre-commit Documentation](https://pre-commit.com/)
 - Project README.md for detailed usage examples
-- CLAUDE.md for additional Claude-specific guidance
+- AGENTS.md for additional agent guidance (read natively by Claude Code)
