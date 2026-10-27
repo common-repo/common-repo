@@ -41,7 +41,10 @@ console = "0.15"
 dialoguer = "0.11"
 log = "0.4"
 env_logger = "0.11"
-ptree = "0.4"
+# default-features = false drops ptree's "conf" feature (the `config` crate),
+# which pulls in nom 5 -> lexical-core 0.7 (< 1.0.0 is flagged). The tree
+# command only uses print_tree/TreeItem/Style, which are always available.
+ptree = { version = "0.4", default-features = false }
 
 [dev-dependencies]
 serde_yaml = "0.9"
