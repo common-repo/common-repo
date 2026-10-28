@@ -53,6 +53,7 @@ self-application.
 
 ```rust
 pub fn run_expected_fixtures(fixture_root: &Path);
+pub fn run_expected_fixtures_with(fixture_root: &Path, options: Options);
 ```
 
 The runner discovers every `*.expected/` directly under `fixture_root` and,
@@ -77,6 +78,11 @@ reports it as unexpected.
 `.git/` and `.common-repo-cache/` are ignored on both sides. The input
 `.common-repo.yaml` is excluded from byte comparison because the runner
 templates it.
+
+`run_expected_fixtures_with(root, Options { reapply: true })` adds a step 7:
+run `apply` again in the same tempdir and repeat the compare, so every case
+under the root is checked to be a fixed point. Panics read `expected fixture
+mismatch after re-apply in ...`. `run_expected_fixtures` never re-applies.
 
 ## Using the runner
 
@@ -120,10 +126,11 @@ The messages are designed to be eyeballable. For larger diffs, run
 
 ## Self-test
 
-`tests/cli_e2e_expected_runner.rs` runs the runner against
-`tests/testdata/expected-runner-selftest/`, a minimal two-directory fixture
-that consumes a local source via `repo: __FIXTURE__/source`. Confirms both
-the happy path and (during initial development) the negative path.
+`tests/cli_e2e_expected_fixture.rs` runs the runner against
+`tests/testdata/expected-fixture-selftest/`, a minimal fixture that consumes
+a local source via `repo: __FIXTURE__/source`, and runs the `reapply` option
+against the nested root `reapply-drift/`, whose only case appends on every
+apply and so must fail the fixed-point check.
 
 ## Extension axes (not yet implemented)
 
