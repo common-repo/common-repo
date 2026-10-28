@@ -567,8 +567,9 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
-| `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
-| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append` and `append_unique` modes) |
+| `array_mode` | No | replace | Array handling: `replace`, `append`, `append_unique`, or `merge_by_key` |
+| `key` | No | auto | Key field for `merge_by_key`: `name`, then `uses`, then `id` (see [Array Merge Modes](#array-merge-modes)) |
+| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append`, `append_unique`, and `merge_by_key` modes) |
 
 *Either `source`+`dest` or `auto-merge` is required
 
@@ -579,9 +580,31 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `replace` | Replace destination array with source array (default) |
 | `append` | Append source items to the end of destination array |
 | `append_unique` | Append only items not already in destination array |
+| `merge_by_key` | Match items by a key field and replace the matched item in place |
+
+`append_unique` compares whole items, so an upstream edit to an existing item
+makes it count as "new" and it gets appended next to the stale copy. For arrays
+whose items have a natural identity — GitHub Actions `steps`, pre-commit
+`hooks[]` — use `merge_by_key` instead: each source item replaces the
+destination item with the same key, new items are appended, and destination
+items the source does not mention are preserved.
+
+The key field auto-detects `name`, then `uses`, then `id`. Set `key:` to match
+on another field (for example `repo` for pre-commit `repos[]`); for XML the
+key is an attribute (`name`, then `id`). Items without a key field fall back
+to `append_unique` behavior. `merge_by_key` is idempotent: re-running `apply`
+after an upstream bump updates the changed items without duplicating them.
+
+```yaml
+- yaml:
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key
+```
 
 `position: start` inserts source items at the front of the destination array
-instead of the end. It only affects the `append` and `append_unique` modes.
+instead of the end. It only affects the `append`, `append_unique`, and
+`merge_by_key` modes (for `merge_by_key`, where items with no matching
+destination key are inserted).
 
 #### Examples
 
@@ -639,8 +662,9 @@ instead of the end. It only affects the `append` and `append_unique` modes.
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Dot-notation path to merge at |
-| `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
-| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append` and `append_unique` modes) |
+| `array_mode` | No | replace | Array handling: `replace`, `append`, `append_unique`, or `merge_by_key` |
+| `key` | No | auto | Key field for `merge_by_key`: `name`, then `uses`, then `id` |
+| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append`, `append_unique`, and `merge_by_key` modes) |
 
 *Either `source`+`dest` or `auto-merge` is required
 
@@ -690,8 +714,9 @@ instead of the end. It only affects the `append` and `append_unique` modes.
 | `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
-| `array_mode` | No | replace | Array handling: `replace`, `append`, or `append_unique` |
-| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append` and `append_unique` modes) |
+| `array_mode` | No | replace | Array handling: `replace`, `append`, `append_unique`, or `merge_by_key` |
+| `key` | No | auto | Key field for `merge_by_key`: `name`, then `uses`, then `id` |
+| `position` | No | end | Where to insert array items: `start` or `end` (used with the `append`, `append_unique`, and `merge_by_key` modes) |
 | `preserve-comments` | No | false | Keep comments in output |
 
 *Either `source`+`dest` or `auto-merge` is required

@@ -108,7 +108,7 @@ pub fn navigate_yaml_value<'a>(
 ///
 /// Handles different YAML types appropriately:
 /// - Mappings: Recursively merge keys, with source values taking precedence for conflicts
-/// - Sequences: Apply array merge mode (append, replace, or append-unique)
+/// - Sequences: Apply array merge mode (append, replace, append-unique, or merge-by-key)
 /// - Scalars: Replace target with source (with warning)
 ///
 /// # Arguments
@@ -117,14 +117,17 @@ pub fn navigate_yaml_value<'a>(
 /// * `source` - The source value to merge from
 /// * `mode` - How to handle array merging
 /// * `position` - Where to insert array items (start or end)
+/// * `key` - Key field for merge_by_key mode (None falls back to auto-detection)
 /// * `path` - Current path for logging purposes
 /// * `src_file` - Source file path for logging
 /// * `dst_file` - Destination file path for logging
+#[allow(clippy::too_many_arguments)]
 pub fn merge_yaml_values(
     target: &mut YamlValue,
     source: &YamlValue,
     mode: ArrayMergeMode,
     position: InsertPosition,
+    array_key: Option<&str>,
     path: &str,
     src_file: &str,
     dst_file: &str,
@@ -146,7 +149,8 @@ pub fn merge_yaml_values(
                     if let Some(existing) = target_map.get_mut(key) {
                         if existing.as_mapping().is_some() && value.as_mapping().is_some() {
                             merge_yaml_values(
-                                existing, value, mode, position, &new_path, src_file, dst_file,
+                                existing, value, mode, position, array_key, &new_path, src_file,
+                                dst_file,
                             );
                         } else if let Some(source_seq) = value.as_sequence() {
                             if let Some(target_seq) = existing.as_sequence_mut() {
@@ -184,6 +188,12 @@ pub fn merge_yaml_values(
                                                 target_seq.extend(unique_items);
                                             }
                                         }
+                                    }
+                                    ArrayMergeMode::MergeByKey => {
+                                        merge_yaml_sequence_by_key(
+                                            target_seq, source_seq, array_key, position, &new_path,
+                                            src_file, dst_file,
+                                        );
                                     }
                                 }
                             } else {
@@ -260,6 +270,11 @@ pub fn merge_yaml_values(
                             }
                         }
                     }
+                    ArrayMergeMode::MergeByKey => {
+                        merge_yaml_sequence_by_key(
+                            target_seq, source_seq, array_key, position, path, src_file, dst_file,
+                        );
+                    }
                 }
             } else {
                 warn!(
@@ -283,6 +298,88 @@ pub fn merge_yaml_values(
             );
             *target = source.clone();
         }
+    }
+}
+
+/// Resolve the key field name for one source sequence item.
+///
+/// An explicit `key` overrides detection; otherwise the first candidate field
+/// present with a scalar value wins. Items with no key field return `None`
+/// and fall back to append-unique semantics.
+fn yaml_item_key_field(item: &YamlValue, explicit: Option<&str>) -> Option<String> {
+    let map = item.as_mapping()?;
+    if let Some(field) = explicit {
+        return map
+            .get(YamlValue::String(field.to_string()))
+            .filter(|v| !v.is_sequence() && !v.is_mapping())
+            .map(|_| field.to_string());
+    }
+    super::ARRAY_KEY_FIELD_CANDIDATES
+        .iter()
+        .find(|field| {
+            matches!(
+                map.get(YamlValue::String((*field).to_string())),
+                Some(v) if !v.is_sequence() && !v.is_mapping()
+            )
+        })
+        .map(|field| field.to_string())
+}
+
+/// Merge a source sequence into a target sequence by key (`merge_by_key`).
+///
+/// Each source item with a key field replaces the first not-yet-consumed
+/// target item carrying the same key value; the edit lands in place instead
+/// of piling up as a duplicate (issue #370). Source items without a match —
+/// and keyless items, which dedupe by whole-item equality — are inserted at
+/// `position`. Target items never matched are preserved.
+#[allow(clippy::too_many_arguments)]
+fn merge_yaml_sequence_by_key(
+    target_seq: &mut Vec<YamlValue>,
+    source_seq: &[YamlValue],
+    array_key: Option<&str>,
+    position: InsertPosition,
+    path: &str,
+    src_file: &str,
+    dst_file: &str,
+) {
+    let mut consumed: Vec<bool> = vec![false; target_seq.len()];
+    let mut new_items: Vec<YamlValue> = Vec::new();
+
+    for src_item in source_seq {
+        let key_field = yaml_item_key_field(src_item, array_key);
+        let mut matched = false;
+
+        if let Some(field) = &key_field {
+            let key_value = src_item.get(field.as_str());
+            for (idx, dst_item) in target_seq.iter().enumerate() {
+                if consumed[idx] || dst_item.get(field.as_str()) != key_value {
+                    continue;
+                }
+                if dst_item != src_item {
+                    warn!(
+                        "{} -> {}: Updating keyed array item at '{}.{}' ({:?})",
+                        src_file, dst_file, path, field, key_value
+                    );
+                }
+                target_seq[idx] = src_item.clone();
+                consumed[idx] = true;
+                matched = true;
+                break;
+            }
+        }
+
+        if !matched && !target_seq.contains(src_item) && !new_items.contains(src_item) {
+            new_items.push(src_item.clone());
+        }
+    }
+
+    match position {
+        InsertPosition::Start => {
+            let mut new_seq = new_items;
+            new_seq.append(target_seq);
+            *target_seq = new_seq;
+        }
+        InsertPosition::End => target_seq.extend(new_items),
     }
 }
 
@@ -370,6 +467,7 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
         &source_value,
         mode,
         op.position,
+        op.key.as_deref(),
         path_str,
         source_path,
         dest_path,
@@ -1129,6 +1227,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Replace,
                 InsertPosition::End,
+                None,
                 "",
                 "src",
                 "dst",
@@ -1677,6 +1776,243 @@ mod tests {
         }
     }
 
+    mod merge_by_key_tests {
+        use super::*;
+
+        #[test]
+        fn test_yaml_merge_by_key_replaces_changed_step_in_place() {
+            // Issue #370: upstream edits an existing workflow step;
+            // append_unique appends the edited step as a duplicate while the
+            // stale copy survives. merge_by_key must update the step in place.
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string(
+                    "steps:\n  - name: Check coverage threshold\n    run: coverage verify --threshold 80\n  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n    with:\n      persist-credentials: false",
+                ),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string(
+                    "steps:\n  - name: Check coverage threshold\n    run: coverage verify --threshold 70\n  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+                ),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let steps = parsed["steps"].as_sequence().unwrap();
+            // Changed steps are updated in place, never duplicated.
+            assert_eq!(steps.len(), 2);
+            assert_eq!(
+                steps[0]["run"],
+                YamlValue::String("coverage verify --threshold 80".to_string())
+            );
+            assert_eq!(
+                steps[1]["with"]["persist-credentials"],
+                YamlValue::Bool(false)
+            );
+        }
+        #[test]
+        fn test_yaml_merge_by_key_appends_new_step_and_preserves_consumer_steps() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("steps:\n  - name: Lint\n    run: make lint\n  - name: Audit\n    run: cargo audit"),
+            )
+            .unwrap();
+            // Consumer added a private step that upstream does not declare.
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("steps:\n  - name: Lint\n    run: make lint OLD\n  - name: Consumer-only\n    run: ./private.sh"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let steps = parsed["steps"].as_sequence().unwrap();
+            assert_eq!(steps.len(), 3);
+            assert_eq!(steps[0]["run"], YamlValue::String("make lint".to_string()));
+            assert_eq!(
+                steps[1]["name"],
+                YamlValue::String("Consumer-only".to_string())
+            );
+            assert_eq!(steps[2]["name"], YamlValue::String("Audit".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_by_key_explicit_key_field() {
+            // pre-commit repos[] are keyed by `repo`, not by any default field.
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("repos:\n  - repo: https://github.com/pre-commit/pre-commit-hooks\n    rev: v5.0.0"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("repos:\n  - repo: https://github.com/pre-commit/pre-commit-hooks\n    rev: v4.6.0"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                key: Some("repo".to_string()),
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let repos = parsed["repos"].as_sequence().unwrap();
+            assert_eq!(repos.len(), 1);
+            assert_eq!(repos[0]["rev"], YamlValue::String("v5.0.0".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_by_key_id_fallback() {
+            // Items without name/uses fall back to `id` (pre-commit hooks).
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("hooks:\n  - id: gofmt\n    args: [-w]"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("hooks:\n  - id: gofmt\n    args: [-l]"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let hooks = parsed["hooks"].as_sequence().unwrap();
+            assert_eq!(hooks.len(), 1);
+            assert_eq!(
+                hooks[0]["args"],
+                serde_yaml::from_str::<YamlValue>("[-w]").unwrap()
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_by_key_keyless_items_dedupe_by_equality() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("env:\n  - COVERALLS_TOKEN\n  - NEW_VAR"),
+            )
+            .unwrap();
+            fs.add_file("dest.yaml", File::from_string("env:\n  - COVERALLS_TOKEN"))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let env = parsed["env"].as_sequence().unwrap();
+            assert_eq!(env.len(), 2);
+            assert_eq!(env[0], YamlValue::String("COVERALLS_TOKEN".to_string()));
+            assert_eq!(env[1], YamlValue::String("NEW_VAR".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_by_key_position_start() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("steps:\n  - name: New\n    run: echo new"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("steps:\n  - name: Old\n    run: echo old"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                position: InsertPosition::Start,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let steps = parsed["steps"].as_sequence().unwrap();
+            assert_eq!(steps[0]["name"], YamlValue::String("New".to_string()));
+            assert_eq!(steps[1]["name"], YamlValue::String("Old".to_string()));
+        }
+
+        #[test]
+        fn test_yaml_merge_by_key_is_idempotent() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("steps:\n  - name: Build\n    run: make build\n  - name: Test\n    run: make test"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string("steps:\n  - name: Build\n    run: make OLD\n  - name: Deploy\n    run: make deploy"),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+            let first = read_file_as_string(&fs, "dest.yaml").unwrap();
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+            let second = read_file_as_string(&fs, "dest.yaml").unwrap();
+            assert_eq!(first, second);
+        }
+    }
+
     mod merge_values_direct_tests {
         use super::*;
 
@@ -1692,6 +2028,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Replace,
                 InsertPosition::End,
+                None,
                 "root",
                 "src.yaml",
                 "dst.yaml",
@@ -1712,6 +2049,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Replace,
                 InsertPosition::End,
+                None,
                 "root",
                 "src.yaml",
                 "dst.yaml",
@@ -1732,6 +2070,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Replace,
                 InsertPosition::End,
+                None,
                 "field",
                 "src.yaml",
                 "dst.yaml",
@@ -1750,6 +2089,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Replace,
                 InsertPosition::End,
+                None,
                 "field",
                 "src.yaml",
                 "dst.yaml",
@@ -1768,6 +2108,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Replace,
                 InsertPosition::End,
+                None,
                 "field",
                 "src.yaml",
                 "dst.yaml",
@@ -1787,6 +2128,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Replace,
                 InsertPosition::End,
+                None,
                 "",
                 "src.yaml",
                 "dst.yaml",
@@ -1807,6 +2149,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::Append,
                 InsertPosition::Start,
+                None,
                 "",
                 "src.yaml",
                 "dst.yaml",
@@ -1831,6 +2174,7 @@ mod tests {
                 &source,
                 ArrayMergeMode::AppendUnique,
                 InsertPosition::Start,
+                None,
                 "",
                 "src.yaml",
                 "dst.yaml",

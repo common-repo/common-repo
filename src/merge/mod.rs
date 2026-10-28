@@ -29,6 +29,11 @@ pub(crate) mod toml;
 pub(crate) mod xml;
 pub(crate) mod yaml;
 
+/// Key fields tried in order when `array_mode: merge_by_key` has no explicit
+/// `key:`. Ordered for GitHub Actions steps (`name`, then `uses`) and
+/// pre-commit hooks (`id`). XML uses the `name`/`id` subset as attributes.
+pub(crate) const ARRAY_KEY_FIELD_CANDIDATES: [&str; 3] = ["name", "uses", "id"];
+
 // Public re-exports of merge functions for integration testing and external use
 pub use ini::apply_ini_merge_operation;
 pub use json::apply_json_merge_operation;
