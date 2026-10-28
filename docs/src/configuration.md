@@ -696,6 +696,49 @@ destination key are inserted).
     path: compilerOptions
 ```
 
+**Update keyed array entries in place (`merge_by_key`):**
+
+`members.json` on the left is the source fragment; the destination already
+holds an older revision plus a consumer-only entry. Items are matched on the
+explicit `key: email` field (anything other than `name`/`uses`/`id` must be
+declared): the edited `a@example.com` entry is replaced in place, the
+consumer-only `c@example.com` entry is preserved, and the new `b@example.com`
+entry is appended.
+
+```yaml
+- json:
+    source: members.json
+    dest: directory.json
+    path: members
+    array_mode: merge_by_key
+    key: email
+```
+
+```json
+// source: members.json          // destination before apply
+{                                {
+  "members": [                     "members": [
+    {                                {
+      "email": "a@example.com",        "email": "a@example.com",
+      "role": "admin"                  "role": "viewer"
+    },                               },
+    {                                {
+      "email": "b@example.com",        "email": "c@example.com",
+      "role": "dev"                    "role": "guest"
+    }                                }
+  ]                                ]
+}                                }
+
+// destination after apply: a@example.com updated, c@example.com kept, b@example.com added
+{
+  "members": [
+    { "email": "a@example.com", "role": "admin" },
+    { "email": "c@example.com", "role": "guest" },
+    { "email": "b@example.com", "role": "dev" }
+  ]
+}
+```
+
 ### `toml` - Merge TOML Files
 
 ```yaml
@@ -748,6 +791,108 @@ See [Array Merge Modes](#array-merge-modes) for details on array handling option
     source: lint-settings.toml
     dest: pyproject.toml
     path: tool.ruff
+```
+
+**Update array-of-tables entries in place (`merge_by_key`):**
+
+TOML arrays of tables (`[[...]]`) merge by a key field like any other array.
+The destination below holds an older `mirrors` revision plus a consumer-only
+mirror; after the merge the `fast.example.com` entry is updated in place
+(matched on the explicit `key: url`), the consumer-only mirror is preserved,
+and the new mirror is appended.
+
+```yaml
+- toml:
+    source: mirrors.toml
+    dest: .cargo/config.toml
+    path: mirrors
+    array_mode: merge_by_key
+    key: url
+```
+
+```toml
+# source: mirrors.toml          # destination before apply
+[[mirrors]]                     [[mirrors]]
+url = "https://fast.example.com"  url = "https://fast.example.com"
+priority = 20                    priority = 10
+
+[[mirrors]]                     [[mirrors]]
+url = "https://slow.example.com"  url = "https://private.example.com"
+priority = 50                    priority = 5
+
+# destination after apply
+[[mirrors]]
+url = "https://fast.example.com"
+priority = 20
+
+[[mirrors]]
+url = "https://private.example.com"
+priority = 5
+
+[[mirrors]]
+url = "https://slow.example.com"
+priority = 50
+```
+
+### `xml` - Merge XML Files
+
+```yaml
+- xml:
+    source: fragment.xml
+    dest: config.xml
+```
+
+#### Options
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `source` | Yes* | - | Source fragment file |
+| `dest` | Yes* | - | Destination file |
+| `auto-merge` | No | - | Shorthand: sets source=dest, implies defer=true |
+| `defer` | No | false | Only apply when repo is used as an upstream |
+| `path` | No | root | Path to merge at, navigating by element local name (see [Path Syntax](#path-syntax)) |
+| `array_mode` | No | replace | Array handling for repeated sibling elements: `replace`, `append`, `append_unique`, or `merge_by_key` |
+| `key` | No | auto | Key **attribute** for `merge_by_key`: `name`, then `id` |
+| `position` | No | end | Where to insert new elements: `start` or `end` (used with the `append`, `append_unique`, and `merge_by_key` modes) |
+
+*Either `source`+`dest` or `auto-merge` is required
+
+Elements merge recursively, matched on local name and namespace URI; source
+attributes override destination attributes on the same element. Repeated
+sibling elements with the same name are XML's arrays and follow the unified
+array merge model. With `array_mode: merge_by_key`, the key is an
+**attribute** on the element (auto-detected `name`, then `id`, or an
+explicit `key:`), never a child element — a matched sibling is replaced in
+place with the source element, siblings the source does not mention are
+preserved, and elements without a key attribute fall back to text-content
+uniqueness.
+
+```yaml
+- xml:
+    source: servers.xml
+    dest: config.xml
+    array_mode: merge_by_key
+```
+
+```xml
+<!-- source: servers.xml -->
+<servers>
+  <server name="web" replicas="3"/>
+  <server name="db" replicas="1"/>
+</servers>
+
+<!-- destination before apply: old web revision plus a consumer-only server -->
+<servers>
+  <server name="web" replicas="1"/>
+  <server name="cache" replicas="9"/>
+</servers>
+
+<!-- destination after apply: web updated in place, cache kept, db added -->
+<servers>
+  <server name="web" replicas="3"/>
+  <server name="cache" replicas="9"/>
+  <server name="db" replicas="1"/>
+</servers>
 ```
 
 ### `ini` - Merge INI Files
