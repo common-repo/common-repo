@@ -209,6 +209,8 @@ pub enum ArrayMergeMode {
     Append,
     #[serde(rename = "append_unique")]
     AppendUnique,
+    #[serde(rename = "merge_by_key")]
+    MergeByKey,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -217,6 +219,24 @@ pub enum InsertPosition {
     Start,
     #[default]
     End,
+}
+
+/// Reject `key:` on merge operators that are not in merge_by_key array mode,
+/// so a typo cannot silently fall back to whole-item matching.
+fn validate_array_key(key: Option<&str>, mode: ArrayMergeMode, op_name: &str) -> Result<()> {
+    if key.is_some() && mode != ArrayMergeMode::MergeByKey {
+        return Err(Error::ConfigParse {
+            message: format!(
+                "{}: 'key' is only valid with array_mode: merge_by_key",
+                op_name
+            ),
+            hint: Some(
+                "Set 'array_mode: merge_by_key', or remove 'key' to keep the current mode"
+                    .to_string(),
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// Behavior when an `include`-tagged file's destination already exists
@@ -250,9 +270,12 @@ pub struct YamlMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Array merge mode: replace, append, or append_unique
+    /// Array merge mode: replace, append, append_unique, or merge_by_key
     #[serde(default, rename = "array_mode")]
     pub array_mode: ArrayMergeMode,
+    /// Key field for merge_by_key array mode (auto-detects name/uses/id when unset)
+    #[serde(default)]
+    pub key: Option<String>,
     /// Position for array insertion (start or end)
     #[serde(default)]
     pub position: InsertPosition,
@@ -287,6 +310,7 @@ impl YamlMergeOp {
                 ),
             });
         }
+        validate_array_key(self.key.as_deref(), self.array_mode, "YAML merge")?;
         Ok(())
     }
 
@@ -348,6 +372,12 @@ impl YamlMergeOp {
         self
     }
 
+    /// Set the key field for merge_by_key array mode
+    pub fn key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
+        self
+    }
+
     /// Set the position for array insertion
     pub fn position(mut self, position: InsertPosition) -> Self {
         self.position = position;
@@ -379,9 +409,12 @@ pub struct JsonMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Array merge mode: replace, append, or append_unique
+    /// Array merge mode: replace, append, append_unique, or merge_by_key
     #[serde(default, rename = "array_mode")]
     pub array_mode: ArrayMergeMode,
+    /// Key field for merge_by_key array mode (auto-detects name/uses/id when unset)
+    #[serde(default)]
+    pub key: Option<String>,
     /// Position for array insertion (start or end)
     #[serde(default)]
     pub position: InsertPosition,
@@ -408,9 +441,12 @@ pub struct TomlMergeOp {
     /// Whether to preserve comments
     #[serde(default, rename = "preserve-comments")]
     pub preserve_comments: bool,
-    /// Array merge mode: replace, append, or append_unique
+    /// Array merge mode: replace, append, append_unique, or merge_by_key
     #[serde(default, rename = "array_mode")]
     pub array_mode: ArrayMergeMode,
+    /// Key field for merge_by_key array mode (auto-detects name/uses/id when unset)
+    #[serde(default)]
+    pub key: Option<String>,
     /// Position for array insertion (start or end)
     #[serde(default)]
     pub position: InsertPosition,
@@ -443,6 +479,7 @@ impl TomlMergeOp {
                 ),
             });
         }
+        validate_array_key(self.key.as_deref(), self.array_mode, "TOML merge")?;
         Ok(())
     }
 
@@ -505,6 +542,12 @@ impl TomlMergeOp {
         self
     }
 
+    /// Set the key field for merge_by_key array mode
+    pub fn key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
+        self
+    }
+
     /// Set whether to preserve comments in the output
     pub fn preserve_comments(mut self, preserve: bool) -> Self {
         self.preserve_comments = preserve;
@@ -551,6 +594,7 @@ impl JsonMergeOp {
                 ),
             });
         }
+        validate_array_key(self.key.as_deref(), self.array_mode, "JSON merge")?;
         Ok(())
     }
 
@@ -616,6 +660,12 @@ impl JsonMergeOp {
     /// Set the array merge mode
     pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
         self.array_mode = mode;
+        self
+    }
+
+    /// Set the key field for merge_by_key array mode
+    pub fn key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
         self
     }
 
@@ -946,9 +996,12 @@ pub struct XmlMergeOp {
     /// Path within the destination to merge at (optional - merges at root if omitted)
     #[serde(default)]
     pub path: Option<String>,
-    /// Array merge mode: replace, append, or append_unique
+    /// Array merge mode: replace, append, append_unique, or merge_by_key
     #[serde(default, rename = "array_mode")]
     pub array_mode: ArrayMergeMode,
+    /// Key attribute for merge_by_key array mode (auto-detects name/id when unset)
+    #[serde(default)]
+    pub key: Option<String>,
     /// Position for array insertion (start or end)
     #[serde(default)]
     pub position: InsertPosition,
@@ -981,6 +1034,7 @@ impl XmlMergeOp {
                 ),
             });
         }
+        validate_array_key(self.key.as_deref(), self.array_mode, "XML merge")?;
         Ok(())
     }
 
@@ -1031,6 +1085,12 @@ impl XmlMergeOp {
     /// Set the array merge mode
     pub fn array_mode(mut self, mode: ArrayMergeMode) -> Self {
         self.array_mode = mode;
+        self
+    }
+
+    /// Set the key field for merge_by_key array mode
+    pub fn key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
         self
     }
 
@@ -2404,6 +2464,50 @@ mod tests {
         }
 
         #[test]
+        fn test_parse_merge_by_key_with_explicit_key() {
+            let yaml = r#"
+- yaml:
+    source: fragment.yml
+    dest: .pre-commit-config.yaml
+    array_mode: merge_by_key
+    key: repo
+"#;
+            let config = parse(yaml).expect("merge_by_key op should parse");
+            match &config[0] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.array_mode, ArrayMergeMode::MergeByKey);
+                    assert_eq!(yaml.key.as_deref(), Some("repo"));
+                }
+                other => panic!("expected yaml op, got {:?}", other),
+            }
+        }
+
+        #[test]
+        fn test_validate_rejects_key_without_merge_by_key() {
+            let op = YamlMergeOp {
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
+                array_mode: ArrayMergeMode::AppendUnique,
+                key: Some("name".to_string()),
+                ..Default::default()
+            };
+            let err = op.validate().expect_err("key requires merge_by_key");
+            assert!(err.to_string().contains("merge_by_key"));
+        }
+
+        #[test]
+        fn test_validate_accepts_key_with_merge_by_key() {
+            let op = YamlMergeOp {
+                source: Some("s.yaml".to_string()),
+                dest: Some("d.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                key: Some("name".to_string()),
+                ..Default::default()
+            };
+            assert!(op.validate().is_ok());
+        }
+
+        #[test]
         fn test_toml_merge_op_array_mode_default() {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
@@ -2412,6 +2516,7 @@ mod tests {
                 preserve_comments: false,
                 array_mode: ArrayMergeMode::Replace,
                 position: InsertPosition::End,
+                key: None,
                 defer: None,
                 auto_merge: None,
             };
@@ -2427,6 +2532,7 @@ mod tests {
                 preserve_comments: false,
                 array_mode: ArrayMergeMode::Append,
                 position: InsertPosition::End,
+                key: None,
                 defer: None,
                 auto_merge: None,
             };
@@ -2442,6 +2548,7 @@ mod tests {
                 preserve_comments: false,
                 array_mode: ArrayMergeMode::AppendUnique,
                 position: InsertPosition::End,
+                key: None,
                 defer: None,
                 auto_merge: None,
             };

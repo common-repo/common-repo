@@ -167,6 +167,46 @@ rule ArrayAppendUnique {
             result = unique_items + dest
         else:
             result = dest + unique_items
+
+    @guidance
+        -- Presence is tested by whole-item equality. An upstream edit to an
+        -- existing item therefore counts as "new": the edited item is
+        -- appended next to the stale copy (issue #370). Arrays whose items
+        -- have identity should use merge_by_key instead.
+}
+
+rule ArrayMergeByKey {
+    -- @status: Implemented
+    when: MergeArrays(source, dest, mode, position, key)
+    requires: mode = merge_by_key
+
+    -- Match items by a key field; a matched destination item is replaced in
+    -- place with the source item. Unmatched and keyless behavior below.
+    let detected_key(item) = first_present(item, key ?? [name, uses, id])
+    ensures:
+        for item in source:
+            if detected_key(item) != null:
+                if any dst in dest where dst[key] = item[key]:
+                    result replaces that dst with item, in place
+                else:
+                    item is new
+            else:
+                -- Keyless items keep append_unique semantics.
+                item is new only if item not in dest
+        if position = start:
+            new items are inserted before dest
+        else:
+            new items are appended after dest
+    ensures: every dest item not matched by any source item is preserved
+    ensures: result is a fixed point of the merge (idempotent)
+
+    @guidance
+        -- XML resolves keys on attributes: key ?? [name, id]. XML items
+        -- without a key attribute fall back to text-content uniqueness.
+        -- The key field is chosen from the SOURCE item; a destination item
+        -- matches when it carries the same field with an equal value. Keys
+        -- should be unique within an array; duplicate keys consume
+        -- destination items in order.
 }
 
 -- --------------------------------------------------------------------------
@@ -436,6 +476,12 @@ rule XmlRepeatedElements {
                 result = insert_siblings_before(dest_children, unique, name, namespace)
             else:
                 result = insert_siblings_after(dest_children, unique, name, namespace)
+        if mode = merge_by_key:
+            -- See ArrayMergeByKey: source siblings replace same-name dest
+            -- siblings carrying an equal key attribute (key ?? [name, id]),
+            -- in place; keyless siblings fall back to text-content
+            -- uniqueness; unmatched siblings are inserted at position.
+            result = merge_siblings_by_key_attribute(dest_children, source_children, name, namespace, key, position)
 }
 
 rule XmlNamespaceHandling {

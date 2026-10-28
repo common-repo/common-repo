@@ -124,6 +124,8 @@ pub struct JsonMergeContext<'a> {
     pub src_file: &'a str,
     /// Destination file name for diagnostic messages
     pub dst_file: &'a str,
+    /// Key field for merge_by_key array mode (None auto-detects)
+    pub array_key: Option<String>,
     /// Warnings collected during the merge (type mismatches, etc.)
     pub warnings: Vec<String>,
 }
@@ -135,6 +137,7 @@ impl<'a> JsonMergeContext<'a> {
             path: String::new(),
             src_file,
             dst_file,
+            array_key: None,
             warnings: Vec::new(),
         }
     }
@@ -225,6 +228,14 @@ pub fn merge_json_values(
                                             }
                                         }
                                     }
+                                    ArrayMergeMode::MergeByKey => {
+                                        merge_json_sequence_by_key(
+                                            target_array,
+                                            source_array,
+                                            ctx,
+                                            position,
+                                        );
+                                    }
                                 }
                             } else {
                                 let msg =
@@ -300,6 +311,9 @@ pub fn merge_json_values(
                             }
                         }
                     }
+                    ArrayMergeMode::MergeByKey => {
+                        merge_json_sequence_by_key(target_array, source_array, ctx, position);
+                    }
                 }
             } else {
                 let msg = format!(
@@ -315,6 +329,86 @@ pub fn merge_json_values(
             }
         }
         _ => *target = source.clone(),
+    }
+}
+
+/// Resolve the key field name for one source array item.
+///
+/// An explicit `key` overrides detection; otherwise the first candidate field
+/// present with a scalar value wins (see `ARRAY_KEY_FIELD_CANDIDATES`). Items
+/// with no key field return `None` and fall back to append-unique semantics.
+fn json_item_key_field(item: &JsonValue, explicit: Option<&str>) -> Option<String> {
+    let map = item.as_object()?;
+    if let Some(field) = explicit {
+        return map
+            .get(field)
+            .filter(|v| !v.is_array() && !v.is_object())
+            .map(|_| field.to_string());
+    }
+    super::ARRAY_KEY_FIELD_CANDIDATES
+        .iter()
+        .copied()
+        .find(|field| {
+            matches!(
+                map.get(*field),
+                Some(v) if !v.is_array() && !v.is_object()
+            )
+        })
+        .map(|field| field.to_string())
+}
+
+/// Merge a source array into a target array by key (`merge_by_key`).
+///
+/// Each source item with a key field replaces the first not-yet-consumed
+/// target item carrying the same key value; the edit lands in place instead
+/// of piling up as a duplicate (issue #370). Source items without a match —
+/// and keyless items, which dedupe by whole-item equality — are inserted at
+/// `position`. Target items never matched are preserved.
+fn merge_json_sequence_by_key(
+    target_array: &mut Vec<JsonValue>,
+    source_array: &[JsonValue],
+    ctx: &mut JsonMergeContext<'_>,
+    position: InsertPosition,
+) {
+    let array_key = ctx.array_key.clone();
+    let mut consumed: Vec<bool> = vec![false; target_array.len()];
+    let mut new_items: Vec<JsonValue> = Vec::new();
+
+    for src_item in source_array {
+        let key_field = json_item_key_field(src_item, array_key.as_deref());
+        let mut matched = false;
+
+        if let Some(field) = &key_field {
+            let key_value = src_item.get(field.as_str());
+            for (idx, dst_item) in target_array.iter().enumerate() {
+                if consumed[idx] || dst_item.get(field.as_str()) != key_value {
+                    continue;
+                }
+                if dst_item != src_item {
+                    warn!(
+                        "{} -> {}: Updating keyed array item at '{}.{}' ({:?})",
+                        ctx.src_file, ctx.dst_file, ctx.path, field, key_value
+                    );
+                }
+                target_array[idx] = src_item.clone();
+                consumed[idx] = true;
+                matched = true;
+                break;
+            }
+        }
+
+        if !matched && !target_array.contains(src_item) && !new_items.contains(src_item) {
+            new_items.push(src_item.clone());
+        }
+    }
+
+    match position {
+        InsertPosition::Start => {
+            let mut new_array = new_items;
+            new_array.append(target_array);
+            *target_array = new_array;
+        }
+        InsertPosition::End => target_array.extend(new_items),
     }
 }
 
@@ -370,6 +464,7 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
     let target = navigate_json_value(&mut dest_value, &path)?;
     let mode = op.array_mode;
     let mut ctx = JsonMergeContext::new(source_path, dest_path);
+    ctx.array_key = op.key.clone();
     merge_json_values(target, &source_value, mode, op.position, &mut ctx);
 
     let serialized = serde_json::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
@@ -1377,6 +1472,102 @@ mod tests {
 
             assert!(target.is_object());
             assert_eq!(target["key"], JsonValue::String("value".to_string()));
+        }
+    }
+
+    mod merge_by_key_tests {
+        use super::*;
+
+        #[test]
+        fn test_json_merge_by_key_replaces_changed_item() {
+            // Issue #370 analog: an edited object must update the matching
+            // destination item instead of piling up as a duplicate.
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.json",
+                File::from_string(
+                    r#"{"steps": [
+  {"name": "build", "run": "make build --release"},
+  {"uses": "actions/checkout@v4", "with": {"persist-credentials": false}}
+]}"#,
+                ),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.json",
+                File::from_string(
+                    r#"{"steps": [
+  {"name": "build", "run": "make build"},
+  {"uses": "actions/checkout@v4"}
+]}"#,
+                ),
+            )
+            .unwrap();
+
+            let op = JsonMergeOp {
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_json_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.json").unwrap();
+            let parsed: JsonValue = serde_json::from_str(&result).unwrap();
+            let steps = parsed["steps"].as_array().unwrap();
+            assert_eq!(steps.len(), 2);
+            assert_eq!(
+                steps[0]["run"],
+                JsonValue::String("make build --release".into())
+            );
+            assert_eq!(
+                steps[1]["with"]["persist-credentials"],
+                JsonValue::Bool(false)
+            );
+        }
+
+        #[test]
+        fn test_json_merge_by_key_explicit_key_and_keyless_fallback() {
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.json",
+                File::from_string(
+                    r#"{"members": [
+  {"email": "a@example.com", "role": "admin"},
+  "plain-string"
+]}"#,
+                ),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.json",
+                File::from_string(
+                    r#"{"members": [
+  {"email": "a@example.com", "role": "viewer"},
+  "plain-string"
+]}"#,
+                ),
+            )
+            .unwrap();
+
+            let op = JsonMergeOp {
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                key: Some("email".to_string()),
+                ..Default::default()
+            };
+
+            apply_json_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.json").unwrap();
+            let parsed: JsonValue = serde_json::from_str(&result).unwrap();
+            let members = parsed["members"].as_array().unwrap();
+            assert_eq!(members.len(), 2);
+            assert_eq!(members[0]["role"], JsonValue::String("admin".into()));
+            // Keyless string item deduped by equality, not duplicated.
+            assert_eq!(members[1], JsonValue::String("plain-string".into()));
         }
     }
 

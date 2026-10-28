@@ -236,6 +236,7 @@ pub(crate) fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -
                     yaml.array_mode
                 },
                 position: yaml.position,
+                key: yaml.key.clone(),
                 defer: None,
                 auto_merge: None,
             },
@@ -251,6 +252,7 @@ pub(crate) fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -
                     json.array_mode
                 },
                 position: json.position,
+                key: json.key.clone(),
                 defer: None,
                 auto_merge: None,
             },
@@ -267,6 +269,7 @@ pub(crate) fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -
                 },
                 position: toml.position,
                 preserve_comments: toml.preserve_comments,
+                key: toml.key.clone(),
                 defer: None,
                 auto_merge: None,
             },
@@ -308,6 +311,7 @@ pub(crate) fn make_explicit_merge_op(op: &Operation, source: &str, dest: &str) -
                     xml.array_mode
                 },
                 position: xml.position,
+                key: xml.key.clone(),
                 defer: None,
                 auto_merge: None,
             },
@@ -495,9 +499,34 @@ pub(crate) fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) 
 mod tests {
     use std::collections::HashMap;
 
-    use super::{execute, IntermediateFS, OperationOrder};
+    use super::{execute, make_explicit_merge_op, IntermediateFS, OperationOrder};
     use crate::error::Error;
     use crate::filesystem::MemoryFS;
+
+    #[test]
+    fn test_make_explicit_merge_op_preserves_merge_by_key_and_key() {
+        use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+
+        let op = Operation::Yaml {
+            yaml: YamlMergeOp::new()
+                .auto_merge(".github/workflows/ci.yaml")
+                .array_mode(ArrayMergeMode::MergeByKey)
+                .key("name"),
+        };
+
+        let explicit = make_explicit_merge_op(&op, "staged.yaml", "local.yaml");
+        match explicit {
+            Operation::Yaml { yaml } => {
+                // merge_by_key must NOT be upgraded to AppendUnique (which
+                // would reintroduce issue #370's duplication).
+                assert_eq!(yaml.array_mode, ArrayMergeMode::MergeByKey);
+                assert_eq!(yaml.key.as_deref(), Some("name"));
+                assert_eq!(yaml.source.as_deref(), Some("staged.yaml"));
+                assert_eq!(yaml.dest.as_deref(), Some("local.yaml"));
+            }
+            other => panic!("expected yaml op, got {:?}", other),
+        }
+    }
 
     #[test]
     fn test_phase4_execute_merge_no_conflicts() {

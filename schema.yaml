@@ -76,15 +76,16 @@
 # Deterministically merge content fragments into structured files.
 # A "fragment" is a partial file that gets merged into a complete destination file.
 
-# yaml: Merge YAML fragments (source, dest, path, array_mode, position, defer, auto-merge)
+# yaml: Merge YAML fragments (source, dest, path, array_mode, key, position, defer, auto-merge)
 - yaml:
     source: fragment.yml
     dest: config.yml
     path: metadata.labels
-    array_mode: append_unique
-    position: start
+    array_mode: merge_by_key
+    key: name
+    position: end
 
-# json: Merge JSON fragments (source, dest, path, array_mode, position, defer, auto-merge)
+# json: Merge JSON fragments (source, dest, path, array_mode, key, position, defer, auto-merge)
 - json:
     source: fragment.json
     dest: package.json
@@ -92,7 +93,7 @@
     array_mode: append
     position: end
 
-# toml: Merge TOML fragments (source, dest, path, array_mode, position, preserve-comments, defer, auto-merge)
+# toml: Merge TOML fragments (source, dest, path, array_mode, key, position, preserve-comments, defer, auto-merge)
 - toml:
     source: fragment.toml
     dest: Cargo.toml

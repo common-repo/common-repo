@@ -51,7 +51,7 @@ value MergeBase {
 -- Enumerations
 -- ==========================================================================
 
-enum ArrayMergeMode { replace | append | append_unique }
+enum ArrayMergeMode { replace | append | append_unique | merge_by_key }
 
 enum InsertPosition { start | end }
 
@@ -164,8 +164,10 @@ variant Self : Operation {
 -- appear on every variant; variant-specific fields differ.
 --
 -- Structured formats (YAML, JSON, TOML) share a unified array merge model:
--- array_mode (replace | append | append_unique) + position (start | end).
--- All three now use array_mode + position enums consistently.
+-- array_mode (replace | append | append_unique | merge_by_key) + position
+-- (start | end). merge_by_key additionally accepts an optional key field
+-- (String?) naming the item field (XML: attribute) to match on.
+-- All formats use array_mode + position enums consistently.
 --
 -- See detailed/merge-operations.allium for full merge semantics.
 -- --------------------------------------------------------------------------
@@ -175,6 +177,7 @@ variant YamlMerge : Operation {
     dest: String?
     path: String?
     array_mode: ArrayMergeMode
+    key: String?
     position: InsertPosition
     defer: Boolean
     auto_merge: String?
@@ -190,6 +193,7 @@ variant JsonMerge : Operation {
     dest: String?
     path: String?
     array_mode: ArrayMergeMode
+    key: String?
     position: InsertPosition
     defer: Boolean
     auto_merge: String?
@@ -205,6 +209,7 @@ variant TomlMerge : Operation {
     dest: String?
     path: String?
     array_mode: ArrayMergeMode
+    key: String?
     position: InsertPosition
     preserve_comments: Boolean
     defer: Boolean
@@ -259,6 +264,7 @@ variant XmlMerge : Operation {
     dest: String?
     path: String?
     array_mode: ArrayMergeMode
+    key: String?
     position: InsertPosition
     defer: Boolean
     auto_merge: String?
@@ -318,6 +324,7 @@ entity UpdateInfo {
 -- YamlMerge: array_mode defaults to replace
 -- JsonMerge: array_mode defaults to replace
 -- TomlMerge: array_mode defaults to replace, preserve_comments defaults to false
+-- key defaults to null on all merge variants (merge_by_key auto-detection)
 -- IniMerge: append defaults to false, allow_duplicates defaults to false
 -- MarkdownMerge: level defaults to 2, section defaults to "", position defaults to end
 --                create_section defaults to false, append defaults to false
@@ -334,6 +341,12 @@ rule ValidateMergeOperation {
         if op.kind in {YamlMerge, JsonMerge, TomlMerge, IniMerge, MarkdownMerge, XmlMerge}:
             requires: not (op.auto_merge != null and (op.source != null or op.dest != null))
             requires: op.auto_merge != null or (op.source != null and op.dest != null)
+        if op.kind in {YamlMerge, JsonMerge, TomlMerge, XmlMerge}:
+            requires: op.key = null or op.array_mode = merge_by_key
+
+    @guidance
+        -- A 'key' on any other array mode would be silently ignored;
+        -- rejecting it at parse time surfaces config typos early.
 }
 
 rule SelfOperatorValidation {
@@ -860,10 +873,10 @@ rule ApplyDeferredMerges {
         -- the remaining edge case.
         --
         -- Idempotency note: merge modes that detect uniqueness (replace,
-        -- append_unique) produce the same result on repeated runs. Modes
-        -- that blindly append (append) will duplicate content on each run.
-        -- Upstream authors should prefer replace or append_unique for
-        -- deterministic results.
+        -- append_unique, merge_by_key) produce the same result on repeated
+        -- runs. Modes that blindly append (append) will duplicate content on
+        -- each run. Upstream authors should prefer replace, append_unique,
+        -- or merge_by_key for deterministic results.
 }
 
 -- ==========================================================================

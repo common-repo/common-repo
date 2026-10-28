@@ -19,6 +19,7 @@ pub(crate) struct XmlMergeContext<'a> {
     path: &'a str,
     src_file: &'a str,
     dst_file: &'a str,
+    array_key: Option<String>,
 }
 
 /// Navigate to a specific path within an XML tree, returning the target element.
@@ -155,6 +156,7 @@ pub fn merge_xml_elements(
             path: &child_path,
             src_file: ctx.src_file,
             dst_file: ctx.dst_file,
+            array_key: ctx.array_key.clone(),
         };
 
         let dest_elems: Vec<xot::Node> = xot
@@ -173,6 +175,7 @@ pub fn merge_xml_elements(
                 *name_id,
                 mode,
                 position,
+                ctx.array_key.as_deref(),
             )?;
         } else if dest_elems.len() == 1 && source_elems.len() == 1 {
             merge_xml_elements(
@@ -229,14 +232,16 @@ fn apply_text_content(xot: &mut Xot, target: xot::Node, text: &str) -> Result<()
 }
 
 /// Handle repeated sibling elements using the unified array merge model.
+#[allow(clippy::too_many_arguments)]
 fn merge_repeated_elements(
     xot: &mut Xot,
     parent: xot::Node,
     dest_elems: &[xot::Node],
     source_elems: &[xot::Node],
-    _name_id: xot::NameId,
+    name_id: xot::NameId,
     mode: ArrayMergeMode,
     position: InsertPosition,
+    array_key: Option<&str>,
 ) -> Result<()> {
     match mode {
         ArrayMergeMode::Replace => {
@@ -305,8 +310,106 @@ fn merge_repeated_elements(
                 }
             }
         }
+        ArrayMergeMode::MergeByKey => {
+            // Keyed merge: source elements replace same-name dest elements
+            // carrying an equal key attribute value, in place. Keyless or
+            // unmatched elements fall back to text-content uniqueness.
+            let mut consumed: Vec<bool> = vec![false; dest_elems.len()];
+            let mut new_sources: Vec<xot::Node> = Vec::new();
+
+            for &src in source_elems {
+                let key_attr = xml_key_attribute(xot, src, array_key);
+                let mut matched: Option<(usize, xot::Node)> = None;
+
+                if let Some(attr) = &key_attr {
+                    let key_value = xml_attribute_local(xot, src, attr);
+                    for (idx, &dst) in dest_elems.iter().enumerate() {
+                        if !consumed[idx] && xml_attribute_local(xot, dst, attr) == key_value {
+                            matched = Some((idx, dst));
+                            break;
+                        }
+                    }
+                }
+
+                match matched {
+                    Some((idx, dst)) => {
+                        clone_subtree_into(xot, parent, src, Some(dst))?;
+                        xot.remove(dst).map_err(|e| Error::Merge {
+                            operation: "xml merge".to_string(),
+                            message: format!("Failed to remove element: {}", e),
+                        })?;
+                        consumed[idx] = true;
+                    }
+                    None if key_attr.is_some() => {
+                        // Keyed but no dest element carries this key: new item.
+                        new_sources.push(src);
+                    }
+                    None => {
+                        // Keyless: fall back to text-content uniqueness.
+                        let text = xot.text_content_str(src).unwrap_or("").to_string();
+                        let in_dest = dest_elems.iter().enumerate().any(|(idx, &dst)| {
+                            !consumed[idx] && xot.text_content_str(dst).unwrap_or("") == text
+                        });
+                        let already_new = new_sources
+                            .iter()
+                            .any(|&n| xot.text_content_str(n).unwrap_or("") == text);
+                        if !in_dest && !already_new {
+                            new_sources.push(src);
+                        }
+                    }
+                }
+            }
+
+            if !new_sources.is_empty() {
+                match position {
+                    InsertPosition::Start => {
+                        // Re-query the group: the original first dest element
+                        // may have been removed by an in-place replacement.
+                        let insert_before = xot
+                            .children(parent)
+                            .find(|&c| xot.element(c).is_some_and(|el| el.name() == name_id));
+                        for &src in &new_sources {
+                            clone_subtree_into(xot, parent, src, insert_before)?;
+                        }
+                    }
+                    InsertPosition::End => {
+                        for &src in &new_sources {
+                            let last_of_group = xot
+                                .children(parent)
+                                .filter(|&c| xot.element(c).is_some_and(|el| el.name() == name_id))
+                                .last();
+                            let insert_before = last_of_group.and_then(|n| xot.next_sibling(n));
+                            clone_subtree_into(xot, parent, src, insert_before)?;
+                        }
+                    }
+                }
+            }
+        }
     }
     Ok(())
+}
+
+/// Look up an attribute value by local name, ignoring prefix and namespace.
+fn xml_attribute_local(xot: &Xot, node: xot::Node, local: &str) -> Option<String> {
+    xot.attributes(node)
+        .iter()
+        .find(|(name_id, _)| xot.local_name_str(*name_id) == local)
+        .map(|(_, value)| value.to_string())
+}
+
+/// Resolve the key attribute name for one source element.
+///
+/// An explicit `key` overrides detection; otherwise the first of `name`/`id`
+/// present on the element wins. Elements without either return `None` and
+/// fall back to text-content uniqueness.
+fn xml_key_attribute(xot: &Xot, node: xot::Node, explicit: Option<&str>) -> Option<String> {
+    if let Some(attr) = explicit {
+        return xml_attribute_local(xot, node, attr).map(|_| attr.to_string());
+    }
+    ["name", "id"]
+        .iter()
+        .find(|attr| xml_attribute_local(xot, node, attr).is_some())
+        .map(|attr| attr.to_string())
 }
 
 /// Deep-clone a subtree from source into parent (optionally before a reference node).
@@ -395,6 +498,7 @@ pub fn apply_xml_merge_operation(fs: &mut MemoryFS, op: &XmlMergeOp) -> Result<(
         path: path_str,
         src_file: source_path,
         dst_file: dest_path,
+        array_key: op.key.clone(),
     };
 
     // Merge source into target
@@ -427,6 +531,108 @@ mod tests {
     use super::*;
     use crate::config::ArrayMergeMode;
     use crate::merge::parse_path;
+
+    // =====================================================================
+    // merge_by_key: keyed repeated elements are replaced in place, not
+    // duplicated (issue #370). Key attribute auto-detects name, then id.
+    // =====================================================================
+
+    #[test]
+    fn merge_by_key_replaces_matched_element_and_keeps_consumer_elements() {
+        let mut fs = MemoryFS::new();
+        fs.add_file(
+            "source.xml",
+            File::from_string(
+                "<servers><server name=\"web\" replicas=\"3\"/><server name=\"db\" replicas=\"1\"/></servers>",
+            ),
+        )
+        .unwrap();
+        fs.add_file(
+            "dest.xml",
+            File::from_string(
+                "<servers><server name=\"web\" replicas=\"1\"/><server name=\"cache\" replicas=\"9\"/></servers>",
+            ),
+        )
+        .unwrap();
+
+        let op = XmlMergeOp::new()
+            .source("source.xml")
+            .dest("dest.xml")
+            .array_mode(ArrayMergeMode::MergeByKey);
+        apply_xml_merge_operation(&mut fs, &op).unwrap();
+
+        let result = read_file_as_string(&fs, "dest.xml").unwrap();
+        assert_eq!(result.matches("name=\"web\"").count(), 1);
+        assert!(result.contains("<server name=\"web\" replicas=\"3\"/>"));
+        // unmatched source element is added, consumer-only element preserved
+        assert!(result.contains("<server name=\"db\" replicas=\"1\"/>"));
+        assert!(result.contains("<server name=\"cache\" replicas=\"9\"/>"));
+    }
+
+    #[test]
+    fn merge_by_key_explicit_attribute_key() {
+        let mut fs = MemoryFS::new();
+        fs.add_file(
+            "source.xml",
+            File::from_string("<env><var id=\"PATH\" value=\"/usr/local/bin:/usr/bin\"/></env>"),
+        )
+        .unwrap();
+        fs.add_file(
+            "dest.xml",
+            File::from_string("<env><var id=\"PATH\" value=\"/usr/bin\"/></env>"),
+        )
+        .unwrap();
+
+        let op = XmlMergeOp::new()
+            .source("source.xml")
+            .dest("dest.xml")
+            .array_mode(ArrayMergeMode::MergeByKey)
+            .key("id");
+        apply_xml_merge_operation(&mut fs, &op).unwrap();
+
+        let result = read_file_as_string(&fs, "dest.xml").unwrap();
+        assert_eq!(result.matches("id=\"PATH\"").count(), 1);
+        assert!(result.contains("value=\"/usr/local/bin:/usr/bin\""));
+    }
+
+    #[test]
+    fn merge_by_key_position_start_after_replacing_first_element() {
+        // The first dest element is replaced in place; a new keyed element
+        // with position=start must land before the group, not reference the
+        // removed node.
+        let mut fs = MemoryFS::new();
+        fs.add_file(
+            "source.xml",
+            File::from_string(
+                "<servers><server name=\"web\" replicas=\"3\"/><server name=\"new\" replicas=\"1\"/></servers>",
+            ),
+        )
+        .unwrap();
+        fs.add_file(
+            "dest.xml",
+            File::from_string(
+                "<servers><server name=\"web\" replicas=\"1\"/><server name=\"cache\" replicas=\"9\"/></servers>",
+            ),
+        )
+        .unwrap();
+
+        let op = XmlMergeOp::new()
+            .source("source.xml")
+            .dest("dest.xml")
+            .array_mode(ArrayMergeMode::MergeByKey)
+            .position(crate::config::InsertPosition::Start);
+        apply_xml_merge_operation(&mut fs, &op).unwrap();
+
+        let result = read_file_as_string(&fs, "dest.xml").unwrap();
+        assert!(result.contains("<server name=\"web\" replicas=\"3\"/>"));
+        assert!(result.contains("<server name=\"cache\" replicas=\"9\"/>"));
+        let new_pos = result.find("name=\"new\"").unwrap();
+        let web_pos = result.find("name=\"web\"").unwrap();
+        assert!(
+            new_pos < web_pos,
+            "position=start must insert new elements before the group: {result}"
+        );
+    }
 
     // =====================================================================
     // Spec: AutoCreateDestination (XML case)
