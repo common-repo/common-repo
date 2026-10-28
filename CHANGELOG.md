@@ -1,6 +1,16 @@
 # Changelog
 
 - - -
+## v0.37.8 - 2026-10-28
+#### Bug Fixes
+- (**deps**) resolve Dependabot security alerts - (b7b20b9) - Jacob Alheid
+#### Build system
+- (**deps**) ignore RUSTSEC-2024-0449 for unsafe-libyaml via serde_yaml - (c39e0f8) - Jacob Alheid
+#### Miscellaneous Chores
+- drop CLAUDE.md shims; AGENTS.md is read natively - (b132e4c) - Jacob Alheid
+
+- - -
+
 ## v0.37.7 - 2026-09-23
 #### Bug Fixes
 - <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>(**orchestrator**) write only self: output when a self: block is present - (ab521b0) - Jacob Alheid
