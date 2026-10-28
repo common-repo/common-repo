@@ -1,0 +1,5 @@
+- include: ["**"]
+- toml:
+    auto-merge: Cargo.toml
+    array_mode: merge_by_key
+    key: name

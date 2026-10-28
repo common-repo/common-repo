@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<servers>
+  <server name="web" replicas="1"/>
+  <server name="cache" replicas="9"/>
+</servers>
