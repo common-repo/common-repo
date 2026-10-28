@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Whitespace in the merged output is what the serializer emits; do not hand-edit the .expected copy -->
 <servers>
   <server name="web" replicas="1"/>
   <server name="cache" replicas="9"/>
