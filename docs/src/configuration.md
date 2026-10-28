@@ -951,7 +951,10 @@ array merge model. With `array_mode: merge_by_key`, the key is an
 explicit `key:`), never a child element — a matched sibling is replaced in
 place with the source element, siblings the source does not mention are
 preserved, and elements without a key attribute fall back to text-content
-uniqueness.
+uniqueness. A same-name pair is matched by key whenever either side
+carries a key attribute, even when there is only one element on each
+side; a lone pair with no key attribute on either side (a single config
+element such as `<settings>`) still merges recursively.
 
 ```yaml
 - xml:

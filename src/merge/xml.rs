@@ -6,7 +6,7 @@
 use log::warn;
 use xot::Xot;
 
-use super::keyed::{log_replacement, plan_keyed_merge, KeyedItems, MergeSite};
+use super::keyed::{log_replacement, plan_keyed_merge, resolve_key, KeyedItems, MergeSite};
 use super::{
     read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment,
     XML_KEY_ATTRIBUTE_CANDIDATES,
@@ -178,7 +178,22 @@ pub fn merge_xml_elements(
             .filter(|&child| xot.element(child).is_some_and(|el| el.name() == *name_id))
             .collect();
 
-        let is_repeated = source_elems.len() > 1 || dest_elems.len() > 1;
+        // Under merge_by_key a lone same-name pair is still a keyed list of
+        // one: deciding by sibling count alone would deep-merge a consumer's
+        // `<server name="cache">` with an upstream's `<server name="web">`,
+        // overwriting the consumer's element instead of adding the upstream's
+        // beside it, and would give a matched key a different (deep) result
+        // than the repeated path. A pair with no key attribute on either side
+        // is a single config element such as `<settings>` and keeps deep
+        // merging.
+        let keyed_pair = ctx.mode == ArrayMergeMode::MergeByKey && {
+            let items = XmlItems { xot };
+            source_elems
+                .iter()
+                .chain(dest_elems.iter())
+                .any(|node| resolve_key(&items, node, ctx.array_key).is_some())
+        };
+        let is_repeated = source_elems.len() > 1 || dest_elems.len() > 1 || keyed_pair;
 
         if is_repeated {
             merge_repeated_elements(xot, target, &dest_elems, source_elems, *name_id, &child_ctx)?;

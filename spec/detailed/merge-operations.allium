@@ -489,6 +489,16 @@ rule XmlRepeatedElements {
             -- in place; keyless siblings fall back to text-content
             -- uniqueness; unmatched siblings are inserted at position.
             result = merge_siblings_by_key_attribute(dest_children, source_children, name, namespace, key, position)
+
+    @guidance
+        -- A group is "repeated" when either side has more than one sibling.
+        -- Under merge_by_key a lone same-name pair also belongs to the
+        -- group whenever either element carries a key attribute: the pair
+        -- is a keyed list of one, so a different key keeps the destination
+        -- element and adds the source one, and an equal key replaces it in
+        -- place, exactly as with several siblings. A lone pair with no key
+        -- attribute on either side is a single configuration element and
+        -- deep-merges per XmlDeepMerge.
 }
 
 rule XmlNamespaceHandling {

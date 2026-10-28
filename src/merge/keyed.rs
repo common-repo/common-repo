@@ -122,7 +122,7 @@ pub(crate) fn plan_keyed_merge<A: KeyedItems>(
 
 /// The key field and value for `item`: the explicit key when the item
 /// carries it as a scalar, else the first candidate it carries as a scalar.
-fn resolve_key<'f, A: KeyedItems>(
+pub(crate) fn resolve_key<'f, A: KeyedItems>(
     adapter: &A,
     item: &A::Item,
     explicit_key: Option<&'f str>,
