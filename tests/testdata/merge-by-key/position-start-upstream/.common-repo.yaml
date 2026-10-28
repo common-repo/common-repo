@@ -1,0 +1,5 @@
+- include: ["**"]
+- yaml:
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key
+    position: start
