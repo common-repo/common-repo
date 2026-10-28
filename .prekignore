@@ -1,0 +1,4 @@
+# Fixture trees model consumer repositories and may contain their own
+# .pre-commit-config.yaml files as test data. Keep prek workspace discovery
+# out of them: those hooks are not hooks this repo runs.
+tests/testdata/
