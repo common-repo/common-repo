@@ -91,7 +91,7 @@
     dest: package.json
     path: dependencies
     array_mode: append
-    position: end
+    position: start
 
 # toml: Merge TOML fragments (source, dest, path, array_mode, key, position, preserve-comments, defer, auto-merge)
 - toml:
