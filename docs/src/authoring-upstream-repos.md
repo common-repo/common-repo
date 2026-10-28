@@ -248,6 +248,31 @@ A base Rust configuration shares common dependencies:
 
 Consumers inherit the base dependencies merged into their Cargo.toml.
 
+### Choosing an Array Mode for Files You Revise
+
+If an auto-merged file contains lists whose entries you edit over time —
+workflow `steps`, pre-commit `repos` or `hooks` — use `merge_by_key`, not
+`append_unique`. `append_unique` compares whole items, so once you edit a step
+the consumer's copy no longer equals yours and the edited step is appended
+next to the stale one. Consumers end up running both versions, and `diff`
+stays quiet because re-applying is a no-op.
+
+```yaml
+# Upstream repo: .common-repo.yaml
+- include: ["**"]
+- yaml:
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key
+```
+
+`merge_by_key` matches list items on a key field (`name`, then `uses`, then
+`id` for YAML/JSON/TOML; attributes for XML) and replaces the matched item in
+place, so a consumer that applied v1 and then bumps to v2 gets exactly your
+current steps. Items the consumer added themselves are preserved. For lists
+keyed by another field, set it explicitly (for example `key: repo` for
+pre-commit `repos[]`). See
+[Array Merge Modes](configuration.md#array-merge-modes) for the full rules.
+
 ### Consumer Override
 
 Consumers can always override upstream-declared behavior using the `with:` clause:

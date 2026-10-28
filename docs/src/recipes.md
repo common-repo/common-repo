@@ -178,7 +178,6 @@ Inherit and customize GitHub Actions workflows.
     source: local-ci-jobs.yml
     dest: .github/workflows/ci.yml
     path: jobs
-    append: true
 
 # Customize workflow variables
 - template-vars:
@@ -189,6 +188,11 @@ Inherit and customize GitHub Actions workflows.
 - template:
     - ".github/workflows/*.yml"
 ```
+
+Jobs are a mapping, so the consumer's jobs merge in by key. To merge into a
+`steps` list instead, use `array_mode: merge_by_key` so an edited step
+replaces the older version instead of piling up beside it — see
+[Array Merge Modes](configuration.md#array-merge-modes).
 
 **local-ci-jobs.yml:**
 ```yaml
