@@ -58,12 +58,18 @@ use crate::repository::RepositoryManager;
 /// was already in the composite, typically from an upstream `repo:`
 /// integration) wins scalar conflicts while target-position content
 /// (incoming, typically the consumer's local file) keeps its sequence order
-/// with unique items from the source appended.
+/// with unique items from the source appended. Under `merge_by_key` the
+/// incoming file is this repo's own copy and keeps its versions of matched
+/// items; see [`phase4::merge_into_composite_file`].
+///
+/// Every path the include pulled in is recorded in `own_paths`, so later
+/// upstream integrations know which composite files this repo authored.
 fn apply_include_with_auto_merge(
     include: &IncludeOp,
     source_fs: &MemoryFS,
     fs: &mut MemoryFS,
     auto_merge_targets: &HashMap<String, Operation>,
+    own_paths: &mut HashSet<String>,
 ) -> Result<()> {
     let mut snapshots: HashMap<String, crate::filesystem::File> = HashMap::new();
     for path in auto_merge_targets.keys() {
@@ -73,6 +79,12 @@ fn apply_include_with_auto_merge(
     }
 
     crate::operators::include::apply(include, source_fs, fs)?;
+
+    for pattern in &include.patterns {
+        for path in source_fs.list_files_glob(pattern)? {
+            own_paths.insert(path.to_string_lossy().into_owned());
+        }
+    }
 
     for (path, snapshot) in &snapshots {
         let Some(current) = fs.get_file(path) else {
@@ -84,15 +96,11 @@ fn apply_include_with_auto_merge(
         let auto_merge_op = auto_merge_targets
             .get(path)
             .expect("snapshot key was iterated from auto_merge_targets");
-        let temp_path = format!(".__common_repo_auto_merge_existing__{}", path);
-        fs.add_file(&temp_path, snapshot.clone())?;
-        let explicit_op = phase4::make_explicit_merge_op(auto_merge_op, &temp_path, path);
         trace!(
             "auto-merge × include: merging existing into incoming for {}",
             path
         );
-        phase4::execute_merge_operation(fs, &explicit_op)?;
-        fs.remove_file(&temp_path)?;
+        phase4::merge_into_composite_file(fs, auto_merge_op, path, snapshot, true)?;
     }
 
     Ok(())
@@ -259,6 +267,10 @@ fn resolve_repo_inline_inner(
     // auto-merges accumulate correctly (e.g., when a chained upstream
     // also declares auto-merge for the same file).
     let mut accumulated_auto_merge_targets = HashMap::new();
+    // Composite paths this repo pulled in through its own `include`. A
+    // keyed auto-merge from an upstream must not revert this repo's edits
+    // to those files; see phase4::merge_into_composite_file.
+    let mut own_paths: HashSet<String> = HashSet::new();
 
     for operation in &cloned.operations {
         match operation {
@@ -311,6 +323,7 @@ fn resolve_repo_inline_inner(
                         &mut fs,
                         &nested_intermediate,
                         &mut accumulated_auto_merge_targets,
+                        &own_paths,
                     )?;
 
                     merge_operations.extend(nested_result.merge_operations);
@@ -340,10 +353,14 @@ fn resolve_repo_inline_inner(
                     &cloned.fs,
                     &mut fs,
                     &accumulated_auto_merge_targets,
+                    &mut own_paths,
                 )?;
             }
             other => {
                 phase2::apply_operation(&mut fs, &cloned.fs, other)?;
+                // exclude and rename drop paths; a file an upstream adds
+                // later at a dropped path is not this repo's own.
+                own_paths.retain(|path| fs.exists(path));
             }
         }
     }
@@ -379,6 +396,7 @@ fn resolve_repo_inline_inner(
                 &mut fs,
                 &child_intermediate,
                 &mut accumulated_auto_merge_targets,
+                &own_paths,
             )?;
 
             merge_operations.extend(child_result.merge_operations);
@@ -488,6 +506,10 @@ fn execute_sequential_pipeline(
     // merge upstream content into local files that were not in the composite
     // during the sequential pass.
     let mut auto_merge_snapshots: HashMap<String, crate::filesystem::File> = HashMap::new();
+    // Composite paths pulled in by this config's own `include` ops. Same
+    // role as in resolve_repo_inline_inner: an upstream's keyed auto-merge
+    // must not revert the files this repo authored.
+    let mut own_paths: HashSet<String> = HashSet::new();
 
     debug!(
         "pipeline start: mode={:?}, working_dir={}, ops={}, source_fs_files={}",
@@ -521,6 +543,7 @@ fn execute_sequential_pipeline(
                     source,
                     &mut fs,
                     &accumulated_auto_merge_targets,
+                    &mut own_paths,
                 )?;
                 trace!("op include: composite_after={}", fs.len());
             }
@@ -531,6 +554,7 @@ fn execute_sequential_pipeline(
                     fs.len(),
                 );
                 crate::operators::exclude::apply(exclude, &mut fs)?;
+                own_paths.retain(|path| fs.exists(path));
                 trace!("op exclude: composite_after={}", fs.len());
             }
             Operation::Rename { rename } => {
@@ -540,6 +564,7 @@ fn execute_sequential_pipeline(
                     fs.len(),
                 );
                 crate::operators::rename::apply(rename, &mut fs)?;
+                own_paths.retain(|path| fs.exists(path));
                 trace!("op rename: composite_after={}", fs.len());
             }
             Operation::Repo { repo } => {
@@ -590,6 +615,7 @@ fn execute_sequential_pipeline(
                         &mut fs,
                         &sub_composite,
                         &mut accumulated_auto_merge_targets,
+                        &own_paths,
                     )?;
                     debug!(
                         "op repo: integrated {}; composite_after={}, deferred_residual={}",
