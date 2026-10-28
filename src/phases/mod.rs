@@ -131,8 +131,13 @@ impl RepoNode {
     /// discovery canonicalises the path); falls back to `url` for nodes that
     /// haven't been through discovery yet.
     pub fn is_local(&self) -> bool {
-        let s = self.original_url.as_deref().unwrap_or(self.url.as_str());
-        crate::repository::is_local_url(s)
+        crate::repository::is_local_url(self.display_url())
+    }
+
+    /// The URL as the user wrote it: `original_url` when discovery
+    /// canonicalised a local path, otherwise `url`.
+    pub fn display_url(&self) -> &str {
+        self.original_url.as_deref().unwrap_or(self.url.as_str())
     }
 }
 
