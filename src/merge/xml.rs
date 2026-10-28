@@ -624,6 +624,35 @@ mod tests {
         );
     }
 
+    #[test]
+    fn merge_by_key_single_elements_with_different_keys_are_both_kept() {
+        // One `<server>` on each side is still a keyed list: the consumer's
+        // element must survive and the upstream's be added, not deep-merged
+        // over it as a lone same-name pair would be without a key.
+        let mut fs = MemoryFS::new();
+        fs.add_file(
+            "source.xml",
+            File::from_string("<servers><server name=\"web\" replicas=\"3\"/></servers>"),
+        )
+        .unwrap();
+        fs.add_file(
+            "dest.xml",
+            File::from_string("<servers><server name=\"cache\" replicas=\"9\"/></servers>"),
+        )
+        .unwrap();
+
+        let op = XmlMergeOp::new()
+            .source("source.xml")
+            .dest("dest.xml")
+            .array_mode(ArrayMergeMode::MergeByKey);
+        apply_xml_merge_operation(&mut fs, &op).unwrap();
+
+        let result = read_file_as_string(&fs, "dest.xml").unwrap();
+        assert!(result.contains(
+            "<servers><server name=\"cache\" replicas=\"9\"/><server name=\"web\" replicas=\"3\"/></servers>"
+        ), "{result}");
+    }
+
     // =====================================================================
     // Spec: AutoCreateDestination (XML case)
     // When dest file does not exist, create it with XML declaration and root
