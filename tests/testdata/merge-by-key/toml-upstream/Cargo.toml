@@ -1,0 +1,7 @@
+[[bin]]
+name = "cr-tool"
+path = "src/bin/cr_tool.rs"
+
+[[bin]]
+name = "cr-cache"
+path = "src/bin/cr_cache.rs"

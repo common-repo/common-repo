@@ -1,0 +1,4 @@
+- include: ["**"]
+- json:
+    auto-merge: deploy.json
+    array_mode: merge_by_key

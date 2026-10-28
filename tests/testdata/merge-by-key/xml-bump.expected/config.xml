@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<servers>
+<server name="web" replicas="3">
+    <probe path="/healthz"/>
+  </server>
+  <server name="cache" replicas="9"/><server name="db" replicas="1"/>
+</servers>

@@ -1,0 +1,14 @@
+{
+  "targets": [
+    {
+      "name": "web",
+      "replicas": 3,
+      "image": "ghcr.io/org/web:2.1.0"
+    },
+    {
+      "name": "db",
+      "replicas": 1,
+      "image": "ghcr.io/org/db:1.4.0"
+    }
+  ]
+}

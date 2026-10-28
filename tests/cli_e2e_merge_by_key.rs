@@ -1,27 +1,110 @@
-//! End-to-end regression tests for issue #370: a deferred yaml auto-merge with
-//! `array_mode: merge_by_key` must update workflow steps in place when the
-//! upstream revises them, instead of appending the edited steps as duplicates
+//! End-to-end regression tests for issue #370: a deferred auto-merge with
+//! `array_mode: merge_by_key` must update keyed list items in place when the
+//! upstream revises them, instead of appending the edited items as duplicates
 //! next to the stale copies (the old `append_unique` failure mode).
 //!
 //! Byte-exact scenarios live in `tests/testdata/merge-by-key/` and run through
-//! the shared expected-fixture runner; the tests here assert the behavioral
-//! invariants directly.
+//! the shared expected-fixture runner — YAML (workflow steps, pre-commit
+//! repos keyed on `repo`), JSON, TOML array-of-tables, and XML (attribute
+//! keys). The tests here assert the behavioral invariants directly and
+//! re-apply each bump case through the CLI to prove idempotence.
 
 mod common;
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
+
+fn fixture_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("testdata")
+        .join("merge-by-key")
+}
 
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn expected_fixtures_match_byte_exactly() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("testdata")
-        .join("merge-by-key");
-    common::expected_fixture::run_expected_fixtures(&fixture);
+    common::expected_fixture::run_expected_fixtures(&fixture_root());
+}
+
+/// Seed a consumer from `<case>.input/`, install the case's config with the
+/// fixture placeholder resolved, and return the tempdir.
+fn stage_case(fixture: &Path, case: &str) -> TempDir {
+    let expected_dir = fixture.join(format!("{case}.expected"));
+    let temp = TempDir::new().unwrap();
+    common::expected_fixture::seed_input_files(&expected_dir, temp.path());
+    let config = fs::read_to_string(expected_dir.join(".common-repo.yaml"))
+        .unwrap()
+        .replace("__FIXTURE__", &fixture.to_string_lossy());
+    fs::write(temp.path().join(".common-repo.yaml"), config).unwrap();
+    temp
+}
+
+fn apply_in(dir: &Path) {
+    cargo_bin_cmd!("common-repo")
+        .current_dir(dir)
+        .arg("apply")
+        .assert()
+        .success();
+}
+
+/// Every file the consumer holds after apply, mapped to its bytes. The
+/// config file is excluded: the runner templates it, so in-dir copies may
+/// differ from the fixture's.
+fn snapshot_tree(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    common::expected_fixture::collect_relative_paths(root)
+        .into_iter()
+        .filter(|rel| rel != &PathBuf::from(".common-repo.yaml"))
+        .map(|rel| {
+            let bytes = fs::read(root.join(&rel)).unwrap();
+            (rel, bytes)
+        })
+        .collect()
+}
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn bump_cases_reach_their_expected_state_and_are_idempotent() {
+    let fixture = fixture_root();
+    for case in [
+        "bump-consumer",
+        "precommit-bump",
+        "json-bump",
+        "toml-bump",
+        "xml-bump",
+    ] {
+        let expected_dir = fixture.join(format!("{case}.expected"));
+        let temp = stage_case(&fixture, case);
+
+        apply_in(temp.path());
+        let after_first = snapshot_tree(temp.path());
+
+        // The first apply lands exactly on the fixture's expectation.
+        for (rel, bytes) in &after_first {
+            let expected = fs::read(expected_dir.join(rel))
+                .unwrap_or_else(|e| panic!("{case}: apply produced unexpected file {rel:?}: {e}"));
+            assert_eq!(&expected, bytes, "{case}: {rel:?} differs from fixture");
+        }
+        let expected_files: Vec<PathBuf> = snapshot_tree(&expected_dir)
+            .into_iter()
+            .map(|(rel, _)| rel)
+            .collect();
+        let produced_files: Vec<PathBuf> = after_first.iter().map(|(rel, _)| rel.clone()).collect();
+        assert_eq!(
+            produced_files, expected_files,
+            "{case}: produced tree differs from fixture"
+        );
+
+        // A re-apply is a no-op: the keyed merge is a fixed point.
+        apply_in(temp.path());
+        let after_second = snapshot_tree(temp.path());
+        assert_eq!(
+            after_first, after_second,
+            "{case}: second apply changed the tree"
+        );
+    }
 }
 
 /// The upstream's current ci.yaml (v2): the checkout step gained
@@ -88,14 +171,6 @@ fn stage_upstream_and_consumer() -> (TempDir, std::path::PathBuf) {
     write(&consumer.join(".github/workflows/ci.yaml"), CI_V1);
 
     (tmp, consumer)
-}
-
-fn apply_in(dir: &Path) {
-    cargo_bin_cmd!("common-repo")
-        .current_dir(dir)
-        .arg("apply")
-        .assert()
-        .success();
 }
 
 #[test]
