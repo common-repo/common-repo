@@ -65,6 +65,19 @@ pub enum Error {
         hint: Option<String>,
     },
 
+    /// An upstream repository's `.common-repo.yaml` exists but does not parse.
+    ///
+    /// Kept distinct from [`Error::ConfigParse`] so callers can tell an
+    /// upstream's broken config apart from the consumer's own, and from an
+    /// upstream that simply has no config file.
+    #[error("Failed to parse configuration of upstream repository {url}: {cause}")]
+    UpstreamConfigParse {
+        url: String,
+        /// Not exposed as `source()`: the text is already part of the
+        /// message, and anyhow would print it a second time as "Caused by".
+        cause: Box<Error>,
+    },
+
     /// An error occurred while cloning a Git repository.
     ///
     /// Includes the repository URL, ref (branch/tag), error message, and an

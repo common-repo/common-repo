@@ -132,6 +132,9 @@ pub fn execute(args: ValidateArgs, color_flag: &str) -> Result<()> {
                     e
                 );
                 has_errors = true;
+            } else if matches!(e, common_repo::error::Error::UpstreamConfigParse { .. }) {
+                println!("{} {}", emoji(&out, "❌", "[ERR]"), e);
+                has_errors = true;
             } else {
                 println!(
                     "{} Warning during dependency discovery: {}",

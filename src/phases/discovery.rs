@@ -143,7 +143,7 @@ fn discover_inherited_configs(
         };
 
         match fetch_and_parse_config(&child.url, &child.ref_, repo_manager) {
-            Ok(inherited_config) => {
+            Ok(Some(inherited_config)) => {
                 let upstream_filtering_ops = extract_upstream_operations(&inherited_config);
                 let deferred_ops = extract_deferred_operations(&inherited_config);
 
@@ -171,9 +171,34 @@ fn discover_inherited_configs(
                 }
                 new_children.push(combined_node);
             }
-            Err(_) => {
-                // If we can't fetch/parse the config, just use the original child as-is
-                // This allows repositories without .common-repo.yaml files to still work
+            Ok(None) => {
+                // Repositories without a config file are legitimate: they
+                // contribute whatever the consumer's `with:` clause asks for.
+                log::debug!(
+                    "no {} in {}; using the consumer's operations only",
+                    DEFAULT_CONFIG_FILENAME,
+                    child.display_url()
+                );
+                new_children.push(child);
+            }
+            Err(Error::UpstreamConfigParse { cause, .. }) => {
+                // A config that exists but does not parse must not be
+                // treated as empty, otherwise the upstream silently stops
+                // contributing (for example when it adopts syntax this
+                // binary predates). Name the upstream as the user wrote it.
+                return Err(Error::UpstreamConfigParse {
+                    url: child.display_url().to_string(),
+                    cause,
+                });
+            }
+            Err(err) => {
+                // Fetch failures are reported by the clone phase, which has
+                // the retry and cache fallback logic; discovery only loses
+                // the chance to find nested inheritance.
+                log::debug!(
+                    "could not fetch {} during discovery: {err}",
+                    child.display_url()
+                );
                 new_children.push(child);
             }
         }
@@ -185,45 +210,39 @@ fn discover_inherited_configs(
     Ok(node)
 }
 
-/// Fetch a repository and parse its .common-repo.yaml file
+/// Fetch a repository and parse its .common-repo.yaml file.
+///
+/// Returns `Ok(None)` when the repository has no config file. A config that
+/// exists but does not parse is an [`Error::UpstreamConfigParse`]; fetch
+/// failures keep their original variant.
 fn fetch_and_parse_config(
     url: &str,
     ref_: &str,
     repo_manager: &RepositoryManager,
-) -> Result<Schema> {
-    // Fetch the repository
+) -> Result<Option<Schema>> {
     let fs = repo_manager.fetch_repository(url, ref_)?;
 
-    // Try to read .common-repo.yaml
-    let config_content = match fs.get_file(DEFAULT_CONFIG_FILENAME) {
-        Some(file) => file.content.clone(),
-        None => {
-            // Try .commonrepo.yaml as fallback
-            match fs.get_file(ALT_CONFIG_FILENAME) {
-                Some(file) => file.content.clone(),
-                None => {
-                    return Err(Error::ConfigParse {
-                        message: format!(
-                            "No {} or {} found in repository",
-                            DEFAULT_CONFIG_FILENAME, ALT_CONFIG_FILENAME
-                        ),
-                        hint: Some(format!(
-                            "Create a {} file in the repository root",
-                            DEFAULT_CONFIG_FILENAME
-                        )),
-                    });
-                }
-            }
-        }
+    let Some(file) = fs
+        .get_file(DEFAULT_CONFIG_FILENAME)
+        .or_else(|| fs.get_file(ALT_CONFIG_FILENAME))
+    else {
+        return Ok(None);
     };
 
-    // Parse the YAML content
-    let yaml_str = String::from_utf8(config_content).map_err(|_| Error::ConfigParse {
+    parse_upstream_config(&file.content)
+        .map(Some)
+        .map_err(|cause| Error::UpstreamConfigParse {
+            url: url.to_string(),
+            cause: Box::new(cause),
+        })
+}
+
+fn parse_upstream_config(content: &[u8]) -> Result<Schema> {
+    let yaml_str = std::str::from_utf8(content).map_err(|_| Error::ConfigParse {
         message: format!("Invalid UTF-8 in {}", DEFAULT_CONFIG_FILENAME),
         hint: Some("Ensure the file is saved with UTF-8 encoding".to_string()),
     })?;
-
-    crate::config::parse(&yaml_str)
+    crate::config::parse(yaml_str)
 }
 
 /// Extract deferred operations from an upstream repository's config
@@ -1774,6 +1793,40 @@ mod tests {
         );
         assert_eq!(child.original_url.as_deref(), Some("../alpha"));
         assert_eq!(child.ref_, "");
+    }
+
+    #[test]
+    fn discover_repos_fails_when_local_upstream_config_does_not_parse() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let upstream = tmp.path().join("upstream");
+        let consumer = tmp.path().join("consumer");
+        std::fs::create_dir(&upstream).unwrap();
+        std::fs::create_dir(&consumer).unwrap();
+        std::fs::write(upstream.join(".common-repo.yaml"), b"- bogus_op: {}\n").unwrap();
+
+        let config: Schema = vec![Operation::Repo {
+            repo: RepoOp {
+                url: "../upstream".to_string(),
+                r#ref: None,
+                path: None,
+                with: vec![],
+            },
+        }];
+        let repo_manager = RepositoryManager::new(tmp.path().join("cache"));
+
+        let err = discover_repos_with_parent(&config, &consumer, &repo_manager).unwrap_err();
+        match err {
+            Error::UpstreamConfigParse { url, cause } => {
+                assert_eq!(url, "../upstream");
+                assert!(
+                    cause
+                        .to_string()
+                        .contains("Unknown operation type: bogus_op"),
+                    "unexpected cause: {cause}"
+                );
+            }
+            other => panic!("expected UpstreamConfigParse, got {other:?}"),
+        }
     }
 
     #[test]
