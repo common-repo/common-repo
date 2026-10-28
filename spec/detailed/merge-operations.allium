@@ -207,6 +207,13 @@ rule ArrayMergeByKey {
         -- matches when it carries the same field with an equal value. Keys
         -- should be unique within an array; duplicate keys consume
         -- destination items in order.
+        --
+        -- Across tiers the pipeline decides which side is the source. A
+        -- file a repo includes itself is merged with its upstream's copy
+        -- as the source first (own order kept, upstream-only items added)
+        -- and then with its own copy as the source, so its own versions of
+        -- matched items win. See ApplyDeferredMerges in common-repo.allium
+        -- for the full precedence list.
 }
 
 -- --------------------------------------------------------------------------

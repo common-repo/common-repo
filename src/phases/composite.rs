@@ -61,7 +61,7 @@
 //! This phase produces a `MemoryFS` and a `Vec<Operation>` of deferred merge
 //! operations, ready for the final local merge in the next phase.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::IntermediateFS;
 #[cfg(test)]
@@ -123,7 +123,12 @@ pub fn execute(
             let auto_merge_targets = collect_auto_merge_targets(&merge_ops);
 
             // Merge files individually, checking for auto-merge conflicts
-            merge_filesystem_with_auto_merge(&mut composite_fs, processed_fs, &auto_merge_targets)?;
+            merge_filesystem_with_auto_merge(
+                &mut composite_fs,
+                processed_fs,
+                &auto_merge_targets,
+                &HashSet::new(),
+            )?;
 
             // Collect merge operations for Phase 5 deferred execution
             if let Some(intermediate_fs) = intermediate_fss.get(repo_key) {
@@ -217,6 +222,85 @@ pub(crate) fn get_auto_merge_path(op: &Operation) -> Option<&str> {
         Operation::Xml { xml } => xml.auto_merge.as_deref(),
         _ => None,
     }
+}
+
+/// Whether an auto-merge operation merges arrays by key. Only the keyed mode
+/// replaces matched items, so only it needs the own-file precedence handling
+/// in [`merge_into_composite_file`].
+fn uses_merge_by_key(op: &Operation) -> bool {
+    use crate::config::ArrayMergeMode::MergeByKey;
+    match op {
+        Operation::Yaml { yaml } => yaml.array_mode == MergeByKey,
+        Operation::Json { json } => json.array_mode == MergeByKey,
+        Operation::Toml { toml } => toml.array_mode == MergeByKey,
+        Operation::Xml { xml } => xml.array_mode == MergeByKey,
+        _ => false,
+    }
+}
+
+/// Stage `source` under a temporary name and merge it into the composite file
+/// at `dest`, driven by the auto-merge declaration `merge_op`.
+fn merge_staged_file(
+    fs: &mut MemoryFS,
+    merge_op: &Operation,
+    source: &crate::filesystem::File,
+    dest: &str,
+    temp_prefix: &str,
+) -> Result<()> {
+    let temp_path = format!("{temp_prefix}{dest}");
+    fs.add_file(&temp_path, source.clone())?;
+    let explicit_op = make_explicit_merge_op(merge_op, &temp_path, dest);
+    execute_merge_operation(fs, &explicit_op)?;
+    fs.remove_file(&temp_path)?;
+    Ok(())
+}
+
+/// Merge an upstream's copy of an auto-merge target into the composite file
+/// already at `path`.
+///
+/// `own` says whether the file at `path` entered the composite through the
+/// repo's own `include` rather than from another upstream. The merge
+/// operators take the source's version of every keyed match, so with the
+/// upstream as the source a middle tier's deliberate edit to an inherited
+/// step would be reverted to its base's copy (the multi-tier shape of issue
+/// #370). For an own file under `merge_by_key`, the upstream is merged in
+/// first, which keeps the own item order and appends upstream-only items,
+/// and the own content is then re-applied so its versions of matched items
+/// win. The other array modes keep the single upstream-as-source pass:
+/// `append_unique` never replaces an existing item, so the own edit survives
+/// without a second pass, and changing its scalar precedence would alter
+/// behavior that existing fixtures pin down.
+pub(crate) fn merge_into_composite_file(
+    fs: &mut MemoryFS,
+    merge_op: &Operation,
+    path: &str,
+    upstream: &crate::filesystem::File,
+    own: bool,
+) -> Result<()> {
+    let own_snapshot = if own && uses_merge_by_key(merge_op) {
+        fs.get_file(path).cloned()
+    } else {
+        None
+    };
+
+    merge_staged_file(
+        fs,
+        merge_op,
+        upstream,
+        path,
+        ".__common_repo_auto_merge_temp__",
+    )?;
+
+    if let Some(own_file) = own_snapshot {
+        merge_staged_file(
+            fs,
+            merge_op,
+            &own_file,
+            path,
+            ".__common_repo_auto_merge_own__",
+        )?;
+    }
+    Ok(())
 }
 
 /// Create a synthetic merge operation with explicit source and dest paths,
@@ -334,7 +418,9 @@ pub(crate) fn merge_composite_with_auto_merge(
     source_fs: &MemoryFS,
     auto_merge_targets: &HashMap<String, Operation>,
 ) -> Result<()> {
-    merge_filesystem_with_auto_merge(target_fs, source_fs, auto_merge_targets)
+    // The consumer's local file never counts as own-authored here: the
+    // upstream composite wins keyed matches so upstream bumps land.
+    merge_filesystem_with_auto_merge(target_fs, source_fs, auto_merge_targets, &HashSet::new())
 }
 
 /// Merge a source filesystem into a target filesystem with auto-merge awareness.
@@ -344,26 +430,23 @@ pub(crate) fn merge_composite_with_auto_merge(
 /// - If the file exists AND has an auto-merge declaration: perform format-aware
 ///   merge to accumulate content from both repos
 /// - If the file exists but NO auto-merge: overwrite (last-write-wins, normal behaviour)
+///
+/// `own_paths` lists target files that entered through the integrating
+/// repo's own `include`; see [`merge_into_composite_file`] for why they keep
+/// precedence over the source under `merge_by_key`.
 fn merge_filesystem_with_auto_merge(
     target_fs: &mut MemoryFS,
     source_fs: &MemoryFS,
     auto_merge_targets: &HashMap<String, Operation>,
+    own_paths: &HashSet<String>,
 ) -> Result<()> {
     for (path, file) in source_fs.files() {
         let path_str = path.to_string_lossy();
         if target_fs.exists(path) {
             if let Some(merge_op) = auto_merge_targets.get(path_str.as_ref()) {
                 // Auto-merge conflict: merge instead of overwrite.
-                // Stage the incoming file under a temp name, execute the merge,
-                // then clean up.
-                let temp_path = format!(".__common_repo_auto_merge_temp__{}", path_str);
-                target_fs.add_file(&temp_path, file.clone())?;
-
-                let explicit_op = make_explicit_merge_op(merge_op, &temp_path, &path_str);
-                execute_merge_operation(target_fs, &explicit_op)?;
-
-                // Clean up the temporary file
-                target_fs.remove_file(&temp_path)?;
+                let own = own_paths.contains(path_str.as_ref());
+                merge_into_composite_file(target_fs, merge_op, &path_str, file, own)?;
             } else {
                 // No auto-merge declaration: last-write-wins
                 target_fs.add_file(path, file.clone())?;
@@ -407,7 +490,7 @@ pub(crate) fn integrate_sub_composite(
     sub_composite: &IntermediateFS,
 ) -> Result<Vec<Operation>> {
     let mut targets = HashMap::new();
-    integrate_sub_composite_with_targets(parent_fs, sub_composite, &mut targets)
+    integrate_sub_composite_with_targets(parent_fs, sub_composite, &mut targets, &HashSet::new())
 }
 
 /// Variant of [`integrate_sub_composite`] that maintains an accumulated set of
@@ -422,10 +505,15 @@ pub(crate) fn integrate_sub_composite(
 /// Auto-merge ops with `defer: true` are included in the targets (unlike the
 /// batch pipeline) because there is no separate Phase 5 — conflict resolution
 /// happens entirely during integration.
+///
+/// `own_paths` names parent files that the integrating repo pulled in through
+/// its own `include`; under `merge_by_key` those keep precedence over the
+/// sub-composite (see [`merge_into_composite_file`]).
 pub(crate) fn integrate_sub_composite_with_targets(
     parent_fs: &mut MemoryFS,
     sub_composite: &IntermediateFS,
     accumulated_targets: &mut HashMap<String, Operation>,
+    own_paths: &HashSet<String>,
 ) -> Result<Vec<Operation>> {
     // 1. Add this sub-composite's auto-merge targets (including deferred) to the
     //    accumulated set so that future integrations can also trigger merges for
@@ -435,7 +523,7 @@ pub(crate) fn integrate_sub_composite_with_targets(
 
     // 2. Merge sub-composite files into parent (with auto-merge awareness).
     //    Uses the accumulated targets from ALL prior + current integrations.
-    merge_filesystem_with_auto_merge(parent_fs, &sub_composite.fs, accumulated_targets)?;
+    merge_filesystem_with_auto_merge(parent_fs, &sub_composite.fs, accumulated_targets, own_paths)?;
 
     // 3. Execute deferred merges where dest exists in parent; collect rest.
     //    Auto-merge ops are skipped here because they were already handled
@@ -526,6 +614,182 @@ mod tests {
             }
             other => panic!("expected yaml op, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_make_explicit_merge_op_preserves_merge_by_key_for_json() {
+        use crate::config::{ArrayMergeMode, JsonMergeOp, Operation};
+
+        let op = Operation::Json {
+            json: JsonMergeOp::new()
+                .auto_merge("deploy.json")
+                .array_mode(ArrayMergeMode::MergeByKey)
+                .key("id"),
+        };
+
+        let explicit = make_explicit_merge_op(&op, "staged.json", "deploy.json");
+        match explicit {
+            Operation::Json { json } => {
+                assert_eq!(json.array_mode, ArrayMergeMode::MergeByKey);
+                assert_eq!(json.key.as_deref(), Some("id"));
+                assert_eq!(json.source.as_deref(), Some("staged.json"));
+                assert_eq!(json.dest.as_deref(), Some("deploy.json"));
+            }
+            other => panic!("expected json op, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_make_explicit_merge_op_preserves_merge_by_key_for_toml() {
+        use crate::config::{ArrayMergeMode, Operation, TomlMergeOp};
+
+        let op = Operation::Toml {
+            toml: TomlMergeOp::new()
+                .auto_merge("Cargo.toml")
+                .array_mode(ArrayMergeMode::MergeByKey)
+                .key("name"),
+        };
+
+        let explicit = make_explicit_merge_op(&op, "staged.toml", "Cargo.toml");
+        match explicit {
+            Operation::Toml { toml } => {
+                assert_eq!(toml.array_mode, ArrayMergeMode::MergeByKey);
+                assert_eq!(toml.key.as_deref(), Some("name"));
+                assert_eq!(toml.source.as_deref(), Some("staged.toml"));
+                assert_eq!(toml.dest.as_deref(), Some("Cargo.toml"));
+            }
+            other => panic!("expected toml op, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_make_explicit_merge_op_preserves_merge_by_key_for_xml() {
+        use crate::config::{ArrayMergeMode, Operation, XmlMergeOp};
+
+        let op = Operation::Xml {
+            xml: XmlMergeOp::new()
+                .auto_merge("config.xml")
+                .array_mode(ArrayMergeMode::MergeByKey)
+                .key("id"),
+        };
+
+        let explicit = make_explicit_merge_op(&op, "staged.xml", "config.xml");
+        match explicit {
+            Operation::Xml { xml } => {
+                assert_eq!(xml.array_mode, ArrayMergeMode::MergeByKey);
+                assert_eq!(xml.key.as_deref(), Some("id"));
+                assert_eq!(xml.source.as_deref(), Some("staged.xml"));
+                assert_eq!(xml.dest.as_deref(), Some("config.xml"));
+            }
+            other => panic!("expected xml op, got {:?}", other),
+        }
+    }
+
+    /// Issue #370, multi-tier shape: a repo that includes its own copy of a
+    /// keyed auto-merge target and then integrates the upstream that declared
+    /// the merge must keep its own version of matched items, in its own
+    /// order, with upstream-only items appended.
+    #[test]
+    fn test_integration_keeps_own_keyed_items_over_upstream() {
+        use std::collections::HashSet;
+
+        use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+        use crate::phases::composite::integrate_sub_composite_with_targets;
+
+        let own = "\
+jobs:
+  test:
+    steps:
+    - name: Check coverage threshold
+      run: coverage verify --threshold 80
+    - name: Middle only
+      run: echo middle
+";
+        let upstream = "\
+jobs:
+  test:
+    steps:
+    - name: Check coverage threshold
+      run: coverage verify --threshold 70
+    - name: Base only
+      run: echo base
+";
+        let mut parent = MemoryFS::new();
+        parent
+            .add_file_string(".github/workflows/ci.yaml", own)
+            .unwrap();
+        let own_paths: HashSet<String> = [".github/workflows/ci.yaml".to_string()].into();
+
+        let mut base_fs = MemoryFS::new();
+        base_fs
+            .add_file_string(".github/workflows/ci.yaml", upstream)
+            .unwrap();
+        let mut base = IntermediateFS::new(base_fs, "../base".to_string(), String::new());
+        base.merge_operations.push(Operation::Yaml {
+            yaml: YamlMergeOp::new()
+                .auto_merge(".github/workflows/ci.yaml")
+                .array_mode(ArrayMergeMode::MergeByKey),
+        });
+
+        let mut accumulated = HashMap::new();
+        integrate_sub_composite_with_targets(&mut parent, &base, &mut accumulated, &own_paths)
+            .unwrap();
+
+        let merged = String::from_utf8(
+            parent
+                .get_file(".github/workflows/ci.yaml")
+                .unwrap()
+                .content
+                .clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            merged,
+            "\
+jobs:
+  test:
+    steps:
+    - name: Check coverage threshold
+      run: coverage verify --threshold 80
+    - name: Middle only
+      run: echo middle
+    - name: Base only
+      run: echo base
+"
+        );
+    }
+
+    /// A later sibling upstream still wins keyed matches over an earlier
+    /// sibling's file: nothing in the parent composite is own-authored.
+    #[test]
+    fn test_integration_later_sibling_wins_keyed_items_when_not_own() {
+        use std::collections::HashSet;
+
+        use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+        use crate::phases::composite::integrate_sub_composite_with_targets;
+
+        let mut parent = MemoryFS::new();
+        parent
+            .add_file_string("ci.yaml", "steps:\n- name: Check\n  run: a\n")
+            .unwrap();
+
+        let mut b_fs = MemoryFS::new();
+        b_fs.add_file_string("ci.yaml", "steps:\n- name: Check\n  run: b\n")
+            .unwrap();
+        let mut b = IntermediateFS::new(b_fs, "../b".to_string(), String::new());
+        b.merge_operations.push(Operation::Yaml {
+            yaml: YamlMergeOp::new()
+                .auto_merge("ci.yaml")
+                .array_mode(ArrayMergeMode::MergeByKey),
+        });
+
+        let mut accumulated = HashMap::new();
+        integrate_sub_composite_with_targets(&mut parent, &b, &mut accumulated, &HashSet::new())
+            .unwrap();
+
+        let merged =
+            String::from_utf8(parent.get_file("ci.yaml").unwrap().content.clone()).unwrap();
+        assert_eq!(merged, "steps:\n- name: Check\n  run: b\n");
     }
 
     #[test]
@@ -1914,9 +2178,13 @@ port = 8080
                     .array_mode(ArrayMergeMode::AppendUnique),
             });
 
-            let residual_a =
-                integrate_sub_composite_with_targets(&mut parent, &ifs_a, &mut accumulated)
-                    .unwrap();
+            let residual_a = integrate_sub_composite_with_targets(
+                &mut parent,
+                &ifs_a,
+                &mut accumulated,
+                &std::collections::HashSet::new(),
+            )
+            .unwrap();
             assert!(residual_a.is_empty());
 
             // --- Second repo: pre-commit (auto-merge with defer: true) ---
@@ -1939,9 +2207,13 @@ port = 8080
                 },
             });
 
-            let residual_b =
-                integrate_sub_composite_with_targets(&mut parent, &ifs_b, &mut accumulated)
-                    .unwrap();
+            let residual_b = integrate_sub_composite_with_targets(
+                &mut parent,
+                &ifs_b,
+                &mut accumulated,
+                &std::collections::HashSet::new(),
+            )
+            .unwrap();
             assert!(residual_b.is_empty());
 
             // --- Verify: both repos' hooks must be present ---
@@ -1995,9 +2267,13 @@ port = 8080
                 },
             });
 
-            let residual_a =
-                integrate_sub_composite_with_targets(&mut parent, &ifs_a, &mut accumulated)
-                    .unwrap();
+            let residual_a = integrate_sub_composite_with_targets(
+                &mut parent,
+                &ifs_a,
+                &mut accumulated,
+                &std::collections::HashSet::new(),
+            )
+            .unwrap();
             assert!(residual_a.is_empty());
 
             // --- Second repo: conventional-commits (no explicit defer) ---
@@ -2017,9 +2293,13 @@ port = 8080
                     .array_mode(ArrayMergeMode::AppendUnique),
             });
 
-            let residual_b =
-                integrate_sub_composite_with_targets(&mut parent, &ifs_b, &mut accumulated)
-                    .unwrap();
+            let residual_b = integrate_sub_composite_with_targets(
+                &mut parent,
+                &ifs_b,
+                &mut accumulated,
+                &std::collections::HashSet::new(),
+            )
+            .unwrap();
             assert!(residual_b.is_empty());
 
             let content = String::from_utf8(
@@ -2077,15 +2357,33 @@ port = 8080
 
             // Repo 1: no defer
             let ifs1 = make_ifs("hook-alpha", "https://a.git", None);
-            integrate_sub_composite_with_targets(&mut parent, &ifs1, &mut accumulated).unwrap();
+            integrate_sub_composite_with_targets(
+                &mut parent,
+                &ifs1,
+                &mut accumulated,
+                &std::collections::HashSet::new(),
+            )
+            .unwrap();
 
             // Repo 2: defer: true
             let ifs2 = make_ifs("hook-beta", "https://b.git", Some(true));
-            integrate_sub_composite_with_targets(&mut parent, &ifs2, &mut accumulated).unwrap();
+            integrate_sub_composite_with_targets(
+                &mut parent,
+                &ifs2,
+                &mut accumulated,
+                &std::collections::HashSet::new(),
+            )
+            .unwrap();
 
             // Repo 3: no defer
             let ifs3 = make_ifs("hook-gamma", "https://c.git", None);
-            integrate_sub_composite_with_targets(&mut parent, &ifs3, &mut accumulated).unwrap();
+            integrate_sub_composite_with_targets(
+                &mut parent,
+                &ifs3,
+                &mut accumulated,
+                &std::collections::HashSet::new(),
+            )
+            .unwrap();
 
             let content = String::from_utf8(
                 parent

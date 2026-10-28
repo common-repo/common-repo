@@ -877,6 +877,20 @@ rule ApplyDeferredMerges {
         -- runs. Modes that blindly append (append) will duplicate content on
         -- each run. Upstream authors should prefer replace, append_unique,
         -- or merge_by_key for deterministic results.
+        --
+        -- Precedence of keyed auto-merges (merge_by_key) across tiers, from
+        -- highest to lowest:
+        --   1. A repo's own files, entering its composite through its own
+        --      include operators, beat items inherited from its upstreams
+        --      (nested repo: entries and tree children) on a key match.
+        --      Upstream-only items are still added, after the repo's own
+        --      items. Without this a middle tier's deliberate edit to an
+        --      inherited step would be reverted to its base's copy.
+        --   2. Among sibling upstreams, the later one wins a key match.
+        --   3. The upstream composite beats the consumer's local file in
+        --      the Phase 5 overlay, so upstream bumps land in consumers.
+        -- Only merge_by_key carries rule 1: append_unique never replaces
+        -- an existing item, so an own edit survives without it.
 }
 
 -- ==========================================================================
