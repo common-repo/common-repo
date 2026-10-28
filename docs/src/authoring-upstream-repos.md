@@ -273,6 +273,13 @@ keyed by another field, set it explicitly (for example `key: repo` for
 pre-commit `repos[]`). See
 [Array Merge Modes](configuration.md#array-merge-modes) for the full rules.
 
+A matched item is replaced whole. If a consumer edits inside one of your
+keyed items (an extra `env:` or `with:` entry on your checkout step, for
+example), that edit is overwritten on every apply; only items the consumer
+adds under their own keys survive. Switching an existing `append_unique`
+merge to `merge_by_key` does not remove the duplicates it already created:
+consumers delete the stale copies by hand once, and later bumps stay clean.
+
 ### Consumer Override
 
 Consumers can always override upstream-declared behavior using the `with:` clause:

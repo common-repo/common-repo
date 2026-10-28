@@ -595,6 +595,14 @@ key is an attribute (`name`, then `id`). Items without a key field fall back
 to `append_unique` behavior. `merge_by_key` is idempotent: re-running `apply`
 after an upstream bump updates the changed items without duplicating them.
 
+A matched item is replaced whole, not merged field by field. Consumer edits
+inside an item the upstream owns (an extra `env:` or `with:` entry added to
+the upstream's step, for example) are overwritten on every apply; only
+consumer-added items with their own keys survive. Duplicates that
+`append_unique` already created are not removed automatically: delete the
+stale copies by hand once before switching an existing merge to
+`merge_by_key`.
+
 ```yaml
 - yaml:
     auto-merge: .github/workflows/ci.yaml
@@ -642,6 +650,59 @@ destination key are inserted).
     dest: .github/workflows/ci.yml
     path: jobs
     array_mode: append
+```
+
+**Update workflow steps in place (`merge_by_key`):**
+
+The upstream revises its steps over time; the consumer holds the previous
+revision plus a step of its own. Steps are matched on their key field: the
+edited `Check coverage` step is replaced in place, the consumer-only
+`Deploy preview` step is kept, and the new `Audit dependencies` step is added.
+
+```yaml
+- yaml:
+    source: steps.yml
+    dest: .github/workflows/ci.yml
+    path: jobs.test.steps
+    array_mode: merge_by_key
+```
+
+Source fragment (`steps.yml`):
+
+```yaml
+- uses: actions/checkout@v4
+- name: Check coverage
+  run: coverage verify --threshold 80
+- name: Audit dependencies
+  run: cargo audit
+```
+
+Destination before apply:
+
+```yaml
+jobs:
+  test:
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check coverage
+        run: coverage verify --threshold 70
+      - name: Deploy preview
+        run: ./scripts/deploy-preview.sh
+```
+
+Destination after apply:
+
+```yaml
+jobs:
+  test:
+    steps:
+    - uses: actions/checkout@v4
+    - name: Check coverage
+      run: coverage verify --threshold 80
+    - name: Deploy preview
+      run: ./scripts/deploy-preview.sh
+    - name: Audit dependencies
+      run: cargo audit
 ```
 
 ### `json` - Merge JSON Files
@@ -698,9 +759,9 @@ destination key are inserted).
 
 **Update keyed array entries in place (`merge_by_key`):**
 
-`members.json` on the left is the source fragment; the destination already
-holds an older revision plus a consumer-only entry. Items are matched on the
-explicit `key: email` field (anything other than `name`/`uses`/`id` must be
+`members.json` is the source fragment; the destination already holds an
+older revision plus a consumer-only entry. Items are matched on the explicit
+`key: email` field (anything other than `name`/`uses`/`id` must be
 declared): the edited `a@example.com` entry is replaced in place, the
 consumer-only `c@example.com` entry is preserved, and the new `b@example.com`
 entry is appended.
@@ -714,22 +775,31 @@ entry is appended.
     key: email
 ```
 
-```json
-// source: members.json          // destination before apply
-{                                {
-  "members": [                     "members": [
-    {                                {
-      "email": "a@example.com",        "email": "a@example.com",
-      "role": "admin"                  "role": "viewer"
-    },                               },
-    {                                {
-      "email": "b@example.com",        "email": "c@example.com",
-      "role": "dev"                    "role": "guest"
-    }                                }
-  ]                                ]
-}                                }
+Source fragment (`members.json`):
 
-// destination after apply: a@example.com updated, c@example.com kept, b@example.com added
+```json
+{
+  "members": [
+    { "email": "a@example.com", "role": "admin" },
+    { "email": "b@example.com", "role": "dev" }
+  ]
+}
+```
+
+Destination before apply:
+
+```json
+{
+  "members": [
+    { "email": "a@example.com", "role": "viewer" },
+    { "email": "c@example.com", "role": "guest" }
+  ]
+}
+```
+
+Destination after apply:
+
+```json
 {
   "members": [
     { "email": "a@example.com", "role": "admin" },
@@ -810,17 +880,33 @@ and the new mirror is appended.
     key: url
 ```
 
+Source fragment (`mirrors.toml`):
+
 ```toml
-# source: mirrors.toml          # destination before apply
-[[mirrors]]                     [[mirrors]]
-url = "https://fast.example.com"  url = "https://fast.example.com"
-priority = 20                    priority = 10
+[[mirrors]]
+url = "https://fast.example.com"
+priority = 20
 
-[[mirrors]]                     [[mirrors]]
-url = "https://slow.example.com"  url = "https://private.example.com"
-priority = 50                    priority = 5
+[[mirrors]]
+url = "https://slow.example.com"
+priority = 50
+```
 
-# destination after apply
+Destination before apply:
+
+```toml
+[[mirrors]]
+url = "https://fast.example.com"
+priority = 10
+
+[[mirrors]]
+url = "https://private.example.com"
+priority = 5
+```
+
+Destination after apply:
+
+```toml
 [[mirrors]]
 url = "https://fast.example.com"
 priority = 20
