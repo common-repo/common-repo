@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <settings mode="dev">
+    <cache ttl="30"/>
+  </settings>
+</config>

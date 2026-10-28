@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<config>
+<settings mode="prod">
+  <cache ttl="30"/>
+  <timeout seconds="5"/></settings>
+</config>
