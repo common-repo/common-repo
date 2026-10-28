@@ -102,6 +102,13 @@
     position: end
     preserve-comments: true
 
+# xml: Merge XML fragments (source, dest, path, array_mode, key, position, defer, auto-merge)
+- xml:
+    source: fragment.xml
+    dest: config.xml
+    array_mode: merge_by_key
+    key: name
+
 # ini: Merge INI fragments (source, dest, section [optional], append, allow-duplicates, defer, auto-merge)
 - ini:
     source: fragment.ini
