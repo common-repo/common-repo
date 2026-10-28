@@ -2,11 +2,27 @@
 //! `array_mode: merge_by_key` must update workflow steps in place when the
 //! upstream revises them, instead of appending the edited steps as duplicates
 //! next to the stale copies (the old `append_unique` failure mode).
+//!
+//! Byte-exact scenarios live in `tests/testdata/merge-by-key/` and run through
+//! the shared expected-fixture runner; the tests here assert the behavioral
+//! invariants directly.
+
+mod common;
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn expected_fixtures_match_byte_exactly() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("testdata")
+        .join("merge-by-key");
+    common::expected_fixture::run_expected_fixtures(&fixture);
+}
 
 /// The upstream's current ci.yaml (v2): the checkout step gained
 /// `persist-credentials: false` and the coverage step gained a second
