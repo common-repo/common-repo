@@ -40,6 +40,11 @@
 //!    produced (catches over-creation).
 //!
 //! `.git/` and `.common-repo-cache/` paths are ignored on both sides.
+//!
+//! `run_expected_fixtures_with(root, Options { reapply: true })` adds a step
+//! 7: run `apply` again in the same tempdir and repeat the compare, so every
+//! case is checked to be a fixed point. `run_expected_fixtures` never
+//! re-applies.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -52,10 +57,24 @@ const FIXTURE_PLACEHOLDER: &str = "__FIXTURE__";
 pub const CONFIG_FILE: &str = ".common-repo.yaml";
 const IGNORED_PREFIXES: &[&str] = &[".git/", ".common-repo-cache/"];
 
+/// Opt-in checks for [`run_expected_fixtures_with`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Options {
+    /// After the byte compare, run `apply` a second time in the same tempdir
+    /// and assert the tree still matches `<name>.expected/`: every case must
+    /// be a fixed point.
+    pub reapply: bool,
+}
+
 /// Discover every `<name>.expected/` directory directly under `fixture_root`,
 /// run apply against each, and assert the resulting tempdir matches byte-for-byte.
 /// Panics on any mismatch with a unified-style summary.
 pub fn run_expected_fixtures(fixture_root: &Path) {
+    run_expected_fixtures_with(fixture_root, Options::default());
+}
+
+/// [`run_expected_fixtures`] with opt-in checks; see [`Options`].
+pub fn run_expected_fixtures_with(fixture_root: &Path, options: Options) {
     let cases = discover_expected_dirs(fixture_root);
     assert!(
         !cases.is_empty(),
@@ -63,7 +82,7 @@ pub fn run_expected_fixtures(fixture_root: &Path) {
         fixture_root.display()
     );
     for expected_dir in cases {
-        run_one(fixture_root, &expected_dir);
+        run_one(fixture_root, &expected_dir, options);
     }
 }
 
@@ -92,15 +111,23 @@ fn discover_expected_dirs(fixture_root: &Path) -> Vec<PathBuf> {
     out
 }
 
-fn run_one(fixture_root: &Path, expected_dir: &Path) {
+fn run_one(fixture_root: &Path, expected_dir: &Path, options: Options) {
     let temp = TempDir::new().expect("failed to create tempdir");
     seed_input_files(expected_dir, temp.path());
     write_templated_config(fixture_root, expected_dir, temp.path());
 
-    let mut cmd = cargo_bin_cmd!("common-repo");
-    cmd.current_dir(temp.path()).arg("apply").assert().success();
+    apply_in(temp.path());
+    assert_tree_matches(temp.path(), expected_dir, "");
 
-    assert_tree_matches(temp.path(), expected_dir);
+    if options.reapply {
+        apply_in(temp.path());
+        assert_tree_matches(temp.path(), expected_dir, "after re-apply ");
+    }
+}
+
+fn apply_in(dir: &Path) {
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(dir).arg("apply").assert().success();
 }
 
 /// Copy every file of the optional sibling `<name>.input/` directory into
@@ -167,7 +194,9 @@ fn write_templated_config(fixture_root: &Path, expected_dir: &Path, dest_dir: &P
         .unwrap_or_else(|e| panic!("failed to write tempdir {CONFIG_FILE}: {e}"));
 }
 
-fn assert_tree_matches(actual_dir: &Path, expected_dir: &Path) {
+/// `context` prefixes the panic message (for example `"after re-apply "`)
+/// so a failing second apply is told apart from a failing first one.
+fn assert_tree_matches(actual_dir: &Path, expected_dir: &Path, context: &str) {
     let expected_files = collect_relative_paths(expected_dir);
     let actual_files = collect_relative_paths(actual_dir);
     let config_rel = PathBuf::from(CONFIG_FILE);
@@ -215,7 +244,8 @@ fn assert_tree_matches(actual_dir: &Path, expected_dir: &Path) {
 
     if !errors.is_empty() {
         panic!(
-            "expected fixture mismatch in {}:\n  {}",
+            "expected fixture mismatch {}in {}:\n  {}",
+            context,
             expected_dir.display(),
             errors.join("\n  ")
         );

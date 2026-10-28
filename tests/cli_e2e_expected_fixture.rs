@@ -9,11 +9,15 @@
 //! - It runs `common-repo apply` and asserts byte-exact output.
 //! - `<name>.input/` seeding copies nested files, is a no-op when absent,
 //!   and rejects a `.common-repo.yaml` in the input directory.
+//! - `Options { reapply: true }` runs `apply` a second time and fails when
+//!   the tree drifts (`reapply-drift/`, a nested fixture root whose only
+//!   case appends on every apply).
 
 mod common;
 
 use common::expected_fixture::{
-    collect_relative_paths, run_expected_fixtures, seed_input_files, CONFIG_FILE,
+    collect_relative_paths, run_expected_fixtures, run_expected_fixtures_with, seed_input_files,
+    Options, CONFIG_FILE,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -22,11 +26,31 @@ use tempfile::TempDir;
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn expected_fixture_runner_runs_minimal_fixture() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+    run_expected_fixtures(&selftest_root());
+}
+
+fn selftest_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("testdata")
-        .join("expected-fixture-selftest");
-    run_expected_fixtures(&fixture);
+        .join("expected-fixture-selftest")
+}
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+fn reapply_option_passes_when_every_case_is_a_fixed_point() {
+    run_expected_fixtures_with(&selftest_root(), Options { reapply: true });
+}
+
+#[test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
+#[should_panic(expected = "after re-apply")]
+fn reapply_option_fails_when_a_second_apply_changes_the_tree() {
+    // Without the option the case passes: the first apply lands on the
+    // expected bytes. The second apply appends `b` again.
+    let drift = selftest_root().join("reapply-drift");
+    run_expected_fixtures(&drift);
+    run_expected_fixtures_with(&drift, Options { reapply: true });
 }
 
 /// Create `<stem>.expected/` and `<stem>.input/` under `fixture` and

@@ -1,0 +1,4 @@
+- include: ["**"]
+- yaml:
+    auto-merge: list.yaml
+    array_mode: append
