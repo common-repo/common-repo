@@ -2508,6 +2508,104 @@ mod tests {
         }
 
         #[test]
+        fn test_parse_json_merge_by_key_with_explicit_key() {
+            let yaml = r#"
+- json:
+    source: members.json
+    dest: directory.json
+    array_mode: merge_by_key
+    key: email
+"#;
+            let config = parse(yaml).expect("json merge_by_key op should parse");
+            match &config[0] {
+                Operation::Json { json } => {
+                    assert_eq!(json.array_mode, ArrayMergeMode::MergeByKey);
+                    assert_eq!(json.key.as_deref(), Some("email"));
+                }
+                other => panic!("expected json op, got {:?}", other),
+            }
+        }
+
+        #[test]
+        fn test_json_validate_rejects_key_without_merge_by_key() {
+            let op = JsonMergeOp {
+                source: Some("s.json".to_string()),
+                dest: Some("d.json".to_string()),
+                array_mode: ArrayMergeMode::Append,
+                key: Some("email".to_string()),
+                ..Default::default()
+            };
+            let err = op.validate().expect_err("key requires merge_by_key");
+            assert!(err.to_string().contains("merge_by_key"));
+        }
+
+        #[test]
+        fn test_parse_toml_merge_by_key_with_explicit_key() {
+            let yaml = r#"
+- toml:
+    source: mirrors.toml
+    dest: .cargo/config.toml
+    path: mirrors
+    array_mode: merge_by_key
+    key: url
+"#;
+            let config = parse(yaml).expect("toml merge_by_key op should parse");
+            match &config[0] {
+                Operation::Toml { toml } => {
+                    assert_eq!(toml.array_mode, ArrayMergeMode::MergeByKey);
+                    assert_eq!(toml.key.as_deref(), Some("url"));
+                }
+                other => panic!("expected toml op, got {:?}", other),
+            }
+        }
+
+        #[test]
+        fn test_toml_validate_rejects_key_without_merge_by_key() {
+            let op = TomlMergeOp {
+                source: Some("s.toml".to_string()),
+                dest: Some("d.toml".to_string()),
+                path: Some("mirrors".to_string()),
+                array_mode: ArrayMergeMode::Replace,
+                key: Some("url".to_string()),
+                ..Default::default()
+            };
+            let err = op.validate().expect_err("key requires merge_by_key");
+            assert!(err.to_string().contains("merge_by_key"));
+        }
+
+        #[test]
+        fn test_parse_xml_merge_by_key_with_explicit_key() {
+            let yaml = r#"
+- xml:
+    source: servers.xml
+    dest: config.xml
+    array_mode: merge_by_key
+    key: host
+"#;
+            let config = parse(yaml).expect("xml merge_by_key op should parse");
+            match &config[0] {
+                Operation::Xml { xml } => {
+                    assert_eq!(xml.array_mode, ArrayMergeMode::MergeByKey);
+                    assert_eq!(xml.key.as_deref(), Some("host"));
+                }
+                other => panic!("expected xml op, got {:?}", other),
+            }
+        }
+
+        #[test]
+        fn test_xml_validate_rejects_key_without_merge_by_key() {
+            let op = XmlMergeOp {
+                source: Some("s.xml".to_string()),
+                dest: Some("d.xml".to_string()),
+                array_mode: ArrayMergeMode::AppendUnique,
+                key: Some("host".to_string()),
+                ..Default::default()
+            };
+            let err = op.validate().expect_err("key requires merge_by_key");
+            assert!(err.to_string().contains("merge_by_key"));
+        }
+
+        #[test]
         fn test_toml_merge_op_array_mode_default() {
             let op = TomlMergeOp {
                 source: Some("s.toml".to_string()),
