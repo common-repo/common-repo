@@ -1,0 +1,4 @@
+- repo:
+    url: ../tier-base
+- exclude: [".github/workflows/ci.yaml"]
+- include: ["**"]

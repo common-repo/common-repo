@@ -1,0 +1,4 @@
+- repo:
+    url: __FIXTURE__/tier-sibling-a
+- repo:
+    url: __FIXTURE__/tier-sibling-b
