@@ -24,6 +24,7 @@ use crate::filesystem::{File, MemoryFS};
 // These are called by the phases module during merge operations
 pub(crate) mod ini;
 pub(crate) mod json;
+pub(crate) mod keyed;
 pub(crate) mod markdown;
 pub(crate) mod toml;
 pub(crate) mod xml;
@@ -31,8 +32,14 @@ pub(crate) mod yaml;
 
 /// Key fields tried in order when `array_mode: merge_by_key` has no explicit
 /// `key:`. Ordered for GitHub Actions steps (`name`, then `uses`) and
-/// pre-commit hooks (`id`). XML uses the `name`/`id` subset as attributes.
+/// pre-commit hooks (`id`).
 pub(crate) const ARRAY_KEY_FIELD_CANDIDATES: [&str; 3] = ["name", "uses", "id"];
+
+/// The subset of [`ARRAY_KEY_FIELD_CANDIDATES`] XML tries as attributes.
+/// `uses` is a GitHub Actions step field with no attribute convention behind
+/// it, so XML keeps to `name` and `id`, as the merge spec documents.
+pub(crate) const XML_KEY_ATTRIBUTE_CANDIDATES: [&str; 2] =
+    [ARRAY_KEY_FIELD_CANDIDATES[0], ARRAY_KEY_FIELD_CANDIDATES[2]];
 
 // Public re-exports of merge functions for integration testing and external use
 pub use ini::apply_ini_merge_operation;

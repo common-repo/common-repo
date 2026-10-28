@@ -6,7 +6,11 @@
 use log::warn;
 use xot::Xot;
 
-use super::{read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment};
+use super::keyed::{log_replacement, plan_keyed_merge, KeyedItems, MergeSite};
+use super::{
+    read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment,
+    XML_KEY_ATTRIBUTE_CANDIDATES,
+};
 use crate::config::{ArrayMergeMode, InsertPosition, XmlMergeOp};
 use crate::error::{Error, Result};
 use crate::filesystem::MemoryFS;
@@ -14,12 +18,29 @@ use crate::filesystem::MemoryFS;
 #[cfg(test)]
 use crate::filesystem::File;
 
-/// Context for XML merge operations, bundling diagnostic metadata.
+/// Settings and diagnostic metadata for one XML merge.
 pub(crate) struct XmlMergeContext<'a> {
+    mode: ArrayMergeMode,
+    position: InsertPosition,
+    array_key: Option<&'a str>,
     path: &'a str,
     src_file: &'a str,
     dst_file: &'a str,
-    array_key: Option<String>,
+}
+
+impl<'a> XmlMergeContext<'a> {
+    /// The same context one element level down.
+    fn child(&self, path: &'a str) -> Self {
+        Self { path, ..*self }
+    }
+
+    fn site(&self) -> MergeSite<'a> {
+        MergeSite {
+            path: self.path,
+            src_file: self.src_file,
+            dst_file: self.dst_file,
+        }
+    }
 }
 
 /// Navigate to a specific path within an XML tree, returning the target element.
@@ -80,8 +101,6 @@ pub fn merge_xml_elements(
     xot: &mut Xot,
     target: xot::Node,
     source: xot::Node,
-    mode: ArrayMergeMode,
-    position: InsertPosition,
     ctx: &XmlMergeContext<'_>,
 ) -> Result<()> {
     // Step 1: merge attributes — source attributes override target attributes
@@ -152,12 +171,7 @@ pub fn merge_xml_elements(
         } else {
             format!("{}.{}", ctx.path, local_name)
         };
-        let child_ctx = XmlMergeContext {
-            path: &child_path,
-            src_file: ctx.src_file,
-            dst_file: ctx.dst_file,
-            array_key: ctx.array_key.clone(),
-        };
+        let child_ctx = ctx.child(&child_path);
 
         let dest_elems: Vec<xot::Node> = xot
             .children(target)
@@ -167,25 +181,9 @@ pub fn merge_xml_elements(
         let is_repeated = source_elems.len() > 1 || dest_elems.len() > 1;
 
         if is_repeated {
-            merge_repeated_elements(
-                xot,
-                target,
-                &dest_elems,
-                source_elems,
-                *name_id,
-                mode,
-                position,
-                ctx.array_key.as_deref(),
-            )?;
+            merge_repeated_elements(xot, target, &dest_elems, source_elems, *name_id, &child_ctx)?;
         } else if dest_elems.len() == 1 && source_elems.len() == 1 {
-            merge_xml_elements(
-                xot,
-                dest_elems[0],
-                source_elems[0],
-                mode,
-                position,
-                &child_ctx,
-            )?;
+            merge_xml_elements(xot, dest_elems[0], source_elems[0], &child_ctx)?;
         } else {
             for &src_elem in source_elems {
                 clone_subtree_into(xot, target, src_elem, None)?;
@@ -232,18 +230,16 @@ fn apply_text_content(xot: &mut Xot, target: xot::Node, text: &str) -> Result<()
 }
 
 /// Handle repeated sibling elements using the unified array merge model.
-#[allow(clippy::too_many_arguments)]
 fn merge_repeated_elements(
     xot: &mut Xot,
     parent: xot::Node,
     dest_elems: &[xot::Node],
     source_elems: &[xot::Node],
     name_id: xot::NameId,
-    mode: ArrayMergeMode,
-    position: InsertPosition,
-    array_key: Option<&str>,
+    ctx: &XmlMergeContext<'_>,
 ) -> Result<()> {
-    match mode {
+    let position = ctx.position;
+    match ctx.mode {
         ArrayMergeMode::Replace => {
             // Remove all dest siblings with this name
             for &node in dest_elems {
@@ -314,51 +310,33 @@ fn merge_repeated_elements(
             // Keyed merge: source elements replace same-name dest elements
             // carrying an equal key attribute value, in place. Keyless or
             // unmatched elements fall back to text-content uniqueness.
-            let mut consumed: Vec<bool> = vec![false; dest_elems.len()];
-            let mut new_sources: Vec<xot::Node> = Vec::new();
+            let items = XmlItems { xot };
+            let plan = plan_keyed_merge(&items, dest_elems, source_elems, ctx.array_key);
+            let site = ctx.site();
+            let changed: Vec<bool> = plan
+                .replaced
+                .iter()
+                .map(|r| items.item_changed(&dest_elems[r.dest], &source_elems[r.source]))
+                .collect();
 
-            for &src in source_elems {
-                let key_attr = xml_key_attribute(xot, src, array_key);
-                let mut matched: Option<(usize, xot::Node)> = None;
-
-                if let Some(attr) = &key_attr {
-                    let key_value = xml_attribute_local(xot, src, attr);
-                    for (idx, &dst) in dest_elems.iter().enumerate() {
-                        if !consumed[idx] && xml_attribute_local(xot, dst, attr) == key_value {
-                            matched = Some((idx, dst));
-                            break;
-                        }
-                    }
+            for (replacement, changed) in plan.replaced.iter().zip(changed) {
+                let src = source_elems[replacement.source];
+                let dst = dest_elems[replacement.dest];
+                if changed {
+                    log_replacement(&site, replacement);
                 }
-
-                match matched {
-                    Some((idx, dst)) => {
-                        clone_subtree_into(xot, parent, src, Some(dst))?;
-                        xot.remove(dst).map_err(|e| Error::Merge {
-                            operation: "xml merge".to_string(),
-                            message: format!("Failed to remove element: {}", e),
-                        })?;
-                        consumed[idx] = true;
-                    }
-                    None if key_attr.is_some() => {
-                        // Keyed but no dest element carries this key: new item.
-                        new_sources.push(src);
-                    }
-                    None => {
-                        // Keyless: fall back to text-content uniqueness.
-                        let text = xot.text_content_str(src).unwrap_or("").to_string();
-                        let in_dest = dest_elems.iter().enumerate().any(|(idx, &dst)| {
-                            !consumed[idx] && xot.text_content_str(dst).unwrap_or("") == text
-                        });
-                        let already_new = new_sources
-                            .iter()
-                            .any(|&n| xot.text_content_str(n).unwrap_or("") == text);
-                        if !in_dest && !already_new {
-                            new_sources.push(src);
-                        }
-                    }
-                }
+                clone_subtree_into(xot, parent, src, Some(dst))?;
+                xot.remove(dst).map_err(|e| Error::Merge {
+                    operation: "xml merge".to_string(),
+                    message: format!("Failed to remove element: {}", e),
+                })?;
             }
+
+            let new_sources: Vec<xot::Node> = plan
+                .new_items
+                .iter()
+                .map(|&idx| source_elems[idx])
+                .collect();
 
             if !new_sources.is_empty() {
                 match position {
@@ -397,19 +375,38 @@ fn xml_attribute_local(xot: &Xot, node: xot::Node, local: &str) -> Option<String
         .map(|(_, value)| value.to_string())
 }
 
-/// Resolve the key attribute name for one source element.
-///
-/// An explicit `key` overrides detection; otherwise the first of `name`/`id`
-/// present on the element wins. Elements without either return `None` and
-/// fall back to text-content uniqueness.
-fn xml_key_attribute(xot: &Xot, node: xot::Node, explicit: Option<&str>) -> Option<String> {
-    if let Some(attr) = explicit {
-        return xml_attribute_local(xot, node, attr).map(|_| attr.to_string());
+/// XML sibling elements for the shared keyed merge: key fields are
+/// attributes looked up by local name, and two elements are the same when
+/// their text content matches, as in `append_unique`.
+struct XmlItems<'x> {
+    xot: &'x Xot,
+}
+
+impl KeyedItems for XmlItems<'_> {
+    type Item = xot::Node;
+    type Key = String;
+
+    fn key_value(&self, item: &xot::Node, field: &str) -> Option<String> {
+        xml_attribute_local(self.xot, *item, field)
     }
-    ["name", "id"]
-        .iter()
-        .find(|attr| xml_attribute_local(xot, node, attr).is_some())
-        .map(|attr| attr.to_string())
+
+    fn items_equal(&self, a: &xot::Node, b: &xot::Node) -> bool {
+        self.xot.text_content_str(*a).unwrap_or("") == self.xot.text_content_str(*b).unwrap_or("")
+    }
+
+    fn key_text(&self, key: &String) -> String {
+        key.clone()
+    }
+
+    fn key_candidates(&self) -> &'static [&'static str] {
+        &XML_KEY_ATTRIBUTE_CANDIDATES
+    }
+
+    /// Text content misses attribute edits, which are the usual keyed
+    /// update, so the log decision compares the serialized subtrees.
+    fn item_changed(&self, old: &xot::Node, new: &xot::Node) -> bool {
+        self.xot.to_string(*old).ok() != self.xot.to_string(*new).ok()
+    }
 }
 
 /// Deep-clone a subtree from source into parent (optionally before a reference node).
@@ -492,24 +489,17 @@ pub fn apply_xml_merge_operation(fs: &mut MemoryFS, op: &XmlMergeOp) -> Result<(
     let path = super::parse_path(op.path.as_deref().unwrap_or(""));
     let target = navigate_xml_path(&mut xot, dest_doc_el, &path)?;
 
-    // Build merge context for diagnostic logging
-    let path_str = op.path.as_deref().unwrap_or("");
     let ctx = XmlMergeContext {
-        path: path_str,
+        mode: op.array_mode,
+        position: op.position,
+        array_key: op.key.as_deref(),
+        path: op.path.as_deref().unwrap_or(""),
         src_file: source_path,
         dst_file: dest_path,
-        array_key: op.key.clone(),
     };
 
     // Merge source into target
-    merge_xml_elements(
-        &mut xot,
-        target,
-        source_doc_el,
-        op.array_mode,
-        op.position,
-        &ctx,
-    )?;
+    merge_xml_elements(&mut xot, target, source_doc_el, &ctx)?;
 
     // Serialize with XML declaration
     let xml_params = xot::output::xml::Parameters {
