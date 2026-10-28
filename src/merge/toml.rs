@@ -26,8 +26,9 @@
 use log::warn;
 use toml::Value as TomlValue;
 
+use super::keyed::{merge_vec_by_key, KeyedItems, MergeSite};
 use super::{read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment};
-use crate::config::TomlMergeOp;
+use crate::config::{ArrayMergeMode, InsertPosition, TomlMergeOp};
 use crate::error::{Error, Result};
 use crate::filesystem::MemoryFS;
 
@@ -189,53 +190,81 @@ pub fn navigate_toml_value<'a>(
     Ok(current)
 }
 
+/// Settings and diagnostic metadata for one TOML merge.
+#[derive(Debug, Clone)]
+pub struct TomlMergeContext<'a> {
+    /// How to handle arrays
+    pub mode: ArrayMergeMode,
+    /// Where to insert array items (start or end)
+    pub position: InsertPosition,
+    /// Key field for merge_by_key mode (None auto-detects)
+    pub array_key: Option<&'a str>,
+    /// Current dot-separated path within the TOML structure
+    pub path: String,
+    /// Source file name for diagnostic messages
+    pub src_file: &'a str,
+    /// Destination file name for diagnostic messages
+    pub dst_file: &'a str,
+}
+
+impl TomlMergeContext<'_> {
+    /// The same context one table level down.
+    fn child(&self, key: &str) -> Self {
+        let path = if self.path.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}.{}", self.path, key)
+        };
+        Self {
+            path,
+            ..self.clone()
+        }
+    }
+
+    fn site(&self) -> MergeSite<'_> {
+        MergeSite {
+            path: &self.path,
+            src_file: self.src_file,
+            dst_file: self.dst_file,
+        }
+    }
+}
+
 /// Recursively merge source TOML value into target
 ///
 /// Handles different TOML types appropriately:
 /// - Tables: Recursively merge keys, with source values taking precedence for conflicts
-/// - Arrays: Handle according to the specified merge mode (append, replace, or append-unique)
+/// - Arrays: Handle according to the specified merge mode (append, replace, append-unique, or merge-by-key)
 /// - Scalars: Replace target with source, with warnings for type mismatches
 ///
 /// # Arguments
 ///
 /// * `target` - The target value to merge into (modified in place)
 /// * `source` - The source value to merge from
-/// * `mode` - How to handle array merging
-/// * `path` - Current path (for diagnostic messages)
-/// * `src_file` - Source file name (for diagnostic messages)
-/// * `dst_file` - Destination file name (for diagnostic messages)
-#[allow(clippy::too_many_arguments)]
-pub fn merge_toml_values(
-    target: &mut TomlValue,
-    source: &TomlValue,
-    mode: crate::config::ArrayMergeMode,
-    position: crate::config::InsertPosition,
-    array_key: Option<&str>,
-    path: &str,
-    src_file: &str,
-    dst_file: &str,
-) {
-    use crate::config::ArrayMergeMode;
-    use crate::config::InsertPosition;
+/// * `ctx` - Merge settings plus path and file names for diagnostic messages
+pub fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, ctx: &TomlMergeContext<'_>) {
+    let TomlMergeContext {
+        mode,
+        position,
+        array_key,
+        src_file,
+        dst_file,
+        ..
+    } = *ctx;
+    let path = ctx.path.as_str();
 
     match target {
         TomlValue::Table(target_table) => {
             if let TomlValue::Table(source_table) = source {
                 for (key, value) in source_table {
-                    let new_path = if path.is_empty() {
-                        key.clone()
-                    } else {
-                        format!("{}.{}", path, key)
-                    };
+                    let child_ctx = ctx.child(key);
+                    let new_path = child_ctx.path.as_str();
 
                     if let Some(existing) = target_table.get_mut(key) {
                         if matches!(existing, TomlValue::Table(_))
                             && matches!(value, TomlValue::Table(_))
                         {
-                            merge_toml_values(
-                                existing, value, mode, position, array_key, &new_path, src_file,
-                                dst_file,
-                            );
+                            merge_toml_values(existing, value, &child_ctx);
                         } else if let Some(source_array) = value.as_array() {
                             if let Some(target_array) = existing.as_array_mut() {
                                 match mode {
@@ -274,14 +303,13 @@ pub fn merge_toml_values(
                                         }
                                     }
                                     ArrayMergeMode::MergeByKey => {
-                                        merge_toml_sequence_by_key(
+                                        merge_vec_by_key(
+                                            &TomlItems,
                                             target_array,
                                             source_array,
                                             array_key,
                                             position,
-                                            &new_path,
-                                            src_file,
-                                            dst_file,
+                                            &child_ctx.site(),
                                         );
                                     }
                                 }
@@ -293,8 +321,8 @@ pub fn merge_toml_values(
                                 *existing = TomlValue::Array(source_array.clone());
                             }
                         } else {
-                            eprintln!(
-                                "Warning: {} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
+                            warn!(
+                                "{} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
                                 src_file,
                                 dst_file,
                                 new_path,
@@ -308,8 +336,8 @@ pub fn merge_toml_values(
                     }
                 }
             } else {
-                eprintln!(
-                    "Warning: {} -> {}: Type mismatch at path '{}': replacing Table with {:?}",
+                warn!(
+                    "{} -> {}: Type mismatch at path '{}': replacing Table with {:?}",
                     src_file,
                     dst_file,
                     path,
@@ -332,9 +360,13 @@ pub fn merge_toml_values(
                         }
                     },
                     ArrayMergeMode::Replace => {
-                        eprintln!(
-                            "Warning: {} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
-                            src_file, dst_file, path, target_array.len(), source_array.len()
+                        warn!(
+                            "{} -> {}: Replacing array at path '{}' (old size: {}, new size: {})",
+                            src_file,
+                            dst_file,
+                            path,
+                            target_array.len(),
+                            source_array.len()
                         );
                         *target = TomlValue::Array(source_array.clone());
                     }
@@ -356,20 +388,19 @@ pub fn merge_toml_values(
                         }
                     }
                     ArrayMergeMode::MergeByKey => {
-                        merge_toml_sequence_by_key(
+                        merge_vec_by_key(
+                            &TomlItems,
                             target_array,
                             source_array,
                             array_key,
                             position,
-                            path,
-                            src_file,
-                            dst_file,
+                            &ctx.site(),
                         );
                     }
                 }
             } else {
-                eprintln!(
-                    "Warning: {} -> {}: Type mismatch at path '{}': replacing Array with {:?}",
+                warn!(
+                    "{} -> {}: Type mismatch at path '{}': replacing Array with {:?}",
                     src_file,
                     dst_file,
                     path,
@@ -379,8 +410,8 @@ pub fn merge_toml_values(
             }
         }
         _ => {
-            eprintln!(
-                "Warning: {} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
+            warn!(
+                "{} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
                 src_file,
                 dst_file,
                 path,
@@ -392,86 +423,30 @@ pub fn merge_toml_values(
     }
 }
 
-/// Resolve the key field name for one source array item.
-///
-/// An explicit `key` overrides detection; otherwise the first candidate field
-/// present with a scalar value wins (see `ARRAY_KEY_FIELD_CANDIDATES`). Items
-/// with no key field return `None` and fall back to append-unique semantics.
-fn toml_item_key_field(item: &TomlValue, explicit: Option<&str>) -> Option<String> {
-    let map = item.as_table()?;
-    if let Some(field) = explicit {
-        return map
+/// TOML array items for the shared keyed merge: key fields are scalar
+/// table entries and items compare by value.
+struct TomlItems;
+
+impl KeyedItems for TomlItems {
+    type Item = TomlValue;
+    type Key = TomlValue;
+
+    fn key_value(&self, item: &TomlValue, field: &str) -> Option<TomlValue> {
+        item.as_table()?
             .get(field)
             .filter(|v| !v.is_array() && !v.is_table())
-            .map(|_| field.to_string());
-    }
-    super::ARRAY_KEY_FIELD_CANDIDATES
-        .iter()
-        .copied()
-        .find(|field| {
-            matches!(
-                map.get(*field),
-                Some(v) if !v.is_array() && !v.is_table()
-            )
-        })
-        .map(|field| field.to_string())
-}
-
-/// Merge a source array into a target array by key (`merge_by_key`).
-///
-/// Each source item with a key field replaces the first not-yet-consumed
-/// target item carrying the same key value; the edit lands in place instead
-/// of piling up as a duplicate (issue #370). Source items without a match —
-/// and keyless items, which dedupe by whole-item equality — are inserted at
-/// `position`. Target items never matched are preserved.
-#[allow(clippy::too_many_arguments)]
-fn merge_toml_sequence_by_key(
-    target_array: &mut Vec<TomlValue>,
-    source_array: &[TomlValue],
-    array_key: Option<&str>,
-    position: crate::config::InsertPosition,
-    path: &str,
-    src_file: &str,
-    dst_file: &str,
-) {
-    let mut consumed: Vec<bool> = vec![false; target_array.len()];
-    let mut new_items: Vec<TomlValue> = Vec::new();
-
-    for src_item in source_array {
-        let key_field = toml_item_key_field(src_item, array_key);
-        let mut matched = false;
-
-        if let Some(field) = &key_field {
-            let key_value = src_item.get(field.as_str());
-            for (idx, dst_item) in target_array.iter().enumerate() {
-                if consumed[idx] || dst_item.get(field.as_str()) != key_value {
-                    continue;
-                }
-                if dst_item != src_item {
-                    eprintln!(
-                        "Warning: {} -> {}: Updating keyed array item at '{}.{}' ({:?})",
-                        src_file, dst_file, path, field, key_value
-                    );
-                }
-                target_array[idx] = src_item.clone();
-                consumed[idx] = true;
-                matched = true;
-                break;
-            }
-        }
-
-        if !matched && !target_array.contains(src_item) && !new_items.contains(src_item) {
-            new_items.push(src_item.clone());
-        }
+            .cloned()
     }
 
-    match position {
-        crate::config::InsertPosition::Start => {
-            let mut new_arr = new_items;
-            new_arr.append(target_array);
-            *target_array = new_arr;
+    fn items_equal(&self, a: &TomlValue, b: &TomlValue) -> bool {
+        a == b
+    }
+
+    fn key_text(&self, key: &TomlValue) -> String {
+        match key {
+            TomlValue::String(s) => s.clone(),
+            other => other.to_string(),
         }
-        crate::config::InsertPosition::End => target_array.extend(new_items),
     }
 }
 
@@ -539,17 +514,15 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
     let path_str = op.path.as_deref().unwrap_or("");
     let path = parse_toml_path(path_str);
     let target = navigate_toml_value(&mut dest_value, &path)?;
-    let mode = op.array_mode;
-    merge_toml_values(
-        target,
-        &source_value,
-        mode,
-        op.position,
-        op.key.as_deref(),
-        path_str,
-        source_path,
-        dest_path,
-    );
+    let ctx = TomlMergeContext {
+        mode: op.array_mode,
+        position: op.position,
+        array_key: op.key.as_deref(),
+        path: path_str.to_string(),
+        src_file: source_path,
+        dst_file: dest_path,
+    };
+    merge_toml_values(target, &source_value, &ctx);
 
     let serialized = if op.preserve_comments {
         // Attempt comment preservation using taplo
@@ -1432,12 +1405,14 @@ items = [{name = "a"}, {name = "c"}]
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "test",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "test".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert!(target.is_table());
@@ -1456,12 +1431,14 @@ items = [{name = "a"}, {name = "c"}]
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "test",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "test".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert!(target.is_table());
@@ -1479,12 +1456,14 @@ items = [{name = "a"}, {name = "c"}]
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "test",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "test".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert!(target.is_str());
@@ -1499,12 +1478,14 @@ items = [{name = "a"}, {name = "c"}]
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "test",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "test".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert!(target.is_array());
@@ -1757,12 +1738,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert_eq!(target["existing"].as_integer(), Some(1));
@@ -1789,12 +1772,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "root",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "root".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert_eq!(target["nested"]["a"].as_integer(), Some(1));
@@ -1809,12 +1794,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Append,
-                InsertPosition::End,
-                None,
-                "arr",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Append,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "arr".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             let arr = target.as_array().unwrap();
@@ -1829,12 +1816,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "arr",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "arr".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             let arr = target.as_array().unwrap();
@@ -1858,12 +1847,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::AppendUnique,
-                InsertPosition::End,
-                None,
-                "arr",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::AppendUnique,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "arr".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             let arr = target.as_array().unwrap();
@@ -1879,12 +1870,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "path",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "path".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert_eq!(target.as_str(), Some("new"));
@@ -1898,12 +1891,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "path",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "path".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             assert_eq!(target.as_integer(), Some(42));
@@ -1917,12 +1912,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Append,
-                InsertPosition::Start,
-                None,
-                "arr",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Append,
+                    position: InsertPosition::Start,
+                    array_key: None,
+                    path: "arr".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             let arr = target.as_array().unwrap();
@@ -1950,12 +1947,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::AppendUnique,
-                InsertPosition::Start,
-                None,
-                "arr",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::AppendUnique,
+                    position: InsertPosition::Start,
+                    array_key: None,
+                    path: "arr".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             let arr = target.as_array().unwrap();
@@ -1995,12 +1994,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Append,
-                InsertPosition::Start,
-                None,
-                "",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::Append,
+                    position: InsertPosition::Start,
+                    array_key: None,
+                    path: "".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             let arr = target["items"].as_array().unwrap();
@@ -2040,12 +2041,14 @@ items = 42
             merge_toml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::AppendUnique,
-                InsertPosition::Start,
-                None,
-                "",
-                "src",
-                "dst",
+                &TomlMergeContext {
+                    mode: ArrayMergeMode::AppendUnique,
+                    position: InsertPosition::Start,
+                    array_key: None,
+                    path: "".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             let arr = target["items"].as_array().unwrap();

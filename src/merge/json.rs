@@ -25,6 +25,7 @@
 use log::warn;
 use serde_json::Value as JsonValue;
 
+use super::keyed::{merge_vec_by_key, KeyedItems, MergeSite};
 use super::{read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment};
 use crate::config::{ArrayMergeMode, InsertPosition, JsonMergeOp};
 use crate::error::{Error, Result};
@@ -157,6 +158,14 @@ impl<'a> JsonMergeContext<'a> {
             &self.path
         }
     }
+
+    fn site(&self) -> MergeSite<'_> {
+        MergeSite {
+            path: &self.path,
+            src_file: self.src_file,
+            dst_file: self.dst_file,
+        }
+    }
 }
 
 /// Recursively merge source JSON value into target
@@ -229,11 +238,18 @@ pub fn merge_json_values(
                                         }
                                     }
                                     ArrayMergeMode::MergeByKey => {
-                                        merge_json_sequence_by_key(
+                                        let site = MergeSite {
+                                            path: &new_path,
+                                            src_file: ctx.src_file,
+                                            dst_file: ctx.dst_file,
+                                        };
+                                        merge_vec_by_key(
+                                            &JsonItems,
                                             target_array,
                                             source_array,
-                                            ctx,
+                                            ctx.array_key.as_deref(),
                                             position,
+                                            &site,
                                         );
                                     }
                                 }
@@ -312,7 +328,14 @@ pub fn merge_json_values(
                         }
                     }
                     ArrayMergeMode::MergeByKey => {
-                        merge_json_sequence_by_key(target_array, source_array, ctx, position);
+                        merge_vec_by_key(
+                            &JsonItems,
+                            target_array,
+                            source_array,
+                            ctx.array_key.as_deref(),
+                            position,
+                            &ctx.site(),
+                        );
                     }
                 }
             } else {
@@ -332,83 +355,30 @@ pub fn merge_json_values(
     }
 }
 
-/// Resolve the key field name for one source array item.
-///
-/// An explicit `key` overrides detection; otherwise the first candidate field
-/// present with a scalar value wins (see `ARRAY_KEY_FIELD_CANDIDATES`). Items
-/// with no key field return `None` and fall back to append-unique semantics.
-fn json_item_key_field(item: &JsonValue, explicit: Option<&str>) -> Option<String> {
-    let map = item.as_object()?;
-    if let Some(field) = explicit {
-        return map
+/// JSON array items for the shared keyed merge: key fields are scalar
+/// object members and items compare by value.
+struct JsonItems;
+
+impl KeyedItems for JsonItems {
+    type Item = JsonValue;
+    type Key = JsonValue;
+
+    fn key_value(&self, item: &JsonValue, field: &str) -> Option<JsonValue> {
+        item.as_object()?
             .get(field)
             .filter(|v| !v.is_array() && !v.is_object())
-            .map(|_| field.to_string());
-    }
-    super::ARRAY_KEY_FIELD_CANDIDATES
-        .iter()
-        .copied()
-        .find(|field| {
-            matches!(
-                map.get(*field),
-                Some(v) if !v.is_array() && !v.is_object()
-            )
-        })
-        .map(|field| field.to_string())
-}
-
-/// Merge a source array into a target array by key (`merge_by_key`).
-///
-/// Each source item with a key field replaces the first not-yet-consumed
-/// target item carrying the same key value; the edit lands in place instead
-/// of piling up as a duplicate (issue #370). Source items without a match —
-/// and keyless items, which dedupe by whole-item equality — are inserted at
-/// `position`. Target items never matched are preserved.
-fn merge_json_sequence_by_key(
-    target_array: &mut Vec<JsonValue>,
-    source_array: &[JsonValue],
-    ctx: &mut JsonMergeContext<'_>,
-    position: InsertPosition,
-) {
-    let array_key = ctx.array_key.clone();
-    let mut consumed: Vec<bool> = vec![false; target_array.len()];
-    let mut new_items: Vec<JsonValue> = Vec::new();
-
-    for src_item in source_array {
-        let key_field = json_item_key_field(src_item, array_key.as_deref());
-        let mut matched = false;
-
-        if let Some(field) = &key_field {
-            let key_value = src_item.get(field.as_str());
-            for (idx, dst_item) in target_array.iter().enumerate() {
-                if consumed[idx] || dst_item.get(field.as_str()) != key_value {
-                    continue;
-                }
-                if dst_item != src_item {
-                    warn!(
-                        "{} -> {}: Updating keyed array item at '{}.{}' ({:?})",
-                        ctx.src_file, ctx.dst_file, ctx.path, field, key_value
-                    );
-                }
-                target_array[idx] = src_item.clone();
-                consumed[idx] = true;
-                matched = true;
-                break;
-            }
-        }
-
-        if !matched && !target_array.contains(src_item) && !new_items.contains(src_item) {
-            new_items.push(src_item.clone());
-        }
+            .cloned()
     }
 
-    match position {
-        InsertPosition::Start => {
-            let mut new_array = new_items;
-            new_array.append(target_array);
-            *target_array = new_array;
+    fn items_equal(&self, a: &JsonValue, b: &JsonValue) -> bool {
+        a == b
+    }
+
+    fn key_text(&self, key: &JsonValue) -> String {
+        match key {
+            JsonValue::String(s) => s.clone(),
+            other => other.to_string(),
         }
-        InsertPosition::End => target_array.extend(new_items),
     }
 }
 

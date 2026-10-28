@@ -26,6 +26,7 @@
 use log::{trace, warn};
 use serde_yaml::Value as YamlValue;
 
+use super::keyed::{merge_vec_by_key, KeyedItems, MergeSite};
 use super::{read_file_as_string, read_file_as_string_optional, write_string_to_file, PathSegment};
 use crate::config::{ArrayMergeMode, InsertPosition, YamlMergeOp};
 use crate::error::{Error, Result};
@@ -104,6 +105,46 @@ pub fn navigate_yaml_value<'a>(
     Ok(current)
 }
 
+/// Settings and diagnostic metadata for one YAML merge.
+#[derive(Debug, Clone)]
+pub struct YamlMergeContext<'a> {
+    /// How to handle sequences
+    pub mode: ArrayMergeMode,
+    /// Where to insert sequence items (start or end)
+    pub position: InsertPosition,
+    /// Key field for merge_by_key mode (None auto-detects)
+    pub array_key: Option<&'a str>,
+    /// Current dot-separated path within the YAML structure
+    pub path: String,
+    /// Source file name for diagnostic messages
+    pub src_file: &'a str,
+    /// Destination file name for diagnostic messages
+    pub dst_file: &'a str,
+}
+
+impl YamlMergeContext<'_> {
+    /// The same context one mapping level down.
+    fn child(&self, key: &str) -> Self {
+        let path = if self.path.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}.{}", self.path, key)
+        };
+        Self {
+            path,
+            ..self.clone()
+        }
+    }
+
+    fn site(&self) -> MergeSite<'_> {
+        MergeSite {
+            path: &self.path,
+            src_file: self.src_file,
+            dst_file: self.dst_file,
+        }
+    }
+}
+
 /// Recursively merge source YAML value into target
 ///
 /// Handles different YAML types appropriately:
@@ -115,23 +156,18 @@ pub fn navigate_yaml_value<'a>(
 ///
 /// * `target` - The target value to merge into (modified in place)
 /// * `source` - The source value to merge from
-/// * `mode` - How to handle array merging
-/// * `position` - Where to insert array items (start or end)
-/// * `key` - Key field for merge_by_key mode (None falls back to auto-detection)
-/// * `path` - Current path for logging purposes
-/// * `src_file` - Source file path for logging
-/// * `dst_file` - Destination file path for logging
-#[allow(clippy::too_many_arguments)]
-pub fn merge_yaml_values(
-    target: &mut YamlValue,
-    source: &YamlValue,
-    mode: ArrayMergeMode,
-    position: InsertPosition,
-    array_key: Option<&str>,
-    path: &str,
-    src_file: &str,
-    dst_file: &str,
-) {
+/// * `ctx` - Merge settings plus path and file names for logging
+pub fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, ctx: &YamlMergeContext<'_>) {
+    let YamlMergeContext {
+        mode,
+        position,
+        array_key,
+        src_file,
+        dst_file,
+        ..
+    } = *ctx;
+    let path = ctx.path.as_str();
+
     match target {
         YamlValue::Mapping(target_map) => {
             if let YamlValue::Mapping(source_map) = source {
@@ -140,18 +176,12 @@ pub fn merge_yaml_values(
                         YamlValue::String(s) => s.clone(),
                         _ => format!("{:?}", key),
                     };
-                    let new_path = if path.is_empty() {
-                        key_str.clone()
-                    } else {
-                        format!("{}.{}", path, key_str)
-                    };
+                    let child_ctx = ctx.child(&key_str);
+                    let new_path = child_ctx.path.as_str();
 
                     if let Some(existing) = target_map.get_mut(key) {
                         if existing.as_mapping().is_some() && value.as_mapping().is_some() {
-                            merge_yaml_values(
-                                existing, value, mode, position, array_key, &new_path, src_file,
-                                dst_file,
-                            );
+                            merge_yaml_values(existing, value, &child_ctx);
                         } else if let Some(source_seq) = value.as_sequence() {
                             if let Some(target_seq) = existing.as_sequence_mut() {
                                 match mode {
@@ -190,9 +220,13 @@ pub fn merge_yaml_values(
                                         }
                                     }
                                     ArrayMergeMode::MergeByKey => {
-                                        merge_yaml_sequence_by_key(
-                                            target_seq, source_seq, array_key, position, &new_path,
-                                            src_file, dst_file,
+                                        merge_vec_by_key(
+                                            &YamlItems,
+                                            target_seq,
+                                            source_seq,
+                                            array_key,
+                                            position,
+                                            &child_ctx.site(),
                                         );
                                     }
                                 }
@@ -271,8 +305,13 @@ pub fn merge_yaml_values(
                         }
                     }
                     ArrayMergeMode::MergeByKey => {
-                        merge_yaml_sequence_by_key(
-                            target_seq, source_seq, array_key, position, path, src_file, dst_file,
+                        merge_vec_by_key(
+                            &YamlItems,
+                            target_seq,
+                            source_seq,
+                            array_key,
+                            position,
+                            &ctx.site(),
                         );
                     }
                 }
@@ -301,85 +340,33 @@ pub fn merge_yaml_values(
     }
 }
 
-/// Resolve the key field name for one source sequence item.
-///
-/// An explicit `key` overrides detection; otherwise the first candidate field
-/// present with a scalar value wins. Items with no key field return `None`
-/// and fall back to append-unique semantics.
-fn yaml_item_key_field(item: &YamlValue, explicit: Option<&str>) -> Option<String> {
-    let map = item.as_mapping()?;
-    if let Some(field) = explicit {
-        return map
+/// YAML sequence items for the shared keyed merge: key fields are scalar
+/// mapping entries and items compare by value.
+struct YamlItems;
+
+impl KeyedItems for YamlItems {
+    type Item = YamlValue;
+    type Key = YamlValue;
+
+    fn key_value(&self, item: &YamlValue, field: &str) -> Option<YamlValue> {
+        item.as_mapping()?
             .get(YamlValue::String(field.to_string()))
             .filter(|v| !v.is_sequence() && !v.is_mapping())
-            .map(|_| field.to_string());
-    }
-    super::ARRAY_KEY_FIELD_CANDIDATES
-        .iter()
-        .find(|field| {
-            matches!(
-                map.get(YamlValue::String((*field).to_string())),
-                Some(v) if !v.is_sequence() && !v.is_mapping()
-            )
-        })
-        .map(|field| field.to_string())
-}
-
-/// Merge a source sequence into a target sequence by key (`merge_by_key`).
-///
-/// Each source item with a key field replaces the first not-yet-consumed
-/// target item carrying the same key value; the edit lands in place instead
-/// of piling up as a duplicate (issue #370). Source items without a match —
-/// and keyless items, which dedupe by whole-item equality — are inserted at
-/// `position`. Target items never matched are preserved.
-#[allow(clippy::too_many_arguments)]
-fn merge_yaml_sequence_by_key(
-    target_seq: &mut Vec<YamlValue>,
-    source_seq: &[YamlValue],
-    array_key: Option<&str>,
-    position: InsertPosition,
-    path: &str,
-    src_file: &str,
-    dst_file: &str,
-) {
-    let mut consumed: Vec<bool> = vec![false; target_seq.len()];
-    let mut new_items: Vec<YamlValue> = Vec::new();
-
-    for src_item in source_seq {
-        let key_field = yaml_item_key_field(src_item, array_key);
-        let mut matched = false;
-
-        if let Some(field) = &key_field {
-            let key_value = src_item.get(field.as_str());
-            for (idx, dst_item) in target_seq.iter().enumerate() {
-                if consumed[idx] || dst_item.get(field.as_str()) != key_value {
-                    continue;
-                }
-                if dst_item != src_item {
-                    warn!(
-                        "{} -> {}: Updating keyed array item at '{}.{}' ({:?})",
-                        src_file, dst_file, path, field, key_value
-                    );
-                }
-                target_seq[idx] = src_item.clone();
-                consumed[idx] = true;
-                matched = true;
-                break;
-            }
-        }
-
-        if !matched && !target_seq.contains(src_item) && !new_items.contains(src_item) {
-            new_items.push(src_item.clone());
-        }
+            .cloned()
     }
 
-    match position {
-        InsertPosition::Start => {
-            let mut new_seq = new_items;
-            new_seq.append(target_seq);
-            *target_seq = new_seq;
+    fn items_equal(&self, a: &YamlValue, b: &YamlValue) -> bool {
+        a == b
+    }
+
+    fn key_text(&self, key: &YamlValue) -> String {
+        match key {
+            YamlValue::String(s) => s.clone(),
+            YamlValue::Bool(b) => b.to_string(),
+            YamlValue::Number(n) => n.to_string(),
+            YamlValue::Null => "null".to_string(),
+            other => format!("{:?}", other),
         }
-        InsertPosition::End => target_seq.extend(new_items),
     }
 }
 
@@ -461,17 +448,15 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
     let path_str = op.path.as_deref().unwrap_or("");
     let path = super::parse_path(path_str);
     let target = navigate_yaml_value(&mut dest_value, &path)?;
-    let mode = op.array_mode;
-    merge_yaml_values(
-        target,
-        &source_value,
-        mode,
-        op.position,
-        op.key.as_deref(),
-        path_str,
-        source_path,
-        dest_path,
-    );
+    let ctx = YamlMergeContext {
+        mode: op.array_mode,
+        position: op.position,
+        array_key: op.key.as_deref(),
+        path: path_str.to_string(),
+        src_file: source_path,
+        dst_file: dest_path,
+    };
+    merge_yaml_values(target, &source_value, &ctx);
 
     let serialized = serde_yaml::to_string(&dest_value).map_err(|err| Error::Merge {
         operation: "yaml merge".to_string(),
@@ -1225,12 +1210,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "",
-                "src",
-                "dst",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "".to_string(),
+                    src_file: "src",
+                    dst_file: "dst",
+                },
             );
 
             // Both keys should exist
@@ -2026,12 +2013,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "root",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "root".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             // Target mapping should be replaced by source sequence
@@ -2047,12 +2036,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "root",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "root".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             // Target sequence should be replaced by source mapping
@@ -2068,12 +2059,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "field",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "field".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             assert_eq!(target, YamlValue::Number(42.into()));
@@ -2087,12 +2080,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "field",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "field".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             assert!(target.is_null());
@@ -2106,12 +2101,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "field",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "field".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             assert_eq!(target, YamlValue::Bool(true));
@@ -2126,12 +2123,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Replace,
-                InsertPosition::End,
-                None,
-                "",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Replace,
+                    position: InsertPosition::End,
+                    array_key: None,
+                    path: "".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             let mapping = target.as_mapping().unwrap();
@@ -2147,12 +2146,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::Append,
-                InsertPosition::Start,
-                None,
-                "",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::Append,
+                    position: InsertPosition::Start,
+                    array_key: None,
+                    path: "".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             let seq = target.as_sequence().unwrap();
@@ -2172,12 +2173,14 @@ mod tests {
             merge_yaml_values(
                 &mut target,
                 &source,
-                ArrayMergeMode::AppendUnique,
-                InsertPosition::Start,
-                None,
-                "",
-                "src.yaml",
-                "dst.yaml",
+                &YamlMergeContext {
+                    mode: ArrayMergeMode::AppendUnique,
+                    position: InsertPosition::Start,
+                    array_key: None,
+                    path: "".to_string(),
+                    src_file: "src.yaml",
+                    dst_file: "dst.yaml",
+                },
             );
 
             let seq = target.as_sequence().unwrap();
