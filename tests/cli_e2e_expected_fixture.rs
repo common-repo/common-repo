@@ -9,7 +9,7 @@
 //! - It runs `common-repo apply` and asserts byte-exact output.
 //! - `<name>.input/` seeding copies nested files, is a no-op when absent,
 //!   and rejects a `.common-repo.yaml` in the input directory.
-//! - `Options { reapply: true, diff_after_apply: false }` runs `apply` a second time and fails when
+//! - `Options { reapply: true, ..Default::default() }` runs `apply` a second time and fails when
 //!   the tree drifts (`reapply-drift/`, a nested fixture root whose only
 //!   case appends on every apply).
 
@@ -43,7 +43,7 @@ fn reapply_option_passes_when_every_case_is_a_fixed_point() {
         &selftest_root(),
         Options {
             reapply: true,
-            diff_after_apply: false,
+            ..Default::default()
         },
     );
 }
@@ -60,7 +60,7 @@ fn reapply_option_fails_when_a_second_apply_changes_the_tree() {
         &drift,
         Options {
             reapply: true,
-            diff_after_apply: false,
+            ..Default::default()
         },
     );
 }

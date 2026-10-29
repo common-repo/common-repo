@@ -23,11 +23,9 @@ fn fresh_auto_merge_files_are_stable_across_diff_and_reapply() {
         .join("tests")
         .join("testdata")
         .join("auto-merge-stable");
-    run_expected_fixtures_with(
-        &fixture,
-        Options {
-            reapply: true,
-            diff_after_apply: true,
-        },
-    );
+    let options = Options {
+        reapply: true,
+        diff_after_apply: true,
+    };
+    run_expected_fixtures_with(&fixture, options);
 }

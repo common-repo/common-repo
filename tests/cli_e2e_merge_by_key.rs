@@ -26,7 +26,7 @@ fn expected_fixtures_match_byte_exactly_and_are_idempotent() {
         &fixture,
         Options {
             reapply: true,
-            diff_after_apply: false,
+            ..Default::default()
         },
     );
 }
