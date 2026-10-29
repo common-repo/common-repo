@@ -1,0 +1,5 @@
+# JSON flavor: with merge_by_key winning, the stale web target is updated
+# in place, the consumer-only cache target survives, and mid's newer targets
+# are appended. Under append_unique the edited web item would duplicate.
+- repo:
+    url: __FIXTURE__/json-mid

@@ -1,0 +1,10 @@
+name: CI
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build
+        run: make build-v2
+      - name: Check
+        run: make check

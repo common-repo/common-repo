@@ -1,0 +1,6 @@
+# xml-mid takes over config.xml the same way mid takes over ci.yaml.
+- repo:
+    url: ../xml-base
+    with:
+      - exclude: ["config.xml"]
+- include: ["**"]

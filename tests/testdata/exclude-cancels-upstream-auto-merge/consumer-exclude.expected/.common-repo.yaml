@@ -1,0 +1,6 @@
+# Case 1: the consumer owns .github/workflows/ci.yaml and excludes it, so
+# no upstream auto-merge declaration for that path may run against it. The
+# file stays byte-identical to the consumer's copy across applies.
+- repo:
+    url: __FIXTURE__/mid
+- exclude: [".github/workflows/ci.yaml"]

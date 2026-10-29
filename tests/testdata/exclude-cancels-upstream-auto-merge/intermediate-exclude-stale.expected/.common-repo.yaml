@@ -1,0 +1,6 @@
+# Case 2 (stale consumer): the consumer holds an older copy of mid's file
+# with a step mid has since removed. With base's declaration cancelled at
+# mid's exclude, no merge runs: mid's current file replaces the stale copy
+# outright and the Legacy lint step is gone.
+- repo:
+    url: __FIXTURE__/mid

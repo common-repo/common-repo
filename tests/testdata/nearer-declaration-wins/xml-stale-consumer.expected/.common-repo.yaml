@@ -1,0 +1,6 @@
+# XML flavor: with merge_by_key winning, the stale web server is updated
+# in place, the consumer-only cache server survives, and mid's newer
+# servers are appended. Under append_unique the edited web element would
+# duplicate.
+- repo:
+    url: __FIXTURE__/xml-mid

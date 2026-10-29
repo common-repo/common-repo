@@ -1,0 +1,5 @@
+# Case 2 (fresh consumer): mid excluded base's ci.yaml and ships its own, so
+# base's append_unique declaration does not reach this consumer. A consumer
+# with no local copy gets mid's file byte for byte — no merge runs.
+- repo:
+    url: __FIXTURE__/mid

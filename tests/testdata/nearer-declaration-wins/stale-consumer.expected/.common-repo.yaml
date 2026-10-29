@@ -1,0 +1,6 @@
+# The consumer holds an older Build step. If base's append_unique won, the
+# edited Build would be appended as a duplicate next to the stale one; with
+# mid's merge_by_key winning, the Build item is updated in place, the
+# consumer-only step survives, and mid's newer steps are appended.
+- repo:
+    url: __FIXTURE__/mid

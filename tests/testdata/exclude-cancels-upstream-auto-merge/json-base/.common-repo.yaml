@@ -1,0 +1,4 @@
+- include: ["**"]
+- json:
+    auto-merge: services.json
+    array_mode: append_unique

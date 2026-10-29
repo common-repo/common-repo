@@ -1,0 +1,8 @@
+# mid takes over .github/workflows/ci.yaml: it excludes base's copy inside
+# the repo: entry's with: and ships its own file, without re-declaring a
+# merge for the path.
+- repo:
+    url: ../base
+    with:
+      - exclude: [".github/workflows/ci.yaml"]
+- include: ["**"]
