@@ -237,7 +237,6 @@ fn merge_attributes(xot: &mut Xot, target: xot::Node, source: xot::Node) -> Resu
     Ok(())
 }
 
-/// Set text content of an element, replacing any existing text child.
 /// Concatenation of an element's direct text children (mixed-content aware,
 /// unlike `text_content_str`, which also descends into child elements).
 fn child_text_content(xot: &Xot, node: xot::Node) -> String {
@@ -250,6 +249,7 @@ fn child_text_content(xot: &Xot, node: xot::Node) -> String {
     out
 }
 
+/// Set text content of an element, replacing any existing text child.
 fn apply_text_content(xot: &mut Xot, target: xot::Node, text: &str) -> Result<()> {
     // Find and update existing text child, or create one
     let existing_text = xot
@@ -480,6 +480,7 @@ pub fn apply_xml_merge_operation(fs: &mut MemoryFS, op: &XmlMergeOp) -> Result<(
 
     let source_content = read_file_as_string(fs, source_path)?;
     let dest_content = read_file_as_string_optional(fs, dest_path)?;
+    let dest_existed = dest_content.is_some();
 
     let mut xot = Xot::new();
 
@@ -560,7 +561,11 @@ pub fn apply_xml_merge_operation(fs: &mut MemoryFS, op: &XmlMergeOp) -> Result<(
             message: format!("Failed to serialize XML: {}", e),
         })?;
 
-    if serialized == before_merge {
+    // A merge that leaves the document unchanged leaves the destination's
+    // bytes alone, since the writer cannot round-trip a hand-written file's
+    // formatting (#376). A missing destination is created even when the
+    // merge adds nothing (AutoCreateDestination).
+    if dest_existed && serialized == before_merge {
         return Ok(());
     }
 
@@ -725,6 +730,24 @@ mod tests {
         let result = read_file_as_string(&fs, "dest.xml").unwrap();
         assert!(result.contains("<config>"));
         assert!(result.contains("<key>value</key>"));
+    }
+
+    #[test]
+    fn empty_source_still_creates_missing_dest() {
+        // AutoCreateDestination: even a source that merges to nothing must
+        // produce the destination file; the no-op skip only applies to a
+        // destination that already exists (#376 review).
+        let mut fs = MemoryFS::new();
+        fs.add_file("source.xml", File::from_string("<root/>"))
+            .unwrap();
+
+        let op = XmlMergeOp::new().source("source.xml").dest("dest.xml");
+        apply_xml_merge_operation(&mut fs, &op).unwrap();
+
+        assert!(
+            fs.exists("dest.xml"),
+            "empty source must still create the missing destination"
+        );
     }
 
     #[test]
