@@ -9,7 +9,7 @@
 //! - It runs `common-repo apply` and asserts byte-exact output.
 //! - `<name>.input/` seeding copies nested files, is a no-op when absent,
 //!   and rejects a `.common-repo.yaml` in the input directory.
-//! - `Options { reapply: true }` runs `apply` a second time and fails when
+//! - `Options { reapply: true, diff_after_apply: false }` runs `apply` a second time and fails when
 //!   the tree drifts (`reapply-drift/`, a nested fixture root whose only
 //!   case appends on every apply).
 
@@ -39,7 +39,13 @@ fn selftest_root() -> PathBuf {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn reapply_option_passes_when_every_case_is_a_fixed_point() {
-    run_expected_fixtures_with(&selftest_root(), Options { reapply: true });
+    run_expected_fixtures_with(
+        &selftest_root(),
+        Options {
+            reapply: true,
+            diff_after_apply: false,
+        },
+    );
 }
 
 #[test]
@@ -50,7 +56,13 @@ fn reapply_option_fails_when_a_second_apply_changes_the_tree() {
     // expected bytes. The second apply appends `b` again.
     let drift = selftest_root().join("reapply-drift");
     run_expected_fixtures(&drift);
-    run_expected_fixtures_with(&drift, Options { reapply: true });
+    run_expected_fixtures_with(
+        &drift,
+        Options {
+            reapply: true,
+            diff_after_apply: false,
+        },
+    );
 }
 
 /// Create `<stem>.expected/` and `<stem>.input/` under `fixture` and
