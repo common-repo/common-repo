@@ -1,0 +1,8 @@
+# The documented upstream layout: files live under src/ and are renamed to
+# the root on the way out, so every shipped path passes through a rename.
+- include: ["src/**"]
+- rename:
+    - "^src/(.*)$": "$1"
+- yaml:
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key
