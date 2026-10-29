@@ -510,6 +510,25 @@ All merge operators support two additional options for upstream-declared merge b
 
 See [Upstream-Declared Merge Behavior](authoring-upstream-repos.md#upstream-declared-merge-behavior) for detailed usage.
 
+#### Byte Stability of Unchanged Files
+
+A merge that does not change the destination's parsed content does not write
+the file. Every structured merge operator (`yaml`, `json`, `toml`, `ini`,
+`xml`) compares the merged document with the destination as it was parsed and
+keeps the original bytes when they are equal, so:
+
+- `apply` twice in a row writes the same bytes both times — a consumer that
+  has not edited an inherited file never sees a cosmetic rewrite of it.
+- `diff` reports "No changes detected" immediately after `apply`, including
+  on a freshly created consumer.
+- Comments, SHA-pin notes, flow-style lists (`on: [push, pull_request]`),
+  inline tables, and indentation survive verbatim in any file the merge does
+  not change.
+
+The moment a merge does change content, the destination is rewritten in the
+operator's canonical format, and formatting the writers cannot represent —
+comments, flow styles, original indentation — is lost on that rewrite.
+
 ### Path Syntax
 
 The `path` option in merge operators supports multiple notations for navigating nested structures:
@@ -705,6 +724,21 @@ jobs:
       run: cargo audit
 ```
 
+**A merge that changes nothing writes nothing:**
+
+The upstream declares `auto-merge: .github/workflows/ci.yaml`. A consumer
+that inherits the file and edits nothing keeps its copy byte for byte — the
+header comment, the `# v4` SHA-pin note, the flow-style `on:` list, and the
+two-space list indentation all survive every `apply`, and `diff` reports no
+changes. Only a merge that actually changes content rewrites the file.
+
+```yaml
+# .github/workflows/ci.yaml — identical on every apply until content changes
+# From upstream
+name: CI
+on: [push, pull_request]
+```
+
 ### `json` - Merge JSON Files
 
 ```yaml
@@ -806,6 +840,21 @@ Destination after apply:
     { "email": "c@example.com", "role": "guest" },
     { "email": "b@example.com", "role": "dev" }
   ]
+}
+```
+
+**A merge that changes nothing writes nothing:**
+
+With the upstream declaring `auto-merge: package.json`, a consumer that has
+not edited the file keeps its copy exactly as written — the four-space
+indent and the one-line `scripts` object below survive every `apply`, and
+`diff` reports no changes. The file is only rewritten, in the writer's
+two-space expanded format, when a merge actually changes its content.
+
+```json
+{
+    "name": "demo",
+    "scripts": {"test": "jest"}
 }
 ```
 
@@ -920,6 +969,14 @@ url = "https://slow.example.com"
 priority = 50
 ```
 
+A merge that changes nothing writes nothing here either: an unedited
+`Cargo.toml` keeps its comments, inline tables, and table order byte for
+byte on every `apply` (see [Byte Stability of Unchanged
+Files](#byte-stability-of-unchanged-files)). A merge that does change
+content rewrites the file with tables sorted and inline tables expanded,
+so `preserve-comments: true` is still worth setting for files you expect
+to revise.
+
 ### `xml` - Merge XML Files
 
 ```yaml
@@ -982,6 +1039,24 @@ element such as `<settings>`) still merges recursively.
   <server name="cache" replicas="9"/>
   <server name="db" replicas="1"/>
 </servers>
+```
+
+**A merge that changes nothing writes nothing:**
+
+With the upstream declaring `auto-merge: config.xml`, a consumer that has
+not edited the file keeps its copy exactly as written — the comment, the
+`encoding` declaration, and the hand indentation below survive every
+`apply`, and `diff` reports no changes. Only a merge that actually changes
+content rewrites the file through the XML writer.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- App configuration. Comments must survive. -->
+<app name="demo">
+  <servers>
+    <server host="alpha.example.com" port="8080"/>
+  </servers>
+</app>
 ```
 
 ### `ini` - Merge INI Files
