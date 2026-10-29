@@ -439,6 +439,7 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
 
     let mut dest_value: YamlValue =
         serde_yaml::from_str(&dest_content).unwrap_or(YamlValue::Mapping(Default::default()));
+    let before_merge = dest_value.clone();
     let source_value: YamlValue =
         serde_yaml::from_str(&source_content).map_err(|err| Error::Merge {
             operation: "yaml merge".to_string(),
@@ -457,6 +458,14 @@ pub fn apply_yaml_merge_operation(fs: &mut MemoryFS, op: &YamlMergeOp) -> Result
         dst_file: dest_path,
     };
     merge_yaml_values(target, &source_value, &ctx);
+
+    // A merge that leaves the parsed destination unchanged leaves its bytes
+    // alone: the writer cannot round-trip comments, flow styles, or list
+    // indentation, so re-serializing would rewrite a file whose content did
+    // not change (#376).
+    if dest_value == before_merge {
+        return Ok(());
+    }
 
     let serialized = serde_yaml::to_string(&dest_value).map_err(|err| Error::Merge {
         operation: "yaml merge".to_string(),

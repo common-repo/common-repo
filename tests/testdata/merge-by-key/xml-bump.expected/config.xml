@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!-- Whitespace in the merged output is what the serializer emits; do not hand-edit the .expected copy --><servers>
-<server name="web" replicas="3">
+  <server name="web" replicas="3">
     <probe path="/healthz"/>
   </server>
   <server name="cache" replicas="9"/><server name="db" replicas="1"/>

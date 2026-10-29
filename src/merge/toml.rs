@@ -506,6 +506,7 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
 
     let mut dest_value: TomlValue =
         toml::from_str(&dest_content).unwrap_or_else(|_| TomlValue::Table(toml::map::Map::new()));
+    let before_merge = dest_value.clone();
     let source_value: TomlValue = toml::from_str(&source_content).map_err(|err| Error::Merge {
         operation: "toml merge".to_string(),
         message: format!("Failed to parse source TOML: {}", err),
@@ -523,6 +524,14 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
         dst_file: dest_path,
     };
     merge_toml_values(target, &source_value, &ctx);
+
+    // A merge that leaves the parsed destination unchanged leaves its bytes
+    // alone: the writer drops comments, sorts tables, and expands inline
+    // tables, so re-serializing would rewrite a file whose content did not
+    // change (#376).
+    if dest_value == before_merge {
+        return Ok(());
+    }
 
     let serialized = if op.preserve_comments {
         // Attempt comment preservation using taplo

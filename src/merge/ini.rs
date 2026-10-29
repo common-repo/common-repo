@@ -39,7 +39,7 @@ use super::ensure_trailing_newline;
 use crate::filesystem::File;
 
 /// Represents a key-value entry in an INI file
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct IniEntry {
     key: String,
     value: String,
@@ -49,7 +49,7 @@ struct IniEntry {
 ///
 /// A section contains a name (empty string for root-level entries) and
 /// a list of key-value entries.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct IniSection {
     name: String,
     entries: Vec<IniEntry>,
@@ -219,6 +219,7 @@ pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<(
 
     let source_sections = parse_ini(&source_content);
     let mut dest_sections = parse_ini(&dest_content);
+    let before_merge = dest_sections.clone();
 
     // Helper function to merge a source section into a destination section
     fn merge_section(
@@ -281,6 +282,13 @@ pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<(
                 merge_section(source_section, dest_section, op.append, op.allow_duplicates);
             }
         }
+    }
+
+    // A merge that leaves the parsed destination unchanged leaves its bytes
+    // alone: the writer cannot round-trip comments or spacing, so
+    // re-serializing would rewrite a file whose content did not change (#376).
+    if dest_sections == before_merge {
+        return Ok(());
     }
 
     let serialized = serialize_ini(&dest_sections);
@@ -610,10 +618,11 @@ port = 8080
 
             let result = read_file_as_string(&fs, "config.ini").unwrap();
 
-            // Should contain original content unchanged
+            // Should contain original content unchanged (a no-op merge does
+            // not re-serialize, so the source spacing survives)
             assert!(result.contains("[server]"));
-            assert!(result.contains("host=localhost"));
-            assert!(result.contains("port=8080"));
+            assert!(result.contains("host = localhost"));
+            assert!(result.contains("port = 8080"));
         }
 
         #[test]
@@ -787,9 +796,10 @@ host = localhost
 
             let result = read_file_as_string(&fs, "config.ini").unwrap();
             // Destination should remain unchanged since source doesn't have
-            // the target section or root-level entries
+            // the target section or root-level entries; a no-op merge does
+            // not re-serialize, so the source spacing survives
             assert!(result.contains("[settings]"));
-            assert!(result.contains("host=localhost"));
+            assert!(result.contains("host = localhost"));
         }
     }
 

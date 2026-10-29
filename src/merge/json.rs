@@ -424,6 +424,7 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
 
     let mut dest_value: JsonValue =
         serde_json::from_str(&dest_content).unwrap_or(JsonValue::Object(serde_json::Map::new()));
+    let before_merge = dest_value.clone();
     let source_value: JsonValue =
         serde_json::from_str(&source_content).map_err(|err| Error::Merge {
             operation: "json merge".to_string(),
@@ -436,6 +437,13 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
     let mut ctx = JsonMergeContext::new(source_path, dest_path);
     ctx.array_key = op.key.clone();
     merge_json_values(target, &source_value, mode, op.position, &mut ctx);
+
+    // A merge that leaves the parsed destination unchanged leaves its bytes
+    // alone: the writer has fixed indentation and expansion rules, so
+    // re-serializing would rewrite a file whose content did not change (#376).
+    if dest_value == before_merge {
+        return Ok(());
+    }
 
     let serialized = serde_json::to_string_pretty(&dest_value).map_err(|err| Error::Merge {
         operation: "json merge".to_string(),

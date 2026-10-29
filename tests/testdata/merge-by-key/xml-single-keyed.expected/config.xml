@@ -1,4 +1,4 @@
 <?xml version="1.0"?>
 <servers>
-<server name="cache" replicas="9"/><server name="web" replicas="3"/>
+  <server name="cache" replicas="9"/><server name="web" replicas="3"/>
 </servers>
