@@ -25,5 +25,16 @@ fn expected_fixtures_match_byte_exactly_and_are_idempotent() {
         .join("tests")
         .join("testdata")
         .join("nearer-declaration-wins");
-    run_expected_fixtures_with(&fixture, Options { reapply: true });
+    // `..Default::default()` rather than listing every field: #387 adds
+    // `diff_after_apply` to `Options`, and an exhaustive initializer here
+    // breaks the build whichever of the two branches lands second. The
+    // allow covers the window where `reapply` is still the only field.
+    #[allow(clippy::needless_update)]
+    run_expected_fixtures_with(
+        &fixture,
+        Options {
+            reapply: true,
+            ..Default::default()
+        },
+    );
 }
