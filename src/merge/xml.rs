@@ -114,6 +114,9 @@ pub fn merge_xml_elements(
     let mut seen_names: Vec<xot::NameId> = Vec::new();
     // Track non-element source children separately
     let mut source_text_content: Option<String> = None;
+    // Full text of all direct text children, used to detect a no-op text
+    // merge (the write path above only carries the last text node).
+    let mut source_text_full = String::new();
     // Comments and PIs from source that need to be carried over
     let mut source_comments_and_pis: Vec<xot::Node> = Vec::new();
 
@@ -128,6 +131,7 @@ pub fn merge_xml_elements(
             }
         } else if let Some(text) = xot.text_str(child) {
             source_text_content = Some(text.to_string());
+            source_text_full.push_str(text);
         } else if xot.is_comment(child) || xot.is_processing_instruction(child) {
             source_comments_and_pis.push(child);
         }
@@ -148,7 +152,13 @@ pub fn merge_xml_elements(
                 ctx.src_file, ctx.dst_file, ctx.path
             );
         }
-        apply_text_content(xot, target, src_text)?;
+        // Applying the text moves whitespace-only text nodes around even
+        // when the element's text is identical, so a merge of a file with
+        // itself would rewrite bytes without changing content (#376). Only
+        // apply when the text actually differs.
+        if child_text_content(xot, target) != source_text_full {
+            apply_text_content(xot, target, src_text)?;
+        }
     }
 
     // Step 4: carry over comments and processing instructions from source
@@ -228,6 +238,18 @@ fn merge_attributes(xot: &mut Xot, target: xot::Node, source: xot::Node) -> Resu
 }
 
 /// Set text content of an element, replacing any existing text child.
+/// Concatenation of an element's direct text children (mixed-content aware,
+/// unlike `text_content_str`, which also descends into child elements).
+fn child_text_content(xot: &Xot, node: xot::Node) -> String {
+    let mut out = String::new();
+    for child in xot.children(node) {
+        if let Some(text) = xot.text_str(child) {
+            out.push_str(text);
+        }
+    }
+    out
+}
+
 fn apply_text_content(xot: &mut Xot, target: xot::Node, text: &str) -> Result<()> {
     // Find and update existing text child, or create one
     let existing_text = xot
@@ -513,20 +535,34 @@ pub fn apply_xml_merge_operation(fs: &mut MemoryFS, op: &XmlMergeOp) -> Result<(
         dst_file: dest_path,
     };
 
-    // Merge source into target
-    merge_xml_elements(&mut xot, target, source_doc_el, &ctx)?;
-
-    // Serialize with XML declaration
-    let xml_params = xot::output::xml::Parameters {
+    // Serialize the destination before and after the merge with the same
+    // writer: a merge that leaves the document unchanged leaves its bytes
+    // alone, since the writer cannot round-trip a hand-written file's
+    // formatting (#376).
+    let xml_params = || xot::output::xml::Parameters {
         declaration: Some(xot::output::xml::Declaration::default()),
         ..Default::default()
     };
-    let serialized = xot
-        .serialize_xml_string(xml_params, dest_root)
+    let before_merge = xot
+        .serialize_xml_string(xml_params(), dest_root)
         .map_err(|e| Error::Merge {
             operation: "xml merge".to_string(),
             message: format!("Failed to serialize XML: {}", e),
         })?;
+
+    // Merge source into target
+    merge_xml_elements(&mut xot, target, source_doc_el, &ctx)?;
+
+    let serialized = xot
+        .serialize_xml_string(xml_params(), dest_root)
+        .map_err(|e| Error::Merge {
+            operation: "xml merge".to_string(),
+            message: format!("Failed to serialize XML: {}", e),
+        })?;
+
+    if serialized == before_merge {
+        return Ok(());
+    }
 
     write_string_to_file(fs, dest_path, serialized)
 }
