@@ -1,6 +1,38 @@
 # Changelog
 
 - - -
+## v0.38.0 - 2026-10-29
+#### Features
+- (**merge**) add merge_by_key array mode to update keyed items in place - (80edd85) - jathanism
+#### Bug Fixes
+- (**deps**) resolve Dependabot security alerts - (b7b20b9) - Jacob Alheid
+- (**discovery**) fail when an upstream config does not parse - (b3a3d08) - Jacob Alheid
+- (**merge**) keep own-file precedence through rename and label the own re-apply log - (07b4555) - Jacob Alheid
+- (**merge**) honor merge_by_key for single same-name xml elements - (782a6ea) - Jacob Alheid
+- (**merge**) let a repo's own files win keyed merges over its upstreams - (66b692c) - Jacob Alheid
+#### Documentation
+- (**merge**) clarify whole-item replacement and split merge_by_key examples - (e642e6a) - Jacob Alheid
+- (**merge**) add json/toml/xml merge_by_key examples and xml operator section - (b233ebe) - jathanism
+- (**merge**) cover merge_by_key in authoring guide and recipes - (f66908f) - jathanism
+#### Tests
+- (**config**) cover merge_by_key key parsing for json, toml and xml ops - (27ace9f) - Jacob Alheid
+- (**fixtures**) add opt-in re-apply check to the expected-fixture runner - (6bf3a0c) - Jacob Alheid
+- (**merge**) fixture for merge_by_key precedence under the src/ rename layout - (fc453ae) - Jacob Alheid
+- (**merge**) fixtures for keyed xml elements with a single sibling - (eb41a27) - Jacob Alheid
+- (**merge**) fixtures for merge_by_key across upstream tiers - (7854281) - Jacob Alheid
+- (**merge**) run merge_by_key fixtures through the re-apply check - (8ed72cb) - Jacob Alheid
+- (**merge**) extend merge_by_key fixtures to json, toml, and xml - (2d6a27b) - jathanism
+- (**merge**) add expected-fixture coverage for merge_by_key - (888b6b6) - jathanism
+#### Build system
+- (**deps**) ignore RUSTSEC-2024-0449 for unsafe-libyaml via serde_yaml - (c39e0f8) - Jacob Alheid
+#### Refactoring
+- (**merge**) share one keyed-array merge across formats - (285f0d5) - Jacob Alheid
+#### Miscellaneous Chores
+- (**pre-commit**) keep prek workspace discovery out of fixture trees - (a018808) - jathanism
+- drop CLAUDE.md shims; AGENTS.md is read natively - (b132e4c) - Jacob Alheid
+
+- - -
+
 ## v0.37.7 - 2026-09-23
 #### Bug Fixes
 - <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>(**orchestrator**) write only self: output when a self: block is present - (ab521b0) - Jacob Alheid
