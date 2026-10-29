@@ -1,6 +1,19 @@
 # Changelog
 
 - - -
+## v0.38.2 - 2026-10-29
+#### Bug Fixes
+- (**discovery**) order with: declarations ahead of the upstream's own - (6c57960) - jathanism
+- (**merge**) nearest auto-merge declaration wins and excludes cancel inherited ones - (51d9961) - jathanism
+#### Documentation
+- (**merge**) with: precedence, exclude reach caveat, sibling warning note - (5f47bc5) - jathanism
+- (**merge**) document auto-merge declaration precedence and cancellation - (99082d8) - jathanism
+#### Tests
+- (**merge**) fixture for a with: declaration outranking the upstream's own - (59ec867) - jathanism
+- (**merge**) fixtures for #383 exclude-cancels and nearer-declaration-wins - (9fc973e) - jathanism
+
+- - -
+
 ## v0.38.0 - 2026-10-29
 #### Features
 - (**merge**) add merge_by_key array mode to update keyed items in place - (80edd85) - jathanism
