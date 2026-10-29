@@ -1,0 +1,8 @@
+# json-mid re-declares deploy.json with merge_by_key; json-base keeps
+# append_unique. The nearer declaration (merge_by_key) wins.
+- repo:
+    url: ../json-base
+- include: ["**"]
+- json:
+    auto-merge: deploy.json
+    array_mode: merge_by_key

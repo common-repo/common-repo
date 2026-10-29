@@ -1,0 +1,6 @@
+# Fact 3 from #383: the consumer excludes a path its only upstream declares
+# an auto-merge for. The consumer owns the path; the declaration is
+# cancelled and the local file is never merged into.
+- repo:
+    url: __FIXTURE__/base
+- exclude: [".github/workflows/ci.yaml"]

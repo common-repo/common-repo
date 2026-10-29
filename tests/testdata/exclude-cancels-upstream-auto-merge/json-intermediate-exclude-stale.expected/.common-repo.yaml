@@ -1,0 +1,6 @@
+# Case 2 for JSON: the same rule one format over. json-mid excluded
+# json-base's services.json, so json-base's append_unique declaration is
+# cancelled; the stale consumer's legacy entry is replaced, not preserved
+# and appended to.
+- repo:
+    url: __FIXTURE__/json-mid

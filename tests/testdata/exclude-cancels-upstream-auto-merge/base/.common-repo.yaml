@@ -1,0 +1,4 @@
+- include: ["**"]
+- yaml:
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: append_unique

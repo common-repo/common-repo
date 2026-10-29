@@ -1,0 +1,6 @@
+# json-mid takes over services.json the same way mid takes over ci.yaml.
+- repo:
+    url: ../json-base
+    with:
+      - exclude: ["services.json"]
+- include: ["**"]

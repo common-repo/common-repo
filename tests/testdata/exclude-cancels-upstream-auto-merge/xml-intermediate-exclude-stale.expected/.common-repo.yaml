@@ -1,0 +1,5 @@
+# Case 2 for XML: xml-mid excluded xml-base's config.xml, so xml-base's
+# append_unique declaration is cancelled; the stale consumer's legacy
+# server is replaced by mid's current file, not kept and appended to.
+- repo:
+    url: __FIXTURE__/xml-mid

@@ -1,0 +1,9 @@
+# mid keeps base's file flowing in but re-declares the merge for the path
+# with merge_by_key. mid's declaration is nearer to the consumer than
+# base's append_unique, so it wins.
+- repo:
+    url: ../base
+- include: ["**"]
+- yaml:
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key

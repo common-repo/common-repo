@@ -1,0 +1,9 @@
+# xml-mid re-declares config.xml with merge_by_key keyed on the name
+# attribute; xml-base keeps append_unique. The nearer declaration wins.
+- repo:
+    url: ../xml-base
+- include: ["**"]
+- xml:
+    auto-merge: config.xml
+    array_mode: merge_by_key
+    key: name
