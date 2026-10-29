@@ -520,8 +520,10 @@ because declarations are keyed on the file path, not the format.
 auto-merge for the same path, the declaration closest to the consumer
 wins: the consumer's `with:` first, then the intermediate's own, then
 its upstreams, nearest first. Among sibling `repo:` entries at the same
-level, the later sibling wins. A differing duplicate is announced at
-default visibility instead of being dropped silently:
+level, the later sibling wins (that sibling override is currently
+silent — #390). A differing duplicate within one repository's collected
+declarations is announced at default visibility instead of being dropped
+silently:
 
 ```text
 [WARN ] auto-merge declared more than once for .github/workflows/ci.yaml:
@@ -535,7 +537,10 @@ declaration inherited for it is dropped, and the file propagates as a
 plain copy that overwrites whatever the consumer had. Written order
 decides — the exclude cancels declarations already collected at the
 point it runs (an upstream's own declarations and any `with:` exclude a
-consumer appends to them), not ones integrated later.
+consumer appends to them), not ones integrated later. In particular, a
+`with: exclude` cancels only the declarations the directly referenced
+upstream made itself: a farther upstream is integrated after the exclude
+runs, so its file and its declaration still flow in (#385).
 
 The two rules combine for the common intermediate case — a repository
 that takes over a file from its upstream:

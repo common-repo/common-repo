@@ -144,13 +144,13 @@ rule NearestDeclarationWins {
 
     -- When more than one repository along the chain declares an
     -- auto-merge for the same path, the declaration nearest the consumer
-    -- decides the merge: the integrating repo's own declaration first,
-    -- then its upstreams', nearest first. Among sibling repo: entries,
-    -- the later sibling wins.
+    -- decides the merge: the consumer's with: declaration first, then
+    -- the integrating repo's own, then its upstreams', nearest first.
+    -- Among sibling repo: entries, the later sibling wins.
     --
-    -- The merge_operations list is built nearest-first (own declarations
-    -- before inherited ones), so collecting by path keeps the first
-    -- entry rather than the last.
+    -- The merge_operations list is built nearest-first (consumer with:
+    -- declarations and own declarations before inherited ones), so
+    -- collecting by path keeps the first entry rather than the last.
     ensures: auto_merge_operation_for(path) = nearest(declarations, path)
 
     @guidance
@@ -158,6 +158,15 @@ rule NearestDeclarationWins {
         -- visibility (warn), naming the path, the declaration in use,
         -- and the discarded one. Identical duplicates collapse silently.
         -- Before #383 the farthest upstream's declaration won silently.
+        --
+        -- Consumer with: declarations are ordered ahead of the
+        -- upstream's own at the discovery flatten site
+        -- (combine_upstream_operations), so they count as the nearest.
+        --
+        -- Only duplicates within one repo's collected declarations are
+        -- announced: a later sibling repo: overriding an earlier
+        -- sibling's declaration stays silent for now, and chains deeper
+        -- than three repeat the warning once per level (#390).
 }
 
 rule ExcludeCancelsUpstreamDeclarations {
@@ -187,6 +196,10 @@ rule ExcludeCancelsUpstreamDeclarations {
         --     so the intermediate's own file propagates as a plain copy
         --     unless it declares its own merge (which then wins under
         --     NearestDeclarationWins).
+        -- The cancellation reaches only declarations the directly
+        -- referenced upstream made itself: a farther upstream is a tree
+        -- child integrated after the with: exclude runs, so its file and
+        -- its declaration still flow in (#385).
         -- Explicit defer: true source/dest operations are a separate
         -- mechanism keyed on dest, not on a declared auto-merge path,
         -- and are never cancelled by this rule.

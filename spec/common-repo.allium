@@ -896,12 +896,18 @@ rule ApplyDeferredMerges {
         -- themselves (issue #383), ahead of any item-level merge:
         --   - Nearest declaration wins: when several repositories declare
         --     an auto-merge for one path, the declaration closest to the
-        --     consumer decides the merge parameters; a differing
-        --     duplicate is announced at default visibility.
+        --     consumer decides the merge parameters — the consumer's
+        --     with: declaration first, then each repo's own, then its
+        --     upstreams', nearest first. A differing duplicate within
+        --     one repo's collected declarations is announced at default
+        --     visibility; a later sibling overriding an earlier sibling
+        --     stays silent for now (#390).
         --   - Exclude cancels: a repository that excludes a path owns it;
         --     inherited declarations for that path (and their Phase 5
         --     snapshots) are dropped, so no deferred merge runs on the
-        --     excluding repository's copy. See
+        --     excluding repository's copy. A with: exclude reaches only
+        --     the declarations the directly referenced upstream made
+        --     itself (#385). See
         --     detailed/auto-merge-composition.allium,
         --     NearestDeclarationWins and ExcludeCancelsUpstreamDeclarations.
 }
