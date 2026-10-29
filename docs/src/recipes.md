@@ -157,6 +157,36 @@ An upstream repo that provides shared configuration to consumers, while also pul
 
 Without `self:`, the release tooling and CI base files would leak into every consumer that inherits from this repo. Because the config has a `self:` block, `apply` writes only the `self:` output to the working directory; the top-level source API is not written locally. See [Authoring Upstream Repositories](authoring-upstream-repos.md#using-self-for-local-consumption) for more details.
 
+### Intermediate Repo Taking Over a File
+
+Replace an upstream's file with your own version and take control of how
+it reaches consumers. Excluding the upstream's copy inside the repo
+entry's `with:` cancels the upstream's auto-merge declaration for that
+path; declaring your own merge then makes your declaration the one your
+consumers get, with the array mode you choose.
+
+```yaml
+# .common-repo.yaml in an intermediate repo
+- repo:
+    url: https://github.com/org/ci-base
+    ref: v2.0.0
+    with:
+      # Drop ci-base's stub — we ship our own ci.yaml
+      - exclude: [".github/workflows/ci.yaml"]
+- include: ["**"]
+- yaml:
+    # Our declaration is nearer than ci-base's, so it decides the merge
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key
+```
+
+The same shape works for `json`, `toml`, `ini`, `markdown`, and `xml`
+auto-merges. Skip the `yaml:` declaration if you want your copy to land
+as a plain overwrite instead. Consumers that would rather keep their own
+file exclude the path themselves — an exclude always cancels inherited
+declarations. See
+[Declaration Precedence and Cancellation](configuration.md#declaration-precedence-and-cancellation).
+
 ## CI/CD Patterns
 
 ### GitHub Actions Workflow Inheritance
