@@ -276,9 +276,28 @@ pre-commit `repos[]`). See
 A matched item is replaced whole. If a consumer edits inside one of your
 keyed items (an extra `env:` or `with:` entry on your checkout step, for
 example), that edit is overwritten on every apply; only items the consumer
-adds under their own keys survive. Switching an existing `append_unique`
+added under their own keys survive. Switching an existing `append_unique`
 merge to `merge_by_key` does not remove the duplicates it already created:
 consumers delete the stale copies by hand once, and later bumps stay clean.
+
+### Unchanged Files Keep Their Bytes
+
+A merge that does not change a file's parsed content does not rewrite it.
+Write your files the way a person writes them — header comments, `# v4`
+SHA-pin notes on action refs, flow-style `on:` lists, inline tables — and
+consumers that have not edited them keep those bytes forever: their first
+`apply` copies the file as is, `diff` reports no changes right after, and
+every later `apply` leaves it alone.
+
+This also holds through a chain: an intermediate repo's own file at a path
+a farther upstream auto-merges stays the intermediate repo's bytes in every
+consumer, as long as no tier's merge changes the content.
+
+The guarantee ends the moment a merge does change content: the file is then
+rewritten in the operator's canonical format, which drops comments and
+flow styles the writers cannot represent. Put documentation you care about
+in files consumers receive verbatim (`include:`), and keep auto-merged
+files about the merged data.
 
 ### Consumer Override
 

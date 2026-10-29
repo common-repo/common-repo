@@ -194,6 +194,12 @@ Jobs are a mapping, so the consumer's jobs merge in by key. To merge into a
 replaces the older version instead of piling up beside it — see
 [Array Merge Modes](configuration.md#array-merge-modes).
 
+If the templates repo hands you whole workflow files (an `auto-merge:` with
+no local fragment), consumers that do not edit them keep their bytes:
+comments and `# v4` SHA-pin notes on action refs survive every `apply`, and
+`diff` stays clean. See [Byte Stability of Unchanged
+Files](configuration.md#byte-stability-of-unchanged-files).
+
 **local-ci-jobs.yml:**
 ```yaml
 integration-tests:

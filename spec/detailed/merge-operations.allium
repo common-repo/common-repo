@@ -60,6 +60,37 @@ rule AutoCreateDestination {
 }
 
 -- --------------------------------------------------------------------------
+-- No-Op Write Stability
+-- --------------------------------------------------------------------------
+
+rule NoOpMergePreservesBytes {
+    -- @status: Implemented
+    when: ApplyMerge(op, filesystem)
+    requires:
+        and destination exists in filesystem
+        and merge(op, parse(source), parse(destination)) = parse(destination)
+
+    -- A merge that leaves the destination's parsed content unchanged leaves
+    -- its bytes alone: no write occurs. Comments, flow styles, inline
+    -- tables, and hand formatting in a file the merge does not change
+    -- survive verbatim, apply run twice writes the same bytes both times,
+    -- and diff reports no changes right after apply — including for a
+    -- freshly copied auto-merge file the consumer has never edited.
+    ensures: filesystem.read(op.effective_dest) unchanged by the operation
+
+    @guidance
+        -- Applies to the structured formats: yaml, json, toml, ini, xml.
+        -- Markdown merges splice text and are not affected.
+        -- For xml the comparison is over the canonical serialization of
+        -- the destination before and after the merge; text content whose
+        -- full value already equals the source's is not reapplied, so
+        -- whitespace-only text nodes are not moved around on a no-op.
+        -- When content does change, the destination is rewritten in the
+        -- operator's canonical format; formatting the writers cannot
+        -- represent (comments, flow styles) is lost on that rewrite.
+}
+
+-- --------------------------------------------------------------------------
 -- Missing Source Handling
 -- --------------------------------------------------------------------------
 
