@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- App configuration. Comments must survive. -->
+<app name="demo">
+  <servers>
+    <server host="alpha.example.com" port="8080"/>
+    <server host="beta.example.com" port="8081"/>
+  </servers>
+</app>

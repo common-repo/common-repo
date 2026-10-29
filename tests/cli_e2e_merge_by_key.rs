@@ -22,5 +22,11 @@ fn expected_fixtures_match_byte_exactly_and_are_idempotent() {
         .join("tests")
         .join("testdata")
         .join("merge-by-key");
-    run_expected_fixtures_with(&fixture, Options { reapply: true });
+    run_expected_fixtures_with(
+        &fixture,
+        Options {
+            reapply: true,
+            diff_after_apply: false,
+        },
+    );
 }

@@ -1,0 +1,7 @@
+# Cargo manifest
+[package]
+name = "demo" # the crate
+version = "0.1.0"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }

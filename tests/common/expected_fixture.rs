@@ -41,10 +41,13 @@
 //!
 //! `.git/` and `.common-repo-cache/` paths are ignored on both sides.
 //!
-//! `run_expected_fixtures_with(root, Options { reapply: true })` adds a step
-//! 7: run `apply` again in the same tempdir and repeat the compare, so every
-//! case is checked to be a fixed point. `run_expected_fixtures` never
-//! re-applies.
+//! `run_expected_fixtures_with(root, Options { reapply: true, .. })` adds a
+//! step 7: run `apply` again in the same tempdir and repeat the compare, so
+//! every case is checked to be a fixed point. `Options { diff_after_apply:
+//! true, .. }` inserts the drift check between the first apply and the
+//! optional re-apply: `common-repo diff` must exit 0 with "No changes
+//! detected", so a pipeline that rewrites freshly applied files without
+//! changing their content fails. `run_expected_fixtures` does neither.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -64,6 +67,11 @@ pub struct Options {
     /// and assert the tree still matches `<name>.expected/`: every case must
     /// be a fixed point.
     pub reapply: bool,
+    /// After the byte compare (and before the optional re-apply), run
+    /// `common-repo diff` in the tempdir and require a clean tree: exit 0
+    /// with "No changes detected". Catches pipelines that rewrite files
+    /// apply just wrote without changing their content.
+    pub diff_after_apply: bool,
 }
 
 /// Discover every `<name>.expected/` directory directly under `fixture_root`,
@@ -119,6 +127,10 @@ fn run_one(fixture_root: &Path, expected_dir: &Path, options: Options) {
     apply_in(temp.path());
     assert_tree_matches(temp.path(), expected_dir, "");
 
+    if options.diff_after_apply {
+        diff_in(temp.path());
+    }
+
     if options.reapply {
         apply_in(temp.path());
         assert_tree_matches(temp.path(), expected_dir, "after re-apply ");
@@ -128,6 +140,17 @@ fn run_one(fixture_root: &Path, expected_dir: &Path, options: Options) {
 fn apply_in(dir: &Path) {
     let mut cmd = cargo_bin_cmd!("common-repo");
     cmd.current_dir(dir).arg("apply").assert().success();
+}
+
+/// Run `common-repo diff` and require a clean tree: exit 0 plus the
+/// "No changes detected." line. The diff command reports drift by exiting 1.
+fn diff_in(dir: &Path) {
+    let mut cmd = cargo_bin_cmd!("common-repo");
+    cmd.current_dir(dir)
+        .arg("diff")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("No changes detected"));
 }
 
 /// Copy every file of the optional sibling `<name>.input/` directory into

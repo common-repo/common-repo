@@ -1,0 +1,3 @@
+- include: ["**"]
+- yaml:
+    auto-merge: .github/workflows/ci.yaml

@@ -79,10 +79,21 @@ reports it as unexpected.
 `.common-repo.yaml` is excluded from byte comparison because the runner
 templates it.
 
-`run_expected_fixtures_with(root, Options { reapply: true })` adds a step 7:
+`run_expected_fixtures_with(root, Options { reapply: true, .. })` adds a step 7:
 run `apply` again in the same tempdir and repeat the compare, so every case
 under the root is checked to be a fixed point. Panics read `expected fixture
-mismatch after re-apply in ...`. `run_expected_fixtures` never re-applies.
+mismatch after re-apply in ...`.
+
+`Options { diff_after_apply: true, .. }` inserts the drift check between the
+first apply and the optional re-apply: it runs `common-repo diff` in the
+tempdir and requires exit 0 with "No changes detected". This catches
+pipelines that rewrite freshly applied files without changing their content
+(the shape of issue #376). `run_expected_fixtures` neither re-applies nor
+diffs.
+
+New fixture roots for merge behavior should write upstream files the way a
+person writes them (comments, flow lists, hand indentation) and enable both
+options — see `tests/testdata/auto-merge-stable/` for the reference layout.
 
 ## Using the runner
 

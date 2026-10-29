@@ -1,0 +1,3 @@
+- include: ["**"]
+- ini:
+    auto-merge: app.ini
