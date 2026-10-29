@@ -155,9 +155,11 @@ fn discover_inherited_configs(
                     visited,
                 )?;
 
-                let mut combined_operations = upstream_filtering_ops;
-                combined_operations.extend(deferred_ops);
-                combined_operations.extend(child.operations.clone());
+                let combined_operations = combine_upstream_operations(
+                    upstream_filtering_ops,
+                    deferred_ops,
+                    &child.operations,
+                );
 
                 let mut combined_node = RepoNode {
                     url: child.url.clone(),
@@ -277,6 +279,37 @@ fn extract_upstream_operations(config: &Schema) -> Vec<Operation> {
         })
         .cloned()
         .collect()
+}
+
+/// Build an upstream node's flattened operation list (issue #383).
+///
+/// Order: the upstream's own filtering operations, then the consumer's
+/// `with:` merge declarations, then the upstream's own deferred
+/// declarations, then the remaining `with:` operations.
+///
+/// The consumer's `with:` declarations are emitted ahead of the
+/// upstream's own so nearest-declaration-wins collects them first: a
+/// declaration the consumer writes in `with:` beats the upstream's own
+/// for the same path. Merge operations never execute from this list
+/// (`apply_operation` skips them; `collect_merge_operations` collects
+/// them), so only declaration precedence changes. The `with:` filtering
+/// operations keep their execution position after the upstream's own,
+/// which also places a `with: exclude` after both declaration groups so
+/// it cancels either (see `collect_merge_operations`).
+fn combine_upstream_operations(
+    upstream_filtering_ops: Vec<Operation>,
+    deferred_ops: Vec<Operation>,
+    child_operations: &[Operation],
+) -> Vec<Operation> {
+    let (with_deferred, with_sequential): (Vec<Operation>, Vec<Operation>) = child_operations
+        .iter()
+        .cloned()
+        .partition(|op| op.is_deferred());
+    let mut combined = upstream_filtering_ops;
+    combined.extend(with_deferred);
+    combined.extend(deferred_ops);
+    combined.extend(with_sequential);
+    combined
 }
 
 /// Detect cycles in the repository dependency tree
@@ -1232,6 +1265,134 @@ mod tests {
         assert_eq!(tree.root.url, "local");
         assert!(tree.root.children.is_empty());
         assert_eq!(tree.root.operations.len(), 2);
+    }
+
+    // ========================================================================
+    // Tests for combine_upstream_operations (issue #383 declaration order)
+    // ========================================================================
+
+    mod combine_upstream_operations_tests {
+        use super::*;
+        use crate::config::{
+            ArrayMergeMode, ExcludeOp, IfExists, IncludeOp, Operation, YamlMergeOp,
+        };
+
+        fn include_all() -> Operation {
+            Operation::Include {
+                include: IncludeOp {
+                    patterns: vec!["**".to_string()],
+                    if_exists: IfExists::Overwrite,
+                },
+                if_exists: IfExists::Overwrite,
+            }
+        }
+
+        fn own_declaration() -> Operation {
+            Operation::Yaml {
+                yaml: YamlMergeOp {
+                    auto_merge: Some(".github/workflows/ci.yaml".to_string()),
+                    array_mode: ArrayMergeMode::AppendUnique,
+                    ..Default::default()
+                },
+            }
+        }
+
+        fn with_declaration() -> Operation {
+            Operation::Yaml {
+                yaml: YamlMergeOp {
+                    auto_merge: Some(".github/workflows/ci.yaml".to_string()),
+                    array_mode: ArrayMergeMode::MergeByKey,
+                    ..Default::default()
+                },
+            }
+        }
+
+        fn with_exclude() -> Operation {
+            Operation::Exclude {
+                exclude: ExcludeOp {
+                    patterns: vec![".github/workflows/ci.yaml".to_string()],
+                },
+            }
+        }
+
+        fn auto_merge_paths(ops: &[Operation]) -> Vec<&str> {
+            ops.iter()
+                .filter_map(crate::phases::composite::get_auto_merge_path)
+                .collect()
+        }
+
+        #[test]
+        fn with_declaration_precedes_upstreams_own() {
+            // The consumer's with: declaration must land before the
+            // upstream's own so nearest-declaration-wins keeps it: on
+            // main the upstream's own won (last-wins kept the with:
+            // one), and the first-wins change alone would have demoted
+            // it below the upstream.
+            let combined = combine_upstream_operations(
+                vec![include_all()],
+                vec![own_declaration()],
+                &[with_declaration()],
+            );
+
+            assert_eq!(auto_merge_paths(&combined).len(), 2);
+            match &combined[1] {
+                Operation::Yaml { yaml } => {
+                    assert_eq!(yaml.array_mode, ArrayMergeMode::MergeByKey);
+                }
+                other => panic!("expected the with: declaration second, got {:?}", other),
+            }
+            assert!(
+                matches!(&combined[2], Operation::Yaml { yaml } if yaml.array_mode == ArrayMergeMode::AppendUnique),
+                "the upstream's own declaration must follow the with: one"
+            );
+        }
+
+        #[test]
+        fn with_filtering_operations_keep_execution_position() {
+            // Filtering operations from with: still run after the
+            // upstream's own, so a with: exclude removes the upstream's
+            // files from the composite.
+            let combined = combine_upstream_operations(
+                vec![include_all()],
+                vec![own_declaration()],
+                &[with_exclude(), include_all()],
+            );
+
+            assert!(matches!(combined[0], Operation::Include { .. }));
+            assert!(
+                matches!(combined[1], Operation::Yaml { .. }),
+                "upstream's own declaration stays in the declaration segment"
+            );
+            assert!(matches!(combined[2], Operation::Exclude { .. }));
+            assert!(matches!(combined[3], Operation::Include { .. }));
+        }
+
+        #[test]
+        fn with_exclude_runs_after_both_declaration_groups() {
+            // A with: exclude sits after both the with: and the upstream's
+            // own declarations, so collect_merge_operations lets it
+            // cancel either.
+            let combined = combine_upstream_operations(
+                vec![include_all()],
+                vec![own_declaration()],
+                &[with_declaration(), with_exclude()],
+            );
+
+            let exclude_index = combined
+                .iter()
+                .position(|op| matches!(op, Operation::Exclude { .. }))
+                .expect("exclude present");
+            let declarations = auto_merge_paths(&combined);
+            assert_eq!(declarations.len(), 2);
+            assert!(
+                combined[..exclude_index]
+                    .iter()
+                    .filter(|op| matches!(op, Operation::Yaml { .. }))
+                    .count()
+                    == 2,
+                "both declarations precede the with: exclude"
+            );
+        }
     }
 
     // ========================================================================
