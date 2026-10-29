@@ -343,12 +343,13 @@ fn test_source_include_between_repos_is_additive() {
 /// local config.yaml → exclude removes the upstream's raw config.yaml
 /// (the merge fragment). Local config.yaml has merged content.
 ///
-/// Batch: all repos composite, then Phase 5 runs deferred merges and
-/// consumer ops. The merged content survives but the execution order
-/// of exclude vs merge is not governed by declaration order.
+/// Sequential: a consumer `exclude:` after the `repo:` cancels the
+/// upstream's auto-merge declaration for the excluded path (issue #383) —
+/// the pre-#383 behavior kept the deferred merge alive past the exclude
+/// and merged upstream content into the consumer's local file.
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
-fn test_source_auto_merge_fires_at_repo_declaration_position() {
+fn test_source_auto_merge_after_repo_is_cancelled_by_consumer_exclude() {
     let upstream = assert_fs::TempDir::new().unwrap();
     init_test_git_repo(
         &upstream,
@@ -369,7 +370,7 @@ fn test_source_auto_merge_fires_at_repo_declaration_position() {
     let consumer = assert_fs::TempDir::new().unwrap();
     let upstream_url = format!("file://{}", upstream.path().display());
 
-    // Local config.yaml that the auto-merge should merge into
+    // Local config.yaml that the upstream's auto-merge used to merge into
     consumer
         .child("config.yaml")
         .write_str("settings:\n  local_only: true\n  app_name: my-app\n")
@@ -395,16 +396,11 @@ fn test_source_auto_merge_fires_at_repo_declaration_position() {
         .assert()
         .success();
 
-    // In the sequential model, the repo: operation fires first, which
-    // triggers the auto-merge into local config.yaml. Then exclude removes
-    // the upstream's raw config.yaml from the composite. The local
-    // config.yaml should not be excluded because it's a local file, not
-    // a composite entry — but the key assertion is that auto-merge
-    // happened before exclude ran.
-    //
-    // Note: the exact behaviour of exclude on a merged file depends on
-    // implementation details. The primary assertion is that auto-merge
-    // content is present — proving it fired at the repo: position.
+    // The repo: fires first and the upstream's config.yaml (with its
+    // auto-merge declaration) enters the composite; the exclude then
+    // removes the file and, with it, the declaration and its Phase 5
+    // snapshot. The consumer owns the excluded path, so the local file
+    // keeps only the consumer's settings.
     let config_path = consumer.path().join("config.yaml");
     assert!(config_path.exists(), "config.yaml should exist after apply");
 
@@ -415,9 +411,9 @@ fn test_source_auto_merge_fires_at_repo_declaration_position() {
         content
     );
     assert!(
-        content.contains("from_upstream"),
-        "config.yaml should contain upstream settings via auto-merge.\n\
-         This proves auto-merge fired at the repo: declaration position.\n\
+        !content.contains("from_upstream"),
+        "config.yaml must not contain upstream settings: the consumer's \
+         exclude cancels the upstream auto-merge for that path.\n\
          Actual:\n{}",
         content
     );

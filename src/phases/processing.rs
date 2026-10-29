@@ -275,12 +275,32 @@ pub(crate) fn collect_template_vars(operations: &[Operation]) -> Result<HashMap<
 ///
 /// Only merge operations with `defer: true` or `auto-merge` set are collected
 /// during Phase 2 for later execution in Phase 4 during composition.
+///
+/// An `exclude` that appears after an auto-merge declaration cancels it
+/// (issue #383): a repository that excludes a path owns it, so a
+/// declaration any upstream made for that path must not travel past the
+/// exclude. Written order decides: discovery flattens an upstream node to
+/// [own filtering ops, own deferred declarations, consumer `with:` ops], so
+/// a `with: exclude` cancels every declaration collected before it, while
+/// an exclude that precedes a declaration (an upstream's own filtering
+/// operators) leaves it in place. Explicit `defer: true` source/dest ops
+/// are a different mechanism and are never cancelled here.
 pub(crate) fn collect_merge_operations(operations: &[Operation]) -> Vec<Operation> {
-    operations
-        .iter()
-        .filter(|op| op.is_deferred())
-        .cloned()
-        .collect()
+    let mut collected: Vec<Operation> = Vec::new();
+    for op in operations {
+        match op {
+            Operation::Exclude { exclude } => {
+                collected.retain(|deferred| {
+                    super::composite::get_auto_merge_path(deferred).is_none_or(|path| {
+                        !super::composite::path_matches_any(path, &exclude.patterns)
+                    })
+                });
+            }
+            _ if op.is_deferred() => collected.push(op.clone()),
+            _ => {}
+        }
+    }
+    collected
 }
 
 /// Build a cache key for a repository node (includes operations fingerprint)
@@ -1701,6 +1721,126 @@ mod tests {
                 matches!(&result[0], Operation::Yaml { yaml } if yaml.source.as_deref() == Some("deferred.yaml"))
             );
             assert!(matches!(&result[1], Operation::Json { .. }));
+        }
+
+        // Issue #383: an exclude that follows an auto-merge declaration in
+        // the flattened operation list cancels it — the shape discovery
+        // produces for an upstream node is [own filtering ops, own deferred
+        // declarations, consumer `with:` ops], so a `with: exclude` takes
+        // ownership of the path and the upstream's declaration stops
+        // travelling to consumers.
+
+        #[test]
+        fn test_collect_merge_operations_later_exclude_cancels_declaration() {
+            let operations = vec![
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some(".github/workflows/ci.yaml".to_string()),
+                        array_mode: ArrayMergeMode::AppendUnique,
+                        ..Default::default()
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec![".github/workflows/ci.yaml".to_string()],
+                    },
+                },
+            ];
+            let result = collect_merge_operations(&operations);
+            assert!(
+                result.is_empty(),
+                "a with: exclude after the declaration must cancel it"
+            );
+        }
+
+        #[test]
+        fn test_collect_merge_operations_glob_exclude_cancels_declaration() {
+            let operations = vec![
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some(".github/workflows/ci.yaml".to_string()),
+                        array_mode: ArrayMergeMode::AppendUnique,
+                        ..Default::default()
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec![".github/**".to_string()],
+                    },
+                },
+            ];
+            let result = collect_merge_operations(&operations);
+            assert!(result.is_empty());
+        }
+
+        #[test]
+        fn test_collect_merge_operations_earlier_exclude_keeps_declaration() {
+            // An upstream's own filtering exclude precedes its deferred
+            // declarations in the flattened list; written order means it
+            // cancels nothing of its own.
+            let operations = vec![
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec![".github/workflows/ci.yaml".to_string()],
+                    },
+                },
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some(".github/workflows/ci.yaml".to_string()),
+                        array_mode: ArrayMergeMode::AppendUnique,
+                        ..Default::default()
+                    },
+                },
+            ];
+            let result = collect_merge_operations(&operations);
+            assert_eq!(result.len(), 1);
+        }
+
+        #[test]
+        fn test_collect_merge_operations_non_matching_exclude_keeps_declaration() {
+            let operations = vec![
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        auto_merge: Some(".github/workflows/ci.yaml".to_string()),
+                        array_mode: ArrayMergeMode::AppendUnique,
+                        ..Default::default()
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["docs/**".to_string()],
+                    },
+                },
+            ];
+            let result = collect_merge_operations(&operations);
+            assert_eq!(result.len(), 1);
+        }
+
+        #[test]
+        fn test_collect_merge_operations_exclude_keeps_explicit_deferred_ops() {
+            // Cancellation is keyed on the declared auto-merge path; a
+            // `defer: true` op with explicit source/dest is a different
+            // mechanism and survives a matching exclude.
+            let operations = vec![
+                Operation::Yaml {
+                    yaml: YamlMergeOp {
+                        source: Some("fragment.yaml".to_string()),
+                        dest: Some("dest.yaml".to_string()),
+                        defer: Some(true),
+                        ..Default::default()
+                    },
+                },
+                Operation::Exclude {
+                    exclude: ExcludeOp {
+                        patterns: vec!["dest.yaml".to_string()],
+                    },
+                },
+            ];
+            let result = collect_merge_operations(&operations);
+            assert_eq!(result.len(), 1);
+            assert!(
+                matches!(&result[0], Operation::Yaml { yaml } if yaml.dest.as_deref() == Some("dest.yaml"))
+            );
         }
     }
 

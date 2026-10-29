@@ -124,11 +124,10 @@ fn if_exists_with_rename_preserves_canonical_when_local_exists() {
 #[test]
 #[cfg_attr(not(feature = "integration-tests"), ignore)]
 fn if_exists_consumer_excludes_to_opt_out_of_upstream_auto_merge() {
-    // A consumer `exclude:` removes `foo.yaml` from the composite but does
-    // NOT prevent the upstream's `auto-merge` snapshot from firing. The
-    // snapshot mechanism runs after the composite filter pass and merges the
-    // upstream content into the local file regardless. The upstream value wins
-    // for conflicting scalar keys, so `key` becomes `from-upstream`.
+    // A consumer `exclude:` makes the consumer own the path (issue #383):
+    // the upstream's auto-merge declaration for it — and its Phase 5
+    // snapshot — are cancelled, so no deferred merge fires and the local
+    // file keeps the consumer's own content untouched.
     let tmp = TempDir::new().unwrap();
     let upstream = tmp.path().join("upstream");
     fs::create_dir(&upstream).unwrap();
@@ -151,12 +150,16 @@ fn if_exists_consumer_excludes_to_opt_out_of_upstream_auto_merge() {
     let mut cmd = cargo_bin_cmd!("common-repo");
     cmd.current_dir(&consumer).arg("apply").assert().success();
 
-    // The snapshot-based auto-merge fires even though foo.yaml was excluded
-    // from the composite: the upstream key wins the scalar conflict.
+    // The upstream's auto-merge never fires against the excluded path: the
+    // consumer's own value survives.
     let result = fs::read_to_string(consumer.join("foo.yaml")).unwrap();
     assert!(
-        result.contains("from-upstream"),
-        "expected upstream key in: {result}"
+        result.contains("from-consumer"),
+        "expected consumer key in: {result}"
+    );
+    assert!(
+        !result.contains("from-upstream"),
+        "upstream content must not be merged into a path the consumer excluded: {result}"
     );
 }
 

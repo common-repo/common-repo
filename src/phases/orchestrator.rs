@@ -38,7 +38,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 
 use super::{phase1, phase2, phase4, phase5, phase6, ClonedRepo, IntermediateFS};
 use crate::cache::RepoCache;
@@ -104,6 +104,34 @@ fn apply_include_with_auto_merge(
     }
 
     Ok(())
+}
+
+/// Cancel auto-merge declarations whose declared path matches one of the
+/// exclude `patterns` (issue #383): a repository that excludes a path owns
+/// it, so declarations inherited from upstreams for that path are dropped
+/// and no deferred merge runs on the excluding repository's copy. When
+/// given, Phase 5 upstream-content `snapshots` are dropped alongside the
+/// targets so the cancelled declaration cannot merge stale upstream
+/// content into a local file.
+fn cancel_auto_merge_declarations(
+    targets: &mut HashMap<String, Operation>,
+    snapshots: Option<&mut HashMap<String, crate::filesystem::File>>,
+    patterns: &[String],
+) {
+    let cancelled: Vec<String> = targets
+        .keys()
+        .filter(|path| phase4::path_matches_any(path, patterns))
+        .cloned()
+        .collect();
+    for path in &cancelled {
+        info!(
+            "auto-merge for {path} cancelled by exclude: the repository that excludes the path owns it"
+        );
+        targets.remove(path);
+    }
+    if let Some(snapshots) = snapshots {
+        snapshots.retain(|path, _| !phase4::path_matches_any(path, patterns));
+    }
 }
 
 /// Follow the repo's own files through a `rename` so they keep their
@@ -375,10 +403,28 @@ fn resolve_repo_inline_inner(
                 rename_own_paths(&mut own_paths, rename)?;
                 own_paths.retain(|path| fs.exists(path));
             }
-            other => {
-                phase2::apply_operation(&mut fs, &cloned.fs, other)?;
+            Operation::Exclude { exclude } => {
+                phase2::apply_operation(&mut fs, &cloned.fs, operation)?;
                 // exclude drops paths; a file an upstream adds later at a
                 // dropped path is not this repo's own.
+                own_paths.retain(|path| fs.exists(path));
+                // A repository that excludes a path owns it (#383): the
+                // declarations collected so far — this node's own and its
+                // already-integrated upstreams' — stop travelling past the
+                // exclude. Tree children integrate after this loop, so a
+                // later upstream's declarations are unaffected here.
+                merge_operations.retain(|op| {
+                    phase4::get_auto_merge_path(op)
+                        .is_none_or(|path| !phase4::path_matches_any(path, &exclude.patterns))
+                });
+                cancel_auto_merge_declarations(
+                    &mut accumulated_auto_merge_targets,
+                    None,
+                    &exclude.patterns,
+                );
+            }
+            other => {
+                phase2::apply_operation(&mut fs, &cloned.fs, other)?;
                 own_paths.retain(|path| fs.exists(path));
             }
         }
@@ -520,10 +566,11 @@ fn execute_sequential_pipeline(
     // earlier repo (or vice versa, when the later repo has defer: true).
     let mut accumulated_auto_merge_targets = HashMap::new();
     // In source mode, snapshot upstream file content for auto-merge targets
-    // at the time each repo: fires. These snapshots survive subsequent
-    // consumer operations (e.g., exclude) and are used during Phase 5 to
-    // merge upstream content into local files that were not in the composite
-    // during the sequential pass.
+    // at the time each repo: fires. These snapshots are used during Phase 5
+    // to merge upstream content into local files whose path left the
+    // composite after the repo: fired. A consumer `exclude` cancels the
+    // declaration and its snapshot together (#383): the consumer owns the
+    // excluded path, so no deferred merge runs on its local file.
     let mut auto_merge_snapshots: HashMap<String, crate::filesystem::File> = HashMap::new();
     // Composite paths pulled in by this config's own `include` ops. Same
     // role as in resolve_repo_inline_inner: an upstream's keyed auto-merge
@@ -574,6 +621,15 @@ fn execute_sequential_pipeline(
                 );
                 crate::operators::exclude::apply(exclude, &mut fs)?;
                 own_paths.retain(|path| fs.exists(path));
+                // A repository that excludes a path owns it (#383): the
+                // inherited auto-merge declarations for that path (and
+                // their Phase 5 snapshots) are cancelled so no upstream
+                // merge runs against the consumer's local file.
+                cancel_auto_merge_declarations(
+                    &mut accumulated_auto_merge_targets,
+                    Some(&mut auto_merge_snapshots),
+                    &exclude.patterns,
+                );
                 trace!("op exclude: composite_after={}", fs.len());
             }
             Operation::Rename { rename } => {
@@ -772,11 +828,12 @@ fn execute_sequential_pipeline(
             &accumulated_auto_merge_targets,
         )?;
 
-        // Apply auto-merge snapshots for upstream files that were removed
-        // from the composite by consumer operations (e.g., exclude) after
-        // the repo: fired. The snapshots preserve the upstream's original
-        // file content so it can merge into local files even though the
-        // composite no longer contains it.
+        // Apply auto-merge snapshots for upstream files whose path left
+        // the composite after the repo: fired (for example through a
+        // rename). The snapshots preserve the upstream's original file
+        // content so it can merge into local files even though the
+        // composite no longer contains it. Excludes do not reach this
+        // loop: they cancel the declaration and its snapshot first (#383).
         for (path, auto_merge_op) in &accumulated_auto_merge_targets {
             // Skip paths still in the composite — handled by the overlay.
             if fs.exists(path) {
