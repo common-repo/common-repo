@@ -63,6 +63,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use log::warn;
+
 use super::IntermediateFS;
 #[cfg(test)]
 use super::OperationOrder;
@@ -187,14 +189,76 @@ fn collect_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
 ///
 /// Used by the sequential pipeline where there is no separate Phase 4/5
 /// split — all auto-merge conflict resolution happens during integration.
+///
+/// `ops` is ordered nearest-first: the integrating repo's own declarations
+/// come before the ones it inherited from its upstreams, and inherited ones
+/// nearer-first (the order [`super::orchestrator::resolve_repo_inline_inner`]
+/// builds). When several declarations name the same path, the nearest one
+/// wins (issue #383); a duplicate whose parameters differ is announced so
+/// the discarded declaration is visible instead of silently dropped.
 fn collect_all_auto_merge_targets(ops: &[Operation]) -> HashMap<String, Operation> {
-    let mut targets = HashMap::new();
+    use std::collections::hash_map::Entry;
+
+    let mut targets: HashMap<String, Operation> = HashMap::new();
     for op in ops {
-        if let Some(path) = get_auto_merge_path(op) {
-            targets.insert(path.to_string(), op.clone());
+        let Some(path) = get_auto_merge_path(op) else {
+            continue;
+        };
+        match targets.entry(path.to_string()) {
+            Entry::Occupied(existing) => {
+                if existing.get() != op {
+                    warn!(
+                        "auto-merge declared more than once for {}: keeping the nearer \
+                         declaration ({}), discarding {} from a farther upstream",
+                        path,
+                        describe_merge_declaration(existing.get()),
+                        describe_merge_declaration(op),
+                    );
+                }
+                // Nearest wins: the first declaration in the list is the
+                // one closest to the consumer.
+            }
+            Entry::Vacant(slot) => {
+                slot.insert(op.clone());
+            }
         }
     }
     targets
+}
+
+/// Whether `path` matches any of an `exclude` operator's glob patterns,
+/// using the same matcher as the exclude operator itself. An invalid
+/// pattern cannot match (the exclude operator itself errors on it before
+/// cancellation sites run).
+pub(crate) fn path_matches_any(path: &str, patterns: &[String]) -> bool {
+    patterns
+        .iter()
+        .any(|pattern| crate::path::glob_match(pattern, path).unwrap_or(false))
+}
+
+/// Short description of an auto-merge declaration for the duplicate
+/// warning: the merge format, array mode, and key.
+fn describe_merge_declaration(op: &Operation) -> String {
+    use crate::config::ArrayMergeMode;
+    let (format, mode, key) = match op {
+        Operation::Yaml { yaml } => ("yaml", yaml.array_mode, yaml.key.as_deref()),
+        Operation::Json { json } => ("json", json.array_mode, json.key.as_deref()),
+        Operation::Toml { toml } => ("toml", toml.array_mode, toml.key.as_deref()),
+        Operation::Ini { .. } => return "ini merge".to_string(),
+        Operation::Markdown { .. } => return "markdown merge".to_string(),
+        Operation::Xml { xml } => ("xml", xml.array_mode, xml.key.as_deref()),
+        _ => return "merge".to_string(),
+    };
+    let mode_name = match mode {
+        ArrayMergeMode::Replace => "replace",
+        ArrayMergeMode::Append => "append",
+        ArrayMergeMode::AppendUnique => "append_unique",
+        ArrayMergeMode::MergeByKey => "merge_by_key",
+    };
+    match key {
+        Some(key) => format!("{format} array_mode={mode_name} key={key}"),
+        None => format!("{format} array_mode={mode_name}"),
+    }
 }
 
 /// Returns true if the operation has `defer: true` set explicitly.
@@ -587,9 +651,84 @@ pub(crate) fn execute_merge_operation(fs: &mut MemoryFS, operation: &Operation) 
 mod tests {
     use std::collections::HashMap;
 
-    use super::{execute, make_explicit_merge_op, IntermediateFS, OperationOrder};
+    use super::{
+        collect_all_auto_merge_targets, execute, make_explicit_merge_op, IntermediateFS,
+        OperationOrder,
+    };
     use crate::error::Error;
     use crate::filesystem::MemoryFS;
+
+    #[test]
+    fn test_collect_all_auto_merge_targets_nearest_declaration_wins() {
+        use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+
+        // The merge-operations list is nearest-first: the integrating
+        // repo's own declaration precedes the ones it inherited. When both
+        // name the same path, the nearer one wins (issue #383) — the old
+        // behavior kept the last, i.e. the farthest upstream's.
+        let ops = vec![
+            Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge(".github/workflows/ci.yaml")
+                    .array_mode(ArrayMergeMode::MergeByKey),
+            },
+            Operation::Yaml {
+                yaml: YamlMergeOp::new()
+                    .auto_merge(".github/workflows/ci.yaml")
+                    .array_mode(ArrayMergeMode::AppendUnique),
+            },
+        ];
+
+        let targets = collect_all_auto_merge_targets(&ops);
+        assert_eq!(targets.len(), 1, "one path, one winning declaration");
+        match &targets[".github/workflows/ci.yaml"] {
+            Operation::Yaml { yaml } => {
+                assert_eq!(yaml.array_mode, ArrayMergeMode::MergeByKey);
+            }
+            other => panic!("expected yaml op, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_collect_all_auto_merge_targets_keeps_first_across_formats() {
+        use crate::config::{ArrayMergeMode, JsonMergeOp, Operation};
+
+        // A nearer json declaration beats a farther xml declaration for
+        // the same path; formats do not matter, distance does.
+        let ops = vec![
+            Operation::Json {
+                json: JsonMergeOp::new()
+                    .auto_merge("config")
+                    .array_mode(ArrayMergeMode::MergeByKey)
+                    .key("name"),
+            },
+            Operation::Xml {
+                xml: crate::config::XmlMergeOp::new()
+                    .auto_merge("config")
+                    .array_mode(ArrayMergeMode::AppendUnique),
+            },
+        ];
+
+        let targets = collect_all_auto_merge_targets(&ops);
+        assert_eq!(targets.len(), 1);
+        assert!(
+            matches!(targets["config"], Operation::Json { .. }),
+            "the nearer json declaration must win"
+        );
+    }
+
+    #[test]
+    fn test_collect_all_auto_merge_targets_identical_duplicates_collapse() {
+        use crate::config::{ArrayMergeMode, Operation, YamlMergeOp};
+
+        let decl = || Operation::Yaml {
+            yaml: YamlMergeOp::new()
+                .auto_merge("ci.yaml")
+                .array_mode(ArrayMergeMode::AppendUnique),
+        };
+        let targets = collect_all_auto_merge_targets(&[decl(), decl()]);
+        assert_eq!(targets.len(), 1);
+    }
 
     #[test]
     fn test_make_explicit_merge_op_preserves_merge_by_key_and_key() {
