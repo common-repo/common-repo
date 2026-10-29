@@ -136,6 +136,13 @@ pub(crate) fn resolve_key<'f, A: KeyedItems>(
         .find_map(|&field| adapter.key_value(item, field).map(|key| (field, key)))
 }
 
+/// Prefix under which the composite stages an upstream's copy of an
+/// auto-merge target before merging it into the file at the real path.
+pub(crate) const AUTO_MERGE_UPSTREAM_PREFIX: &str = ".__common_repo_auto_merge_temp__";
+/// Prefix under which the composite stages a repo's own copy for the second
+/// pass that lets own items win (see `merge_into_composite_file`).
+pub(crate) const AUTO_MERGE_OWN_PREFIX: &str = ".__common_repo_auto_merge_own__";
+
 /// Where a merge is happening, for log lines.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MergeSite<'a> {
@@ -144,16 +151,18 @@ pub(crate) struct MergeSite<'a> {
     pub dst_file: &'a str,
 }
 
-/// Log one replaced item. Auto-merge stages the upstream copy under a
-/// temporary name ending in the destination path, which is noise to a
-/// reader, so that case reads "from upstream" instead.
+/// Log one replaced item. Auto-merge stages copies under temporary names
+/// ending in the destination path, which are noise to a reader, so those
+/// read "from upstream" or "from this repo's own copy" instead.
 pub(crate) fn log_replacement(site: &MergeSite<'_>, replacement: &Replacement) {
     let path = if site.path.is_empty() {
         "<root>"
     } else {
         site.path
     };
-    let origin = if site.src_file.ends_with(site.dst_file) {
+    let origin = if site.src_file.starts_with(AUTO_MERGE_OWN_PREFIX) {
+        "this repo's own copy".to_string()
+    } else if site.src_file.ends_with(site.dst_file) {
         "upstream".to_string()
     } else {
         site.src_file.to_string()

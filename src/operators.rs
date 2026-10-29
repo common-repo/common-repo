@@ -183,6 +183,20 @@ pub(crate) mod rename {
 
         Ok(())
     }
+
+    /// The path `path` would have after `op` ran, applying each mapping in
+    /// declaration order exactly as [`apply`] does. Lets callers that track
+    /// files by name (the composite's own-file set) follow a file through a
+    /// rename instead of losing it.
+    pub(crate) fn rename_path(op: &RenameOp, path: &str) -> Result<String> {
+        let mut current = path.to_string();
+        for mapping in &op.mappings {
+            if let Some(new_name) = regex_rename(&mapping.from, &mapping.to, &current)? {
+                current = new_name;
+            }
+        }
+        Ok(current)
+    }
 }
 
 /// Repo operator - pulls files from inherited repositories

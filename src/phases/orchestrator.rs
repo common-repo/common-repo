@@ -42,7 +42,7 @@ use log::{debug, trace, warn};
 
 use super::{phase1, phase2, phase4, phase5, phase6, ClonedRepo, IntermediateFS};
 use crate::cache::RepoCache;
-use crate::config::{IncludeOp, Operation, RepoOp, Schema, SelfOp};
+use crate::config::{IncludeOp, Operation, RenameOp, RepoOp, Schema, SelfOp};
 use crate::error::Result;
 use crate::filesystem::MemoryFS;
 use crate::repository::RepositoryManager;
@@ -103,6 +103,20 @@ fn apply_include_with_auto_merge(
         phase4::merge_into_composite_file(fs, auto_merge_op, path, snapshot, true)?;
     }
 
+    Ok(())
+}
+
+/// Follow the repo's own files through a `rename` so they keep their
+/// own-file precedence under the renamed path. The documented upstream
+/// layout (`include: ["src/**"]` then `rename: ^src/(.*)$ -> $1`) renames
+/// every shipped file, so dropping renamed paths would switch the rule off
+/// for exactly the repos it was written for.
+fn rename_own_paths(own_paths: &mut HashSet<String>, rename: &RenameOp) -> Result<()> {
+    let renamed = own_paths
+        .iter()
+        .map(|path| crate::operators::rename::rename_path(rename, path))
+        .collect::<Result<HashSet<String>>>()?;
+    *own_paths = renamed;
     Ok(())
 }
 
@@ -356,10 +370,15 @@ fn resolve_repo_inline_inner(
                     &mut own_paths,
                 )?;
             }
+            Operation::Rename { rename } => {
+                phase2::apply_operation(&mut fs, &cloned.fs, operation)?;
+                rename_own_paths(&mut own_paths, rename)?;
+                own_paths.retain(|path| fs.exists(path));
+            }
             other => {
                 phase2::apply_operation(&mut fs, &cloned.fs, other)?;
-                // exclude and rename drop paths; a file an upstream adds
-                // later at a dropped path is not this repo's own.
+                // exclude drops paths; a file an upstream adds later at a
+                // dropped path is not this repo's own.
                 own_paths.retain(|path| fs.exists(path));
             }
         }
@@ -564,6 +583,7 @@ fn execute_sequential_pipeline(
                     fs.len(),
                 );
                 crate::operators::rename::apply(rename, &mut fs)?;
+                rename_own_paths(&mut own_paths, rename)?;
                 own_paths.retain(|path| fs.exists(path));
                 trace!("op rename: composite_after={}", fs.len());
             }

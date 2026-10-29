@@ -288,7 +288,7 @@ pub(crate) fn merge_into_composite_file(
         merge_op,
         upstream,
         path,
-        ".__common_repo_auto_merge_temp__",
+        crate::merge::keyed::AUTO_MERGE_UPSTREAM_PREFIX,
     )?;
 
     if let Some(own_file) = own_snapshot {
@@ -297,7 +297,7 @@ pub(crate) fn merge_into_composite_file(
             merge_op,
             &own_file,
             path,
-            ".__common_repo_auto_merge_own__",
+            crate::merge::keyed::AUTO_MERGE_OWN_PREFIX,
         )?;
     }
     Ok(())
