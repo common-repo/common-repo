@@ -419,8 +419,9 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
     }
 
     let source_content = read_file_as_string(fs, source_path)?;
-    let dest_content =
-        read_file_as_string_optional(fs, dest_path)?.unwrap_or_else(|| "{}".to_string());
+    let dest_read = read_file_as_string_optional(fs, dest_path)?;
+    let dest_existed = dest_read.is_some();
+    let dest_content = dest_read.unwrap_or_else(|| "{}".to_string());
 
     let mut dest_value: JsonValue =
         serde_json::from_str(&dest_content).unwrap_or(JsonValue::Object(serde_json::Map::new()));
@@ -440,8 +441,10 @@ pub fn apply_json_merge_operation(fs: &mut MemoryFS, op: &JsonMergeOp) -> Result
 
     // A merge that leaves the parsed destination unchanged leaves its bytes
     // alone: the writer has fixed indentation and expansion rules, so
-    // re-serializing would rewrite a file whose content did not change (#376).
-    if dest_value == before_merge {
+    // re-serializing would rewrite a file whose content did not change
+    // (#376). A missing destination is created even when the merge adds
+    // nothing (AutoCreateDestination).
+    if dest_existed && dest_value == before_merge {
         return Ok(());
     }
 
@@ -604,6 +607,28 @@ mod tests {
             let result = read_file_as_string(&fs, "new_dest.json").unwrap();
             let parsed: JsonValue = serde_json::from_str(&result).unwrap();
             assert_eq!(parsed["key"], JsonValue::String("value".to_string()));
+        }
+
+        #[test]
+        fn test_json_merge_empty_source_still_creates_missing_dest() {
+            // AutoCreateDestination: even an empty source must produce the
+            // destination file; the no-op skip only applies to a destination
+            // that already exists (#376 review).
+            let mut fs = MemoryFS::new();
+            fs.add_file("empty.json", File::from_string("{}")).unwrap();
+
+            let op = JsonMergeOp {
+                source: Some("empty.json".to_string()),
+                dest: Some("new_dest.json".to_string()),
+                ..Default::default()
+            };
+
+            apply_json_merge_operation(&mut fs, &op).unwrap();
+
+            assert!(
+                fs.exists("new_dest.json"),
+                "empty source must still create the missing destination"
+            );
         }
 
         #[test]

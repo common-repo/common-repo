@@ -215,7 +215,9 @@ pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<(
     }
 
     let source_content = read_file_as_string(fs, source_path)?;
-    let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
+    let dest_read = read_file_as_string_optional(fs, dest_path)?;
+    let dest_existed = dest_read.is_some();
+    let dest_content = dest_read.unwrap_or_default();
 
     let source_sections = parse_ini(&source_content);
     let mut dest_sections = parse_ini(&dest_content);
@@ -286,8 +288,10 @@ pub fn apply_ini_merge_operation(fs: &mut MemoryFS, op: &IniMergeOp) -> Result<(
 
     // A merge that leaves the parsed destination unchanged leaves its bytes
     // alone: the writer cannot round-trip comments or spacing, so
-    // re-serializing would rewrite a file whose content did not change (#376).
-    if dest_sections == before_merge {
+    // re-serializing would rewrite a file whose content did not change
+    // (#376). A missing destination is created even when the merge adds
+    // nothing (AutoCreateDestination).
+    if dest_existed && dest_sections == before_merge {
         return Ok(());
     }
 
@@ -646,6 +650,28 @@ key = value
             let result = read_file_as_string(&fs, "new_dest.ini").unwrap();
             assert!(result.contains("[settings]"));
             assert!(result.contains("key=value"));
+        }
+
+        #[test]
+        fn test_ini_merge_empty_source_still_creates_missing_dest() {
+            // AutoCreateDestination: even an empty source must produce the
+            // destination file; the no-op skip only applies to a destination
+            // that already exists (#376 review).
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("empty.ini", "").unwrap();
+
+            let ini_op = IniMergeOp {
+                source: Some("empty.ini".to_string()),
+                dest: Some("new_dest.ini".to_string()),
+                ..Default::default()
+            };
+
+            apply_ini_merge_operation(&mut fs, &ini_op).unwrap();
+
+            assert!(
+                fs.exists("new_dest.ini"),
+                "empty source must still create the missing destination"
+            );
         }
 
         #[test]

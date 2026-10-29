@@ -502,7 +502,9 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
     }
 
     let source_content = read_file_as_string(fs, source_path)?;
-    let dest_content = read_file_as_string_optional(fs, dest_path)?.unwrap_or_default();
+    let dest_read = read_file_as_string_optional(fs, dest_path)?;
+    let dest_existed = dest_read.is_some();
+    let dest_content = dest_read.unwrap_or_default();
 
     let mut dest_value: TomlValue =
         toml::from_str(&dest_content).unwrap_or_else(|_| TomlValue::Table(toml::map::Map::new()));
@@ -528,8 +530,9 @@ pub fn apply_toml_merge_operation(fs: &mut MemoryFS, op: &TomlMergeOp) -> Result
     // A merge that leaves the parsed destination unchanged leaves its bytes
     // alone: the writer drops comments, sorts tables, and expands inline
     // tables, so re-serializing would rewrite a file whose content did not
-    // change (#376).
-    if dest_value == before_merge {
+    // change (#376). A missing destination is created even when the merge
+    // adds nothing (AutoCreateDestination).
+    if dest_existed && dest_value == before_merge {
         return Ok(());
     }
 
@@ -909,6 +912,29 @@ items = ["old1"]
             let result = read_file_as_string(&fs, "new_dest.toml").unwrap();
             let parsed: TomlValue = result.parse().unwrap();
             assert_eq!(parsed["package"]["name"].as_str(), Some("test"));
+        }
+
+        #[test]
+        fn test_toml_merge_empty_source_still_creates_missing_dest() {
+            // AutoCreateDestination: even an empty source must produce the
+            // destination file; the no-op skip only applies to a destination
+            // that already exists (#376 review).
+            let mut fs = MemoryFS::new();
+            fs.add_file_string("empty.toml", "").unwrap();
+
+            let op = TomlMergeOp {
+                source: Some("empty.toml".to_string()),
+                dest: Some("new_dest.toml".to_string()),
+                path: None,
+                ..Default::default()
+            };
+
+            apply_toml_merge_operation(&mut fs, &op).unwrap();
+
+            assert!(
+                fs.exists("new_dest.toml"),
+                "empty source must still create the missing destination"
+            );
         }
     }
 
