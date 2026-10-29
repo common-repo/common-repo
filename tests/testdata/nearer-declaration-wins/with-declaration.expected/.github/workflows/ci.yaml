@@ -1,0 +1,13 @@
+name: CI
+on:
+- push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build
+      run: make build-v2
+    - name: Consumer only
+      run: ./scripts/deploy-preview.sh
+    - name: Base only
+      run: echo base

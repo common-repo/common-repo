@@ -1,0 +1,11 @@
+# The consumer's own with: declaration outranks the upstream's own: base
+# declares append_unique, the consumer re-declares merge_by_key in the
+# repo: entry's with:, and the consumer holds a stale Build step. The
+# keyed mode must run — Build updated in place, consumer-only step kept —
+# not base's append_unique, which would duplicate the stale step.
+- repo:
+    url: __FIXTURE__/base
+    with:
+      - yaml:
+          auto-merge: .github/workflows/ci.yaml
+          array_mode: merge_by_key
