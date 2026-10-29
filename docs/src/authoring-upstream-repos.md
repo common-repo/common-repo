@@ -301,20 +301,54 @@ files about the merged data.
 
 ### Consumer Override
 
-Consumers can always override upstream-declared behavior using the `with:` clause:
+A consumer that wants no part of an upstream's auto-merge for a file
+excludes the path. The exclude cancels every inherited declaration for
+it, so the deferred merge never runs and the consumer keeps its own
+file untouched:
 
 ```yaml
 # Consumer .common-repo.yaml
 - repo:
     url: https://github.com/org/org-standards
     ref: v1.0.0
-    with:
-      # Override: copy instead of merge
-      - include: ["CLAUDE.md"]
-      # This replaces the upstream-declared merge with a simple copy
+- exclude: ["CLAUDE.md"]   # we own CLAUDE.md outright
 ```
 
+A `with: - include:` for the same file does **not** do this: the include
+runs, the file is overwritten in the composite, and the upstream's
+deferred merge still applies on top of the local copy.
+
 When a consumer specifies merge operations for the same destination file, the consumer's merge operations run after deferred (upstream-declared) merge operations, so consumer parameters take effect last.
+
+### Taking Over a File from Your Upstream
+
+An intermediate that excludes an upstream's file and ships its own copy
+at the same path owns that file from then on: the upstream's auto-merge
+declaration for the path is cancelled at the exclude and does not reach
+your consumers. Your copy propagates as a plain copy unless you declare
+your own merge for it — and if you do, your declaration is the nearest
+one, so it wins over anything a farther upstream declares for the same
+path:
+
+```yaml
+# Upstream repo: .common-repo.yaml
+- repo:
+    url: https://github.com/org/base
+    with:
+      - exclude: [".github/workflows/ci.yaml"]
+- include: ["**"]
+- yaml:
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key
+```
+
+Without the `yaml:` declaration your file still propagates — but as a
+plain overwrite of whatever your consumers had, with no array mode your
+upstream picked for its own stub applied to your file. The same
+`with: exclude:` + re-declare shape works for every merge format
+(`json`, `toml`, `ini`, `markdown`, `xml`); see
+[Declaration Precedence and Cancellation](configuration.md#declaration-precedence-and-cancellation)
+for json and xml examples and the exact rules.
 
 ### Supported Merge Operators
 

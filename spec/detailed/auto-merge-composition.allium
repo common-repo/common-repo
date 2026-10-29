@@ -135,6 +135,64 @@ rule DeferredMergeAtDeclarationPosition {
 }
 
 -- ==========================================================================
+-- Declaration precedence and cancellation (issue #383)
+-- ==========================================================================
+
+rule NearestDeclarationWins {
+    -- @status: Implemented
+    when: AutoMergeDeclarationsCollected(declarations, path)
+
+    -- When more than one repository along the chain declares an
+    -- auto-merge for the same path, the declaration nearest the consumer
+    -- decides the merge: the integrating repo's own declaration first,
+    -- then its upstreams', nearest first. Among sibling repo: entries,
+    -- the later sibling wins.
+    --
+    -- The merge_operations list is built nearest-first (own declarations
+    -- before inherited ones), so collecting by path keeps the first
+    -- entry rather than the last.
+    ensures: auto_merge_operation_for(path) = nearest(declarations, path)
+
+    @guidance
+        -- A duplicate whose parameters differ is announced at default
+        -- visibility (warn), naming the path, the declaration in use,
+        -- and the discarded one. Identical duplicates collapse silently.
+        -- Before #383 the farthest upstream's declaration won silently.
+}
+
+rule ExcludeCancelsUpstreamDeclarations {
+    -- @status: Implemented
+    when: ExcludeApplied(exclude_op, composite_fs)
+
+    -- A repository that excludes a path owns that path: every inherited
+    -- auto-merge declaration whose path matches the exclude's patterns
+    -- is cancelled, together with the Phase 5 content snapshot taken for
+    -- it. No deferred merge runs on the excluding repository's copy.
+    --
+    -- Written order decides what an exclude cancels: declarations
+    -- collected before the exclude runs (the upstream's own declarations
+    -- plus everything integrated earlier in the operation list). An
+    -- exclude integrated before a declaration (an upstream's own
+    -- filtering operators run before its declarations are collected)
+    -- cancels nothing of its own.
+    requires: for all d in collected_declarations:
+        matches(exclude_op.patterns, d.path) implies cancelled(d)
+
+    @guidance
+        -- Holds at every level of the chain:
+        --   - a consumer-side top-level exclude after the repo: entry
+        --     keeps the consumer's local file untouched;
+        --   - an intermediate's with: exclude stops the upstream's
+        --     declaration from reaching the intermediate's consumers,
+        --     so the intermediate's own file propagates as a plain copy
+        --     unless it declares its own merge (which then wins under
+        --     NearestDeclarationWins).
+        -- Explicit defer: true source/dest operations are a separate
+        -- mechanism keyed on dest, not on a declared auto-merge path,
+        -- and are never cancelled by this rule.
+}
+
+-- ==========================================================================
 -- Invariants
 -- ==========================================================================
 

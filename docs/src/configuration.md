@@ -205,15 +205,15 @@ residual stage, after the consumer's sequential pass. The merge produces
 a fresh file with the default `Overwrite` tag at the destination,
 clobbering any preceding `Preserve` tag.
 
-A consumer-side `exclude:` likewise does not suppress an upstream
-`auto-merge:`. The exclude removes the file from the composite, but the
-deferred merge captures a snapshot of the upstream file at integration
-time and merges that snapshot into the local file regardless.
-
-The reliable way to avoid an upstream `auto-merge:` for a particular
-file is to remove the merge declaration upstream — either by working
-with the upstream maintainer, or by depending on a fork that does not
-declare the merge.
+An `exclude:` **does** cancel an inherited `auto-merge:` for the excluded
+path: a repository that excludes a path owns that path, and no deferred
+merge declared by any of its upstreams runs on it. This holds at every
+level — a consumer-side `exclude:` after the `repo:` entry keeps the
+consumer's local file untouched, and an intermediate that excludes an
+upstream's file (inside the repo entry's `with:`) stops that upstream's
+declaration from reaching its own consumers. See
+[Declaration Precedence and Cancellation](#declaration-precedence-and-cancellation)
+for the full rules and examples.
 
 #### Unknown sibling keys
 
@@ -506,6 +506,94 @@ All merge operators support two additional options for upstream-declared merge b
     dest: config.yaml
     path: settings
     defer: true               # Only applies when repo is inherited
+```
+
+#### Declaration Precedence and Cancellation
+
+Two rules govern inherited auto-merge declarations when a path is
+declared more than once along a chain, or when a repository excludes a
+path an upstream declared a merge for. They apply identically to every
+merge format — `yaml`, `json`, `toml`, `ini`, `markdown`, and `xml` —
+because declarations are keyed on the file path, not the format.
+
+**1. The nearest declaration wins.** When several upstreams declare an
+auto-merge for the same path, the declaration closest to the consumer
+wins: the consumer's `with:` first, then the intermediate's own, then
+its upstreams, nearest first. Among sibling `repo:` entries at the same
+level, the later sibling wins. A differing duplicate is announced at
+default visibility instead of being dropped silently:
+
+```text
+[WARN ] auto-merge declared more than once for .github/workflows/ci.yaml:
+        keeping the nearer declaration (yaml array_mode=merge_by_key),
+        discarding yaml array_mode=append_unique from a farther upstream
+```
+
+**2. An exclude cancels inherited declarations for that path.** A
+repository that excludes a path owns that path: every `auto-merge:`
+declaration inherited for it is dropped, and the file propagates as a
+plain copy that overwrites whatever the consumer had. Written order
+decides — the exclude cancels declarations already collected at the
+point it runs (an upstream's own declarations and any `with:` exclude a
+consumer appends to them), not ones integrated later.
+
+The two rules combine for the common intermediate case — a repository
+that takes over a file from its upstream:
+
+```yaml
+# mid/.common-repo.yaml — takes over ci.yaml from base
+- repo:
+    url: https://github.com/org/base
+    with:
+      - exclude: [".github/workflows/ci.yaml"]   # drop base's copy ...
+- include: ["**"]                                 # ... ship our own
+- yaml:                                           # ... and decide its merge ourselves
+    auto-merge: .github/workflows/ci.yaml
+    array_mode: merge_by_key
+```
+
+`base`'s declaration is cancelled at the exclude, so `mid`'s own
+declaration is the only one its consumers see. Had `mid` not
+re-declared, its file would propagate as a plain copy — no merge mode
+chosen by `base` for `base`'s stub would apply to `mid`'s consumers.
+
+The same shapes for the other formats:
+
+```yaml
+# json-mid/.common-repo.yaml — takes over deploy.json from json-base
+- repo:
+    url: https://github.com/org/json-base
+    with:
+      - exclude: ["deploy.json"]
+- include: ["**"]
+- json:
+    auto-merge: deploy.json
+    array_mode: merge_by_key
+    key: name
+```
+
+```yaml
+# xml-mid/.common-repo.yaml — takes over config.xml from xml-base
+- repo:
+    url: https://github.com/org/xml-base
+    with:
+      - exclude: ["config.xml"]
+- include: ["**"]
+- xml:
+    auto-merge: config.xml
+    array_mode: merge_by_key
+    key: name
+```
+
+On the consumer side, a top-level `exclude:` after the `repo:` entry
+cancels every inherited declaration for the path, so the consumer's own
+file is never merged into:
+
+```yaml
+# consumer/.common-repo.yaml — owns its CI outright
+- repo:
+    url: https://github.com/org/mid
+- exclude: [".github/workflows/ci.yaml"]
 ```
 
 See [Upstream-Declared Merge Behavior](authoring-upstream-repos.md#upstream-declared-merge-behavior) for detailed usage.

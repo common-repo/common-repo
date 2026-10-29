@@ -891,6 +891,19 @@ rule ApplyDeferredMerges {
         --      the Phase 5 overlay, so upstream bumps land in consumers.
         -- Only merge_by_key carries rule 1: append_unique never replaces
         -- an existing item, so an own edit survives without it.
+        --
+        -- Precedence and cancellation of the auto-merge declarations
+        -- themselves (issue #383), ahead of any item-level merge:
+        --   - Nearest declaration wins: when several repositories declare
+        --     an auto-merge for one path, the declaration closest to the
+        --     consumer decides the merge parameters; a differing
+        --     duplicate is announced at default visibility.
+        --   - Exclude cancels: a repository that excludes a path owns it;
+        --     inherited declarations for that path (and their Phase 5
+        --     snapshots) are dropped, so no deferred merge runs on the
+        --     excluding repository's copy. See
+        --     detailed/auto-merge-composition.allium,
+        --     NearestDeclarationWins and ExcludeCancelsUpstreamDeclarations.
 }
 
 -- ==========================================================================
