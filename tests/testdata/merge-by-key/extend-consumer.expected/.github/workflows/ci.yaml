@@ -1,0 +1,20 @@
+name: CI
+on:
+- push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Check coverage threshold
+      if: hashFiles('coverage.out', 'coverprofile.out') != ''
+      run: coverage verify --threshold 80
+      env:
+        COVERAGE_FILE: .coverage/combined
+    - name: Deploy preview
+      run: ./scripts/deploy-preview.sh
+    - name: Audit dependencies
+      run: cargo audit

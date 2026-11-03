@@ -243,6 +243,17 @@ pub fn merge_json_values(
                                             src_file: ctx.src_file,
                                             dst_file: ctx.dst_file,
                                         };
+                                        // The closure owns copies of the
+                                        // merge settings so matched items
+                                        // deep-merge with them (#372);
+                                        // warnings inside an item are
+                                        // logged by `merge_json_values`
+                                        // itself.
+                                        let (item_mode, item_position) = (mode, position);
+                                        let item_key = ctx.array_key.clone();
+                                        let item_path = new_path.clone();
+                                        let item_src = ctx.src_file;
+                                        let item_dst = ctx.dst_file;
                                         merge_vec_by_key(
                                             &JsonItems,
                                             target_array,
@@ -250,6 +261,19 @@ pub fn merge_json_values(
                                             ctx.array_key.as_deref(),
                                             position,
                                             &site,
+                                            |dest, source| {
+                                                let mut item_ctx =
+                                                    JsonMergeContext::new(item_src, item_dst);
+                                                item_ctx.path = item_path.clone();
+                                                item_ctx.array_key = item_key.clone();
+                                                merge_json_values(
+                                                    dest,
+                                                    source,
+                                                    item_mode,
+                                                    item_position,
+                                                    &mut item_ctx,
+                                                );
+                                            },
                                         );
                                     }
                                 }
@@ -263,7 +287,10 @@ pub fn merge_json_values(
                                 ctx.warnings.push(msg);
                                 *existing = JsonValue::Array(source_array.clone());
                             }
-                        } else {
+                        } else if existing != value {
+                            // An equal value is a no-op, not an overwrite
+                            // (#392); only a real change replaces the
+                            // destination value.
                             // Check for type mismatch before scalar overwrite
                             if existing.is_array() && !value.is_array() {
                                 let msg =
@@ -328,6 +355,11 @@ pub fn merge_json_values(
                         }
                     }
                     ArrayMergeMode::MergeByKey => {
+                        let (item_mode, item_position) = (mode, position);
+                        let item_key = ctx.array_key.clone();
+                        let item_path = ctx.path.clone();
+                        let item_src = ctx.src_file;
+                        let item_dst = ctx.dst_file;
                         merge_vec_by_key(
                             &JsonItems,
                             target_array,
@@ -335,6 +367,18 @@ pub fn merge_json_values(
                             ctx.array_key.as_deref(),
                             position,
                             &ctx.site(),
+                            |dest, source| {
+                                let mut item_ctx = JsonMergeContext::new(item_src, item_dst);
+                                item_ctx.path = item_path.clone();
+                                item_ctx.array_key = item_key.clone();
+                                merge_json_values(
+                                    dest,
+                                    source,
+                                    item_mode,
+                                    item_position,
+                                    &mut item_ctx,
+                                );
+                            },
                         );
                     }
                 }
@@ -356,7 +400,10 @@ pub fn merge_json_values(
 }
 
 /// JSON array items for the shared keyed merge: key fields are scalar
-/// object members and items compare by value.
+/// object members and items compare by value. A matched pair deep-merges
+/// through [`merge_json_values`] with the operator's settings (passed as a
+/// closure by the caller) so consumer-added members inside the item survive
+/// the apply (issue #372).
 struct JsonItems;
 
 impl KeyedItems for JsonItems {
@@ -1528,6 +1575,46 @@ mod tests {
                 steps[1]["with"]["persist-credentials"],
                 JsonValue::Bool(false)
             );
+        }
+
+        #[test]
+        fn test_json_merge_by_key_deep_merges_consumer_fields_inside_matched_item() {
+            // Issue #372: a matched item is updated in place, and fields the
+            // consumer added inside it survive; source fields win conflicts.
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.json",
+                File::from_string(
+                    r#"{"steps": [
+  {"uses": "actions/checkout@v4", "with": {"persist-credentials": false}}
+]}"#,
+                ),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.json",
+                File::from_string(
+                    r#"{"steps": [
+  {"uses": "actions/checkout@v4", "with": {"persist-credentials": true, "fetch-depth": 0}}
+]}"#,
+                ),
+            )
+            .unwrap();
+
+            let op = JsonMergeOp {
+                source: Some("source.json".to_string()),
+                dest: Some("dest.json".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_json_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.json").unwrap();
+            let parsed: JsonValue = serde_json::from_str(&result).unwrap();
+            let step = &parsed["steps"][0];
+            assert_eq!(step["with"]["persist-credentials"], JsonValue::Bool(false));
+            assert_eq!(step["with"]["fetch-depth"], JsonValue::Number(0.into()));
         }
 
         #[test]

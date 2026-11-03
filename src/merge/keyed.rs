@@ -4,9 +4,11 @@
 //! The algorithm is format-agnostic: each engine supplies a [`KeyedItems`]
 //! adapter that says how to read a key field from an item and when two
 //! items are the same, and gets back a [`KeyedMergePlan`] describing which
-//! destination items to replace and which source items to insert. The
-//! `Vec`-backed formats apply that plan through [`merge_vec_by_key`]; XML
-//! applies it to its DOM in `xml.rs`.
+//! destination items to update in place and which source items to insert.
+//! A matched item is deep-merged, not replaced whole, so consumer-added
+//! fields inside an upstream-keyed item survive the apply (issue #372).
+//! The `Vec`-backed formats apply that plan through [`merge_vec_by_key`];
+//! XML applies it to its DOM in `xml.rs`.
 
 use log::info;
 
@@ -173,27 +175,43 @@ pub(crate) fn log_replacement(site: &MergeSite<'_>, replacement: &Replacement) {
     );
 }
 
-/// Apply [`plan_keyed_merge`] to a `Vec`-backed array in place, logging each
-/// changed replacement, then insert the new items at `position`.
-pub(crate) fn merge_vec_by_key<A>(
+/// Apply [`plan_keyed_merge`] to a `Vec`-backed array in place, then insert
+/// the new items at `position`.
+///
+/// `merge_item` deep-merges a matched source item into the destination
+/// item in place (issue #372): matching an item by key means "this is the
+/// same item, bring it up to date", so the format's recursive merge applies
+/// inside it — source fields win conflicts, destination-only fields
+/// survive, nested arrays follow the same array mode. The log line fires
+/// only when the merge actually changed the item, so an idempotent
+/// re-apply stays quiet.
+pub(crate) fn merge_vec_by_key<A, F>(
     adapter: &A,
     target: &mut Vec<A::Item>,
     source: &[A::Item],
     explicit_key: Option<&str>,
     position: InsertPosition,
     site: &MergeSite<'_>,
+    merge_item: F,
 ) where
     A: KeyedItems,
     A::Item: Clone,
+    F: FnMut(&mut A::Item, &A::Item),
 {
     let plan = plan_keyed_merge(adapter, target, source, explicit_key);
+    let mut merge_item = merge_item;
 
     for replacement in &plan.replaced {
         let incoming = &source[replacement.source];
-        if adapter.item_changed(&target[replacement.dest], incoming) {
+        // Deep-merge into a clone so the log decision compares the item
+        // before and after the merge: a consumer-extended item whose
+        // upstream fields are already current is not a change (#372).
+        let mut merged = target[replacement.dest].clone();
+        merge_item(&mut merged, incoming);
+        if adapter.item_changed(&target[replacement.dest], &merged) {
             log_replacement(site, replacement);
         }
-        target[replacement.dest] = incoming.clone();
+        target[replacement.dest] = merged;
     }
 
     let new_items: Vec<A::Item> = plan
@@ -216,7 +234,8 @@ mod tests {
     use super::*;
 
     /// A minimal record: scalar fields only, keyed by name. Whole-item
-    /// equality is field-list equality.
+    /// equality is field-list equality, and a matched pair merges field by
+    /// field like the format engines do.
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct Rec(Vec<(&'static str, &'static str)>);
 
@@ -243,6 +262,17 @@ mod tests {
 
         fn key_text(&self, key: &String) -> String {
             key.clone()
+        }
+    }
+
+    /// Field-by-field merge of a matched pair, like the format engines do:
+    /// source fields win, destination-only fields survive.
+    fn merge_rec(dest: &mut Rec, source: &Rec) {
+        for (name, value) in &source.0 {
+            match dest.0.iter_mut().find(|(n, _)| n == name) {
+                Some((_, old_value)) => *old_value = *value,
+                None => dest.0.push((*name, *value)),
+            }
         }
     }
 
@@ -385,6 +415,7 @@ mod tests {
             None,
             InsertPosition::End,
             &site(),
+            merge_rec,
         );
 
         assert_eq!(
@@ -394,6 +425,76 @@ mod tests {
                 rec(&[("name", "local-only")]),
                 rec(&[("name", "docs")]),
             ]
+        );
+    }
+
+    #[test]
+    fn merge_vec_by_key_deep_merges_matched_items_keeping_dest_only_fields() {
+        // Issue #372: a matched item is brought up to date, not discarded;
+        // consumer-added fields inside it survive and source fields win.
+        let mut target = vec![
+            rec(&[("name", "lint"), ("run", "old"), ("consumer_extra", "keep")]),
+            rec(&[("name", "local-only")]),
+        ];
+        let source = vec![rec(&[
+            ("name", "lint"),
+            ("run", "new"),
+            ("upstream_new", "add"),
+        ])];
+
+        merge_vec_by_key(
+            &RecItems,
+            &mut target,
+            &source,
+            None,
+            InsertPosition::End,
+            &site(),
+            merge_rec,
+        );
+
+        assert_eq!(
+            target,
+            vec![
+                rec(&[
+                    ("name", "lint"),
+                    ("run", "new"),
+                    ("consumer_extra", "keep"),
+                    ("upstream_new", "add"),
+                ]),
+                rec(&[("name", "local-only")]),
+            ]
+        );
+    }
+
+    #[test]
+    fn merge_vec_by_key_is_a_fixed_point_after_deep_merge() {
+        // Re-applying the same source after a deep merge changes nothing,
+        // so a consumer that keeps its extra fields still gets a clean
+        // `diff` (issue #372).
+        let mut target = vec![rec(&[
+            ("name", "lint"),
+            ("run", "new"),
+            ("consumer_extra", "keep"),
+        ])];
+        let source = vec![rec(&[("name", "lint"), ("run", "new")])];
+
+        merge_vec_by_key(
+            &RecItems,
+            &mut target,
+            &source,
+            None,
+            InsertPosition::End,
+            &site(),
+            merge_rec,
+        );
+
+        assert_eq!(
+            target,
+            vec![rec(&[
+                ("name", "lint"),
+                ("run", "new"),
+                ("consumer_extra", "keep"),
+            ])]
         );
     }
 
@@ -409,6 +510,7 @@ mod tests {
             None,
             InsertPosition::Start,
             &site(),
+            merge_rec,
         );
 
         assert_eq!(

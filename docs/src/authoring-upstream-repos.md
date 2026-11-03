@@ -266,19 +266,25 @@ stays quiet because re-applying is a no-op.
 ```
 
 `merge_by_key` matches list items on a key field (`name`, then `uses`, then
-`id` for YAML/JSON/TOML; attributes for XML) and replaces the matched item in
-place, so a consumer that applied v1 and then bumps to v2 gets exactly your
-current steps. Items the consumer added themselves are preserved. For lists
-keyed by another field, set it explicitly (for example `key: repo` for
-pre-commit `repos[]`). See
+`id` for YAML/JSON/TOML; attributes for XML) and deep-merges the matched
+item in place, so a consumer that applied v1 and then bumps to v2 gets your
+current field values while keeping anything it added inside those items (an
+extra `with:` entry on your checkout step, an `env:` block on a step you
+own). Items the consumer added themselves are preserved, and so are fields
+the consumer added inside your items. For lists keyed by another field, set
+it explicitly (for example `key: repo` for pre-commit `repos[]`). See
 [Array Merge Modes](configuration.md#array-merge-modes) for the full rules.
 
-A matched item is replaced whole. If a consumer edits inside one of your
-keyed items (an extra `env:` or `with:` entry on your checkout step, for
-example), that edit is overwritten on every apply; only items the consumer
-added under their own keys survive. Switching an existing `append_unique`
-merge to `merge_by_key` does not remove the duplicates it already created:
-consumers delete the stale copies by hand once, and later bumps stay clean.
+Matching by key means "this is the same item, bring it up to date", not
+"discard it and take the upstream copy" (issue #372): your fields win
+conflicts, consumer-only fields inside the item survive, and nested lists
+inside the item follow the same array mode. The flip side is that you cannot
+remove a field from an item by deleting it from your copy — a consumer that
+already applied the old version keeps it, exactly as with mapping keys
+elsewhere in the file. Rename or re-key the item to make consumers drop the
+old one. Switching an existing `append_unique` merge to `merge_by_key` does
+not remove the duplicates it already created: consumers delete the stale
+copies by hand once, and later bumps stay clean.
 
 ### Unchanged Files Keep Their Bytes
 

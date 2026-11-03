@@ -220,6 +220,11 @@ pub fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, ctx: &YamlM
                                         }
                                     }
                                     ArrayMergeMode::MergeByKey => {
+                                        // The closure owns a clone of the
+                                        // child context so matched items
+                                        // deep-merge with the operator's
+                                        // settings (#372).
+                                        let item_ctx = child_ctx.clone();
                                         merge_vec_by_key(
                                             &YamlItems,
                                             target_seq,
@@ -227,6 +232,9 @@ pub fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, ctx: &YamlM
                                             array_key,
                                             position,
                                             &child_ctx.site(),
+                                            |dest, source| {
+                                                merge_yaml_values(dest, source, &item_ctx)
+                                            },
                                         );
                                     }
                                 }
@@ -237,7 +245,10 @@ pub fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, ctx: &YamlM
                                 );
                                 *existing = YamlValue::Sequence(source_seq.clone());
                             }
-                        } else {
+                        } else if existing != value {
+                            // An equal value is a no-op, not an overwrite:
+                            // logging it makes every auto-merge read as a
+                            // long list of routine clobbers (#392).
                             warn!(
                                 "{} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
                                 src_file,
@@ -305,6 +316,7 @@ pub fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, ctx: &YamlM
                         }
                     }
                     ArrayMergeMode::MergeByKey => {
+                        let item_ctx = ctx.clone();
                         merge_vec_by_key(
                             &YamlItems,
                             target_seq,
@@ -312,6 +324,7 @@ pub fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, ctx: &YamlM
                             array_key,
                             position,
                             &ctx.site(),
+                            |dest, source| merge_yaml_values(dest, source, &item_ctx),
                         );
                     }
                 }
@@ -327,21 +340,26 @@ pub fn merge_yaml_values(target: &mut YamlValue, source: &YamlValue, ctx: &YamlM
             }
         }
         _ => {
-            warn!(
-                "{} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
-                src_file,
-                dst_file,
-                path,
-                get_yaml_type_name(target),
-                get_yaml_type_name(source)
-            );
-            *target = source.clone();
+            if target != source {
+                warn!(
+                    "{} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
+                    src_file,
+                    dst_file,
+                    path,
+                    get_yaml_type_name(target),
+                    get_yaml_type_name(source)
+                );
+                *target = source.clone();
+            }
         }
     }
 }
 
 /// YAML sequence items for the shared keyed merge: key fields are scalar
-/// mapping entries and items compare by value.
+/// mapping entries and items compare by value. A matched pair deep-merges
+/// through [`merge_yaml_values`] with the operator's settings (passed as a
+/// closure by the caller) so consumer-added fields inside the item survive
+/// the apply (issue #372).
 struct YamlItems;
 
 impl KeyedItems for YamlItems {
@@ -1844,6 +1862,132 @@ mod tests {
             );
         }
         #[test]
+        fn test_yaml_merge_by_key_deep_merges_consumer_fields_inside_matched_step() {
+            // Issue #372: matching a step by key means "this is the same
+            // step, bring it up to date", not "discard it and take the
+            // upstream copy". Consumer-added fields inside a matched step
+            // survive; upstream fields win conflicts.
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string(
+                    "steps:\n  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n    with:\n      persist-credentials: false\n  - name: Check coverage threshold\n    run: coverage verify --threshold 80",
+                ),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string(
+                    "steps:\n  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n    with:\n      persist-credentials: true\n      fetch-depth: 0\n  - name: Check coverage threshold\n    run: coverage verify --threshold 70\n    env:\n      COVERAGE_FILE: .coverage/combined",
+                ),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
+            let steps = parsed["steps"].as_sequence().unwrap();
+            assert_eq!(steps.len(), 2);
+            // Upstream field wins the conflict...
+            assert_eq!(
+                steps[0]["with"]["persist-credentials"],
+                YamlValue::Bool(false)
+            );
+            // ...while the consumer's addition inside the matched step
+            // survives the apply.
+            assert_eq!(steps[0]["with"]["fetch-depth"], YamlValue::Number(0.into()));
+            assert_eq!(
+                steps[1]["run"],
+                YamlValue::String("coverage verify --threshold 80".to_string())
+            );
+            assert_eq!(
+                steps[1]["env"]["COVERAGE_FILE"],
+                YamlValue::String(".coverage/combined".to_string())
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_by_key_second_apply_is_byte_no_op() {
+            // After the deep merge, re-applying the same source must leave
+            // the file's bytes alone: a consumer that keeps its extra
+            // fields still gets a clean `diff` (issue #372).
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string("steps:\n  - name: Lint\n    run: make lint"),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.yaml",
+                File::from_string(
+                    "steps:\n  - name: Lint\n    run: make lint OLD\n    consumer-only: true",
+                ),
+            )
+            .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+            let after_first = read_file_as_string(&fs, "dest.yaml").unwrap();
+            assert!(
+                after_first.contains("consumer-only: true"),
+                "consumer field must survive the first apply"
+            );
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+            let after_second = read_file_as_string(&fs, "dest.yaml").unwrap();
+            assert_eq!(
+                after_second, after_first,
+                "second apply must be a byte-level no-op"
+            );
+        }
+
+        #[test]
+        fn test_yaml_merge_equal_values_do_not_rewrite_dest() {
+            // An overwrite whose source value equals the destination value
+            // is a no-op: no rewrite, so a stale-but-equal payload cannot
+            // churn a consumer file (#392).
+            let original = "name: CI\non:\n  pull_request:\n  push:\n    branches:\n      - main\n";
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.yaml",
+                File::from_string(
+                    "name: CI\non:\n  pull_request: null\n  push:\n    branches:\n      - main\n",
+                ),
+            )
+            .unwrap();
+            fs.add_file("dest.yaml", File::from_string(original))
+                .unwrap();
+
+            let op = YamlMergeOp {
+                source: Some("source.yaml".to_string()),
+                dest: Some("dest.yaml".to_string()),
+                ..Default::default()
+            };
+
+            apply_yaml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.yaml").unwrap();
+            assert_eq!(
+                result, original,
+                "equal values must keep the destination bytes"
+            );
+        }
+
+        #[test]
         fn test_yaml_merge_by_key_appends_new_step_and_preserves_consumer_steps() {
             let mut fs = MemoryFS::new();
             fs.add_file(
@@ -1939,9 +2083,12 @@ mod tests {
             let parsed: YamlValue = serde_yaml::from_str(&result).unwrap();
             let hooks = parsed["hooks"].as_sequence().unwrap();
             assert_eq!(hooks.len(), 1);
+            // Nested lists inside a matched item follow the same array mode
+            // (#372): these keyless scalar items dedupe by equality, so the
+            // consumer's flag stays and the upstream's is added.
             assert_eq!(
                 hooks[0]["args"],
-                serde_yaml::from_str::<YamlValue>("[-w]").unwrap()
+                serde_yaml::from_str::<YamlValue>("[-l, -w]").unwrap()
             );
         }
 

@@ -211,14 +211,19 @@ rule ArrayMergeByKey {
     when: MergeArrays(source, dest, mode, position, key)
     requires: mode = merge_by_key
 
-    -- Match items by a key field; a matched destination item is replaced in
-    -- place with the source item. Unmatched and keyless behavior below.
+    -- Match items by a key field; a matched destination item is deep-merged
+    -- with the source item in place (issue #372). Unmatched and keyless
+    -- behavior below.
     let detected_key(item) = first_present(item, key ?? [name, uses, id])
     ensures:
         for item in source:
             if detected_key(item) != null:
                 if any dst in dest where dst[key] = item[key]:
-                    result replaces that dst with item, in place
+                    result merges item into that dst, in place:
+                        source fields win conflicts,
+                        dest-only fields inside the item are preserved,
+                        nested arrays inside the item follow the same
+                        array mode
                 else:
                     item is new
             else:
@@ -229,11 +234,22 @@ rule ArrayMergeByKey {
         else:
             new items are appended after dest
     ensures: every dest item not matched by any source item is preserved
+    ensures: every dest field inside a matched item that the source does
+        not mention is preserved
     ensures: result is a fixed point of the merge (idempotent)
 
     @guidance
+        -- Matching by key means "this is the same item, bring it up to
+        -- date", not "discard it and take the upstream copy". The cost is
+        -- that an upstream cannot remove a field from an item by deleting
+        -- it from its copy: consumers that already applied the old version
+        -- keep it, exactly as with mapping keys elsewhere in the document.
+        -- Rename or re-key the item to make consumers drop the old one.
+        --
         -- XML resolves keys on attributes: key ?? [name, id]. XML items
         -- without a key attribute fall back to text-content uniqueness.
+        -- A matched XML element deep-merges like the lone same-name pair
+        -- does, so the outcome does not depend on sibling count.
         -- The key field is chosen from the SOURCE item; a destination item
         -- matches when it carries the same field with an equal value. Keys
         -- should be unique within an array; duplicate keys consume
@@ -515,10 +531,11 @@ rule XmlRepeatedElements {
             else:
                 result = insert_siblings_after(dest_children, unique, name, namespace)
         if mode = merge_by_key:
-            -- See ArrayMergeByKey: source siblings replace same-name dest
-            -- siblings carrying an equal key attribute (key ?? [name, id]),
-            -- in place; keyless siblings fall back to text-content
-            -- uniqueness; unmatched siblings are inserted at position.
+            -- See ArrayMergeByKey: source siblings deep-merge into
+            -- same-name dest siblings carrying an equal key attribute
+            -- (key ?? [name, id]), in place; keyless siblings fall back to
+            -- text-content uniqueness; unmatched siblings are inserted at
+            -- position.
             result = merge_siblings_by_key_attribute(dest_children, source_children, name, namespace, key, position)
 
     @guidance

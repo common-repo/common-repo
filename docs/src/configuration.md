@@ -692,12 +692,12 @@ The `path` option in merge operators supports multiple notations for navigating 
 | `replace` | Replace destination array with source array (default) |
 | `append` | Append source items to the end of destination array |
 | `append_unique` | Append only items not already in destination array |
-| `merge_by_key` | Match items by a key field and replace the matched item in place |
+| `merge_by_key` | Match items by a key field and deep-merge the matched item in place |
 
 `append_unique` compares whole items, so an upstream edit to an existing item
 makes it count as "new" and it gets appended next to the stale copy. For arrays
 whose items have a natural identity — GitHub Actions `steps`, pre-commit
-`hooks[]` — use `merge_by_key` instead: each source item replaces the
+`hooks[]` — use `merge_by_key` instead: each source item deep-merges into the
 destination item with the same key, new items are appended, and destination
 items the source does not mention are preserved.
 
@@ -707,13 +707,17 @@ key is an attribute (`name`, then `id`). Items without a key field fall back
 to `append_unique` behavior. `merge_by_key` is idempotent: re-running `apply`
 after an upstream bump updates the changed items without duplicating them.
 
-A matched item is replaced whole, not merged field by field. Consumer edits
-inside an item the upstream owns (an extra `env:` or `with:` entry added to
-the upstream's step, for example) are overwritten on every apply; only
-consumer-added items with their own keys survive. Duplicates that
-`append_unique` already created are not removed automatically: delete the
-stale copies by hand once before switching an existing merge to
-`merge_by_key`.
+A matched item is deep-merged field by field, not replaced whole (issue
+[#372](https://github.com/common-repo/common-repo/issues/372)): source fields
+win conflicts, consumer-only fields inside the item survive (`fetch-depth: 0`
+added under the upstream checkout step's `with:`, an `env:` block on an
+upstream step), and nested lists inside the item follow the same array mode.
+The consequence is that an upstream cannot remove a field from an item by
+deleting it from its copy — consumers that already applied the old version
+keep it, the same as for mapping keys everywhere else; rename or re-key the
+item instead. Duplicates that `append_unique` already created are not removed
+automatically: delete the stale copies by hand once before switching an
+existing merge to `merge_by_key`.
 
 ```yaml
 - yaml:
@@ -1098,13 +1102,16 @@ attributes override destination attributes on the same element. Repeated
 sibling elements with the same name are XML's arrays and follow the unified
 array merge model. With `array_mode: merge_by_key`, the key is an
 **attribute** on the element (auto-detected `name`, then `id`, or an
-explicit `key:`), never a child element — a matched sibling is replaced in
-place with the source element, siblings the source does not mention are
-preserved, and elements without a key attribute fall back to text-content
-uniqueness. A same-name pair is matched by key whenever either side
-carries a key attribute, even when there is only one element on each
-side; a lone pair with no key attribute on either side (a single config
-element such as `<settings>`) still merges recursively.
+explicit `key:`), never a child element — a matched sibling deep-merges in
+place (source attributes win, consumer-added attributes and child elements
+survive), siblings the source does not mention are preserved, and elements
+without a key attribute fall back to text-content uniqueness. A same-name
+pair is matched by key whenever either side carries a key attribute, even
+when there is only one element on each side, and merges the same way as a
+matched sibling in a larger group, so the outcome never depends on how many
+siblings sit next to the element; a lone pair with no key attribute on
+either side (a single config element such as `<settings>`) still merges
+recursively.
 
 ```yaml
 - xml:
