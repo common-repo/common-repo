@@ -73,6 +73,41 @@ jobs:
           git config user.name  'cog-bot'
           git config user.email 'cog-bot@users.noreply.github.com'
 
+      # Self-heal interrupted releases. This job pushes the tag and GitHub
+      # release before the bump commit, so any failure past that point (push
+      # rejected by repo rules, cancelled run, network blip) strands a semver
+      # tag on a commit that never reached the default branch. cog bump --auto
+      # resolves versions only from tags reachable from HEAD, so it recomputes
+      # an existing version and every later run dies with "tag already
+      # exists". Delete unsuperseded dangling tags and their orphaned releases
+      # before planning so the release re-cuts cleanly. Dangling tags older
+      # than the newest reachable release are left alone (already superseded,
+      # possibly kept deliberately), as is the moving major tag (v1), which
+      # the next successful release force-moves.
+      - name: Clean dangling release tags
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          latest="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --merged HEAD | sed 's/^v//' | sort -V | tail -n 1)"
+          if [[ -z "${latest}" ]]; then
+            exit 0
+          fi
+          for tag in $(git tag --list 'v[0-9]*.[0-9]*.[0-9]*'); do
+            if git merge-base --is-ancestor "${tag}^{commit}" HEAD; then
+              continue
+            fi
+            version="${tag#v}"
+            if [[ "$(printf '%s\n' "${latest}" "${version}" | sort -V | tail -n 1)" != "${version}" ]]; then
+              echo "::notice::${tag} dangles but is superseded by reachable v${latest}; keeping it"
+              continue
+            fi
+            echo "::warning::${tag} is unreachable from HEAD and unsuperseded; removing dangling tag and orphaned release"
+            gh release delete "${tag}" --yes 2>/dev/null || true
+            git push origin ":refs/tags/${tag}" || true
+            git tag -d "${tag}"
+          done
+
       # Dry-run to decide whether this push warrants a release. cog exits 0 in
       # both "bump planned" and "no bump needed" cases, distinguished by whether
       # stdout contains a semver. A non-zero exit means a real error (dirty
