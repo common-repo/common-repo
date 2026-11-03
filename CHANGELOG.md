@@ -1,6 +1,14 @@
 # Changelog
 
 - - -
+## v0.38.3 - 2026-11-03
+#### Bug Fixes
+- (**merge**) deep-merge matched keyed items so consumer fields survive apply - (2d02e19) - jathanism
+#### Continuous Integration
+- (**release**) self-heal unsuperseded dangling release tags - (551dbfd) - jathanism
+
+- - -
+
 ## v0.38.2 - 2026-10-29
 #### Bug Fixes
 - (**discovery**) order with: declarations ahead of the upstream's own - (6c57960) - jathanism
