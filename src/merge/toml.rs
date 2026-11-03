@@ -303,6 +303,11 @@ pub fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, ctx: &TomlM
                                         }
                                     }
                                     ArrayMergeMode::MergeByKey => {
+                                        // The closure owns a clone of the
+                                        // child context so matched items
+                                        // deep-merge with the operator's
+                                        // settings (#372).
+                                        let item_ctx = child_ctx.clone();
                                         merge_vec_by_key(
                                             &TomlItems,
                                             target_array,
@@ -310,6 +315,9 @@ pub fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, ctx: &TomlM
                                             array_key,
                                             position,
                                             &child_ctx.site(),
+                                            |dest, source| {
+                                                merge_toml_values(dest, source, &item_ctx)
+                                            },
                                         );
                                     }
                                 }
@@ -320,7 +328,9 @@ pub fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, ctx: &TomlM
                                 );
                                 *existing = TomlValue::Array(source_array.clone());
                             }
-                        } else {
+                        } else if existing != value {
+                            // An equal value is a no-op, not an
+                            // overwrite (#392).
                             warn!(
                                 "{} -> {}: Overwriting value at path '{}': {:?} -> {:?}",
                                 src_file,
@@ -388,6 +398,7 @@ pub fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, ctx: &TomlM
                         }
                     }
                     ArrayMergeMode::MergeByKey => {
+                        let item_ctx = ctx.clone();
                         merge_vec_by_key(
                             &TomlItems,
                             target_array,
@@ -395,6 +406,7 @@ pub fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, ctx: &TomlM
                             array_key,
                             position,
                             &ctx.site(),
+                            |dest, source| merge_toml_values(dest, source, &item_ctx),
                         );
                     }
                 }
@@ -410,21 +422,26 @@ pub fn merge_toml_values(target: &mut TomlValue, source: &TomlValue, ctx: &TomlM
             }
         }
         _ => {
-            warn!(
-                "{} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
-                src_file,
-                dst_file,
-                path,
-                get_toml_type_name(target),
-                get_toml_type_name(source)
-            );
-            *target = source.clone();
+            if target != source {
+                warn!(
+                    "{} -> {}: Overwriting scalar at path '{}': {:?} -> {:?}",
+                    src_file,
+                    dst_file,
+                    path,
+                    get_toml_type_name(target),
+                    get_toml_type_name(source)
+                );
+                *target = source.clone();
+            }
         }
     }
 }
 
 /// TOML array items for the shared keyed merge: key fields are scalar
-/// table entries and items compare by value.
+/// table entries and items compare by value. A matched pair deep-merges
+/// through [`merge_toml_values`] with the operator's settings (passed as a
+/// closure by the caller) so consumer-added keys inside the item survive
+/// the apply (issue #372).
 struct TomlItems;
 
 impl KeyedItems for TomlItems {
@@ -1183,6 +1200,41 @@ c = 3
             assert_eq!(steps.len(), 2);
             assert_eq!(steps[0]["run"].as_str(), Some("make build --release"));
             assert_eq!(steps[1]["name"].as_str(), Some("check"));
+        }
+
+        #[test]
+        fn test_toml_merge_by_key_deep_merges_consumer_keys_inside_matched_item() {
+            // Issue #372 (cog.toml shape from #392): a matched array-of-tables
+            // entry keeps keys the consumer added; source keys win conflicts.
+            let mut fs = MemoryFS::new();
+            fs.add_file(
+                "source.toml",
+                File::from_string("[[hooks]]\nname = \"pre_bump\"\nrun = \"cargo check\""),
+            )
+            .unwrap();
+            fs.add_file(
+                "dest.toml",
+                File::from_string(
+                    "[[hooks]]\nname = \"pre_bump\"\nrun = \"cargo test\"\nconsumer-only = true",
+                ),
+            )
+            .unwrap();
+
+            let op = TomlMergeOp {
+                source: Some("source.toml".to_string()),
+                dest: Some("dest.toml".to_string()),
+                array_mode: ArrayMergeMode::MergeByKey,
+                ..Default::default()
+            };
+
+            apply_toml_merge_operation(&mut fs, &op).unwrap();
+
+            let result = read_file_as_string(&fs, "dest.toml").unwrap();
+            let parsed: TomlValue = result.parse().unwrap();
+            let hooks = parsed["hooks"].as_array().unwrap();
+            assert_eq!(hooks.len(), 1);
+            assert_eq!(hooks[0]["run"].as_str(), Some("cargo check"));
+            assert_eq!(hooks[0]["consumer-only"].as_bool(), Some(true));
         }
 
         #[test]

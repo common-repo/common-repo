@@ -344,29 +344,26 @@ fn merge_repeated_elements(
             }
         }
         ArrayMergeMode::MergeByKey => {
-            // Keyed merge: source elements replace same-name dest elements
-            // carrying an equal key attribute value, in place. Keyless or
+            // Keyed merge: a source element deep-merges into the same-name
+            // dest element carrying an equal key attribute value, in place,
+            // so consumer-added children and attributes survive the update
+            // regardless of sibling count (issue #372). Keyless or
             // unmatched elements fall back to text-content uniqueness.
             let items = XmlItems { xot };
             let plan = plan_keyed_merge(&items, dest_elems, source_elems, ctx.array_key);
             let site = ctx.site();
-            let changed: Vec<bool> = plan
-                .replaced
-                .iter()
-                .map(|r| items.item_changed(&dest_elems[r.dest], &source_elems[r.source]))
-                .collect();
 
-            for (replacement, changed) in plan.replaced.iter().zip(changed) {
+            for replacement in &plan.replaced {
                 let src = source_elems[replacement.source];
                 let dst = dest_elems[replacement.dest];
-                if changed {
+                // The log decision compares the element before and after
+                // the merge: a consumer-extended element whose upstream
+                // attributes are already current is not a change (#372).
+                let before = xot.to_string(dst).ok();
+                merge_xml_elements(xot, dst, src, ctx)?;
+                if xot.to_string(dst).ok() != before {
                     log_replacement(&site, replacement);
                 }
-                clone_subtree_into(xot, parent, src, Some(dst))?;
-                xot.remove(dst).map_err(|e| Error::Merge {
-                    operation: "xml merge".to_string(),
-                    message: format!("Failed to remove element: {}", e),
-                })?;
             }
 
             let new_sources: Vec<xot::Node> = plan
@@ -613,6 +610,45 @@ mod tests {
         // unmatched source element is added, consumer-only element preserved
         assert!(result.contains("<server name=\"db\" replicas=\"1\"/>"));
         assert!(result.contains("<server name=\"cache\" replicas=\"9\"/>"));
+    }
+
+    #[test]
+    fn merge_by_key_deep_merges_matched_element_keeping_consumer_children() {
+        // Issue #372: a matched keyed element is brought up to date, not
+        // discarded. The consumer's child element and extra attributes
+        // survive the update regardless of how many siblings sit next to
+        // it — the single-sibling and repeated paths must agree.
+        let mut fs = MemoryFS::new();
+        fs.add_file(
+            "source.xml",
+            File::from_string(
+                "<servers><server name=\"web\" replicas=\"3\"/><server name=\"db\" replicas=\"1\"/></servers>",
+            ),
+        )
+        .unwrap();
+        fs.add_file(
+            "dest.xml",
+            File::from_string(
+                "<servers><server name=\"web\" replicas=\"1\" owner=\"consumer\"><probe path=\"/healthz\"/></server><server name=\"cache\" replicas=\"9\"/></servers>",
+            ),
+        )
+        .unwrap();
+
+        let op = XmlMergeOp::new()
+            .source("source.xml")
+            .dest("dest.xml")
+            .array_mode(ArrayMergeMode::MergeByKey);
+        apply_xml_merge_operation(&mut fs, &op).unwrap();
+
+        let result = read_file_as_string(&fs, "dest.xml").unwrap();
+        assert_eq!(result.matches("name=\"web\"").count(), 1);
+        // Upstream attribute wins the conflict...
+        assert!(result.contains("replicas=\"3\""), "in {result}");
+        // ...consumer attribute and child element survive the merge.
+        assert!(result.contains("owner=\"consumer\""), "in {result}");
+        assert!(result.contains("<probe path=\"/healthz\"/>"), "in {result}");
+        assert!(result.contains("name=\"db\""));
+        assert!(result.contains("name=\"cache\""));
     }
 
     #[test]
