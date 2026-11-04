@@ -703,13 +703,12 @@ items the source does not mention are preserved.
 
 The key field auto-detects `name`, then `uses`, then `id`. Set `key:` to match
 on another field (for example `repo` for pre-commit `repos[]`); for XML the
-key is an attribute (`name`, then `id`). An item that does not carry the
-explicit `key:` field falls back to the auto-detected candidates, so nested
-arrays inside a matched item keep keying on their own identity — pre-commit
-`hooks[]` key on `id` even when the file is keyed on `repo`. Items with no key
-field at all fall back to `append_unique` behavior. `merge_by_key` is
-idempotent: re-running `apply` after an upstream bump updates the changed
-items without duplicating them.
+key is an attribute (`name`, then `id`). An explicit `key:` only applies to
+items that carry the field; items without it key on `name`, `uses`, or `id`.
+That covers nested arrays: with `key: repo`, the `hooks[]` in each matched
+repo key on `id`. Items with none of these fields fall back to
+`append_unique` behavior. `merge_by_key` is idempotent: re-running `apply`
+after an upstream bump updates the changed items without duplicating them.
 
 A matched item is deep-merged field by field, not replaced whole (issue
 [#372](https://github.com/common-repo/common-repo/issues/372)): source fields
