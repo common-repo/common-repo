@@ -1,0 +1,14 @@
+{
+  "targets": [
+    {
+      "name": "web",
+      "replicas": 3,
+      "checks": [
+        {
+          "id": "http",
+          "path": "/healthz"
+        }
+      ]
+    }
+  ]
+}

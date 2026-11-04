@@ -6,9 +6,13 @@
 //! Every scenario is a byte-exact fixture under `tests/testdata/merge-by-key/`
 //! run through the shared expected-fixture runner: YAML (workflow steps,
 //! pre-commit repos keyed on `repo`, `position: start`), JSON, TOML
-//! array-of-tables, and XML (attribute keys). The runner re-applies each case
-//! and checks the tree again, so every `*.expected/` there is also asserted
-//! to be a fixed point.
+//! array-of-tables, and XML (attribute keys). The `*-nested` and
+//! `precommit-hook-*` cases pin the explicit-key candidate fallback for
+//! arrays nested inside a matched item (#394: pre-commit `hooks[]` key on
+//! `id` even when the file is keyed on `repo`), and `xml-single-id-keyed`
+//! pins the same fallback for a lone element pair. The runner re-applies
+//! each case and checks the tree again, so every `*.expected/` there is also
+//! asserted to be a fixed point.
 
 mod common;
 

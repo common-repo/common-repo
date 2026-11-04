@@ -1,0 +1,5 @@
+- include: ["**"]
+- xml:
+    auto-merge: config.xml
+    array_mode: merge_by_key
+    key: name

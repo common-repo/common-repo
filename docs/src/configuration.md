@@ -703,9 +703,13 @@ items the source does not mention are preserved.
 
 The key field auto-detects `name`, then `uses`, then `id`. Set `key:` to match
 on another field (for example `repo` for pre-commit `repos[]`); for XML the
-key is an attribute (`name`, then `id`). Items without a key field fall back
-to `append_unique` behavior. `merge_by_key` is idempotent: re-running `apply`
-after an upstream bump updates the changed items without duplicating them.
+key is an attribute (`name`, then `id`). An item that does not carry the
+explicit `key:` field falls back to the auto-detected candidates, so nested
+arrays inside a matched item keep keying on their own identity — pre-commit
+`hooks[]` key on `id` even when the file is keyed on `repo`. Items with no key
+field at all fall back to `append_unique` behavior. `merge_by_key` is
+idempotent: re-running `apply` after an upstream bump updates the changed
+items without duplicating them.
 
 A matched item is deep-merged field by field, not replaced whole (issue
 [#372](https://github.com/common-repo/common-repo/issues/372)): source fields
@@ -855,7 +859,7 @@ on: [push, pull_request]
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Dot-notation path to merge at |
 | `array_mode` | No | replace | Array handling: `replace`, `append`, `append_unique`, or `merge_by_key` |
-| `key` | No | auto | Key field for `merge_by_key`: `name`, then `uses`, then `id` |
+| `key` | No | auto | Key field for `merge_by_key`: `name`, then `uses`, then `id` (see [Array Merge Modes](#array-merge-modes)) |
 | `position` | No | end | Where to insert array items: `start` or `end` (used with the `append`, `append_unique`, and `merge_by_key` modes) |
 
 *Either `source`+`dest` or `auto-merge` is required
@@ -974,7 +978,7 @@ two-space expanded format, when a merge actually changes its content.
 | `defer` | No | false | Only apply when repo is used as an upstream |
 | `path` | No | root | Path to merge at (see [Path Syntax](#path-syntax)) |
 | `array_mode` | No | replace | Array handling: `replace`, `append`, `append_unique`, or `merge_by_key` |
-| `key` | No | auto | Key field for `merge_by_key`: `name`, then `uses`, then `id` |
+| `key` | No | auto | Key field for `merge_by_key`: `name`, then `uses`, then `id` (see [Array Merge Modes](#array-merge-modes)) |
 | `position` | No | end | Where to insert array items: `start` or `end` (used with the `append`, `append_unique`, and `merge_by_key` modes) |
 | `preserve-comments` | No | false | Keep comments in output |
 
