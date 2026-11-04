@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pool>
+  <worker id="w1" replicas="1"/>
+</pool>

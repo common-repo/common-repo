@@ -124,18 +124,21 @@ pub(crate) fn plan_keyed_merge<A: KeyedItems>(
 
 /// The key field and value for `item`: the explicit key when the item
 /// carries it as a scalar, else the first candidate it carries as a scalar.
+///
+/// The candidate fallback matters for nested arrays: an explicit `key: repo`
+/// on pre-commit `repos[]` also reaches the `hooks[]` inside each matched
+/// repo when the pair deep-merges (#372), and hooks carry no `repo` — they
+/// key on `id` instead, so a changed hook updates in place rather than
+/// duplicating (issue #394).
 pub(crate) fn resolve_key<'f, A: KeyedItems>(
     adapter: &A,
     item: &A::Item,
     explicit_key: Option<&'f str>,
 ) -> Option<(&'f str, A::Key)> {
-    let fields: &[&'f str] = match explicit_key {
-        Some(ref field) => std::slice::from_ref(field),
-        None => adapter.key_candidates(),
-    };
-    fields
-        .iter()
-        .find_map(|&field| adapter.key_value(item, field).map(|key| (field, key)))
+    explicit_key
+        .into_iter()
+        .chain(adapter.key_candidates().iter().copied())
+        .find_map(|field| adapter.key_value(item, field).map(|key| (field, key)))
 }
 
 /// Prefix under which the composite stages an upstream's copy of an
@@ -327,14 +330,47 @@ mod tests {
     }
 
     #[test]
-    fn explicit_key_overrides_candidates_and_missing_explicit_key_means_keyless() {
+    fn missing_explicit_key_falls_back_to_candidates() {
+        // Issue #394: with an explicit `key: repo` the nested `hooks` items
+        // carry no `repo`, so a hook falls back to the candidates and keys on
+        // its `id`; a changed hook then deep-merges in place instead of
+        // piling up next to the stale copy as a duplicate.
+        let dest = vec![rec(&[("id", "terraform_trivy"), ("args", "--old")])];
+        let source = vec![rec(&[("id", "terraform_trivy"), ("args", "--new")])];
+
+        let plan = plan_keyed_merge(&RecItems, &dest, &source, Some("repo"));
+
+        assert_eq!(
+            plan.replaced,
+            vec![Replacement {
+                source: 0,
+                dest: 0,
+                field: "id".to_string(),
+                key: "terraform_trivy".to_string(),
+            }]
+        );
+        assert_eq!(plan.new_items, Vec::<usize>::new());
+    }
+
+    #[test]
+    fn resolve_key_prefers_explicit_key_over_candidates() {
+        let item = rec(&[("name", "lint"), ("id", "lint")]);
+
+        assert_eq!(
+            resolve_key(&RecItems, &item, Some("id")),
+            Some(("id", "lint".to_string()))
+        );
+    }
+
+    #[test]
+    fn explicit_key_overrides_candidates_and_keyless_items_dedupe() {
         let dest = vec![
             rec(&[("name", "a"), ("email", "x@example.com")]),
-            rec(&[("name", "b")]),
+            rec(&[("run", "echo hi")]),
         ];
         let source = vec![
             rec(&[("name", "renamed"), ("email", "x@example.com")]),
-            rec(&[("name", "b")]),
+            rec(&[("run", "echo hi")]),
         ];
 
         let plan = plan_keyed_merge(&RecItems, &dest, &source, Some("email"));
@@ -348,7 +384,8 @@ mod tests {
                 key: "x@example.com".to_string(),
             }]
         );
-        // `{name: b}` has no `email`, so it is keyless and dedupes by equality.
+        // `{run: echo hi}` carries no `email` and no candidate field, so it
+        // is keyless and dedupes by equality.
         assert_eq!(plan.new_items, Vec::<usize>::new());
     }
 

@@ -214,7 +214,12 @@ rule ArrayMergeByKey {
     -- Match items by a key field; a matched destination item is deep-merged
     -- with the source item in place (issue #372). Unmatched and keyless
     -- behavior below.
-    let detected_key(item) = first_present(item, key ?? [name, uses, id])
+    -- The key field for an item is the explicit `key` when the item carries
+    -- it as a scalar, else the first candidate it carries as a scalar, so
+    -- nested arrays inside a matched item still key correctly when the
+    -- explicit key belongs to the outer list only (pre-commit `hooks[]`
+    -- under `key: repo` key on `id`, issue #394).
+    let detected_key(item) = first_present(item, [key] ++ [name, uses, id])
     ensures:
         for item in source:
             if detected_key(item) != null:
@@ -533,7 +538,8 @@ rule XmlRepeatedElements {
         if mode = merge_by_key:
             -- See ArrayMergeByKey: source siblings deep-merge into
             -- same-name dest siblings carrying an equal key attribute
-            -- (key ?? [name, id]), in place; keyless siblings fall back to
+            -- ([key] ++ [name, id], first attribute present on the item),
+            -- in place; keyless siblings fall back to
             -- text-content uniqueness; unmatched siblings are inserted at
             -- position.
             result = merge_siblings_by_key_attribute(dest_children, source_children, name, namespace, key, position)
