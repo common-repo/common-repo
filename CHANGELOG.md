@@ -1,6 +1,14 @@
 # Changelog
 
 - - -
+## v0.38.4 - 2026-11-04
+#### Bug Fixes
+- (**merge**) fall back to key candidates when an item lacks the explicit key - (ba56dde) - jathanism
+#### Documentation
+- (**merge**) reword the key fallback paragraph in plain terms - (1a6366e) - jathanism
+
+- - -
+
 ## v0.38.3 - 2026-11-03
 #### Bug Fixes
 - (**merge**) deep-merge matched keyed items so consumer fields survive apply - (2d02e19) - jathanism
