@@ -5,11 +5,8 @@
 # Ignore unmaintained/unsound crates in transitive dependencies we don't control
 # These come from: ptree, config, indicatif dependency chains
 ignore = [
-    "RUSTSEC-2021-0139",  # ansi_term - unmaintained (via ptree)
     "RUSTSEC-2024-0375",  # atty - unsound (via ptree)
     "RUSTSEC-2021-0145",  # atty - unmaintained (via ptree)
     "RUSTSEC-2025-0119",  # number_prefix - unmaintained (via indicatif)
     "RUSTSEC-2024-0370",  # proc-macro-error - unmaintained (via ptree->derivative)
-    "RUSTSEC-2024-0320",  # yaml-rust - unmaintained (via ptree->config)
-    "RUSTSEC-2023-0086",  # lexical-core - unsound (via ptree->config->nom)
 ]
